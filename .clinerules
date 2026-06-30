@@ -1,0 +1,195 @@
+# CLINE RULES
+
+## General Rules
+* Luôn trả lời bằng tiếng Việt.
+* Không được đoán mò.
+* Không được sửa mã theo kiểu thử sai ngẫu nhiên.
+* Luôn phân tích nguyên nhân gốc rễ trước khi sửa.
+* Luôn giải thích lý do của phương án được chọn.
+
+---
+
+## Plan Mode (Chế độ lên kế hoạch)
+Trong **Plan Mode**, Cline **CẤM TUYỆT ĐỐI** mọi hành động thay đổi trạng thái hệ thống, bao gồm nhưng không giới hạn:
+- Chỉnh sửa, ghi đè, xóa, tạo file (`edit`, `write`, `mv`, `rm`, v.v.)
+- Chạy lệnh build, test, deploy (`mvn`, `npm`, `docker`, v.v.)
+- Tạo artifact, file mới, log mới
+- Thay đổi cấu hình hệ thống
+
+Chỉ được phép: đọc file, tìm kiếm code, phân tích nguyên nhân, hỏi người dùng, và đề xuất phương án.
+
+### Xác nhận chế độ hoạt động
+Mỗi khi người dùng yêu cầu lập kế hoạch hoặc phân tích, Cline bắt buộc phải xác nhận chế độ đang hoạt động bằng dòng:
+`[PLAN MODE] Tôi hiện đang ở chế độ lập kế hoạch và sẽ không chỉnh sửa gì cho đến khi bạn phê duyệt.`
+
+### Yêu cầu tối thiểu trước khi đề xuất sửa
+Trước khi đề xuất bất kỳ thay đổi nào, Cline phải cung cấp đủ các phần sau:
+
+#### Root Cause Analysis (Phân tích nguyên nhân gốc rễ)
+- Nguyên nhân lỗi chi tiết.
+- File liên quan.
+- Thành phần liên quan.
+
+#### Proposed Solution (Giải pháp đề xuất)
+- Các phương án khả thi.
+- Ưu nhược điểm của từng phương án.
+- Phương án được chọn và lý do chọn.
+
+#### Impact Assessment (Đánh giá mức độ ảnh hưởng)
+- File sẽ thay đổi.
+- Module bị ảnh hưởng.
+- Hành vi của hệ thống có thể thay đổi như thế nào.
+
+---
+
+## Act Mode (Chế độ hành động)
+
+### Code Changes (Chỉnh sửa mã nguồn)
+* Chỉ sửa file cần thiết đã được duyệt ở Plan Mode.
+* Không thay đổi hành vi không liên quan.
+* Không thêm giải pháp tình thế (workaround) tạm thời nếu có giải pháp chính thức.
+* Giữ nguyên phong cách viết code (coding style) hiện có của dự án.
+* Nếu file quá lớn (max char lớn hơn 5900) thì chia nhỏ các file ra thành nhiều file.
+
+---
+
+## Paper Source Rules
+Dự án hiện tại là plugin chạy trên nền tảng Paper (Minecraft Server).
+
+Mã nguồn tham chiếu:
+```text
+/root/projects/Paper
+```
+
+Nếu vấn đề liên quan đến: Paper, Bukkit, Spigot, Event, Scheduler, Entity, Player, World, Chunk, Block, Inventory, Command, Packet, NMS, Async, Tick, Performance thì bắt buộc phải:
+1. Tìm kiếm trong thư mục `/root/projects/Paper`.
+2. Đọc trực tiếp lớp (class) liên quan.
+3. Đọc trực tiếp phương thức (method) liên quan.
+4. Đối chiếu trực tiếp với mã nguồn plugin hiện tại.
+5. Đưa ra kết luận dựa trên mã nguồn thực tế.
+
+Không được phép: Đoán hành vi của Paper, chỉ dựa vào trí nhớ, hoặc chỉ dựa vào dữ liệu đã được huấn luyện trước đó.
+
+Khi sử dụng mã nguồn tham chiếu của Paper, bắt buộc phải báo cáo theo mẫu:
+```text
+Paper References Used
+
+Files:
+- ...
+
+Classes:
+- ...
+
+Methods:
+- ...
+```
+
+---
+
+## Config-First Rule (Ưu tiên cấu hình)
+Mọi chức năng mới đều phải có file cấu hình hoặc một phần (section) riêng trong file cấu hình hiện có, giúp người dùng thay đổi dễ dàng mà không cần phải sửa lại code và biên dịch lại.
+* Ví dụ không đạt: Cố định (hardcode) các hiệu ứng hạt (particles), thời gian, hoặc tin nhắn hiển thị trong code Java.
+* Ví dụ đạt: Đọc tất cả giá trị từ `config.yml` hoặc `cultivation.yml`, có sẵn giá trị mặc định hợp lý phòng khi file cấu hình thiếu dòng, cho phép tùy biến toàn bộ chuỗi hiển thị, màu sắc, và số lượng.
+
+---
+
+## Maven Build Rules (Quy định bắt buộc khi biên dịch)
+Cấm tuyệt đối việc sử dụng các công cụ (tool) tự động, công cụ tích hợp sẵn của phần mềm để build/tạo file jar. Cline bắt buộc phải chạy lệnh Maven thủ công thông qua Terminal (cấu hình dòng lệnh).
+
+Sau khi sửa mã nguồn, bước xác minh cuối cùng chỉ được phép sử dụng một trong hai lệnh sau:
+```bash
+timeout 15m mvn clean package
+```
+hoặc:
+```bash
+timeout 15m mvn clean install
+```
+
+Cấm sử dụng các lệnh thiếu an toàn hoặc lệnh build nhanh như: `mvn package`, `mvn install`, `mvn compile`.
+
+---
+
+## Build Failure Rules (Xử lý khi biên dịch lỗi)
+Nếu quá trình build bằng lệnh Maven bị lỗi:
+1. Đọc kỹ nhật ký lỗi (log).
+2. Phân tích nguyên nhân gây lỗi.
+3. Tiến hành sửa lỗi.
+4. Chạy lại lệnh biên dịch Maven ở trên.
+Lặp lại chu trình này cho đến khi hệ thống báo thành công hoặc gặp phải một trở ngại không thể tự giải quyết (blocker). Không được dừng lại khi lệnh build vẫn báo lỗi.
+
+---
+
+## Artifact Verification (Xác minh kết quả đầu ra)
+Sau khi chạy lệnh Maven thành công, bắt buộc phải chạy các lệnh sau để kiểm tra file sản phẩm cuối cùng (file .jar):
+```bash
+ls -lh target/*.jar
+```
+```bash
+sha256sum target/*.jar
+```
+```bash
+date -u "+%Y-%m-%d %H:%M:%S UTC"
+```
+
+---
+
+## Strict Validation (Xác minh nghiêm ngặt)
+Cline không được phép sử dụng các cụm từ mơ hồ như: "Đã sửa xong", "Có vẻ đã sửa được", "Nên hoạt động", "Có thể build được"... trừ khi đã nhìn thấy kết quả thành công thực tế xuất hiện từ lệnh terminal `timeout 15m mvn clean package` hoặc `timeout 15m mvn clean install` trong phiên làm việc hiện tại.
+
+---
+
+## Anti-Hang Rules (Chống treo lệnh)
+Mọi lệnh chạy trên Terminal bắt buộc phải giới hạn thời gian (timeout).
+* nếu có lỗi nào liên quan đến permision thì chạy lệnh sau để fix permission rồi thử lại: sudo chown -R root:root /root/projects/hardcore
+* Build lệnh tạo file `.jar` được phép chạy tối đa 15 phút. Ví dụ: `timeout 15m mvn clean package`.
+* Lệnh chạy thử nghiệm (test) chạy tối đa 10 phút. Ví dụ: `timeout 10m mvn test`.
+* Cấm chạy các lệnh vô thời hạn: các lệnh khởi chạy server trực tiếp, lệnh theo dõi log liên tục có đuôi `-f` (như `tail -f`, `docker logs -f`), các trình chỉnh sửa văn bản giao diện terminal (`vim`, `nano`), hoặc các lệnh giám sát hệ thống (`top`, `htop`). Nếu cần xem log chỉ dùng lệnh xem số dòng cố định (Ví dụ: `tail -n 200 logfile.log`).
+
+---
+
+## Agent Recovery Rules (Tự phục hồi khi mất phản hồi)
+* Nếu ký tự chờ lệnh (shell prompt) đã xuất hiện trở lại trên terminal, xem như lệnh đó đã hoàn thành, không được tiếp tục ngồi chờ output.
+* Nếu lệnh không có dữ liệu mới xuất hiện trong 30 giây, phải dừng chờ, phân tích trạng thái hiện tại và đề xuất bước đi tiếp theo.
+
+---
+
+## Ngôn ngữ đơn giản
+* Không dùng các thuật ngữ quá chuyên môn và khó hiểu đối với người dùng phổ thông như: buildartifact, runner, artifact...
+* Thay vì dùng từ "artifact", hãy gọi là "file sản phẩm đầu ra" hoặc "file .jar thành phẩm".
+* Nếu bắt buộc phải dùng thuật ngữ chuyên môn, phải giải thích ngắn gọn, trực diện và dễ hiểu ngay bên cạnh.
+
+---
+
+## Final Report (Báo cáo tổng kết bắt buộc)
+Khi hoàn thành, Cline bắt buộc phải gửi một báo cáo chi tiết theo mẫu sau:
+
+### Build Status (Trạng thái biên dịch)
+SUCCESS (Thành công) hoặc FAILED (Thất bại)
+
+### Build Time (Thời gian biên dịch)
+Thời gian cụ thể khi chạy lệnh build thành công.
+
+### Artifact (Đường dẫn sản phẩm)
+Đường dẫn chính xác tới file JAR vừa được tạo ra.
+
+### Artifact Size (Kích thước file)
+Dung lượng chính xác của file JAR.
+
+### SHA256 (Mã định danh file)
+Chuỗi mã hóa SHA256 của file JAR mới nhất để kiểm tra tính toàn vẹn.
+
+### Paper References Used (Tài liệu Paper đã tham chiếu)
+* Files (Danh sách file)
+* Classes (Danh sách lớp)
+* Methods (Danh sách phương thức)
+
+### Modified Files (Danh sách file đã sửa)
+Liệt kê các file code đã chỉnh sửa.
+
+### Change Summary (Tóm tắt thay đổi)
+Mô tả ngắn gọn các chỉnh sửa đã thực hiện.
+
+---
+
+## Completion Rules (Quy định hoàn thành)
+Cline không được tuyên bố hoàn thành công việc nếu chưa đi qua đủ các bước: Phân tích nguyên nhân -> Sửa lỗi trong Act Mode -> Build thành công bằng lệnh Maven thủ công -> Xác minh sinh file JAR mới -> Tính mã SHA256 -> Gửi báo cáo đầy đủ.

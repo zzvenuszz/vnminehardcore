@@ -1,0 +1,384 @@
+# ============================================================
+# ================== VnMineHardcore v1.0.0 ==================
+# ==================   CẤU HÌNH / CONFIG   ==================
+# ============================================================
+# [VI] File cấu hình chính của plugin VnMineHardcore.
+#      Tất cả các thông số đều có thể thay đổi và có giá trị mặc định.
+# [EN] Main configuration file for VnMineHardcore plugin.
+#      All parameters can be changed and have default values.
+# ============================================================
+
+# ============================================================
+# [DEATH] ☠ TỬ THẦN / DEATH
+# ============================================================
+death:
+  # [VI] Cấm (ban) người chơi vĩnh viễn khi chết
+  # [EN] Permanently ban the player upon death
+  ban-on-death: true
+
+  # [VI] Cũng cấm luôn địa chỉ IP (chỉ hoạt động nếu ban-on-death: true)
+  # [EN] Also ban the player's IP address (only works if ban-on-death: true)
+  ban-ip: true
+
+  # [VI] Thông báo cái chết cho toàn bộ server
+  # [EN] Broadcast death message to all players
+  broadcast-death: true
+
+  # [VI] Phát âm thanh wither death khi có người chết
+  # [EN] Play wither death sound when a player dies
+  play-sound: true
+
+# ============================================================
+# [COMBAT] ⚔ CHIẾN ĐẤU / COMBAT
+# ============================================================
+combat:
+  # ===== SÁT THƯƠNG / DAMAGE MULTIPLIERS =====
+  # [VI] Hệ số nhân sát thương từ quái vật (1.0 = bình thường)
+  # [EN] Damage multiplier from mobs (1.0 = normal)
+  mob-damage-multiplier: 2.0
+
+  # [VI] Hệ số nhân sát thương ngã (1.0 = bình thường)
+  # [EN] Fall damage multiplier (1.0 = normal)
+  fall-damage-multiplier: 2.0
+
+  # [VI] Hệ số nhân sát thương lửa / dung nham (1.0 = bình thường)
+  # [EN] Fire/lava damage multiplier (1.0 = normal)
+  fire-damage-multiplier: 2.0
+
+  # [VI] Hệ số nhân sát thương chết đuối (1.0 = bình thường)
+  # [EN] Drowning damage multiplier (1.0 = normal)
+  drowning-damage-multiplier: 2.0
+
+  # [VI] Hệ số nhân sát thương nổ (1.0 = bình thường)
+  # [EN] Explosion damage multiplier (1.0 = normal)
+  explosion-damage-multiplier: 1.5
+
+  # [VI] Hệ số nhân sát thương PvP (1.0 = bình thường)
+  # [EN] PvP damage multiplier (1.0 = normal)
+  pvp-damage-multiplier: 1.25
+
+  # ===== QUÁI VẬT / MOB STATS =====
+  # [VI] Hệ số nhân máu tối đa của quái vật (1.0 = bình thường)
+  # [EN] Extra max health multiplier for mobs (1.0 = normal)
+  mob-extra-hp-multiplier: 1.5
+
+  # ===== HỒI PHỤC MÁU / HEALTH REGENERATION =====
+  # [VI] Tắt hoàn toàn hồi phục máu tự nhiên (true = tắt, false = bật)
+  # [EN] Completely disable natural health regeneration (true = off, false = on)
+  disable-natural-regen: true
+
+  # [VI] Hệ số hồi phục máu (chỉ dùng khi disable-natural-regen: false)
+  #     1.0 = hồi phục như vanilla, 0.5 = hồi 50%, 0 = không hồi phục
+  # [EN] Regeneration multiplier (only used when disable-natural-regen: false)
+  #     1.0 = vanilla regen, 0.5 = 50% regen, 0 = no regen
+  regen-multiplier: 1.0
+
+  # ===== CHIẾN ĐẤU (COMBAT TAG) =====
+  # [VI] Thời gian duy trì trạng thái combat (giây).
+  #     Nếu thoát game khi đang combat sẽ bị ban (combat-log).
+  #     Combat kết thúc khi: hết thời gian, hoặc mob từ bỏ truy đuổi.
+  # [EN] Combat tag duration (seconds).
+  #     Quitting while combat-tagged results in a ban (combat-log).
+  #     Combat ends when: timer expires, or mob stops tracking the player.
+  combat-tag-duration-seconds: 30
+
+  # ===== VẬT PHẨM / ITEMS =====
+  # [VI] Sát thương khi sử dụng Ender Pearl (tim)
+  # [EN] Damage taken when using Ender Pearl (hearts)
+  ender-pearl-damage: 10.0
+
+# ============================================================
+# [HUNGER] 🍔 ĐÓI / HUNGER
+# ============================================================
+hunger:
+  # [VI] Bật hệ thống đói
+  # [EN] Enable hunger system
+  enabled: true
+
+  # [VI] Thời gian giữa các lần giảm đói (tick, 20 tick = 1 giây)
+  # [EN] How often hunger decreases (in ticks, 20 ticks = 1 second)
+  drain-interval-ticks: 80
+
+  # [VI] Hệ số hồi phục thức ăn (1.0 = bình thường, 0.5 = 50%)
+  # [EN] Food restoration multiplier (1.0 = normal, 0.5 = 50%)
+  food-restore-multiplier: 0.5
+
+  # [VI] Sát thương khi đói hoàn toàn (tim)
+  # [EN] Damage taken when starving (hearts)
+  starvation-damage: 2.0
+
+  # [VI] Mức thức ăn tối thiểu để có thể chạy (0-20)
+  # [EN] Minimum food level to be able to sprint (0-20)
+  sprint-min-food: 4
+
+  # [VI] Bật ngộ độc khi ăn thức ăn sống (thịt sống, thịt thối, cá nóc...)
+  # [EN] Enable raw food poisoning (raw meat, rotten flesh, pufferfish...)
+  raw-food-poison: true
+
+  # [VI] Bật hiệu ứng nghẹn khi ăn quá nhanh
+  # [EN] Enable choking when eating too fast
+  choke-enabled: true
+
+  # [VI] Số lần ăn tối đa trong khung thời gian trước khi bị nghẹn
+  # [EN] Maximum eats within the time window before choking
+  choke-max-eats: 3
+
+  # [VI] Khung thời gian kiểm tra nghẹn (miligiây)
+  # [EN] Time window for choking check (milliseconds)
+  choke-window-ms: 10000
+
+  # [VI] Sát thương khi bị nghẹn (tim)
+  # [EN] Damage from choking (hearts)
+  choke-damage: 4.0
+
+  # [VI] Bật hiệu ứng phát nổ khi ăn táo vàng enchanted (Notch Apple)
+  # [EN] Enable explosion when eating enchanted golden apple (Notch Apple)
+  notch-apple-explode: true
+
+  # [VI] Sát thương từ táo vàng enchanted phát nổ (tim)
+  # [EN] Damage from enchanted golden apple explosion (hearts)
+  notch-apple-damage: 20.0
+
+# ============================================================
+# [THIRST] 💧 KHÁT / THIRST
+# ============================================================
+thirst:
+  # [VI] Bật hệ thống khát nước
+  # [EN] Enable thirst system
+  enabled: true
+
+  # [VI] Thời gian giữa các lần giảm khát (miligiây)
+  # [EN] How often thirst decreases (milliseconds)
+  drain-interval-ms: 8000
+
+  # [VI] Sát thương khi khát về 0 (tim)
+  # [EN] Damage when thirst reaches 0 (hearts)
+  thirst-damage: 1.0
+
+  # [VI] Mức khát tối đa
+  # [EN] Maximum thirst level
+  max-thirst: 20
+
+  # ===== UỐNG NƯỚC TỪ NGUỒN / DRINK FROM SOURCE =====
+  # [VI] Cho phép uống nước trực tiếp từ nguồn nước (sông, hồ, biển, vạc...)
+  # [EN] Allow drinking directly from water sources (rivers, lakes, cauldrons...)
+  drink-from-source: true
+
+  # [VI] Lượng khát hồi phục khi uống từ nguồn
+  # [EN] Thirst restored when drinking from source
+  drink-source-restore: 4
+
+  # [VI] Thời gian hồi giữa các lần uống từ nguồn (miligiây)
+  # [EN] Cooldown between drinking from source (milliseconds)
+  drink-source-cooldown-ms: 3000
+
+  # ===== NƯỚC TỰ NHIÊN (SÔNG, BIỂN) / NATURAL WATER (RIVERS, OCEANS) =====
+  # [VI] Cấu hình hiệu ứng khi uống nước từ nguồn tự nhiên (sông, suối, biển)
+  #     Nước từ vạc (cauldron) không bị ảnh hưởng. Có thể tắt hoàn toàn.
+  # [EN] Effects when drinking from natural sources (rivers, streams, oceans).
+  #     Water from cauldrons is NOT affected. Can be fully disabled.
+  natural-water:
+    # [VI] Bật hiệu ứng khi uống nước tự nhiên
+    # [EN] Enable effects for drinking natural water
+    enabled: true
+
+    # [VI] Sát thương nhận được MỖI GIÂY khi uống nước tự nhiên (tim)
+    # [EN] Damage taken PER SECOND when drinking natural water (hearts)
+    damage-per-second: 2.0
+
+    # [VI] Tổng thời gian chịu ảnh hưởng của nước bẩn (giây)
+    # [EN] Total duration of dirty water effects (seconds)
+    duration-seconds: 10
+
+    # [VI] Cường độ hiệu ứng Nausea (buồn nôn / chóng mặt)
+    #     0 = Cấp I, 1 = Cấp II, cứ thế tăng dần
+    # [EN] Nausea (motion sickness) effect amplifier
+    #     0 = Level I, 1 = Level II, and so on
+    nausea-amplifier: 0
+
+  # ===== CHAI LỌ / BOTTLES =====
+  # [VI] Cho phép lấy nước vào chai thủy tinh từ nguồn nước
+  # [EN] Allow filling glass bottles with water from sources
+  bottle-fill: true
+
+  # [VI] Lượng khát hồi phục khi uống chai nước (Potion)
+  # [EN] Thirst restored from drinking a water bottle (Potion)
+  bottle-restore: 6
+
+  # [VI] Lượng khát hồi phục khi uống xô nước (Water Bucket)
+  # [EN] Thirst restored from drinking a water bucket
+  bucket-restore: 8
+
+# ============================================================
+# [ENVIRONMENT] 🌍 MÔI TRƯỜNG / ENVIRONMENT
+# ============================================================
+environment:
+  # ===== NHIỆT ĐỘ / TEMPERATURE =====
+  temperature:
+    # [VI] Bật hệ thống nhiệt độ (nóng ở sa mạc, lạnh ở tuyết)
+    # [EN] Enable temperature system (heat in deserts, cold in snow)
+    enabled: true
+
+    # [VI] Thời gian giữa các lần kiểm tra nhiệt độ (miligiây)
+    # [EN] How often to check temperature (milliseconds)
+    check-interval-ms: 30000
+
+    # [VI] Sát thương khi ở nơi quá nóng (tim)
+    # [EN] Damage when in hot environment (hearts)
+    heat-damage: 1.0
+
+    # [VI] Sát thương khi ở nơi quá lạnh (tim)
+    # [EN] Damage when in cold environment (hearts)
+    cold-damage: 1.0
+
+  # ===== SƯƠNG MÙ / FOG (DARKNESS EFFECT) =====
+  fog:
+    # [VI] Bật hiệu ứng sương mù (Darkness effect)
+    #     Làm tối tầm nhìn của người chơi định kỳ
+    # [EN] Enable fog effect (Darkness effect)
+    #     Periodically darkens the player's vision
+    enabled: true
+
+    # [VI] Thời gian giữa các đợt áp dụng sương mù (tick, 20 tick = 1 giây)
+    #     Giá trị càng cao thì sương mù càng hiếm xuất hiện
+    # [EN] Interval between fog applications (ticks, 20 ticks = 1 second)
+    #     Higher values mean fog occurs less frequently
+    interval-ticks: 80
+
+    # [VI] Thời gian hiệu ứng sương mù kéo dài (tick, 20 tick = 1 giây)
+    #     Giá trị càng cao thì càng mù lâu hơn
+    # [EN] Duration of fog (Darkness) effect (ticks, 20 ticks = 1 second)
+    #     Higher values means longer blindness
+    effect-duration-ticks: 100
+
+    # [VI] Cường độ hiệu ứng mù (0 = Cấp I nhẹ, 1 = Cấp II nặng hơn)
+    #     Giá trị càng cao thì mù càng nặng
+    # [EN] Fog effect amplifier (0 = Level I mild, 1 = Level II stronger)
+    #     Higher values = stronger blindness
+    effect-amplifier: 0
+
+  # ===== NGỦ / SLEEP =====
+  sleep:
+    # [VI] Chặn ngủ (không cho phép lên giường)
+    # [EN] Block sleeping (prevents using beds)
+    block: true
+
+    # [VI] Sát thương khi cố gắng ngủ (tim)
+    # [EN] Damage taken when attempting to sleep (hearts)
+    damage: 4.0
+
+  # ===== CÂY TRỒNG / CROP GROWTH =====
+  crop-slow:
+    # [VI] Bật làm chậm sự phát triển của cây trồng
+    # [EN] Enable slower crop growth
+    enabled: true
+
+    # [VI] Hệ số tốc độ phát triển (1.0 = bình thường, 0.5 = chậm 50%)
+    # [EN] Growth speed multiplier (1.0 = normal, 0.5 = 50% slower)
+    multiplier: 0.75
+
+  # ===== ĐỘ BỀN CÔNG CỤ / TOOL DURABILITY =====
+  tool-wear:
+    # [VI] Bật hao mòn công cụ nhanh hơn
+    # [EN] Enable faster tool wear
+    enabled: true
+
+    # [VI] Hệ số hao mòn thêm (1.0 = bình thường, 1.5 = hao nhanh gấp 1.5)
+    # [EN] Extra durability loss multiplier (1.0 = normal, 1.5 = 1.5x faster)
+    multiplier: 1.5
+
+  # ===== BAY / FLIGHT =====
+  flight:
+    # [VI] Chặn bay (kể cả Creative mode, trừ khi có permission vnmine.hardcore.bypass)
+    # [EN] Block flight (even in Creative mode, unless has vnmine.hardcore.bypass permission)
+    block: true
+
+  # ===== SỢ HẦM / CLAUSTROPHOBIA =====
+  claustrophobia:
+    # [VI] Bật hiệu ứng sợ hầm (dưới lòng đất)
+    # [EN] Enable claustrophobia effect (underground)
+    enabled: true
+
+    # [VI] Cao độ Y tối đa để kích hoạt sợ hầm
+    # [EN] Maximum Y level for claustrophobia to trigger
+    y-level: 30
+
+    # [VI] Tỷ lệ kích hoạt mỗi bước di chuyển (phần trăm)
+    # [EN] Trigger chance per movement (percent)
+    chance: 5
+
+  # ===== CHÓNG MẶT / VERTIGO =====
+  vertigo:
+    # [VI] Bật hiệu ứng chóng mặt (trên cao)
+    # [EN] Enable vertigo effect (high altitude)
+    enabled: true
+
+    # [VI] Cao độ Y tối thiểu để kích hoạt chóng mặt
+    # [EN] Minimum Y level for vertigo to trigger
+    y-level: 200
+
+    # [VI] Tỷ lệ kích hoạt mỗi bước di chuyển (phần trăm)
+    # [EN] Trigger chance per movement (percent)
+    chance: 10
+
+# ============================================================
+# [DISASTERS] 🌋 THIÊN TAI / DISASTERS
+# ============================================================
+disasters:
+  # [VI] Bật hệ thống thiên tai tự động
+  # [EN] Enable automatic disaster system
+  enabled: true
+
+  # [VI] Thời gian tối thiểu giữa các lần kiểm tra thiên tai (giây)
+  # [EN] Minimum seconds between disaster checks
+  min-interval-seconds: 120
+
+  # [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
+  # [EN] Warning time in seconds before a disaster strikes
+  warning-seconds: 300
+
+  # [VI] Tỷ lệ xuất hiện của từng loại thiên tai (phần trăm)
+  #     Giá trị càng cao càng dễ xảy ra
+  # [EN] Spawn chance for each disaster type (percent)
+  #     Higher values = more likely to occur
+
+  # 🌕 Trăng máu - Quái vật sinh sản ồ ạt, mạnh hơn
+  blood-moon-chance: 30
+
+  # ☄️ Mưa sao băng - Thiên thạch rơi, nổ
+  meteor-chance: 5
+
+  # 🌊 Siêu bão - Sấm sét, mưa axit, mù
+  mega-storm-chance: 5
+
+  # 🔥 Bão mặt trời - Ánh nắng gây cháy, mù
+  solar-flare-chance: 3
+
+  # 🦠 Dịch bệnh - Gây độc, suy yếu, đói
+  plague-chance: 2
+
+  # 🌪️ Lốc xoáy - Nhấc bổng người chơi, phá hủy khối
+  tornado-chance: 2
+
+  # 📉 Nhật thực - Ban ngày thành đêm, quái xuất hiện
+  eclipse-chance: 1
+
+# ============================================================
+# [LOGGING] 📝 NHẬT KÝ / LOGGING
+# ============================================================
+logging:
+  # [VI] Bật log debug trong console (dành cho debug, có thể rất nhiều dòng)
+  # [EN] Enable debug console logs (for debugging, may be very verbose)
+  console-debug: false
+
+  # [VI] Ghi nhật ký các cái chết
+  # [EN] Log deaths
+  log-deaths: true
+
+  # [VI] Ghi nhật ký các vụ ban
+  # [EN] Log bans
+  log-bans: true
+
+  # [VI] Ghi nhật ký các sự kiện thiên tai
+  # [EN] Log disasters
+  log-disasters: true
