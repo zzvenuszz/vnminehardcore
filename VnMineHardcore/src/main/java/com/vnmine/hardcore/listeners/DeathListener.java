@@ -3,6 +3,7 @@ package com.vnmine.hardcore.listeners;
 import com.vnmine.hardcore.VnMineHardcore;
 import com.vnmine.hardcore.managers.BanManager;
 import com.vnmine.hardcore.managers.ConfigManager;
+import com.vnmine.hardcore.managers.DeathRenameManager;
 import com.vnmine.hardcore.managers.LogManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -27,16 +28,18 @@ public class DeathListener implements Listener {
     private final VnMineHardcore plugin;
     private final BanManager banManager;
     private final LogManager logManager;
+    private final DeathRenameManager renameManager;
     private final ConfigManager config;
     private final Logger logger;
     private final Map<UUID, Long> combatTagged = new HashMap<>();
     private long combatTagDurationMs;
     private BukkitRunnable combatCheckTask;
 
-    public DeathListener(VnMineHardcore plugin, ConfigManager config) {
+    public DeathListener(VnMineHardcore plugin, ConfigManager config, DeathRenameManager renameManager) {
         this.plugin = plugin;
         this.banManager = plugin.getBanManager();
         this.logManager = plugin.getLogManager();
+        this.renameManager = renameManager;
         this.config = config;
         this.logger = plugin.getLogger();
 
@@ -131,6 +134,9 @@ public class DeathListener implements Listener {
                 logger.info("[Death] " + player.getName() + " has been banned permanently!");
             });
         }
+
+        // Update display name after death (if rename enabled)
+        renameManager.updateDisplayName(player, logManager.getDeathCount(player));
     }
 
     @EventHandler
@@ -154,6 +160,11 @@ public class DeathListener implements Listener {
             player.sendMessage("§4🌋 Thiên tai: Blood Moon, Meteor, Storm, Solar Flare, Plague, Tornado, Eclipse");
             player.sendMessage("§a✊ Hãy cố gắng sống sót!");
         }, 60L);
+
+        // Apply display name from death count on join (if rename enabled)
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            renameManager.updateDisplayName(player, logManager.getDeathCount(player));
+        }, 40L);
 
         logger.info("[Death] " + player.getName() + " joined (deaths: " + logManager.getDeathCount(player) + ")");
     }

@@ -16,6 +16,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private LogManager logManager;
     private ThirstManager thirstManager;
     private DisasterManager disasterManager;
+    private DeathRenameManager deathRenameManager;
     private DeathListener deathListener;
     private CombatListener combatListener;
     private EnvironmentListener environmentListener;
@@ -38,9 +39,10 @@ public final class VnMineHardcore extends JavaPlugin {
         this.logManager = new LogManager(this);
         this.thirstManager = new ThirstManager(this, configManager);
         this.disasterManager = new DisasterManager(this, configManager);
+        this.deathRenameManager = new DeathRenameManager(this, configManager);
 
         // Create listeners (pass config)
-        this.deathListener = new DeathListener(this, configManager);
+        this.deathListener = new DeathListener(this, configManager, deathRenameManager);
         this.combatListener = new CombatListener(this, deathListener, configManager);
         this.environmentListener = new EnvironmentListener(this, configManager);
         this.hungerListener = new HungerListener(this, configManager);
@@ -59,6 +61,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.getCommand("vnreload").setExecutor(this);
         this.getCommand("vnhelp").setExecutor(this);
         this.getCommand("vnevent").setExecutor(this);
+        this.getCommand("vn").setExecutor(this);
 
         getLogger().info("§a  VnMineHardcore enabled - Hell difficulty!");
         getLogger().info("§c  Death = Permanent Ban!");
@@ -85,6 +88,7 @@ public final class VnMineHardcore extends JavaPlugin {
             sender.sendMessage("§e/vnstats §7- Xem thống kê của bạn");
             sender.sendMessage("§e/vnhardcore §7- Xem trạng thái plugin");
             sender.sendMessage("§e/vnhardcore unban <player> §7- Bỏ ban player");
+            sender.sendMessage("§e/vn death reset <player> §7- Reset số lần chết của player về 0");
             sender.sendMessage("§e/vnevent §7- Gọi thiên tai thủ công (xem danh sách)");
             sender.sendMessage("§e/vnevent <id> <time> <duration> §7- Gọi thiên tai cụ thể");
             sender.sendMessage("§e/vnreload §7- Tải lại config.yml");
@@ -231,8 +235,58 @@ public final class VnMineHardcore extends JavaPlugin {
                 " Fly=" + (configManager.flightBlock ? "§cBLOCK" : "§aOK"));
             sender.sendMessage("§4🌋 DISASTERS: " + (configManager.disastersEnabled ? "§a" : "§c") + "ON" +
                 (disasterManager.isDisasterActive() ? " §c⚠ ACTIVE: " + disasterManager.getCurrentDisaster() : ""));
-            sender.sendMessage("§eCommands: §7/vnhelp | /vnreload | /vnevent | /vnhardcore unban <player>");
+            sender.sendMessage("§e🏷 RENAME: " + (configManager.renameEnabled ? "§aON" : "§cOFF") +
+                (configManager.renameEnabled ? " §7| Format: §f\"" + configManager.nameStructure + "\"" : ""));
+            sender.sendMessage("§eCommands: §7/vnhelp | /vnreload | /vnevent | /vnhardcore unban <player> | /vn death reset <player>");
             sender.sendMessage("§6§m========================================");
+            return true;
+        }
+
+        // /vn - Main command with subcommands
+        if (command.getName().equalsIgnoreCase("vn")) {
+            if (args.length == 0) {
+                sender.sendMessage("§cSử dụng: /vn <subcommand>");
+                sender.sendMessage("§cGõ /vnhelp để xem danh sách lệnh.");
+                return true;
+            }
+
+            // /vn death reset <player>
+            if (args.length >= 2 && args[0].equalsIgnoreCase("death") && args[1].equalsIgnoreCase("reset")) {
+                if (!sender.hasPermission("vnmine.hardcore.admin")) {
+                    sender.sendMessage("§cBạn không có quyền!");
+                    return true;
+                }
+                if (args.length < 3) {
+                    sender.sendMessage("§cSử dụng: /vn death reset <player>");
+                    return true;
+                }
+
+                String targetName = args[2];
+                Player target = Bukkit.getPlayerExact(targetName);
+
+                if (target != null && target.isOnline()) {
+                    // Player online - reset and update display name
+                    logManager.resetDeathCount(target.getUniqueId());
+                    deathRenameManager.updateDisplayName(target, 0);
+                    sender.sendMessage("§a✅ Đã reset số lần chết của §e" + target.getName() + " §avề 0 (online)");
+                    getLogger().info("[Cmd] " + sender.getName() + " reset death count for online player " + target.getName());
+                } else {
+                    // Player offline - try to find by name via Bukkit.getOfflinePlayer
+                    @SuppressWarnings("deprecation")
+                    org.bukkit.OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(targetName);
+                    if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
+                        logManager.resetDeathCount(offlinePlayer.getUniqueId());
+                        sender.sendMessage("§a✅ Đã reset số lần chết của §e" + offlinePlayer.getName() + " §avề 0 (offline)");
+                        getLogger().info("[Cmd] " + sender.getName() + " reset death count for offline player " + offlinePlayer.getName());
+                    } else {
+                        sender.sendMessage("§c❌ Không tìm thấy người chơi §e" + targetName);
+                    }
+                }
+                return true;
+            }
+
+            // Unknown subcommand
+            sender.sendMessage("§cLệnh phụ không hợp lệ. Gõ /vnhelp để xem hướng dẫn.");
             return true;
         }
 

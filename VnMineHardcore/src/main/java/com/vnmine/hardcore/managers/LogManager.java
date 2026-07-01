@@ -70,6 +70,22 @@ public class LogManager {
         return playerStats.getOrDefault(player.getUniqueId(), new PlayerStats()).deathCount;
     }
 
+    /**
+     * Reset số lần chết của một người chơi về 0.
+     * @param uuid UUID của người chơi
+     */
+    public void resetDeathCount(UUID uuid) {
+        PlayerStats stats = playerStats.get(uuid);
+        if (stats != null) {
+            stats.deathCount = 0;
+            stats.lastDeath = 0;
+            saveStats();
+            plugin.getLogger().info("[LogManager] Reset death count for UUID: " + uuid);
+        } else {
+            plugin.getLogger().warning("[LogManager] Cannot reset death count: no stats found for UUID: " + uuid);
+        }
+    }
+
     public String getSurvivalTime(Player player) {
         PlayerStats stats = playerStats.get(player.getUniqueId());
         if (stats == null) return "N/A";

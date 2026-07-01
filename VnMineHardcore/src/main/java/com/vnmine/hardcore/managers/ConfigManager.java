@@ -94,6 +94,10 @@ public class ConfigManager {
     public int tornadoChance;
     public int eclipseChance;
 
+    // Rename
+    public boolean renameEnabled;
+    public String nameStructure;
+
     // Logging
     public boolean consoleDebug;
     public boolean logDeaths;
@@ -195,6 +199,10 @@ public class ConfigManager {
         plagueChance = config.getInt("disasters.plague-chance", 2);
         tornadoChance = config.getInt("disasters.tornado-chance", 2);
         eclipseChance = config.getInt("disasters.eclipse-chance", 1);
+
+        // Rename
+        renameEnabled = config.getBoolean("rename.enabled", false);
+        nameStructure = config.getString("rename.name-structure", "<name> đã chết 000 lần");
 
         // Logging
         consoleDebug = config.getBoolean("logging.console-debug", false);
