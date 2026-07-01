@@ -18,7 +18,7 @@ death:
 
   # [VI] Cũng cấm luôn địa chỉ IP (chỉ hoạt động nếu ban-on-death: true)
   # [EN] Also ban the player's IP address (only works if ban-on-death: true)
-  ban-ip: true
+  ban-ip: false
 
   # [VI] Thông báo cái chết cho toàn bộ server
   # [EN] Broadcast death message to all players
@@ -138,7 +138,7 @@ combat:
   # ===== VẬT PHẨM / ITEMS =====
   # [VI] Sát thương khi sử dụng Ender Pearl (tim)
   # [EN] Damage taken when using Ender Pearl (hearts)
-  ender-pearl-damage: 2.0
+  ender-pearl-damage: 1.0
 
 # ============================================================
 # [HUNGER] 🍔 ĐÓI / HUNGER
@@ -318,7 +318,7 @@ environment:
     #     Mỗi món giáp (mũ, áo, quần, giày) giảm độc lập
     # [EN] % cold effect reduction per armor piece (0.25 = 25% per piece)
     #     Each armor piece (helmet, chestplate, leggings, boots) reduces independently
-    armor-reduce-percent: 0.25
+    armor-reduce-percent: 0.20
 
   # ===== SƯƠNG MÙ / FOG (DARKNESS EFFECT) =====
   fog:
@@ -404,7 +404,7 @@ environment:
     #     Cầm đuốc ở tay chính hoặc tay phụ đều có tác dụng
     # [EN] % effect reduction when holding a torch (0.5 = 50%)
     #     Holding torch in main hand or offhand works
-    torch-reduce-percent: 0.5
+    torch-reduce-percent: 1.0
 
   # ===== CHÓNG MẶT / VERTIGO =====
   vertigo:
@@ -426,7 +426,7 @@ environment:
 
     # [VI] % giảm cường độ hiệu ứng khi đeo cánh (0.5 = 50%)
     # [EN] % effect reduction when wearing elytra (0.5 = 50%)
-    elytra-reduce-percent: 0.5
+    elytra-reduce-percent: 1.0
 
 # ============================================================
 # [VILLAGER TRADING] 🏘️ GIAO DỊCH DÂN LÀNG
@@ -492,7 +492,7 @@ disasters:
 
   # [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
   # [EN] Warning time in seconds before a disaster strikes
-  warning-seconds: 300
+  warning-seconds: 180
 
   # [VI] Tỷ lệ xuất hiện của từng loại thiên tai (phần trăm)
   #     Giá trị càng cao càng dễ xảy ra
@@ -501,7 +501,7 @@ disasters:
 
   # ===== OVERWORLD =====
   # 🌕 Trăng máu - Quái vật sinh sản ồ ạt, mạnh hơn
-  blood-moon-chance: 30
+  blood-moon-chance: 10
 
   # ☄️ Mưa sao băng - Thiên thạch rơi, nổ
   meteor-chance: 5
@@ -561,7 +561,7 @@ disasters:
   # ☄️ Meteor Shower
   meteor:
     effect-interval-seconds: 3
-    effect-duration-seconds: 5
+    effect-duration-seconds: 3
 
   # 🌊 Mega Storm
   mega-storm:
@@ -575,8 +575,8 @@ disasters:
 
   # 🦠 Plague
   plague:
-    effect-interval-seconds: 7
-    effect-duration-seconds: 8
+    effect-interval-seconds: 10
+    effect-duration-seconds: 5
 
   # 🌪️ Tornado
   tornado:
@@ -604,7 +604,7 @@ disasters:
 
     # [VI] Bán kính ảnh hưởng xung quanh mỗi người chơi (khối)
     # [EN] Effect radius around each player (blocks)
-    radius: 15
+    radius: 30
 
     # [VI] Cao độ Y tối thiểu để block có thể rơi
     # [EN] Minimum Y level for blocks to fall
@@ -854,7 +854,7 @@ ore-control:
     world:
       # [VI] Tỷ lệ quặng kim cương (0.18 = 0.18% so với tỷ lệ vanilla)
       # [EN] Diamond ore rate (0.18 = 0.18% of vanilla rate)
-      DIAMOND_ORE: 0.18
+      DIAMOND_ORE: 0.08
 
       # [VI] Tỷ lệ quặng emerald (0.05 = 0.05%)
       # [EN] Emerald ore rate (0.05 = 0.05%)
@@ -862,7 +862,7 @@ ore-control:
 
       # [VI] Tỷ lệ quặng sắt (1.20 = 1.2%)
       # [EN] Iron ore rate (1.20 = 1.2%)
-      IRON_ORE: 1.20
+      IRON_ORE: 0.60
 
       # [VI] Tỷ lệ quặng vàng (0.45 = 0.45%)
       # [EN] Gold ore rate (0.45 = 0.45%)
@@ -870,7 +870,7 @@ ore-control:
 
       # [VI] Tỷ lệ quặng than (2.50 = 2.5%)
       # [EN] Coal ore rate (2.50 = 2.5%)
-      COAL_ORE: 2.50
+      COAL_ORE: 1.50
 
       # [VI] Tỷ lệ quặng lapis (0.30 = 0.3%)
       # [EN] Lapis ore rate (0.30 = 0.3%)
@@ -878,11 +878,11 @@ ore-control:
 
       # [VI] Tỷ lệ quặng redstone (1.00 = 1.0%)
       # [EN] Redstone ore rate (1.00 = 1.0%)
-      REDSTONE_ORE: 1.00
+      REDSTONE_ORE: 0.5
 
       # [VI] Tỷ lệ quặng đồng (1.50 = 1.5%)
       # [EN] Copper ore rate (1.50 = 1.5%)
-      COPPER_ORE: 1.50
+      COPPER_ORE: 0.70
 
       # ===== DEEPSLATE ORES =====
       DEEPSLATE_DIAMOND_ORE: 0.18
@@ -897,7 +897,7 @@ ore-control:
       # ===== NETHER ORES =====
       NETHER_QUARTZ_ORE: 2.00
       NETHER_GOLD_ORE: 0.80
-      ANCIENT_DEBRIS: 0.02
+      ANCIENT_DEBRIS: 0.002
 
 # ============================================================
 # [RENAME] 🏷 ĐỔI TÊN HIỂN THỊ SAU KHI CHẾT
@@ -959,7 +959,7 @@ rename:
   #       "000 | <name>"          → "001 | hoanbh"
   #       "<name> (<count>)" → "hoanbh (1)"
   #       "0000"                     → "0001"
-  name-structure: "<name> ☠ 000"
+  name-structure: "<name> ☠ <count>"
 
 # ============================================================
 # [LOGGING] 📝 NHẬT KÝ / LOGGING

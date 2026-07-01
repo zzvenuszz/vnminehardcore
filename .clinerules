@@ -9,14 +9,16 @@
 
 ---
 
-## Plan Mode (Chế độ lên kế hoạch)
-Trong **Plan Mode**, Cline **CẤM TUYỆT ĐỐI** mọi hành động thay đổi trạng thái hệ thống, bao gồm nhưng không giới hạn:
+## Plan Mode Strict Rule (Quy định nghiêm ngặt Plan Mode)
+**TUYỆT ĐỐI CẤM** mọi hành động thay đổi trạng thái hệ thống trong Plan Mode, bao gồm nhưng không giới hạn:
 - Chỉnh sửa, ghi đè, xóa, tạo file (`edit`, `write`, `mv`, `rm`, v.v.)
 - Chạy lệnh build, test, deploy (`mvn`, `npm`, `docker`, v.v.)
 - Tạo artifact, file mới, log mới
 - Thay đổi cấu hình hệ thống
 
-Chỉ được phép: đọc file, tìm kiếm code, phân tích nguyên nhân, hỏi người dùng, và đề xuất phương án.
+**NGAY CẢ KHI NGƯỜI DÙNG ĐỒNG Ý** với thay đổi, Cline vẫn BẮT BUỘC phải yêu cầu người dùng chuyển sang **Act Mode** trước khi thực hiện bất kỳ thay đổi nào.
+
+Chỉ được phép trong Plan Mode: đọc file, tìm kiếm code, phân tích nguyên nhân, hỏi người dùng, và đề xuất phương án.
 
 ### Xác nhận chế độ hoạt động
 Mỗi khi người dùng yêu cầu lập kế hoạch hoặc phân tích, Cline bắt buộc phải xác nhận chế độ đang hoạt động bằng dòng:
@@ -91,6 +93,22 @@ Mọi chức năng mới đều phải có file cấu hình hoặc một phần 
 * Ví dụ không đạt: Cố định (hardcode) các hiệu ứng hạt (particles), thời gian, hoặc tin nhắn hiển thị trong code Java.
 * Ví dụ đạt: Đọc tất cả giá trị từ `config.yml` hoặc `cultivation.yml`, có sẵn giá trị mặc định hợp lý phòng khi file cấu hình thiếu dòng, cho phép tùy biến toàn bộ chuỗi hiển thị, màu sắc, và số lượng.
 
+## Config Comment Rule (Quy định bình luận cấu hình)
+**BẮT BUỘC**: Tất cả các thông số cấu hình trong file config mặc định phải có phần comment hướng dẫn bằng cả tiếng Việt và tiếng Anh, bao gồm:
+* Mô tả công dụng của thông số
+* Giá trị mặc định
+* Ví dụ sử dụng (nếu cần)
+* Phạm vi giá trị hợp lệ (min/max, nếu có)
+
+Ví dụ comment đúng:
+```yaml
+# [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
+# [EN] Warning time in seconds before a disaster strikes
+warning-seconds: 180
+```
+
+Không được phép có thông số config nào không có comment hướng dẫn.
+
 ---
 
 ## Maven Build Rules (Quy định bắt buộc khi biên dịch)
@@ -159,6 +177,16 @@ Mọi lệnh chạy trên Terminal bắt buộc phải giới hạn thời gian 
 * Nếu bắt buộc phải dùng thuật ngữ chuyên môn, phải giải thích ngắn gọn, trực diện và dễ hiểu ngay bên cạnh.
 
 ---
+
+## README Update Rule (Quy định cập nhật README)
+**BẮT BUỘC**: Khi thêm chức năng mới, Cline phải cập nhật file `README.md` với các thông tin sau:
+* Danh sách lệnh mới (commands) với cú pháp, mô tả và permission
+* Danh sách ID mới của các event, boss, item, v.v.
+* Bảng permissions được cập nhật (nếu có permission mới)
+* Changelog được bổ sung phiên bản mới
+* Hướng dẫn sử dụng chi tiết cho tính năng mới (nếu cần)
+
+Không được phép thêm chức năng mới mà không cập nhật documentation.
 
 ## Final Report (Báo cáo tổng kết bắt buộc)
 Khi hoàn thành, Cline bắt buộc phải gửi một báo cáo chi tiết theo mẫu sau:

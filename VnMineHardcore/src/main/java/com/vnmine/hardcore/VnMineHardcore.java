@@ -180,6 +180,57 @@ public final class VnMineHardcore extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("vnboss")) {
+            if (!sender.hasPermission("vnmine.hardcore.admin")) {
+                sender.sendMessage("§cBạn không có quyền!");
+                return true;
+            }
+            if (args.length == 0) {
+                sender.sendMessage("§6§m=======================================");
+                sender.sendMessage("§6§l  /vnboss - Gọi boss thủ công");
+                sender.sendMessage("§6§m=======================================");
+                sender.sendMessage("§eUsage: §7/vnboss <id> <warning(s)> <duration(s)>");
+                sender.sendMessage("§e  /vnboss §7- Hiển thị danh sách này");
+                sender.sendMessage("");
+                sender.sendMessage("§eDanh sách BOSS_ID có thể dùng:");
+                for (String id : bossEventManager.getBossIds()) {
+                    sender.sendMessage("§c  " + id + "  §7- " + bossEventManager.getBossName(id));
+                }
+                sender.sendMessage("");
+                sender.sendMessage("§eVí dụ: §7/vnboss wither 30 120");
+                sender.sendMessage("§6§m=======================================");
+                return true;
+            }
+            if (args.length < 3) {
+                sender.sendMessage("§cSử dụng: /vnboss <id> <warning(s)> <duration(s)>");
+                return true;
+            }
+            String bossId = args[0].toLowerCase();
+            int warningTime, duration;
+            try {
+                warningTime = Integer.parseInt(args[1]);
+                duration = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                sender.sendMessage("§cThời gian phải là số nguyên (giây)!");
+                return true;
+            }
+            if (warningTime < 1 || duration < 1) {
+                sender.sendMessage("§cThời gian phải >= 1 giây!");
+                return true;
+            }
+            boolean success = bossEventManager.triggerBoss(bossId, warningTime, duration);
+            if (success) {
+                sender.sendMessage("§a✅ Đã kích hoạt boss §e" + bossEventManager.getBossName(bossId));
+            } else {
+                if (bossEventManager.isBossActive()) {
+                    sender.sendMessage("§c❌ Đã có boss đang hoạt động: " + bossEventManager.getCurrentBossName());
+                } else {
+                    sender.sendMessage("§c❌ ID boss '" + bossId + "' không hợp lệ hoặc đã bị tắt!");
+                }
+            }
+            return true;
+        }
+
         if (command.getName().equalsIgnoreCase("vnstats")) {
             if (sender instanceof Player player) {
                 sender.sendMessage("§6=== VnMineHardcore Stats ===");

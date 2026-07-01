@@ -59,9 +59,17 @@ Plugin nâng độ khó Minecraft lên mức khó gấp đôi. **Chết 1 lần 
 - **Sợ hầm**: Mining Fatigue + Darkness dưới y=30
 - **Chóng mặt**: Nausea + Slowness trên y=200
 
-### 🌋 Disasters (7 types)
+### 👹 Boss Events
+- **Random boss spawn** với HP cao, damage mạnh
+- Boss có **cảnh báo** trước khi xuất hiện (Boss Bar + Title + Sound)
+- Rơi item quý hiếm khi bị tiêu diệt
+- Các boss: Wither, Ender Dragon, Giant, Ghast
+- **Manual trigger**: `/vnboss <id> <warning> <duration>`
+
+### 🌋 Disasters (14 types)
 Tất cả có **cảnh báo** qua Boss Bar + Title + Sound:
 
+#### Overworld Disasters
 | ID | Name | Effect |
 |----|------|--------|
 | `bloodmoon` | 🌕 Blood Moon | Quái spawn x10, Strength + Speed + armor |
@@ -71,6 +79,21 @@ Tất cả có **cảnh báo** qua Boss Bar + Title + Sound:
 | `plague` | 🦠 Plague | Poison + Weakness + Hunger + Nausea |
 | `tornado` | 🌪️ Tornado | Bị ném lên cao, block bị phá |
 | `eclipse` | 📉 Solar Eclipse | Ban ngày → đêm, quái spawn |
+| `earthquake` | 🌍 Earthquake | Block rơi, rung chuyển, Nausea |
+
+#### Nether Disasters
+| ID | Name | Effect |
+|----|------|--------|
+| `inferno` | 🔥 Inferno Storm | Lửa địa ngục, spawn Ghast/Magma Cube |
+| `souleruption` | 💀 Soul Eruption | Soul sand nổ, Wither effect |
+| `lavageyser` | 🌋 Lava Geyser | Cột lava phun trào từ dưới đất |
+
+#### The End Disasters
+| ID | Name | Effect |
+|----|------|--------|
+| `endsurge` | 👁️ End Surge | Spawn Shulker/Endermite, Levitation |
+| `voidstorm` | 🌌 Void Storm | Blindness + Darkness + damage |
+| `chorusexplosion` | 🌀 Chorus Explosion | Damage + random teleport |
 
 ---
 
@@ -103,6 +126,8 @@ Tất cả có **cảnh báo** qua Boss Bar + Title + Sound:
 | `/vnhardcore unban <player>` | Unban a player | `vnmine.hardcore.admin` |
 | `/vnevent` | List available disaster IDs | `vnmine.hardcore.admin` |
 | `/vnevent <id> <warning> <duration>` | Manually trigger a disaster | `vnmine.hardcore.admin` |
+| `/vnboss` | List available boss IDs | `vnmine.hardcore.admin` |
+| `/vnboss <id> <warning> <duration>` | Manually trigger a boss | `vnmine.hardcore.admin` |
 | `/vnreload` | Reload config.yml | `vnmine.hardcore.admin` |
 | `/vnhelp` | Show command help | `vnmine.hardcore.stats` |
 
@@ -112,7 +137,17 @@ Tất cả có **cảnh báo** qua Boss Bar + Title + Sound:
 /vnevent                                    - List all disaster IDs
 /vnevent bloodmoon 30 60                   - Blood Moon: 30s warning, 60s duration
 /vnevent meteor 10 30                      - Meteor Shower: 10s warning, 30s duration
-/vnevent tornado 5 15                      - Tornado: 5s warning, 15s duration
+/vnevent earthquake 5 20                   - Earthquake: 5s warning, 20s duration
+/vnevent inferno 15 40                     - Inferno Storm: 15s warning, 40s duration
+```
+
+### `/vnboss` Usage
+
+```
+/vnboss                                    - List all boss IDs
+/vnboss wither 30 120                      - Wither Boss: 30s warning, 120s duration
+/vnboss ender_dragon 60 180                - Ender Dragon: 60s warning, 180s duration
+/vnboss giant 20 90                        - Giant: 20s warning, 90s duration
 ```
 
 ---
@@ -197,6 +232,15 @@ Located in `plugins/VnMineHardcore/`:
 
 ## 📝 Changelog
 
+### v1.1.0
+- **New Command**: `/vnboss` - Manually trigger boss events (wither, ender_dragon, giant, ghast)
+- **New Disasters**: Added 7 new disasters (Inferno Storm, Soul Eruption, Lava Geyser, End Surge, Void Storm, Chorus Explosion, Earthquake)
+- **Total Disasters**: 14 types across Overworld, Nether, and The End
+- **Earthquake Enhancement**: Added screen shake effect (Nausea + Slowness + Sound)
+- **Boss System**: Added `triggerBoss()` method for manual boss spawning
+- **Documentation**: Updated README with all disaster IDs and boss commands
+- **Config**: All config parameters have bilingual comments (VI/EN)
+
 ### v1.0.0
 - Initial release
 - Death system with permanent ban
@@ -207,6 +251,7 @@ Located in `plugins/VnMineHardcore/`:
 - Environment system (temperature, fog, claustrophobia, vertigo)
 - 7 disaster types (Blood Moon, Meteor, Storm, Solar Flare, Plague, Tornado, Eclipse)
 - Manual disaster trigger (/vnevent)
+- Boss event system (Wither, Ender Dragon, Giant, Ghast)
 - Regeneration multiplier (configurable)
 - Configurable fog (interval, duration, amplifier)
 - Bilingual config comments (VI/EN)

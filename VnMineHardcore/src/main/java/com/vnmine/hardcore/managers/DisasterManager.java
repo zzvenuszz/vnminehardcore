@@ -410,7 +410,12 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     Location l = p.getLocation();
+                    
+                    // Hiệu ứng rung chuyển (shake)
                     p.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 30, 0));
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1));
+                    p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.5f);
+                    
                     int radius = config.earthquakeRadius;
                     int minY = config.earthquakeMinY;
                     int chance = config.earthquakeBlockFallChance;

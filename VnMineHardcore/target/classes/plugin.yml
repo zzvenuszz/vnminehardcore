@@ -26,6 +26,10 @@ commands:
     description: Gọi thiên tai thủ công. Gõ /vnevent để xem danh sách sự kiện.
     usage: /vnevent [<id> <warning(s)> <duration(s)>]
     permission: vnmine.hardcore.admin
+  vnboss:
+    description: Gọi boss thủ công. Gõ /vnboss để xem danh sách boss.
+    usage: /vnboss [<id> <warning(s)> <duration(s)>]
+    permission: vnmine.hardcore.admin
   vn:
     description: Lệnh chính của VnMineHardcore. Gõ /vn help để xem hướng dẫn.
     usage: /vn <subcommand>

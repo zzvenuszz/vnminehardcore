@@ -334,6 +334,30 @@ public class BossEventManager {
         return currentBossName;
     }
 
+    public Set<String> getBossIds() {
+        return bossConfigs.keySet();
+    }
+
+    public String getBossName(String id) {
+        BossConfig bc = bossConfigs.get(id.toLowerCase());
+        if (bc == null) return "Unknown Boss";
+        return bc.displayName;
+    }
+
+    public boolean triggerBoss(String bossId, int warningTimeSeconds, int durationSeconds) {
+        if (bossActive) return false;
+        
+        BossConfig bc = bossConfigs.get(bossId.toLowerCase());
+        if (bc == null) return false;
+
+        // Override warning time and duration
+        bc.warningSeconds = warningTimeSeconds;
+        bc.durationSeconds = durationSeconds;
+        
+        startWarning(bc);
+        return true;
+    }
+
     public void stop() {
         cleanup();
     }
