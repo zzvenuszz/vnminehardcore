@@ -2,6 +2,10 @@ package com.vnmine.hardcore.managers;
 
 import com.vnmine.hardcore.VnMineHardcore;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.ConfigurationSection;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class ConfigManager {
 
@@ -104,6 +108,16 @@ public class ConfigManager {
     public int vertigoAmplifier;
     public double vertigoElytraReducePercent;
 
+    // Villager Trading
+    public boolean villagerTradingEnabled;
+    public boolean disableRandomVillager;
+
+    // Spawner Control
+    public boolean spawnerControlEnabled;
+    public double spawnerSpawnRateReduction;
+    public double spawnerHpMultiplier;
+    public double spawnerDamageMultiplier;
+
     // Disasters
     public boolean disastersEnabled;
     public int disasterMinIntervalSeconds;
@@ -116,10 +130,52 @@ public class ConfigManager {
     public int tornadoChance;
     public int eclipseChance;
     public int earthquakeChance;
-    public int disasterEffectIntervalSeconds;
+    public int infernoStormChance;
+    public int soulEruptionChance;
+    public int lavaGeyserChance;
+    public int endSurgeChance;
+    public int voidStormChance;
+    public int chorusExplosionChance;
+
+    // Per-disaster configs (stored as Map for flexible access)
+    public Map<String, Integer> disasterEffectInterval = new HashMap<>();
+    public Map<String, Integer> disasterEffectDuration = new HashMap<>();
+
+    // Earthquake specific
     public int earthquakeBlockFallChance;
     public int earthquakeRadius;
     public int earthquakeMinY;
+    public double earthquakeBlastResistanceFactor;
+
+    // Inferno Storm
+    public double infernoStormDamage;
+    public int infernoStormFireTicks;
+
+    // Soul Eruption
+    public double soulEruptionDamage;
+    public int soulEruptionWitherAmplifier;
+
+    // Lava Geyser
+    public double lavaGeyserDamage;
+
+    // End Surge
+    public int endSurgeShulkerChance;
+
+    // Void Storm
+    public double voidStormDamage;
+
+    // Chorus Explosion
+    public double chorusExplosionDamage;
+
+    // Boss Events
+    public boolean bossEventsEnabled;
+    public int bossEventMinIntervalSeconds;
+    public int bossEventSpawnRadius;
+    // Boss configs will be loaded dynamically
+
+    // Ore Control
+    public boolean oreControlEnabled;
+    public Map<String, Map<String, Double>> oreControlWorlds = new HashMap<>();
 
     // Rename
     public boolean renameEnabled;
@@ -237,6 +293,16 @@ public class ConfigManager {
         vertigoAmplifier = config.getInt("environment.vertigo.amplifier", 0);
         vertigoElytraReducePercent = config.getDouble("environment.vertigo.elytra-reduce-percent", 0.5);
 
+        // Villager Trading
+        villagerTradingEnabled = config.getBoolean("villager-trading.enabled", true);
+        disableRandomVillager = config.getBoolean("villager-trading.disable-random-villager", true);
+
+        // Spawner Control
+        spawnerControlEnabled = config.getBoolean("spawner-control.enabled", true);
+        spawnerSpawnRateReduction = config.getDouble("spawner-control.spawn-rate-reduction", 0.3);
+        spawnerHpMultiplier = config.getDouble("spawner-control.hp-multiplier", 3.0);
+        spawnerDamageMultiplier = config.getDouble("spawner-control.damage-multiplier", 2.0);
+
         // Disasters
         disastersEnabled = config.getBoolean("disasters.enabled", true);
         disasterMinIntervalSeconds = config.getInt("disasters.min-interval-seconds", 600);
@@ -249,10 +315,76 @@ public class ConfigManager {
         tornadoChance = config.getInt("disasters.tornado-chance", 2);
         eclipseChance = config.getInt("disasters.eclipse-chance", 1);
         earthquakeChance = config.getInt("disasters.earthquake-chance", 2);
-        disasterEffectIntervalSeconds = config.getInt("disasters.effect-interval-seconds", 5);
+        infernoStormChance = config.getInt("disasters.inferno-storm-chance", 3);
+        soulEruptionChance = config.getInt("disasters.soul-eruption-chance", 2);
+        lavaGeyserChance = config.getInt("disasters.lava-geyser-chance", 2);
+        endSurgeChance = config.getInt("disasters.end-surge-chance", 2);
+        voidStormChance = config.getInt("disasters.void-storm-chance", 2);
+        chorusExplosionChance = config.getInt("disasters.chorus-explosion-chance", 1);
+
+        // Per-disaster configs
+        loadDisasterConfig("blood-moon");
+        loadDisasterConfig("meteor");
+        loadDisasterConfig("mega-storm");
+        loadDisasterConfig("solar-flare");
+        loadDisasterConfig("plague");
+        loadDisasterConfig("tornado");
+        loadDisasterConfig("eclipse");
+        loadDisasterConfig("earthquake");
+        loadDisasterConfig("inferno-storm");
+        loadDisasterConfig("soul-eruption");
+        loadDisasterConfig("lava-geyser");
+        loadDisasterConfig("end-surge");
+        loadDisasterConfig("void-storm");
+        loadDisasterConfig("chorus-explosion");
+
+        // Earthquake specific
         earthquakeBlockFallChance = config.getInt("disasters.earthquake.block-fall-chance", 15);
         earthquakeRadius = config.getInt("disasters.earthquake.radius", 15);
         earthquakeMinY = config.getInt("disasters.earthquake.min-y", 30);
+        earthquakeBlastResistanceFactor = config.getDouble("disasters.earthquake.blast-resistance-factor", 0.1);
+
+        // Inferno Storm
+        infernoStormDamage = config.getDouble("disasters.inferno-storm.damage", 2.0);
+        infernoStormFireTicks = config.getInt("disasters.inferno-storm.fire-ticks", 100);
+
+        // Soul Eruption
+        soulEruptionDamage = config.getDouble("disasters.soul-eruption.damage", 2.0);
+        soulEruptionWitherAmplifier = config.getInt("disasters.soul-eruption.wither-amplifier", 1);
+
+        // Lava Geyser
+        lavaGeyserDamage = config.getDouble("disasters.lava-geyser.damage", 3.0);
+
+        // End Surge
+        endSurgeShulkerChance = config.getInt("disasters.end-surge.shulker-chance", 20);
+
+        // Void Storm
+        voidStormDamage = config.getDouble("disasters.void-storm.damage", 2.0);
+
+        // Chorus Explosion
+        chorusExplosionDamage = config.getDouble("disasters.chorus-explosion.damage", 1.0);
+
+        // Boss Events
+        bossEventsEnabled = config.getBoolean("boss-events.enabled", true);
+        bossEventMinIntervalSeconds = config.getInt("boss-events.min-interval-seconds", 1200);
+        bossEventSpawnRadius = config.getInt("boss-events.spawn-radius", 50);
+
+        // Ore Control
+        oreControlEnabled = config.getBoolean("ore-control.enabled", false);
+        oreControlWorlds.clear();
+        ConfigurationSection oreSection = config.getConfigurationSection("ore-control.worlds");
+        if (oreSection != null) {
+            for (String worldName : oreSection.getKeys(false)) {
+                ConfigurationSection worldSection = oreSection.getConfigurationSection(worldName);
+                Map<String, Double> oreRates = new HashMap<>();
+                if (worldSection != null) {
+                    for (String oreKey : worldSection.getKeys(false)) {
+                        oreRates.put(oreKey, worldSection.getDouble(oreKey, 0.0));
+                    }
+                }
+                oreControlWorlds.put(worldName, oreRates);
+            }
+        }
 
         // Rename
         renameEnabled = config.getBoolean("rename.enabled", true);
@@ -265,5 +397,11 @@ public class ConfigManager {
         logDisasters = config.getBoolean("logging.log-disasters", true);
 
         plugin.getLogger().info("[Config] Loaded configuration with " + config.getKeys(true).size() + " keys");
+    }
+
+    private void loadDisasterConfig(String disasterId) {
+        String path = "disasters." + disasterId;
+        disasterEffectInterval.put(disasterId, config.getInt(path + ".effect-interval-seconds", 5));
+        disasterEffectDuration.put(disasterId, config.getInt(path + ".effect-duration-seconds", 5));
     }
 }

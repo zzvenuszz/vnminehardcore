@@ -166,16 +166,19 @@ public class WaterListener implements Listener {
 
         // ============================================================
         // TRƯỜNG HỢP 2: Click vào block KHÔNG phải nước, cầm WATER_BUCKET
-        // Chỉ uống nước từ xô nếu block được click không phải interactive
+        // Chỉ uống nước từ xô nếu bấm Shift + block không phải interactive
         // ============================================================
         if (item != null && item.getType() == Material.WATER_BUCKET && config.bucketDrinkEnabled) {
+            // Phải bấm Shift mới được uống nước từ xô
+            if (!player.isSneaking()) return;
+
             // Kiểm tra nếu block là interactive (có thể tương tác: chest, furnace, crafting table...)
             if (isInteractiveBlock(blockType)) {
                 // Block có thể tương tác - không cancel, để Minecraft xử lý đặt xô
                 return;
             }
 
-            // Block không tương tác - uống nước từ xô
+            // Block không tương tác + đang sneak - uống nước từ xô
             drinkFromBucket(player, event);
         }
     }
@@ -189,7 +192,9 @@ public class WaterListener implements Listener {
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
 
+        // Phải bấm Shift mới được uống nước từ xô
         if (item != null && item.getType() == Material.WATER_BUCKET && config.bucketDrinkEnabled) {
+            if (!player.isSneaking()) return;
             drinkFromBucket(player, event);
         }
     }
@@ -201,8 +206,9 @@ public class WaterListener implements Listener {
                                           Block clickedBlock, Material blockType, ItemStack item) {
         boolean isNaturalWater = (blockType == Material.WATER || blockType == Material.BUBBLE_COLUMN);
 
-        // Trường hợp: Tay không -> uống từ nguồn
+        // Trường hợp: Tay không -> uống từ nguồn (phải bấm Shift)
         if (item == null || item.getType() == Material.AIR) {
+            if (!player.isSneaking()) return;
             UUID uuid = player.getUniqueId();
             long now = System.currentTimeMillis();
             Long last = lastDrinkFromSource.get(uuid);
@@ -258,8 +264,9 @@ public class WaterListener implements Listener {
             return;
         }
 
-        // Trường hợp: WATER_BUCKET -> uống từ xô (kể cả khi đang nhìn vào nước)
+        // Trường hợp: WATER_BUCKET -> uống từ xô (phải bấm Shift)
         if (item.getType() == Material.WATER_BUCKET && config.bucketDrinkEnabled) {
+            if (!player.isSneaking()) return;
             drinkFromBucket(player, event);
         }
     }
