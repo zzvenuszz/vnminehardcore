@@ -37,7 +37,7 @@ public class ThirstManager {
         this.data = YamlConfiguration.loadConfiguration(dataFile);
         loadData();
 
-        logger.info("[Thirst] Initialized: drain=" + config.thirstDrainIntervalMs / 1000 + "s, max=" + config.maxThirst);
+        logger.info("[Thirst] Initialized: drain=" + config.thirstDrainIntervalSeconds + "s, max=" + config.maxThirst);
         if (config.thirstEnabled) start();
     }
 
@@ -94,7 +94,7 @@ public class ThirstManager {
                     long now = System.currentTimeMillis();
                     long last = lastDrink.get(uuid);
 
-                    if (now - last > config.thirstDrainIntervalMs) {
+                    if (now - last > config.thirstDrainIntervalSeconds * 1000L) {
                         int current = thirstLevel.get(uuid);
                         current = Math.max(0, current - 1);
                         thirstLevel.put(uuid, current);
@@ -103,7 +103,7 @@ public class ThirstManager {
                         sendThirstBar(player, current);
 
                         if (current <= 0) {
-                            if (!damagedByThirst.contains(uuid) || now - last > config.thirstDrainIntervalMs) {
+                            if (!damagedByThirst.contains(uuid) || now - last > config.thirstDrainIntervalSeconds * 1000L) {
                                 player.damage(config.thirstDamage);
                                 player.sendActionBar("§c§lKHÁT! §7Bạn đang mất máu vì khát!");
                                 damagedByThirst.add(uuid);
@@ -134,15 +134,19 @@ public class ThirstManager {
     }
 
     public void drinkWater(Player player) {
+        drinkWater(player, 8);
+    }
+
+    public void drinkWater(Player player, int restoreAmount) {
         UUID uuid = player.getUniqueId();
         int current = thirstLevel.getOrDefault(uuid, config.maxThirst);
-        int newThirst = Math.min(config.maxThirst, current + 8);
+        int newThirst = Math.min(config.maxThirst, current + restoreAmount);
         thirstLevel.put(uuid, newThirst);
         lastDrink.put(uuid, System.currentTimeMillis());
         damagedByThirst.remove(uuid);
 
         sendThirstBar(player, newThirst);
-        logger.fine("[Thirst] " + player.getName() + " drank: " + current + " -> " + newThirst);
+        logger.fine("[Thirst] " + player.getName() + " drank: " + current + " -> " + newThirst + " (+" + restoreAmount + ")");
         saveData();
     }
 

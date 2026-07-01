@@ -2,6 +2,7 @@ package com.vnmine.hardcore.listeners;
 
 import com.vnmine.hardcore.VnMineHardcore;
 import com.vnmine.hardcore.managers.ConfigManager;
+import com.vnmine.hardcore.managers.DeathPenaltyManager;
 import com.vnmine.hardcore.managers.LogManager;
 import org.bukkit.Material;
 import org.bukkit.entity.*;
@@ -24,6 +25,7 @@ public class CombatListener implements Listener {
     private final VnMineHardcore plugin;
     private final LogManager logManager;
     private final DeathListener deathListener;
+    private final DeathPenaltyManager deathPenaltyManager;
     private final ConfigManager config;
     private final Logger logger;
     private final Random random = new Random();
@@ -70,6 +72,7 @@ public class CombatListener implements Listener {
         this.plugin = plugin;
         this.logManager = plugin.getLogManager();
         this.deathListener = deathListener;
+        this.deathPenaltyManager = plugin.getDeathPenaltyManager();
         this.config = config;
         this.logger = plugin.getLogger();
         logger.info("[Combat] Initialized: mob=x" + config.mobDamageMultiplier +
@@ -138,6 +141,9 @@ public class CombatListener implements Listener {
             case MAGIC -> newDamage = original * config.mobDamageMultiplier;
             case POISON, WITHER -> newDamage = original * 2.0;
         }
+
+        // Apply death penalty: incoming damage multiplier
+        newDamage *= deathPenaltyManager.getIncomingDamageMultiplier(player);
 
         event.setDamage(newDamage);
     }

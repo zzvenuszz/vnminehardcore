@@ -4,8 +4,10 @@
 /data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/EnvironmentListener.java
 /data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/HungerListener.java
 /data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/WaterListener.java
+/data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/WorldInteractionListener.java
 /data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/BanManager.java
 /data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/ConfigManager.java
+/data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DeathPenaltyManager.java
 /data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DeathRenameManager.java
 /data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DisasterManager.java
 /data/projects/hardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/LogManager.java

@@ -17,11 +17,13 @@ public final class VnMineHardcore extends JavaPlugin {
     private ThirstManager thirstManager;
     private DisasterManager disasterManager;
     private DeathRenameManager deathRenameManager;
+    private DeathPenaltyManager deathPenaltyManager;
     private DeathListener deathListener;
     private CombatListener combatListener;
     private EnvironmentListener environmentListener;
     private HungerListener hungerListener;
     private WaterListener waterListener;
+    private WorldInteractionListener worldInteractionListener;
 
     @Override
     public void onEnable() {
@@ -40,13 +42,15 @@ public final class VnMineHardcore extends JavaPlugin {
         this.thirstManager = new ThirstManager(this, configManager);
         this.disasterManager = new DisasterManager(this, configManager);
         this.deathRenameManager = new DeathRenameManager(this, configManager);
+        this.deathPenaltyManager = new DeathPenaltyManager(this, configManager);
 
         // Create listeners (pass config)
-        this.deathListener = new DeathListener(this, configManager, deathRenameManager);
+        this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
         this.combatListener = new CombatListener(this, deathListener, configManager);
         this.environmentListener = new EnvironmentListener(this, configManager);
         this.hungerListener = new HungerListener(this, configManager);
         this.waterListener = new WaterListener(this);
+        this.worldInteractionListener = new WorldInteractionListener(this);
 
         // Register listeners
         Bukkit.getPluginManager().registerEvents(deathListener, this);
@@ -54,6 +58,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(combatListener, this);
         Bukkit.getPluginManager().registerEvents(environmentListener, this);
         Bukkit.getPluginManager().registerEvents(waterListener, this);
+        Bukkit.getPluginManager().registerEvents(worldInteractionListener, this);
 
         // Register commands
         this.getCommand("vnstats").setExecutor(this);
@@ -219,10 +224,10 @@ public final class VnMineHardcore extends JavaPlugin {
                 " | BanIP=" + (configManager.banIp ? "§aON" : "§cOFF") +
                 " | Tag=§aON (" + (configManager.combatTagDurationMs / 1000) + "s)");
             sender.sendMessage("§e🍔 HUNGER: " + (configManager.hungerEnabled ? "§aON" : "§cOFF") +
-                " | Drain=" + configManager.drainIntervalTicks / 20 + "s" +
+                " | Drain=" + configManager.drainIntervalSeconds + "s" +
                 " | Food=" + (int)(configManager.foodRestoreMultiplier * 100) + "%");
             sender.sendMessage("§b💧 THIRST: " + (configManager.thirstEnabled ? "§aON" : "§cOFF") +
-                " | Drain=" + configManager.thirstDrainIntervalMs / 1000 + "s" +
+                " | Drain=" + configManager.thirstDrainIntervalSeconds + "s" +
                 " | Source=" + (configManager.drinkFromSource ? "§aON" : "§cOFF") +
                 " | NaturalWater=" + (configManager.naturalWaterEnabled ? "§aON" : "§cOFF"));
             sender.sendMessage("§c⚔ COMBAT: Mob=x" + configManager.mobDamageMultiplier +
@@ -299,4 +304,5 @@ public final class VnMineHardcore extends JavaPlugin {
     public LogManager getLogManager() { return logManager; }
     public ThirstManager getThirstManager() { return thirstManager; }
     public DisasterManager getDisasterManager() { return disasterManager; }
+    public DeathPenaltyManager getDeathPenaltyManager() { return deathPenaltyManager; }
 }

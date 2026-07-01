@@ -29,6 +29,59 @@ death:
   play-sound: true
 
 # ============================================================
+# [DEATH PENALTY] 💀 HÌNH PHẠT KHI CHẾT / DEATH PENALTY
+# ============================================================
+death-penalty:
+  # [VI] Bật hệ thống hình phạt khi chết (giảm chỉ số)
+  # [EN] Enable death penalty system (stat reduction)
+  enabled: true
+
+  # [VI] Thời gian sống sót sau khi hồi sinh để phục hồi chỉ số (giây)
+  #     Nếu người chơi sống sót đủ thời gian này, penalty sẽ được gỡ bỏ
+  # [EN] Survival time after respawn to recover stats (seconds)
+  #     If the player survives this long, the penalty is removed
+  recovery-seconds: 300
+
+  # [VI] Số lần chết tối đa có thể tích lũy penalty (giới hạn trên)
+  #     Giúp tránh penalty quá lớn sau nhiều lần chết liên tiếp
+  # [EN] Maximum death count that accumulates penalty (upper limit)
+  #     Prevents penalty from becoming too large after many consecutive deaths
+  max-penalty-stack: 5
+
+  # [VI] Phần trăm giảm chỉ số MỖI LẦN CHẾT (số thập phân, 0.1 = 10%)
+  #     Ví dụ: 0.1 = mỗi lần chết giảm 10% chỉ số tương ứng
+  # [EN] Percent stat reduction PER DEATH (decimal, 0.1 = 10%)
+  #     Example: 0.1 = each death reduces the corresponding stat by 10%
+  stats:
+    # [VI] % giảm HP tối đa mỗi lần chết
+    # [EN] % max HP reduction per death
+    max-hp-per-death: 0.1
+
+    # [VI] % giảm max thirst offset mỗi lần chết
+    # [EN] % max thirst offset reduction per death
+    max-thirst-per-death: 0.1
+
+    # [VI] % giảm sát thương gây ra mỗi lần chết
+    # [EN] % damage dealt reduction per death
+    damage-per-death: 0.1
+
+    # [VI] % tăng sát thương nhận vào mỗi lần chết
+    # [EN] % incoming damage increase per death
+    incoming-damage-per-death: 0.1
+
+    # [VI] % giảm hồi phục mỗi lần chết
+    # [EN] % regen reduction per death
+    regen-per-death: 0.1
+
+    # [VI] % tăng tốc mất thức ăn mỗi lần chết
+    # [EN] % food drain increase per death
+    food-drain-per-death: 0.1
+
+    # [VI] % tăng tốc mất khát mỗi lần chết
+    # [EN] % thirst drain increase per death
+    thirst-drain-per-death: 0.1
+
+# ============================================================
 # [COMBAT] ⚔ CHIẾN ĐẤU / COMBAT
 # ============================================================
 combat:
@@ -65,13 +118,13 @@ combat:
   # ===== HỒI PHỤC MÁU / HEALTH REGENERATION =====
   # [VI] Tắt hoàn toàn hồi phục máu tự nhiên (true = tắt, false = bật)
   # [EN] Completely disable natural health regeneration (true = off, false = on)
-  disable-natural-regen: true
+  disable-natural-regen: false
 
   # [VI] Hệ số hồi phục máu (chỉ dùng khi disable-natural-regen: false)
   #     1.0 = hồi phục như vanilla, 0.5 = hồi 50%, 0 = không hồi phục
   # [EN] Regeneration multiplier (only used when disable-natural-regen: false)
   #     1.0 = vanilla regen, 0.5 = 50% regen, 0 = no regen
-  regen-multiplier: 1.0
+  regen-multiplier: 0.5
 
   # ===== CHIẾN ĐẤU (COMBAT TAG) =====
   # [VI] Thời gian duy trì trạng thái combat (giây).
@@ -85,7 +138,7 @@ combat:
   # ===== VẬT PHẨM / ITEMS =====
   # [VI] Sát thương khi sử dụng Ender Pearl (tim)
   # [EN] Damage taken when using Ender Pearl (hearts)
-  ender-pearl-damage: 10.0
+  ender-pearl-damage: 2.0
 
 # ============================================================
 # [HUNGER] 🍔 ĐÓI / HUNGER
@@ -95,9 +148,9 @@ hunger:
   # [EN] Enable hunger system
   enabled: true
 
-  # [VI] Thời gian giữa các lần giảm đói (tick, 20 tick = 1 giây)
-  # [EN] How often hunger decreases (in ticks, 20 ticks = 1 second)
-  drain-interval-ticks: 80
+  # [VI] Thời gian giữa các lần giảm đói (giây)
+  # [EN] How often hunger decreases (in seconds)
+  drain-interval-seconds: 180
 
   # [VI] Hệ số hồi phục thức ăn (1.0 = bình thường, 0.5 = 50%)
   # [EN] Food restoration multiplier (1.0 = normal, 0.5 = 50%)
@@ -105,11 +158,11 @@ hunger:
 
   # [VI] Sát thương khi đói hoàn toàn (tim)
   # [EN] Damage taken when starving (hearts)
-  starvation-damage: 2.0
+  starvation-damage: 1.0
 
   # [VI] Mức thức ăn tối thiểu để có thể chạy (0-20)
   # [EN] Minimum food level to be able to sprint (0-20)
-  sprint-min-food: 4
+  sprint-min-food: 6
 
   # [VI] Bật ngộ độc khi ăn thức ăn sống (thịt sống, thịt thối, cá nóc...)
   # [EN] Enable raw food poisoning (raw meat, rotten flesh, pufferfish...)
@@ -123,13 +176,13 @@ hunger:
   # [EN] Maximum eats within the time window before choking
   choke-max-eats: 3
 
-  # [VI] Khung thời gian kiểm tra nghẹn (miligiây)
-  # [EN] Time window for choking check (milliseconds)
-  choke-window-ms: 10000
+  # [VI] Khung thời gian kiểm tra nghẹn (giây)
+  # [EN] Time window for choking check (seconds)
+  choke-window-seconds: 10
 
   # [VI] Sát thương khi bị nghẹn (tim)
   # [EN] Damage from choking (hearts)
-  choke-damage: 4.0
+  choke-damage: 1.0
 
   # [VI] Bật hiệu ứng phát nổ khi ăn táo vàng enchanted (Notch Apple)
   # [EN] Enable explosion when eating enchanted golden apple (Notch Apple)
@@ -137,7 +190,7 @@ hunger:
 
   # [VI] Sát thương từ táo vàng enchanted phát nổ (tim)
   # [EN] Damage from enchanted golden apple explosion (hearts)
-  notch-apple-damage: 20.0
+  notch-apple-damage: 2.0
 
 # ============================================================
 # [THIRST] 💧 KHÁT / THIRST
@@ -147,9 +200,9 @@ thirst:
   # [EN] Enable thirst system
   enabled: true
 
-  # [VI] Thời gian giữa các lần giảm khát (miligiây)
-  # [EN] How often thirst decreases (milliseconds)
-  drain-interval-ms: 8000
+  # [VI] Thời gian giữa các lần giảm khát (giây)
+  # [EN] How often thirst decreases (seconds)
+  drain-interval-seconds: 120
 
   # [VI] Sát thương khi khát về 0 (tim)
   # [EN] Damage when thirst reaches 0 (hearts)
@@ -168,9 +221,33 @@ thirst:
   # [EN] Thirst restored when drinking from source
   drink-source-restore: 4
 
-  # [VI] Thời gian hồi giữa các lần uống từ nguồn (miligiây)
-  # [EN] Cooldown between drinking from source (milliseconds)
-  drink-source-cooldown-ms: 3000
+  # [VI] Thời gian hồi giữa các lần uống từ nguồn (giây)
+  # [EN] Cooldown between drinking from source (seconds)
+  drink-source-cooldown-seconds: 3
+
+  # ===== UỐNG NƯỚC TỪ XÔ / DRINK FROM BUCKET =====
+  # [VI] Cho phép uống nước từ xô nước (WATER_BUCKET)
+  # [EN] Allow drinking from water bucket
+  bucket-drink:
+    # [VI] Bật uống nước từ xô
+    # [EN] Enable drinking from bucket
+    enabled: true
+
+    # [VI] Lượng khát hồi phục khi uống từ xô
+    # [EN] Thirst restored when drinking from bucket
+    restore: 10
+
+  # ===== UỐNG NƯỚC TỪ CHAI / DRINK FROM BOTTLE =====
+  # [VI] Cho phép uống nước từ chai thủy tinh (WATER_POTION)
+  # [EN] Allow drinking from glass bottle (WATER_POTION)
+  bottle-drink:
+    # [VI] Bật uống nước từ chai
+    # [EN] Enable drinking from bottle
+    enabled: true
+
+    # [VI] Lượng khát hồi phục khi uống từ chai
+    # [EN] Thirst restored when drinking from bottle
+    restore: 6
 
   # ===== NƯỚC TỰ NHIÊN (SÔNG, BIỂN) / NATURAL WATER (RIVERS, OCEANS) =====
   # [VI] Cấu hình hiệu ứng khi uống nước từ nguồn tự nhiên (sông, suối, biển)
@@ -184,11 +261,11 @@ thirst:
 
     # [VI] Sát thương nhận được MỖI GIÂY khi uống nước tự nhiên (tim)
     # [EN] Damage taken PER SECOND when drinking natural water (hearts)
-    damage-per-second: 2.0
+    damage-per-second: 0.5
 
     # [VI] Tổng thời gian chịu ảnh hưởng của nước bẩn (giây)
     # [EN] Total duration of dirty water effects (seconds)
-    duration-seconds: 10
+    duration-seconds: 5
 
     # [VI] Cường độ hiệu ứng Nausea (buồn nôn / chóng mặt)
     #     0 = Cấp I, 1 = Cấp II, cứ thế tăng dần
@@ -201,14 +278,6 @@ thirst:
   # [EN] Allow filling glass bottles with water from sources
   bottle-fill: true
 
-  # [VI] Lượng khát hồi phục khi uống chai nước (Potion)
-  # [EN] Thirst restored from drinking a water bottle (Potion)
-  bottle-restore: 6
-
-  # [VI] Lượng khát hồi phục khi uống xô nước (Water Bucket)
-  # [EN] Thirst restored from drinking a water bucket
-  bucket-restore: 8
-
 # ============================================================
 # [ENVIRONMENT] 🌍 MÔI TRƯỜNG / ENVIRONMENT
 # ============================================================
@@ -219,17 +288,37 @@ environment:
     # [EN] Enable temperature system (heat in deserts, cold in snow)
     enabled: true
 
-    # [VI] Thời gian giữa các lần kiểm tra nhiệt độ (miligiây)
-    # [EN] How often to check temperature (milliseconds)
-    check-interval-ms: 30000
+    # [VI] Thời gian giữa các lần kiểm tra nhiệt độ (giây)
+    # [EN] How often to check temperature (seconds)
+    check-interval-seconds: 30
 
     # [VI] Sát thương khi ở nơi quá nóng (tim)
     # [EN] Damage when in hot environment (hearts)
     heat-damage: 1.0
 
+    # [VI] Cường độ hiệu ứng nóng (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Heat effect amplifier (0 = Level I, 1 = Level II...)
+    heat-amplifier: 0
+
+    # [VI] % giảm cường độ hiệu ứng nóng khi đội mũ bảo hiểm (0.5 = 50%)
+    #     Bất kỳ loại mũ nào cũng giúp giảm
+    # [EN] % heat effect reduction when wearing a helmet (0.5 = 50%)
+    #     Any helmet type helps reduce
+    helmet-reduce-percent: 0.5
+
     # [VI] Sát thương khi ở nơi quá lạnh (tim)
     # [EN] Damage when in cold environment (hearts)
     cold-damage: 1.0
+
+    # [VI] Cường độ hiệu ứng lạnh (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Cold effect amplifier (0 = Level I, 1 = Level II...)
+    cold-amplifier: 0
+
+    # [VI] % giảm cường độ hiệu ứng lạnh khi mặc giáp (0.25 = 25% mỗi món)
+    #     Mỗi món giáp (mũ, áo, quần, giày) giảm độc lập
+    # [EN] % cold effect reduction per armor piece (0.25 = 25% per piece)
+    #     Each armor piece (helmet, chestplate, leggings, boots) reduces independently
+    armor-reduce-percent: 0.25
 
   # ===== SƯƠNG MÙ / FOG (DARKNESS EFFECT) =====
   fog:
@@ -239,17 +328,17 @@ environment:
     #     Periodically darkens the player's vision
     enabled: true
 
-    # [VI] Thời gian giữa các đợt áp dụng sương mù (tick, 20 tick = 1 giây)
+    # [VI] Thời gian giữa các đợt áp dụng sương mù (giây)
     #     Giá trị càng cao thì sương mù càng hiếm xuất hiện
-    # [EN] Interval between fog applications (ticks, 20 ticks = 1 second)
+    # [EN] Interval between fog applications (seconds)
     #     Higher values mean fog occurs less frequently
-    interval-ticks: 80
+    interval-seconds: 60
 
-    # [VI] Thời gian hiệu ứng sương mù kéo dài (tick, 20 tick = 1 giây)
+    # [VI] Thời gian hiệu ứng sương mù kéo dài (giây)
     #     Giá trị càng cao thì càng mù lâu hơn
-    # [EN] Duration of fog (Darkness) effect (ticks, 20 ticks = 1 second)
+    # [EN] Duration of fog (Darkness) effect (seconds)
     #     Higher values means longer blindness
-    effect-duration-ticks: 100
+    effect-duration-seconds: 30
 
     # [VI] Cường độ hiệu ứng mù (0 = Cấp I nhẹ, 1 = Cấp II nặng hơn)
     #     Giá trị càng cao thì mù càng nặng
@@ -265,7 +354,7 @@ environment:
 
     # [VI] Sát thương khi cố gắng ngủ (tim)
     # [EN] Damage taken when attempting to sleep (hearts)
-    damage: 4.0
+    damage: 1.0
 
   # ===== CÂY TRỒNG / CROP GROWTH =====
   crop-slow:
@@ -291,7 +380,7 @@ environment:
   flight:
     # [VI] Chặn bay (kể cả Creative mode, trừ khi có permission vnmine.hardcore.bypass)
     # [EN] Block flight (even in Creative mode, unless has vnmine.hardcore.bypass permission)
-    block: true
+    block: false
 
   # ===== SỢ HẦM / CLAUSTROPHOBIA =====
   claustrophobia:
@@ -307,6 +396,16 @@ environment:
     # [EN] Trigger chance per movement (percent)
     chance: 5
 
+    # [VI] Cường độ hiệu ứng sợ hầm (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Claustrophobia effect amplifier (0 = Level I, 1 = Level II...)
+    amplifier: 0
+
+    # [VI] % giảm cường độ hiệu ứng khi cầm đuốc (0.5 = 50%)
+    #     Cầm đuốc ở tay chính hoặc tay phụ đều có tác dụng
+    # [EN] % effect reduction when holding a torch (0.5 = 50%)
+    #     Holding torch in main hand or offhand works
+    torch-reduce-percent: 0.5
+
   # ===== CHÓNG MẶT / VERTIGO =====
   vertigo:
     # [VI] Bật hiệu ứng chóng mặt (trên cao)
@@ -315,11 +414,19 @@ environment:
 
     # [VI] Cao độ Y tối thiểu để kích hoạt chóng mặt
     # [EN] Minimum Y level for vertigo to trigger
-    y-level: 200
+    y-level: 100
 
     # [VI] Tỷ lệ kích hoạt mỗi bước di chuyển (phần trăm)
     # [EN] Trigger chance per movement (percent)
     chance: 10
+
+    # [VI] Cường độ hiệu ứng chóng mặt (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Vertigo effect amplifier (0 = Level I, 1 = Level II...)
+    amplifier: 0
+
+    # [VI] % giảm cường độ hiệu ứng khi đeo cánh (0.5 = 50%)
+    # [EN] % effect reduction when wearing elytra (0.5 = 50%)
+    elytra-reduce-percent: 0.5
 
 # ============================================================
 # [DISASTERS] 🌋 THIÊN TAI / DISASTERS
@@ -331,7 +438,7 @@ disasters:
 
   # [VI] Thời gian tối thiểu giữa các lần kiểm tra thiên tai (giây)
   # [EN] Minimum seconds between disaster checks
-  min-interval-seconds: 120
+  min-interval-seconds: 600
 
   # [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
   # [EN] Warning time in seconds before a disaster strikes
@@ -363,6 +470,30 @@ disasters:
   # 📉 Nhật thực - Ban ngày thành đêm, quái xuất hiện
   eclipse-chance: 1
 
+  # 🌍 Động đất - Các khối trên cao rơi xuống, vùi lấp công trình
+  earthquake-chance: 2
+
+  # ===== CẤU HÌNH RIÊNG CHO TỪNG THIÊN TAI =====
+  # [VI] Thời gian nghỉ giữa các đợt áp dụng hiệu ứng (giây)
+  #     Áp dụng cho các thiên tai có hiệu ứng lặp lại (plague, bloodmoon...)
+  # [EN] Cooldown between effect applications (seconds)
+  #     Applies to disasters with repeating effects (plague, bloodmoon...)
+  effect-interval-seconds: 5
+
+  # ===== ĐỘNG ĐẤT / EARTHQUAKE =====
+  earthquake:
+    # [VI] Tỷ lệ mỗi khối trên cao sẽ rơi xuống (phần trăm mỗi giây)
+    # [EN] Chance per second for each block above to fall (percent)
+    block-fall-chance: 15
+
+    # [VI] Bán kính ảnh hưởng xung quanh mỗi người chơi (khối)
+    # [EN] Effect radius around each player (blocks)
+    radius: 15
+
+    # [VI] Cao độ Y tối thiểu để block có thể rơi
+    # [EN] Minimum Y level for blocks to fall
+    min-y: 30
+
 # ============================================================
 # [RENAME] 🏷 ĐỔI TÊN HIỂN THỊ SAU KHI CHẾT / DEATH RENAME
 # ============================================================
@@ -371,7 +502,7 @@ rename:
   #     Tên hiển thị thay đổi trong CHAT và TAB LIST, không ảnh hưởng đến tên thật.
   # [EN] Enable auto-rename display name after death.
   #     Changes name in CHAT and TAB LIST only, does NOT affect the real player name.
-  enabled: false
+  enabled: true
 
   # [VI] Định dạng tên hiển thị sau khi chết.
   #     Các placeholder (ký hiệu đặc biệt) có sẵn:
@@ -414,7 +545,6 @@ rename:
   #       <count>  - Death count (plain number, e.g. 1, 15, 200)
   #       000      - Zero-padded death counter. Number of zeros = minimum digits.
   #                  e.g. deathCount=3: 000 -> 003, 0000 -> 0003
-  #                  e.g. deathCount=15: 000 -> 015, 0000 -> 0015
   #
   #     Examples:
   #       "<name> died 000 times"  → "hoanbh died 001 times"
@@ -422,7 +552,7 @@ rename:
   #       "000 | <name>"          → "001 | hoanbh"
   #       "<name> (<count>)" → "hoanbh (1)"
   #       "0000"                     → "0001"
-  name-structure: "<name> đã chết 000 lần"
+  name-structure: "<name> ☠ 000"
 
 # ============================================================
 # [LOGGING] 📝 NHẬT KÝ / LOGGING

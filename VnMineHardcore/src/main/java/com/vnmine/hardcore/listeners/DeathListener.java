@@ -3,6 +3,7 @@ package com.vnmine.hardcore.listeners;
 import com.vnmine.hardcore.VnMineHardcore;
 import com.vnmine.hardcore.managers.BanManager;
 import com.vnmine.hardcore.managers.ConfigManager;
+import com.vnmine.hardcore.managers.DeathPenaltyManager;
 import com.vnmine.hardcore.managers.DeathRenameManager;
 import com.vnmine.hardcore.managers.LogManager;
 import net.kyori.adventure.text.Component;
@@ -15,6 +16,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
@@ -29,17 +31,19 @@ public class DeathListener implements Listener {
     private final BanManager banManager;
     private final LogManager logManager;
     private final DeathRenameManager renameManager;
+    private final DeathPenaltyManager deathPenaltyManager;
     private final ConfigManager config;
     private final Logger logger;
     private final Map<UUID, Long> combatTagged = new HashMap<>();
     private long combatTagDurationMs;
     private BukkitRunnable combatCheckTask;
 
-    public DeathListener(VnMineHardcore plugin, ConfigManager config, DeathRenameManager renameManager) {
+    public DeathListener(VnMineHardcore plugin, ConfigManager config, DeathRenameManager renameManager, DeathPenaltyManager deathPenaltyManager) {
         this.plugin = plugin;
         this.banManager = plugin.getBanManager();
         this.logManager = plugin.getLogManager();
         this.renameManager = renameManager;
+        this.deathPenaltyManager = deathPenaltyManager;
         this.config = config;
         this.logger = plugin.getLogger();
 
@@ -137,6 +141,18 @@ public class DeathListener implements Listener {
 
         // Update display name after death (if rename enabled)
         renameManager.updateDisplayName(player, logManager.getDeathCount(player));
+
+        // Apply death penalty
+        deathPenaltyManager.onPlayerDeath(player);
+    }
+
+    @EventHandler
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        // Apply death penalty on respawn (start recovery timer)
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            deathPenaltyManager.onPlayerRespawn(player);
+        }, 10L);
     }
 
     @EventHandler

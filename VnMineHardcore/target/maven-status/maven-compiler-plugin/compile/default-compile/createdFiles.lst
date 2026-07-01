@@ -1,4 +1,5 @@
 com/vnmine/hardcore/listeners/WaterListener$2.class
+com/vnmine/hardcore/managers/DeathPenaltyManager.class
 com/vnmine/hardcore/listeners/CombatListener.class
 com/vnmine/hardcore/managers/DisasterManager$4.class
 com/vnmine/hardcore/listeners/EnvironmentListener.class
@@ -11,10 +12,12 @@ com/vnmine/hardcore/managers/DisasterManager$6.class
 com/vnmine/hardcore/managers/DisasterManager.class
 com/vnmine/hardcore/managers/DisasterManager$1.class
 com/vnmine/hardcore/listeners/HungerListener.class
+com/vnmine/hardcore/managers/DeathPenaltyManager$1.class
 com/vnmine/hardcore/listeners/HungerListener$1.class
 com/vnmine/hardcore/managers/LogManager.class
 com/vnmine/hardcore/listeners/WaterListener$1.class
 com/vnmine/hardcore/managers/ThirstManager$1.class
+com/vnmine/hardcore/listeners/WorldInteractionListener.class
 com/vnmine/hardcore/managers/DisasterManager$3.class
 com/vnmine/hardcore/listeners/EnvironmentListener$2.class
 com/vnmine/hardcore/managers/BanManager.class

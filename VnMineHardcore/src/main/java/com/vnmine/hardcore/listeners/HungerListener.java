@@ -25,6 +25,7 @@ public class HungerListener implements Listener {
     private final Logger logger;
     private final Map<UUID, List<Long>> eatTimestamps = new HashMap<>();
     private BukkitRunnable hungerTask;
+    private int drainIntervalTicks;
 
     private static final Set<Material> RAW_FOODS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
         Material.BEEF, Material.CHICKEN, Material.PORKCHOP, Material.MUTTON,
@@ -38,7 +39,8 @@ public class HungerListener implements Listener {
         this.thirstManager = plugin.getThirstManager();
         this.config = config;
         this.logger = plugin.getLogger();
-        logger.info("[Hunger] Initialized: drain=" + config.drainIntervalTicks / 20 + "s, food=" + (int)(config.foodRestoreMultiplier * 100) + "%");
+        this.drainIntervalTicks = config.drainIntervalSeconds * 20;
+        logger.info("[Hunger] Initialized: drain=" + config.drainIntervalSeconds + "s, food=" + (int)(config.foodRestoreMultiplier * 100) + "%");
         startHungerTask();
     }
 
@@ -78,7 +80,7 @@ public class HungerListener implements Listener {
                 }
             }
         };
-        hungerTask.runTaskTimer(plugin, 20L, config.drainIntervalTicks);
+        hungerTask.runTaskTimer(plugin, 20L, drainIntervalTicks);
     }
 
     // Cancel vanilla food changes completely - plugin controls food
@@ -97,7 +99,7 @@ public class HungerListener implements Listener {
         long now = System.currentTimeMillis();
         List<Long> timestamps = eatTimestamps.computeIfAbsent(uuid, k -> new ArrayList<>());
         timestamps.add(now);
-        timestamps.removeIf(t -> now - t > config.chokeWindowMs);
+        timestamps.removeIf(t -> now - t > config.chokeWindowSeconds * 1000L);
 
         if (config.chokeEnabled && timestamps.size() > config.chokeMaxEats) {
             player.damage(config.chokeDamage);
@@ -193,6 +195,7 @@ public class HungerListener implements Listener {
     }
 
     public void reload() {
+        drainIntervalTicks = config.drainIntervalSeconds * 20;
         startHungerTask();
     }
 }

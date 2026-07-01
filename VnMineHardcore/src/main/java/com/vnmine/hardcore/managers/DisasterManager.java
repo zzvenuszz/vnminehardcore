@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.Title;
 import org.bukkit.*;
+import org.bukkit.block.Block;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -32,9 +33,8 @@ public class DisasterManager {
     private int dayCycleCount = 0;
     private boolean isNight = false;
 
-    // Disaster schedule (in minutes converted to ticks: 20 ticks/sec * 60 sec = 1200 ticks/min)
-    private static final int DAY_DURATION = 6000;   // 5 minutes
-    private static final int NIGHT_DURATION = 18000; // 15 minutes
+    // Effect cooldown counter (for plague, bloodmoon, etc.)
+    private int effectCooldownCounter = 0;
 
     private final ConfigManager config;
 
@@ -66,6 +66,7 @@ public class DisasterManager {
         disasterMap.put("plague", this::startPlague);
         disasterMap.put("tornado", this::startTornado);
         disasterMap.put("eclipse", this::startSolarEclipse);
+        disasterMap.put("earthquake", this::startEarthquake);
     }
 
     /**
@@ -167,6 +168,7 @@ public class DisasterManager {
             case "plague" -> "🦠 Plague";
             case "tornado" -> "🌪️ Tornado";
             case "eclipse" -> "📉 Solar Eclipse";
+            case "earthquake" -> "🌍 Earthquake";
             default -> disasterId;
         };
     }
@@ -191,6 +193,11 @@ public class DisasterManager {
                 }
 
                 timeSinceLastDisaster++;
+
+                // Update effect cooldown
+                if (effectCooldownCounter > 0) {
+                    effectCooldownCounter--;
+                }
 
                 if (!disasterActive && timeSinceLastDisaster >= 1200) { // At least 1 minute between checks
                     tryScheduleDisaster();
@@ -265,6 +272,11 @@ public class DisasterManager {
                 scheduleDisaster("📉 Solar Eclipse", this::startSolarEclipse);
                 return;
             }
+            if (roll < 20) {
+                timeSinceLastDisaster = 0;
+                scheduleDisaster("🌍 Earthquake", this::startEarthquake);
+                return;
+            }
         }
     }
 
@@ -330,6 +342,7 @@ public class DisasterManager {
     private void startDisaster(String name, String startMsg, int duration, Runnable duringTask, Runnable endTask) {
         disasterActive = true;
         currentDisaster = name;
+        effectCooldownCounter = 0; // Reset cooldown when disaster starts
         warningBar.name(Component.text("§4§l⚠ " + name + " ĐANG HOẠT ĐỘNG ⚠"));
         warningBar.progress(1.0f);
         warningBar.color(BossBar.Color.RED);
@@ -351,6 +364,7 @@ public class DisasterManager {
         BukkitRunnable duringTaskRunnable = new BukkitRunnable() {
             int elapsed = 0;
             final int maxDuration = duration;
+            int effectTickCounter = 0;
 
             @Override
             public void run() {
@@ -363,7 +377,14 @@ public class DisasterManager {
                 float progress = 1.0f - ((float) elapsed / maxDuration);
                 warningBar.progress(progress);
 
-                duringTask.run();
+                // Apply effect only when cooldown allows
+                effectTickCounter++;
+                int effectIntervalTicks = config.disasterEffectIntervalSeconds * 20;
+                if (effectTickCounter >= effectIntervalTicks) {
+                    effectTickCounter = 0;
+                    duringTask.run();
+                }
+
                 elapsed += 20; // 1 second
             }
         };
@@ -732,6 +753,77 @@ public class DisasterManager {
                     world.setTime(Math.max(originalTime, 1000)); // Set to morning-ish
                 }
                 broadcast("§aNhật thực kết thúc. Mặt trời đã trở lại!");
+            }
+        );
+    }
+
+    // ============================================================
+    // DISASTER: EARTHQUAKE
+    // ============================================================
+    private void startEarthquake() {
+        startDisaster(
+            "🌍 Earthquake",
+            "Động đất dữ dội! Các khối trên cao đang rơi xuống! Hãy tìm nơi trú ẩn!",
+            400, // 20 seconds
+            () -> {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    Location loc = player.getLocation();
+                    World world = player.getWorld();
+
+                    // Shake screen effect
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 30, 0, false, false));
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 20, 2, false, false));
+
+                    // Random blocks above fall down
+                    int radius = config.earthquakeRadius;
+                    int minY = config.earthquakeMinY;
+                    int fallChance = config.earthquakeBlockFallChance;
+
+                    for (int i = 0; i < 5; i++) { // Try 5 blocks per player per tick
+                        int bx = loc.getBlockX() + random.nextInt(radius * 2) - radius;
+                        int bz = loc.getBlockZ() + random.nextInt(radius * 2) - radius;
+                        int by = minY + random.nextInt(60); // Random Y between minY and minY+60
+
+                        Location blockLoc = new Location(world, bx, by, bz);
+                        Block block = blockLoc.getBlock();
+                        Material blockType = block.getType();
+
+                        // Check if block is valid to fall
+                        if (blockType == Material.AIR || blockType == Material.WATER || 
+                            blockType == Material.LAVA || blockType == Material.BEDROCK ||
+                            blockType == Material.BARRIER || blockType == Material.CAVE_AIR ||
+                            blockType == Material.VOID_AIR) {
+                            continue;
+                        }
+
+                        // Random chance to fall
+                        if (random.nextInt(100) < fallChance) {
+                            // Create falling block entity
+                            FallingBlock fallingBlock = world.spawnFallingBlock(
+                                blockLoc.add(0.5, 0, 0.5),
+                                block.getBlockData()
+                            );
+                            fallingBlock.setDropItem(true);
+                            fallingBlock.setHurtEntities(true);
+
+                            // Remove the original block
+                            block.setType(Material.AIR);
+
+                            // Damage players near the falling block's origin
+                            for (Player p : Bukkit.getOnlinePlayers()) {
+                                if (p.getLocation().distance(blockLoc) < 2) {
+                                    p.damage(2.0);
+                                    p.sendMessage("§c§l🌍 Đá rơi trúng bạn!");
+                                }
+                            }
+                        }
+                    }
+
+                    player.sendActionBar("§6§l🌍 ĐỘNG ĐẤT! §7Các khối đang rơi xuống!");
+                }
+            },
+            () -> {
+                broadcast("§aĐộng đất đã kết thúc. Mặt đất đã yên tĩnh trở lại.");
             }
         );
     }
