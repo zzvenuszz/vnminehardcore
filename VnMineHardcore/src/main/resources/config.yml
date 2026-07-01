@@ -12,256 +12,762 @@
 # [DEATH] ☠ TỬ THẦN / DEATH
 # ============================================================
 death:
+  # [VI] Cấm (ban) người chơi vĩnh viễn khi chết
+  # [EN] Permanently ban the player upon death
   ban-on-death: true
+
+  # [VI] Cũng cấm luôn địa chỉ IP (chỉ hoạt động nếu ban-on-death: true)
+  # [EN] Also ban the player's IP address (only works if ban-on-death: true)
   ban-ip: true
+
+  # [VI] Thông báo cái chết cho toàn bộ server
+  # [EN] Broadcast death message to all players
   broadcast-death: true
+
+  # [VI] Phát âm thanh wither death khi có người chết
+  # [EN] Play wither death sound when a player dies
   play-sound: true
 
 # ============================================================
-# [DEATH PENALTY] 💀 HÌNH PHẠT KHI CHẾT
+# [DEATH PENALTY] 💀 HÌNH PHẠT KHI CHẾT / DEATH PENALTY
 # ============================================================
 death-penalty:
+  # [VI] Bật hệ thống hình phạt khi chết (giảm chỉ số)
+  # [EN] Enable death penalty system (stat reduction)
   enabled: true
+
+  # [VI] Thời gian sống sót sau khi hồi sinh để phục hồi chỉ số (giây)
+  #     Nếu người chơi sống sót đủ thời gian này, penalty sẽ được gỡ bỏ
+  # [EN] Survival time after respawn to recover stats (seconds)
+  #     If the player survives this long, the penalty is removed
   recovery-seconds: 300
+
+  # [VI] Số lần chết tối đa có thể tích lũy penalty (giới hạn trên)
+  #     Giúp tránh penalty quá lớn sau nhiều lần chết liên tiếp
+  # [EN] Maximum death count that accumulates penalty (upper limit)
+  #     Prevents penalty from becoming too large after many consecutive deaths
   max-penalty-stack: 5
+
+  # [VI] Phần trăm giảm chỉ số MỖI LẦN CHẾT (số thập phân, 0.1 = 10%)
+  #     Ví dụ: 0.1 = mỗi lần chết giảm 10% chỉ số tương ứng
+  # [EN] Percent stat reduction PER DEATH (decimal, 0.1 = 10%)
+  #     Example: 0.1 = each death reduces the corresponding stat by 10%
   stats:
+    # [VI] % giảm HP tối đa mỗi lần chết
+    # [EN] % max HP reduction per death
     max-hp-per-death: 0.1
+
+    # [VI] % giảm max thirst offset mỗi lần chết
+    # [EN] % max thirst offset reduction per death
     max-thirst-per-death: 0.1
+
+    # [VI] % giảm sát thương gây ra mỗi lần chết
+    # [EN] % damage dealt reduction per death
     damage-per-death: 0.1
+
+    # [VI] % tăng sát thương nhận vào mỗi lần chết
+    # [EN] % incoming damage increase per death
     incoming-damage-per-death: 0.1
+
+    # [VI] % giảm hồi phục mỗi lần chết
+    # [EN] % regen reduction per death
     regen-per-death: 0.1
+
+    # [VI] % tăng tốc mất thức ăn mỗi lần chết
+    # [EN] % food drain increase per death
     food-drain-per-death: 0.1
+
+    # [VI] % tăng tốc mất khát mỗi lần chết
+    # [EN] % thirst drain increase per death
     thirst-drain-per-death: 0.1
 
 # ============================================================
-# [COMBAT] ⚔ CHIẾN ĐẤU
+# [COMBAT] ⚔ CHIẾN ĐẤU / COMBAT
 # ============================================================
 combat:
+  # ===== SÁT THƯƠNG / DAMAGE MULTIPLIERS =====
+  # [VI] Hệ số nhân sát thương từ quái vật (1.0 = bình thường)
+  # [EN] Damage multiplier from mobs (1.0 = normal)
   mob-damage-multiplier: 2.0
+
+  # [VI] Hệ số nhân sát thương ngã (1.0 = bình thường)
+  # [EN] Fall damage multiplier (1.0 = normal)
   fall-damage-multiplier: 2.0
+
+  # [VI] Hệ số nhân sát thương lửa / dung nham (1.0 = bình thường)
+  # [EN] Fire/lava damage multiplier (1.0 = normal)
   fire-damage-multiplier: 2.0
+
+  # [VI] Hệ số nhân sát thương chết đuối (1.0 = bình thường)
+  # [EN] Drowning damage multiplier (1.0 = normal)
   drowning-damage-multiplier: 2.0
+
+  # [VI] Hệ số nhân sát thương nổ (1.0 = bình thường)
+  # [EN] Explosion damage multiplier (1.0 = normal)
   explosion-damage-multiplier: 1.5
+
+  # [VI] Hệ số nhân sát thương PvP (1.0 = bình thường)
+  # [EN] PvP damage multiplier (1.0 = normal)
   pvp-damage-multiplier: 1.25
+
+  # ===== QUÁI VẬT / MOB STATS =====
+  # [VI] Hệ số nhân máu tối đa của quái vật (1.0 = bình thường)
+  # [EN] Extra max health multiplier for mobs (1.0 = normal)
   mob-extra-hp-multiplier: 1.5
+
+  # ===== HỒI PHỤC MÁU / HEALTH REGENERATION =====
+  # [VI] Tắt hoàn toàn hồi phục máu tự nhiên (true = tắt, false = bật)
+  # [EN] Completely disable natural health regeneration (true = off, false = on)
   disable-natural-regen: false
+
+  # [VI] Hệ số hồi phục máu (chỉ dùng khi disable-natural-regen: false)
+  #     1.0 = hồi phục như vanilla, 0.5 = hồi 50%, 0 = không hồi phục
+  # [EN] Regeneration multiplier (only used when disable-natural-regen: false)
+  #     1.0 = vanilla regen, 0.5 = 50% regen, 0 = no regen
   regen-multiplier: 0.5
+
+  # ===== CHIẾN ĐẤU (COMBAT TAG) =====
+  # [VI] Thời gian duy trì trạng thái combat (giây).
+  #     Nếu thoát game khi đang combat sẽ bị ban (combat-log).
+  #     Combat kết thúc khi: hết thời gian, hoặc mob từ bỏ truy đuổi.
+  # [EN] Combat tag duration (seconds).
+  #     Quitting while combat-tagged results in a ban (combat-log).
+  #     Combat ends when: timer expires, or mob stops tracking the player.
   combat-tag-duration-seconds: 30
+
+  # ===== VẬT PHẨM / ITEMS =====
+  # [VI] Sát thương khi sử dụng Ender Pearl (tim)
+  # [EN] Damage taken when using Ender Pearl (hearts)
   ender-pearl-damage: 2.0
 
 # ============================================================
-# [HUNGER] 🍔 ĐÓI
+# [HUNGER] 🍔 ĐÓI / HUNGER
 # ============================================================
 hunger:
+  # [VI] Bật hệ thống đói
+  # [EN] Enable hunger system
   enabled: true
+
+  # [VI] Thời gian giữa các lần giảm đói (giây)
+  # [EN] How often hunger decreases (in seconds)
   drain-interval-seconds: 180
+
+  # [VI] Hệ số hồi phục thức ăn (1.0 = bình thường, 0.5 = 50%)
+  # [EN] Food restoration multiplier (1.0 = normal, 0.5 = 50%)
   food-restore-multiplier: 0.5
+
+  # [VI] Sát thương khi đói hoàn toàn (tim)
+  # [EN] Damage taken when starving (hearts)
   starvation-damage: 1.0
+
+  # [VI] Mức thức ăn tối thiểu để có thể chạy (0-20)
+  # [EN] Minimum food level to be able to sprint (0-20)
   sprint-min-food: 6
+
+  # [VI] Bật ngộ độc khi ăn thức ăn sống (thịt sống, thịt thối, cá nóc...)
+  # [EN] Enable raw food poisoning (raw meat, rotten flesh, pufferfish...)
   raw-food-poison: true
+
+  # [VI] Bật hiệu ứng nghẹn khi ăn quá nhanh
+  # [EN] Enable choking when eating too fast
   choke-enabled: true
+
+  # [VI] Số lần ăn tối đa trong khung thời gian trước khi bị nghẹn
+  # [EN] Maximum eats within the time window before choking
   choke-max-eats: 3
+
+  # [VI] Khung thời gian kiểm tra nghẹn (giây)
+  # [EN] Time window for choking check (seconds)
   choke-window-seconds: 10
+
+  # [VI] Sát thương khi bị nghẹn (tim)
+  # [EN] Damage from choking (hearts)
   choke-damage: 1.0
+
+  # [VI] Bật hiệu ứng phát nổ khi ăn táo vàng enchanted (Notch Apple)
+  # [EN] Enable explosion when eating enchanted golden apple (Notch Apple)
   notch-apple-explode: true
+
+  # [VI] Sát thương từ táo vàng enchanted phát nổ (tim)
+  # [EN] Damage from enchanted golden apple explosion (hearts)
   notch-apple-damage: 2.0
 
 # ============================================================
-# [THIRST] 💧 KHÁT
+# [THIRST] 💧 KHÁT / THIRST
 # ============================================================
 thirst:
+  # [VI] Bật hệ thống khát nước
+  # [EN] Enable thirst system
   enabled: true
+
+  # [VI] Thời gian giữa các lần giảm khát (giây)
+  # [EN] How often thirst decreases (seconds)
   drain-interval-seconds: 120
+
+  # [VI] Sát thương khi khát về 0 (tim)
+  # [EN] Damage when thirst reaches 0 (hearts)
   thirst-damage: 1.0
+
+  # [VI] Mức khát tối đa
+  # [EN] Maximum thirst level
   max-thirst: 20
+
+  # ===== UỐNG NƯỚC TỪ NGUỒN / DRINK FROM SOURCE =====
+  # [VI] Cho phép uống nước trực tiếp từ nguồn nước (sông, hồ, biển, vạc...)
+  # [EN] Allow drinking directly from water sources (rivers, lakes, cauldrons...)
   drink-from-source: true
+
+  # [VI] Lượng khát hồi phục khi uống từ nguồn
+  # [EN] Thirst restored when drinking from source
   drink-source-restore: 4
+
+  # [VI] Thời gian hồi giữa các lần uống từ nguồn (giây)
+  # [EN] Cooldown between drinking from source (seconds)
   drink-source-cooldown-seconds: 3
+
+  # ===== UỐNG NƯỚC TỪ XÔ / DRINK FROM BUCKET =====
+  # [VI] Cho phép uống nước từ xô nước (WATER_BUCKET)
+  # [EN] Allow drinking from water bucket
   bucket-drink:
+    # [VI] Bật uống nước từ xô
+    # [EN] Enable drinking from bucket
     enabled: true
+
+    # [VI] Lượng khát hồi phục khi uống từ xô
+    # [EN] Thirst restored when drinking from bucket
     restore: 10
+
+  # ===== UỐNG NƯỚC TỪ CHAI / DRINK FROM BOTTLE =====
+  # [VI] Cho phép uống nước từ chai thủy tinh (WATER_POTION)
+  # [EN] Allow drinking from glass bottle (WATER_POTION)
   bottle-drink:
+    # [VI] Bật uống nước từ chai
+    # [EN] Enable drinking from bottle
     enabled: true
+
+    # [VI] Lượng khát hồi phục khi uống từ chai
+    # [EN] Thirst restored when drinking from bottle
     restore: 6
+
+  # ===== NƯỚC TỰ NHIÊN (SÔNG, BIỂN) / NATURAL WATER (RIVERS, OCEANS) =====
+  # [VI] Cấu hình hiệu ứng khi uống nước từ nguồn tự nhiên (sông, suối, biển)
+  #     Nước từ vạc (cauldron) không bị ảnh hưởng. Có thể tắt hoàn toàn.
+  # [EN] Effects when drinking from natural sources (rivers, streams, oceans).
+  #     Water from cauldrons is NOT affected. Can be fully disabled.
   natural-water:
+    # [VI] Bật hiệu ứng khi uống nước tự nhiên
+    # [EN] Enable effects for drinking natural water
     enabled: true
+
+    # [VI] Sát thương nhận được MỖI GIÂY khi uống nước tự nhiên (tim)
+    # [EN] Damage taken PER SECOND when drinking natural water (hearts)
     damage-per-second: 0.5
+
+    # [VI] Tổng thời gian chịu ảnh hưởng của nước bẩn (giây)
+    # [EN] Total duration of dirty water effects (seconds)
     duration-seconds: 5
+
+    # [VI] Cường độ hiệu ứng Nausea (buồn nôn / chóng mặt)
+    #     0 = Cấp I, 1 = Cấp II, cứ thế tăng dần
+    # [EN] Nausea (motion sickness) effect amplifier
+    #     0 = Level I, 1 = Level II, and so on
     nausea-amplifier: 0
+
+  # ===== CHAI LỌ / BOTTLES =====
+  # [VI] Cho phép lấy nước vào chai thủy tinh từ nguồn nước
+  # [EN] Allow filling glass bottles with water from sources
   bottle-fill: true
 
 # ============================================================
-# [ENVIRONMENT] 🌍 MÔI TRƯỜNG
+# [ENVIRONMENT] 🌍 MÔI TRƯỜNG / ENVIRONMENT
 # ============================================================
 environment:
+  # ===== NHIỆT ĐỘ / TEMPERATURE =====
   temperature:
+    # [VI] Bật hệ thống nhiệt độ (nóng ở sa mạc, lạnh ở tuyết)
+    # [EN] Enable temperature system (heat in deserts, cold in snow)
     enabled: true
+
+    # [VI] Thời gian giữa các lần kiểm tra nhiệt độ (giây)
+    # [EN] How often to check temperature (seconds)
     check-interval-seconds: 30
+
+    # [VI] Sát thương khi ở nơi quá nóng (tim)
+    # [EN] Damage when in hot environment (hearts)
     heat-damage: 1.0
+
+    # [VI] Cường độ hiệu ứng nóng (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Heat effect amplifier (0 = Level I, 1 = Level II...)
     heat-amplifier: 0
+
+    # [VI] % giảm cường độ hiệu ứng nóng khi đội mũ bảo hiểm (0.5 = 50%)
+    #     Bất kỳ loại mũ nào cũng giúp giảm
+    # [EN] % heat effect reduction when wearing a helmet (0.5 = 50%)
+    #     Any helmet type helps reduce
     helmet-reduce-percent: 0.5
+
+    # [VI] Sát thương khi ở nơi quá lạnh (tim)
+    # [EN] Damage when in cold environment (hearts)
     cold-damage: 1.0
+
+    # [VI] Cường độ hiệu ứng lạnh (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Cold effect amplifier (0 = Level I, 1 = Level II...)
     cold-amplifier: 0
+
+    # [VI] % giảm cường độ hiệu ứng lạnh khi mặc giáp (0.25 = 25% mỗi món)
+    #     Mỗi món giáp (mũ, áo, quần, giày) giảm độc lập
+    # [EN] % cold effect reduction per armor piece (0.25 = 25% per piece)
+    #     Each armor piece (helmet, chestplate, leggings, boots) reduces independently
     armor-reduce-percent: 0.25
+
+  # ===== SƯƠNG MÙ / FOG (DARKNESS EFFECT) =====
   fog:
-    enabled: true
+    # [VI] Bật hiệu ứng sương mù (Darkness effect)
+    #     Làm tối tầm nhìn của người chơi định kỳ
+    # [EN] Enable fog effect (Darkness effect)
+    #     Periodically darkens the player's vision
+    enabled: false
+
+    # [VI] Thời gian giữa các đợt áp dụng sương mù (giây)
+    #     Giá trị càng cao thì sương mù càng hiếm xuất hiện
+    # [EN] Interval between fog applications (seconds)
+    #     Higher values mean fog occurs less frequently
     interval-seconds: 60
+
+    # [VI] Thời gian hiệu ứng sương mù kéo dài (giây)
+    #     Giá trị càng cao thì càng mù lâu hơn
+    # [EN] Duration of fog (Darkness) effect (seconds)
+    #     Higher values means longer blindness
     effect-duration-seconds: 30
+
+    # [VI] Cường độ hiệu ứng mù (0 = Cấp I nhẹ, 1 = Cấp II nặng hơn)
+    #     Giá trị càng cao thì mù càng nặng
+    # [EN] Fog effect amplifier (0 = Level I mild, 1 = Level II stronger)
+    #     Higher values = stronger blindness
     effect-amplifier: 0
+
+  # ===== NGỦ / SLEEP =====
   sleep:
+    # [VI] Chặn ngủ (không cho phép lên giường)
+    # [EN] Block sleeping (prevents using beds)
     block: true
+
+    # [VI] Sát thương khi cố gắng ngủ (tim)
+    # [EN] Damage taken when attempting to sleep (hearts)
     damage: 1.0
+
+  # ===== CÂY TRỒNG / CROP GROWTH =====
   crop-slow:
+    # [VI] Bật làm chậm sự phát triển của cây trồng
+    # [EN] Enable slower crop growth
     enabled: true
+
+    # [VI] Hệ số tốc độ phát triển (1.0 = bình thường, 0.5 = chậm 50%)
+    # [EN] Growth speed multiplier (1.0 = normal, 0.5 = 50% slower)
     multiplier: 0.75
+
+  # ===== ĐỘ BỀN CÔNG CỤ / TOOL DURABILITY =====
   tool-wear:
+    # [VI] Bật hao mòn công cụ nhanh hơn
+    # [EN] Enable faster tool wear
     enabled: true
+
+    # [VI] Hệ số hao mòn thêm (1.0 = bình thường, 1.5 = hao nhanh gấp 1.5)
+    # [EN] Extra durability loss multiplier (1.0 = normal, 1.5 = 1.5x faster)
     multiplier: 1.5
+
+  # ===== BAY / FLIGHT =====
   flight:
+    # [VI] Chặn bay (kể cả Creative mode, trừ khi có permission vnmine.hardcore.bypass)
+    # [EN] Block flight (even in Creative mode, unless has vnmine.hardcore.bypass permission)
     block: false
+
+  # ===== SỢ HẦM / CLAUSTROPHOBIA =====
   claustrophobia:
+    # [VI] Bật hiệu ứng sợ hầm (dưới lòng đất)
+    # [EN] Enable claustrophobia effect (underground)
     enabled: true
+
+    # [VI] Cao độ Y tối đa để kích hoạt sợ hầm
+    # [EN] Maximum Y level for claustrophobia to trigger
     y-level: 30
+
+    # [VI] Tỷ lệ kích hoạt mỗi bước di chuyển (phần trăm)
+    # [EN] Trigger chance per movement (percent)
     chance: 5
+
+    # [VI] Cường độ hiệu ứng sợ hầm (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Claustrophobia effect amplifier (0 = Level I, 1 = Level II...)
     amplifier: 0
+
+    # [VI] % giảm cường độ hiệu ứng khi cầm đuốc (0.5 = 50%)
+    #     Cầm đuốc ở tay chính hoặc tay phụ đều có tác dụng
+    # [EN] % effect reduction when holding a torch (0.5 = 50%)
+    #     Holding torch in main hand or offhand works
     torch-reduce-percent: 0.5
+
+  # ===== CHÓNG MẶT / VERTIGO =====
   vertigo:
+    # [VI] Bật hiệu ứng chóng mặt (trên cao)
+    # [EN] Enable vertigo effect (high altitude)
     enabled: true
+
+    # [VI] Cao độ Y tối thiểu để kích hoạt chóng mặt
+    # [EN] Minimum Y level for vertigo to trigger
     y-level: 100
+
+    # [VI] Tỷ lệ kích hoạt mỗi bước di chuyển (phần trăm)
+    # [EN] Trigger chance per movement (percent)
     chance: 10
+
+    # [VI] Cường độ hiệu ứng chóng mặt (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Vertigo effect amplifier (0 = Level I, 1 = Level II...)
     amplifier: 0
+
+    # [VI] % giảm cường độ hiệu ứng khi đeo cánh (0.5 = 50%)
+    # [EN] % effect reduction when wearing elytra (0.5 = 50%)
     elytra-reduce-percent: 0.5
 
 # ============================================================
 # [VILLAGER TRADING] 🏘️ GIAO DỊCH DÂN LÀNG
 # ============================================================
+# [VI] Quản lý giao dịch của dân làng theo biome.
+#      Khi đặt workstation, dân làng sẽ học nghề phù hợp với biome.
+#      Nếu disable-random-villager: true, dân làng thất nghiệp không thể random nghề.
+# [EN] Manages villager trading by biome.
+#      When placing a workstation, villagers learn professions suitable for their biome.
+#      If disable-random-villager: true, unemployed villagers cannot randomly acquire professions.
 villager-trading:
+  # [VI] Bật hệ thống giao dịch dân làng theo biome
+  # [EN] Enable villager trading system by biome
   enabled: true
+
+  # [VI] Không cho phép dân làng thất nghiệp học nghề random khi đặt workstation
+  # [EN] Prevent unemployed villagers from randomly acquiring professions when placing workstations
   disable-random-villager: true
 
 # ============================================================
 # [SPAWNER CONTROL] 🪤 KIỂM SOÁT LỒNG FARM
 # ============================================================
+# [VI] Kiểm soát quái vật sinh ra từ lồng farm (spawner).
+#      Giảm số lượng, tăng HP và damage để cân bằng gameplay.
+# [EN] Controls mobs spawned from spawners.
+#      Reduces spawn rate, increases HP and damage to balance gameplay.
 spawner-control:
+  # [VI] Bật hệ thống kiểm soát lồng farm
+  # [EN] Enable spawner control system
   enabled: true
+
+  # [VI] Tỷ lệ spawn quái vật từ lồng (0.3 = 30% tỷ lệ gốc, giảm 70%)
+  #     1.0 = spawn bình thường, 0.0 = không spawn gì cả
+  # [EN] Mob spawn rate from spawners (0.3 = 30% of original rate, 70% reduction)
+  #     1.0 = normal spawn, 0.0 = no spawns at all
   spawn-rate-reduction: 0.3
+
+  # [VI] Hệ số nhân HP của quái vật từ lồng (3.0 = HP x3)
+  # [EN] HP multiplier for spawner mobs (3.0 = 3x HP)
   hp-multiplier: 3.0
+
+  # [VI] Hệ số nhân sát thương của quái vật từ lồng (2.0 = damage x2)
+  #      Áp dụng dưới dạng hiệu ứng STRENGTH
+  # [EN] Damage multiplier for spawner mobs (2.0 = 2x damage)
+  #      Applied as STRENGTH effect
   damage-multiplier: 2.0
 
 # ============================================================
-# [DISASTERS] 🌋 THIÊN TAI
+# [DISASTERS] 🌋 THIÊN TAI / DISASTERS
 # ============================================================
+# [VI] Hệ thống thiên tai tự động xảy ra trong game.
+#      Mỗi loại thiên tai có cấu hình riêng về thời gian, hiệu ứng và tỷ lệ xuất hiện.
+# [EN] Automatic disaster system in the game.
+#      Each disaster type has its own configuration for timing, effects, and spawn chance.
 disasters:
+  # [VI] Bật hệ thống thiên tai tự động
+  # [EN] Enable automatic disaster system
   enabled: true
+
+  # [VI] Thời gian tối thiểu giữa các lần kiểm tra thiên tai (giây)
+  # [EN] Minimum seconds between disaster checks
   min-interval-seconds: 600
+
+  # [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
+  # [EN] Warning time in seconds before a disaster strikes
   warning-seconds: 300
 
-  # Overworld
+  # [VI] Tỷ lệ xuất hiện của từng loại thiên tai (phần trăm)
+  #     Giá trị càng cao càng dễ xảy ra
+  # [EN] Spawn chance for each disaster type (percent)
+  #     Higher values = more likely to occur
+
+  # ===== OVERWORLD =====
+  # 🌕 Trăng máu - Quái vật sinh sản ồ ạt, mạnh hơn
   blood-moon-chance: 30
+
+  # ☄️ Mưa sao băng - Thiên thạch rơi, nổ
   meteor-chance: 5
+
+  # 🌊 Siêu bão - Sấm sét, mưa axit, mù
   mega-storm-chance: 5
+
+  # 🔥 Bão mặt trời - Ánh nắng gây cháy, mù
   solar-flare-chance: 3
+
+  # 🦠 Dịch bệnh - Gây độc, suy yếu, đói
   plague-chance: 2
+
+  # 🌪️ Lốc xoáy - Nhấc bổng người chơi, phá hủy khối
   tornado-chance: 2
+
+  # 📉 Nhật thực - Ban ngày thành đêm, quái xuất hiện
   eclipse-chance: 1
+
+  # 🌍 Động đất - Các khối trên cao rơi xuống, vùi lấp công trình
   earthquake-chance: 2
 
-  # Nether
+  # ===== NETHER =====
+  # 🔥 Inferno Storm - Lửa địa ngục trút xuống, spawn Ghast/Magma Cube
   inferno-storm-chance: 3
+
+  # 💀 Soul Eruption - Soul sand phát nổ, Wither effect, spawn Wither Skeleton
   soul-eruption-chance: 2
+
+  # 🌋 Lava Geyser - Cột lava phun trào từ dưới đất
   lava-geyser-chance: 2
 
-  # The End
+  # ===== THE END =====
+  # 👁️ End Surge - Sinh vật End trỗi dậy, Levitation
   end-surge-chance: 2
+
+  # 🌌 Void Storm - Màn hình tối, damage liên tục
   void-storm-chance: 2
+
+  # 🌀 Chorus Explosion - Teleport ngẫu nhiên, damage
   chorus-explosion-chance: 1
 
-  # Per-disaster config
+  # ===== CẤU HÌNH RIÊNG CHO TỪNG THIÊN TAI =====
+  # [VI] Mỗi thiên tai có thể cấu hình riêng thời gian hiệu ứng
+  # [EN] Each disaster can have its own effect timing configuration
+
+  # 🌕 Blood Moon
   blood-moon:
+    # [VI] Thời gian giữa các đợt áp dụng hiệu ứng (giây)
+    # [EN] Interval between effect applications (seconds)
     effect-interval-seconds: 5
+
+    # [VI] Thời gian kéo dài của mỗi đợt hiệu ứng (giây)
+    # [EN] Duration of each effect wave (seconds)
     effect-duration-seconds: 10
+
+  # ☄️ Meteor Shower
   meteor:
     effect-interval-seconds: 3
     effect-duration-seconds: 5
+
+  # 🌊 Mega Storm
   mega-storm:
     effect-interval-seconds: 4
     effect-duration-seconds: 8
+
+  # 🔥 Solar Flare
   solar-flare:
     effect-interval-seconds: 3
     effect-duration-seconds: 6
+
+  # 🦠 Plague
   plague:
     effect-interval-seconds: 7
     effect-duration-seconds: 8
+
+  # 🌪️ Tornado
   tornado:
     effect-interval-seconds: 2
     effect-duration-seconds: 4
+
+  # 📉 Solar Eclipse
   eclipse:
     effect-interval-seconds: 5
     effect-duration-seconds: 10
+
+  # ===== ĐỘNG ĐẤT / EARTHQUAKE =====
   earthquake:
+    # [VI] Thời gian giữa các đợt rung chuyển (giây)
+    # [EN] Interval between earthquake shakes (seconds)
     effect-interval-seconds: 3
+
+    # [VI] Thời gian kéo dài của động đất (giây)
+    # [EN] Duration of earthquake (seconds)
     effect-duration-seconds: 5
+
+    # [VI] Tỷ lệ mỗi khối trên cao sẽ rơi xuống (phần trăm)
+    # [EN] Chance for each block above to fall (percent)
     block-fall-chance: 15
+
+    # [VI] Bán kính ảnh hưởng xung quanh mỗi người chơi (khối)
+    # [EN] Effect radius around each player (blocks)
     radius: 15
+
+    # [VI] Cao độ Y tối thiểu để block có thể rơi
+    # [EN] Minimum Y level for blocks to fall
     min-y: 30
+
+    # [VI] Hệ số giảm tỷ lệ rơi theo độ bền vỡ (blast resistance)
+    #     Block càng cứng (obsidian, bedrock...) càng khó rơi
+    #     0.1 = giảm 10% tỷ lệ rơi mỗi điểm blast resistance
+    # [EN] Blast resistance factor to reduce fall chance
+    #     Harder blocks (obsidian, bedrock...) are less likely to fall
+    #     0.1 = reduces fall chance by 10% per blast resistance point
     blast-resistance-factor: 0.1
+
+  # ===== NETHER DISASTERS =====
+  # 🔥 Inferno Storm
   inferno-storm:
     effect-interval-seconds: 3
     effect-duration-seconds: 5
+    # [VI] Sát thương mỗi đợt hiệu ứng (tim)
+    # [EN] Damage per effect wave (hearts)
     damage: 2.0
+    # [VI] Thời gian block cháy (tick, 20 tick = 1 giây)
+    # [EN] Fire tick duration (tick, 20 ticks = 1 second)
     fire-ticks: 100
+
+  # 💀 Soul Eruption
   soul-eruption:
     effect-interval-seconds: 4
     effect-duration-seconds: 8
-    wither-amplifier: 1
+    # [VI] Sát thương mỗi đợt hiệu ứng (tim)
+    # [EN] Damage per effect wave (hearts)
     damage: 2.0
+    # [VI] Cường độ hiệu ứng Wither (0 = Cấp I, 1 = Cấp II...)
+    # [EN] Wither effect amplifier (0 = Level I, 1 = Level II...)
+    wither-amplifier: 1
+
+  # 🌋 Lava Geyser
   lava-geyser:
     effect-interval-seconds: 5
     effect-duration-seconds: 10
+    # [VI] Sát thương mỗi đợt hiệu ứng (tim)
+    # [EN] Damage per effect wave (hearts)
     damage: 3.0
+
+  # ===== THE END DISASTERS =====
+  # 👁️ End Surge
   end-surge:
     effect-interval-seconds: 5
     effect-duration-seconds: 8
+    # [VI] Tỷ lệ spawn Shulker (%) so với Endermite (20 = 20% Shulker, 80% Endermite)
+    # [EN] Shulker spawn chance (%) compared to Endermite (20 = 20% Shulker, 80% Endermite)
     shulker-chance: 20
+
+  # 🌌 Void Storm
   void-storm:
     effect-interval-seconds: 4
     effect-duration-seconds: 6
+    # [VI] Sát thương mỗi đợt hiệu ứng (tim)
+    # [EN] Damage per effect wave (hearts)
     damage: 2.0
+
+  # 🌀 Chorus Explosion
   chorus-explosion:
     effect-interval-seconds: 6
     effect-duration-seconds: 10
+    # [VI] Sát thương mỗi đợt hiệu ứng (tim)
+    # [EN] Damage per effect wave (hearts)
     damage: 1.0
 
 # ============================================================
 # [BOSS EVENTS] 👹 BOSS NGẪU NHIÊN
 # ============================================================
+# [VI] Hệ thống boss ngẫu nhiên xuất hiện trong game.
+#      Boss có HP cao, damage mạnh, rơi item quý hiếm.
+#      Có hệ thống cảnh báo trước khi boss xuất hiện.
+# [EN] Random boss event system.
+#      Bosses have high HP, strong damage, drop rare items.
+#      Includes warning system before boss spawns.
 boss-events:
+  # [VI] Bật hệ thống boss ngẫu nhiên
+  # [EN] Enable random boss event system
   enabled: true
+
+  # [VI] Thời gian tối thiểu giữa các lần kiểm tra boss (giây)
+  #     Boss chỉ có thể xuất hiện sau thời gian này kể từ lần cuối
+  # [EN] Minimum seconds between boss checks
+  #     Boss can only spawn after this time has passed since last spawn
   min-interval-seconds: 1200
+
+  # [VI] Bán kính spawn boss quanh player ngẫu nhiên (khối)
+  # [EN] Boss spawn radius around random player (blocks)
   spawn-radius: 50
+
+  # ===== DANH SÁCH BOSS =====
+  # [VI] Cấu hình từng boss với đầy đủ thông số
+  # [EN] Configure each boss with full parameters
   bosses:
+    # ===== WITHER =====
     wither:
+      # [VI] Bật/tắt boss này
+      # [EN] Enable/disable this boss
       enabled: true
+
+      # [VI] Loại entity (WITHER, ENDER_DRAGON, GIANT, GHAST...)
+      # [EN] Entity type (WITHER, ENDER_DRAGON, GIANT, GHAST...)
       entity-type: WITHER
+
+      # [VI] Tên hiển thị của boss (hỗ trợ mã màu §)
+      # [EN] Display name of boss (supports color codes §)
       display-name: "§c§lWither Huyền Thoại"
+
+      # [VI] HP tối đa của boss
+      # [EN] Maximum HP of boss
       hp: 600
+
+      # [VI] Hệ số nhân sát thương (1.0 = bình thường, 2.0 = gấp đôi)
+      # [EN] Damage multiplier (1.0 = normal, 2.0 = double)
       damage-multiplier: 2.0
+
+      # [VI] Tỷ lệ xuất hiện (%) - tổng tất cả boss không được vượt quá 100
+      # [EN] Spawn chance (%) - total of all bosses should not exceed 100
       chance: 20
+
+      # [VI] Thời gian tồn tại tối đa của boss (giây)
+      #     Sau thời gian này boss sẽ tự động biến mất
+      # [EN] Maximum boss duration (seconds)
+      #     Boss will automatically disappear after this time
       duration-seconds: 120
+
+      # [VI] Thời gian cảnh báo trước khi boss xuất hiện (giây)
+      #     Trong thời gian này sẽ có thông báo và boss bar
+      # [EN] Warning time before boss spawns (seconds)
+      #     During this time, there will be announcements and boss bar
       warning-seconds: 60
+
+      # ===== DROP ITEMS =====
+      # [VI] Danh sách item rơi ra khi boss bị tiêu diệt
+      # [EN] List of items dropped when boss is killed
       drops:
+        # [VI] Tên item (tên Material của Minecraft, viết hoa)
+        # [EN] Item name (Minecraft Material name, uppercase)
         NETHERITE_INGOT:
+          # [VI] Số lượng tối thiểu rơi ra
+          # [EN] Minimum amount dropped
           min-amount: 1
+          # [VI] Số lượng tối đa rơi ra
+          # [EN] Maximum amount dropped
           max-amount: 3
+          # [VI] Tỷ lệ rơi (0.0 = 0%, 1.0 = 100%)
+          # [EN] Drop chance (0.0 = 0%, 1.0 = 100%)
           chance: 1.0
+
         DIAMOND_BLOCK:
           min-amount: 1
           max-amount: 5
           chance: 0.5
+
         WITHER_SKELETON_SKULL:
           min-amount: 1
           max-amount: 1
           chance: 0.3
+
+    # ===== ENDER DRAGON =====
     ender_dragon:
       enabled: false
       entity-type: ENDER_DRAGON
@@ -284,6 +790,8 @@ boss-events:
           min-amount: 2
           max-amount: 4
           chance: 0.5
+
+    # ===== GIANT =====
     giant:
       enabled: false
       entity-type: GIANT
@@ -302,6 +810,8 @@ boss-events:
           min-amount: 1
           max-amount: 3
           chance: 0.5
+
+    # ===== GHAST =====
     ghast:
       enabled: false
       entity-type: GHAST
@@ -324,18 +834,57 @@ boss-events:
 # ============================================================
 # [ORE CONTROL] ⛏️ KIỂM SOÁT QUẶNG
 # ============================================================
+# [VI] Kiểm soát tỷ lệ sinh ra quặng khi tạo world mới.
+#      Chỉ áp dụng khi world chưa tồn tại và được tạo mới.
+#      Tỷ lệ được tính trên 100 block quặng trong chunk.
+# [EN] Controls ore spawn rate when generating new worlds.
+#      Only applies when world doesn't exist and is being newly created.
+#      Rate is calculated per 100 ore blocks in a chunk.
 ore-control:
+  # [VI] Bật hệ thống kiểm soát quặng
+  # [EN] Enable ore control system
   enabled: false
+
+  # ===== CẤU HÌNH THEO WORLD =====
+  # [VI] Mỗi world có thể cấu hình tỷ lệ quặng riêng
+  # [EN] Each world can have its own ore rate configuration
   worlds:
+    # [VI] Tên world (ví dụ: world, world_nether, world_the_end)
+    # [EN] World name (e.g. world, world_nether, world_the_end)
     world:
+      # [VI] Tỷ lệ quặng kim cương (0.18 = 0.18% so với tỷ lệ vanilla)
+      # [EN] Diamond ore rate (0.18 = 0.18% of vanilla rate)
       DIAMOND_ORE: 0.18
+
+      # [VI] Tỷ lệ quặng emerald (0.05 = 0.05%)
+      # [EN] Emerald ore rate (0.05 = 0.05%)
       EMERALD_ORE: 0.05
+
+      # [VI] Tỷ lệ quặng sắt (1.20 = 1.2%)
+      # [EN] Iron ore rate (1.20 = 1.2%)
       IRON_ORE: 1.20
+
+      # [VI] Tỷ lệ quặng vàng (0.45 = 0.45%)
+      # [EN] Gold ore rate (0.45 = 0.45%)
       GOLD_ORE: 0.45
+
+      # [VI] Tỷ lệ quặng than (2.50 = 2.5%)
+      # [EN] Coal ore rate (2.50 = 2.5%)
       COAL_ORE: 2.50
+
+      # [VI] Tỷ lệ quặng lapis (0.30 = 0.3%)
+      # [EN] Lapis ore rate (0.30 = 0.3%)
       LAPIS_ORE: 0.30
+
+      # [VI] Tỷ lệ quặng redstone (1.00 = 1.0%)
+      # [EN] Redstone ore rate (1.00 = 1.0%)
       REDSTONE_ORE: 1.00
+
+      # [VI] Tỷ lệ quặng đồng (1.50 = 1.5%)
+      # [EN] Copper ore rate (1.50 = 1.5%)
       COPPER_ORE: 1.50
+
+      # ===== DEEPSLATE ORES =====
       DEEPSLATE_DIAMOND_ORE: 0.18
       DEEPSLATE_EMERALD_ORE: 0.05
       DEEPSLATE_IRON_ORE: 1.20
@@ -344,6 +893,8 @@ ore-control:
       DEEPSLATE_LAPIS_ORE: 0.30
       DEEPSLATE_REDSTONE_ORE: 1.00
       DEEPSLATE_COPPER_ORE: 1.50
+
+      # ===== NETHER ORES =====
       NETHER_QUARTZ_ORE: 2.00
       NETHER_GOLD_ORE: 0.80
       ANCIENT_DEBRIS: 0.02
@@ -351,15 +902,83 @@ ore-control:
 # ============================================================
 # [RENAME] 🏷 ĐỔI TÊN HIỂN THỊ SAU KHI CHẾT
 # ============================================================
+# [VI] Tự động đổi tên hiển thị của người chơi sau khi chết.
+#      Tên hiển thị thay đổi trong CHAT và TAB LIST, không ảnh hưởng đến tên thật.
+# [EN] Auto-rename player display name after death.
+#      Changes name in CHAT and TAB LIST only, does NOT affect the real player name.
 rename:
+  # [VI] Bật tính năng đổi tên
+  # [EN] Enable rename feature
   enabled: true
+
+  # [VI] Định dạng tên hiển thị sau khi chết.
+  #     Các placeholder (ký hiệu đặc biệt) có sẵn:
+  #       <name>   - Tên gốc của người chơi (ví dụ: hoanbh)
+  #       <count>  - Số lần chết (số thường, không có số 0 ở đầu, ví dụ: 1, 15, 200)
+  #       000      - Dãy số 0: đại diện cho số lần chết có padding (thêm số 0 ở đầu).
+  #                  Số lượng chữ số 0 = độ dài tối thiểu của số.
+  #                  Ví dụ với số lần chết = 3:
+  #                    000 -> 003
+  #                    0000 -> 0003
+  #                    00 -> 03
+  #                  Ví dụ với số lần chết = 15:
+  #                    000 -> 015
+  #                    0000 -> 0015
+  #
+  #     Bạn có thể kết hợp các placeholder và text tùy ý.
+  #
+  #     Ví dụ các định dạng mẫu:
+  #       "<name> đã chết 000 lần"
+  #         → hoanbh đã chết 001 lần
+  #         → hoanbh đã chết 015 lần
+  #
+  #       "<name>_000"
+  #         → hoanbh_001
+  #         → hoanbh_015
+  #
+  #       "000 | <name>"
+  #         → 001 | hoanbh
+  #
+  #       "<name> (<count>)"
+  #         → hoanbh (1)
+  #         → hoanbh (15)
+  #
+  #       "0000"
+  #         → 0001 (chỉ hiện số)
+  #
+  # [EN] Display name format after death.
+  #     Available placeholders:
+  #       <name>   - Player's original name (e.g. hoanbh)
+  #       <count>  - Death count (plain number, e.g. 1, 15, 200)
+  #       000      - Zero-padded death counter. Number of zeros = minimum digits.
+  #                  e.g. deathCount=3: 000 -> 003, 0000 -> 0003
+  #
+  #     Examples:
+  #       "<name> died 000 times"  → "hoanbh died 001 times"
+  #       "<name>_000"           → "hoanbh_001"
+  #       "000 | <name>"          → "001 | hoanbh"
+  #       "<name> (<count>)" → "hoanbh (1)"
+  #       "0000"                     → "0001"
   name-structure: "<name> ☠ 000"
 
 # ============================================================
-# [LOGGING] 📝 NHẬT KÝ
+# [LOGGING] 📝 NHẬT KÝ / LOGGING
 # ============================================================
+# [VI] Cấu hình ghi nhật ký hệ thống
+# [EN] System logging configuration
 logging:
+  # [VI] Bật log debug trong console (dành cho debug, có thể rất nhiều dòng)
+  # [EN] Enable debug console logs (for debugging, may be very verbose)
   console-debug: false
+
+  # [VI] Ghi nhật ký các cái chết
+  # [EN] Log deaths
   log-deaths: true
+
+  # [VI] Ghi nhật ký các vụ ban
+  # [EN] Log bans
   log-bans: true
+
+  # [VI] Ghi nhật ký các sự kiện thiên tai
+  # [EN] Log disasters
   log-disasters: true
