@@ -152,14 +152,72 @@ public static boolean canDrink(ItemStack item) {
 }
 ```
 
+### Lỗi 6: Maven cache bị lỗi "ZipFile invalid LOC header"
+**Triệu chứng**:
+```
+error: error reading /home/ubuntu/.m2/repository/.../xxx.jar; ZipFile invalid LOC header (bad signature)
+```
+**Nguyên nhân**: Các file JAR trong Maven local repository bị hỏng do tải xuống không hoàn chỉnh hoặc bị gián đoạn.
+**Cách fix**: Xóa toàn bộ Maven cache và build lại từ đầu:
+```bash
+# Xóa toàn bộ cache
+rm -rf /home/ubuntu/.m2/repository
+
+# Build lại (Maven sẽ tự động tải lại tất cả dependencies)
+cd /path/to/plugin
+timeout 15m mvn clean package
+```
+
+### Lỗi 7: `maven-resources-plugin` thiếu dependencies
+**Triệu chứng**:
+```
+[ERROR] Failed to execute goal ...maven-resources-plugin:3.3.x:resources:
+A required class was missing: org/apache/commons/io/FilenameUtils
+```
+**Nguyên nhân**: Phiên bản maven-resources-plugin 3.3.0 và 3.3.1 có lỗi với Maven 3.9.x, thiếu dependencies.
+**Cách fix**: **Bỏ hoàn toàn plugin này khỏi pom.xml**. Maven đã có sẵn resources plugin mặc định hoạt động tốt:
+```xml
+<!-- ❌ KHÔNG DÙNG - XÓA PHẦN NÀY -->
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-resources-plugin</artifactId>
+    <version>3.3.1</version>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.12.0</version>
+        </dependency>
+    </dependencies>
+</plugin>
+
+<!-- ✅ CHỈ DÙNG maven-compiler-plugin -->
+<build>
+    <finalName>YourPluginName</finalName>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.13.0</version>
+            <configuration>
+                <release>21</release>
+                <fork>true</fork>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
 ## 5. LỆNH BUILD (ĐÃ KIỂM NGHIỆM)
 
 ### Cách 1: Maven (khuyên dùng)
 ```bash
 cd /path/to/plugin
-mvn clean package
+timeout 15m mvn clean package
 ```
 File JAR sẽ ở: `target/YourPluginName.jar`
+
+**Lưu ý**: Luôn dùng `timeout 15m` để tránh build treo quá lâu.
 
 ### Cách 2: Direct javac (khi Maven bị lỗi compiler)
 ```bash
@@ -227,3 +285,5 @@ YourPlugin/
 6. **Clear bans**: Luôn clear ban cũ khi plugin startup để tránh false bans
 7. **Console logs**: Thêm logger vào mọi listener để dễ debug
 8. **Config**: Luôn có config.yml với saveDefaultConfig() để người dùng tùy chỉnh
+9. **Maven cache**: Nếu gặp lỗi "ZipFile invalid LOC header", xóa toàn bộ cache: `rm -rf /home/ubuntu/.m2/repository`
+10. **pom.xml**: KHÔNG dùng maven-resources-plugin (lỗi với Maven 3.9.x), chỉ dùng maven-compiler-plugin

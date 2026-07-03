@@ -162,6 +162,7 @@ public class BossEventManager {
 
     private void trySpawnBoss() {
         if (Bukkit.getOnlinePlayers().isEmpty()) return;
+        if (pendingBoss != null) return; // Already has a warning in progress
 
         // Lọc các boss enabled
         List<Map.Entry<String, BossConfig>> enabledBosses = new ArrayList<>();

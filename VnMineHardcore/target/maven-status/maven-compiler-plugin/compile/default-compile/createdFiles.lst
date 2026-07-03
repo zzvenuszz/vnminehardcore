@@ -2,6 +2,7 @@ com/vnmine/hardcore/listeners/SpawnerControlListener.class
 com/vnmine/hardcore/listeners/WaterListener$2.class
 com/vnmine/hardcore/managers/DeathPenaltyManager.class
 com/vnmine/hardcore/managers/BossEventManager$BossConfig.class
+com/vnmine/hardcore/managers/BossEventManager$3.class
 com/vnmine/hardcore/listeners/CombatListener.class
 com/vnmine/hardcore/managers/DisasterManager$4.class
 com/vnmine/hardcore/listeners/OreControlListener.class
@@ -21,6 +22,7 @@ com/vnmine/hardcore/listeners/HungerListener.class
 com/vnmine/hardcore/managers/DeathPenaltyManager$1.class
 com/vnmine/hardcore/listeners/HungerListener$1.class
 com/vnmine/hardcore/managers/LogManager.class
+com/vnmine/hardcore/managers/BossEventManager$4.class
 com/vnmine/hardcore/listeners/WaterListener$1.class
 com/vnmine/hardcore/managers/ThirstManager$1.class
 com/vnmine/hardcore/listeners/WorldInteractionListener.class

@@ -118,7 +118,7 @@ public class DisasterManager {
             public void run() {
                 if (Bukkit.getWorlds().isEmpty()) return;
                 timeSinceLastDisaster++;
-                if (!disasterActive && timeSinceLastDisaster >= 1200) tryScheduleDisaster();
+                if (!disasterActive && timeSinceLastDisaster >= config.disasterMinIntervalSeconds) tryScheduleDisaster();
                 if (warningTimeLeft > 0) {
                     warningTimeLeft--;
                     updateWarningBar();
@@ -138,6 +138,7 @@ public class DisasterManager {
 
     private void tryScheduleDisaster() {
         if (timeSinceLastDisaster < config.disasterMinIntervalSeconds) return;
+        if (currentDisaster != null) return; // Already has a disaster/warning in progress
 
         int roll = random.nextInt(100);
         boolean isNight = Bukkit.getWorlds().get(0).getTime() > 13000;
