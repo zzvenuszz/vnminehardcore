@@ -59,41 +59,63 @@ Plugin nâng độ khó Minecraft lên mức khó gấp đôi. **Chết 1 lần 
 - **Sợ hầm**: Mining Fatigue + Darkness dưới y=30
 - **Chóng mặt**: Nausea + Slowness trên y=200
 
-### 👹 Boss Events
-- **Random boss spawn** với HP cao, damage mạnh
-- Boss có **cảnh báo** trước khi xuất hiện (Boss Bar + Title + Sound)
-- Rơi item quý hiếm khi bị tiêu diệt
-- Các boss: Wither, Ender Dragon, Giant, Ghast
-- **Manual trigger**: `/vnboss <id> <warning> <duration>`
+### 👹 Boss Events (12 types)
+Tất cả boss đều **enabled by default**:
+
+| ID | Name | Entity Type | HP | Damage |
+|----|------|-------------|-----|--------|
+| `wither` | §c§lWither Huyền Thoại | Wither | 600 | x2.0 |
+| `ender_dragon` | §5§lRồng Tử Thần | Ender Dragon | 1000 | x3.0 |
+| `ghast` | §e§lGhast Khổng Lồ | Ghast | 100 | x2.5 |
+| `zombie_boss` | §2§lZombie Boss | Zombie | 150 | x1.5 |
+| `skeleton_boss` | §8§lSkeleton Boss | Skeleton | 120 | x2.0 |
+| `spider_boss` | §0§lSpider Boss | Spider | 130 | x1.8 |
+| `creeper_boss` | §a§lCreeper Boss | Creeper | 200 | x3.0 |
+| `enderman_boss` | §5§lEnderman Boss | Enderman | 180 | x2.2 |
+| `witch_boss` | §9§lWitch Boss | Witch | 140 | x2.0 |
+| `ravager_boss` | §4§lRavager Boss | Ravager | 250 | x2.5 |
+| `vindicator_boss` | §c§lVindicator Boss | Vindicator | 160 | x2.0 |
+| `phantom_boss` | §8§lPhantom Boss | Phantom | 100 | x1.5 |
+
+**Manual trigger**: `/vnboss <id> <warning> <duration>`
+
+**Boss AI Features:**
+- **Priority targeting**: Player → Friendly mob → Hostile mob → Wander
+- **Block destruction**: Boss có thể phá hủy địa hình
+- **Smart movement**: Tránh kẹt, teleport khi cần
+- **Unique behaviors**: Mỗi boss có AI đặc trưng
 
 ### 🌋 Disasters (14 types)
-Tất cả có **cảnh báo** qua Boss Bar + Title + Sound:
+Tất cả disasters đều **enabled by default**:
 
-#### Overworld Disasters
-| ID | Name | Effect |
-|----|------|--------|
-| `bloodmoon` | 🌕 Blood Moon | Quái spawn x10, Strength + Speed + armor |
-| `meteor` | ☄️ Meteor Shower | Sao băng rơi, explosion damage |
-| `storm` | 🌊 Mega Storm | Sét đánh, mưa axit, mù |
-| `solarflare` | 🔥 Solar Flare | Ngoài nắng = burn + blindness |
-| `plague` | 🦠 Plague | Poison + Weakness + Hunger + Nausea |
-| `tornado` | 🌪️ Tornado | Bị ném lên cao, block bị phá |
-| `eclipse` | 📉 Solar Eclipse | Ban ngày → đêm, quái spawn |
-| `earthquake` | 🌍 Earthquake | Block rơi, rung chuyển, Nausea |
+| ID | Name | Dimension | Effect |
+|----|------|-----------|--------|
+| `bloodmoon` | 🌕 Blood Moon | Overworld | Quái spawn x10, Strength + Speed |
+| `meteor` | ☄️ Meteor Shower | Overworld | Sao băng rơi, explosion damage |
+| `storm` | 🌊 Mega Storm | Overworld | Sét đánh, mưa axit, mù |
+| `solarflare` | 🔥 Solar Flare | Overworld | Burn + blindness ngoài trời |
+| `plague` | 🦠 Plague | Overworld | Poison + Weakness + Hunger |
+| `tornado` | 🌪️ Tornado | Overworld | Bị ném lên cao, phá block |
+| `eclipse` | 📉 Solar Eclipse | Overworld | Ban ngày → đêm, quái spawn |
+| `earthquake` | 🌍 Earthquake | Overworld | Block rơi, rung chuyển |
+| `inferno` | 🔥 Inferno Storm | Nether | Lửa địa ngục, spawn Ghast/Magma |
+| `souleruption` | 💀 Soul Eruption | Nether | Soul sand nổ, Wither effect |
+| `lavageyser` | 🌋 Lava Geyser | Nether | Cột lava phun trào |
+| `endsurge` | 👁️ End Surge | The End | Spawn Shulker/Endermite |
+| `voidstorm` | 🌌 Void Storm | The End | Blindness + Darkness + damage |
+| `chorusexplosion` | 🌀 Chorus Explosion | The End | Damage + random teleport |
 
-#### Nether Disasters
-| ID | Name | Effect |
-|----|------|--------|
-| `inferno` | 🔥 Inferno Storm | Lửa địa ngục, spawn Ghast/Magma Cube |
-| `souleruption` | 💀 Soul Eruption | Soul sand nổ, Wither effect |
-| `lavageyser` | 🌋 Lava Geyser | Cột lava phun trào từ dưới đất |
+**Manual trigger**: `/vnevent <id> <warning> <duration>`
 
-#### The End Disasters
-| ID | Name | Effect |
-|----|------|--------|
-| `endsurge` | 👁️ End Surge | Spawn Shulker/Endermite, Levitation |
-| `voidstorm` | 🌌 Void Storm | Blindness + Darkness + damage |
-| `chorusexplosion` | 🌀 Chorus Explosion | Damage + random teleport |
+**Disable specific disasters:**
+```yaml
+disasters:
+  enabled-disasters:
+    blood-moon: true
+    meteor: true
+    # ... etc
+    chorus-explosion: false  # ← Disable this
+```
 
 ---
 
@@ -141,14 +163,44 @@ Tất cả có **cảnh báo** qua Boss Bar + Title + Sound:
 /vnevent inferno 15 40                     - Inferno Storm: 15s warning, 40s duration
 ```
 
+**All Disaster IDs:**
+- `bloodmoon` - 🌕 Blood Moon
+- `meteor` - ☄️ Meteor Shower
+- `storm` - 🌊 Mega Storm
+- `solarflare` - 🔥 Solar Flare
+- `plague` - 🦠 Plague
+- `tornado` - 🌪️ Tornado
+- `eclipse` - 📉 Solar Eclipse
+- `earthquake` - 🌍 Earthquake
+- `inferno` - 🔥 Inferno Storm
+- `souleruption` - 💀 Soul Eruption
+- `lavageyser` - 🌋 Lava Geyser
+- `endsurge` - 👁️ End Surge
+- `voidstorm` - 🌌 Void Storm
+- `chorusexplosion` - 🌀 Chorus Explosion
+
 ### `/vnboss` Usage
 
 ```
 /vnboss                                    - List all boss IDs
 /vnboss wither 30 120                      - Wither Boss: 30s warning, 120s duration
 /vnboss ender_dragon 60 180                - Ender Dragon: 60s warning, 180s duration
-/vnboss giant 20 90                        - Giant: 20s warning, 90s duration
+/vnboss zombie_boss 20 90                  - Zombie Boss: 20s warning, 90s duration
 ```
+
+**All Boss IDs:**
+- `wither` - §c§lWither Huyền Thoại
+- `ender_dragon` - §5§lRồng Tử Thần
+- `ghast` - §e§lGhast Khổng Lồ
+- `zombie_boss` - §2§lZombie Boss
+- `skeleton_boss` - §8§lSkeleton Boss
+- `spider_boss` - §0§lSpider Boss
+- `creeper_boss` - §a§lCreeper Boss
+- `enderman_boss` - §5§lEnderman Boss
+- `witch_boss` - §9§lWitch Boss
+- `ravager_boss` - §4§lRavager Boss
+- `vindicator_boss` - §c§lVindicator Boss
+- `phantom_boss` - §8§lPhantom Boss
 
 ---
 
@@ -213,6 +265,41 @@ environment:
     effect-amplifier: 0              # Darkness amplifier (0 = mild)
 ```
 
+### Boss Events - Enable/Disable
+```yaml
+boss-events:
+  bosses:
+    wither:
+      enabled: true                   # Enable/disable this boss
+    ender_dragon:
+      enabled: true
+    ghast:
+      enabled: true
+    # ... all 12 bosses
+```
+
+### Disasters - Enable/Disable
+```yaml
+disasters:
+  enabled-disasters:
+    blood-moon: true
+    meteor: true
+    # ... all 14 disasters
+    chorus-explosion: true
+```
+
+### Disasters - Custom Messages
+```yaml
+disasters:
+  messages:
+    warning-title: "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠"
+    warning-subtitle: "§c{name}\n§e§lSẽ xảy ra trong {time} giây!"
+    warning-broadcast: "§4§l⚠ {name} §r§cđang đến gần!"
+    countdown-broadcast: "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!"
+    active-broadcast: "§4§l{name} - {message} (§e{duration}s§4)"
+    end-broadcast: "§a§l✅ {name} đã kết thúc!"
+```
+
 For the **full configuration** with bilingual comments, see `plugins/VnMineHardcore/config.yml`.
 
 ---
@@ -231,6 +318,17 @@ Located in `plugins/VnMineHardcore/`:
 ---
 
 ## 📝 Changelog
+
+### v1.2.0
+- **New Bosses**: Added 9 new boss types (Zombie, Skeleton, Spider, Creeper, Enderman, Witch, Ravager, Vindicator, Phantom)
+- **Total Bosses**: 12 types with unique AI behaviors
+- **Boss AI**: Smart targeting (Player → Friendly mob → Hostile mob → Wander), block destruction, stuck detection
+- **Boss Bar**: Single boss bar showing name + HP (no more spam)
+- **Disaster Config**: Added enable/disable flags for each disaster type
+- **Disaster Messages**: Fully customizable messages with placeholders
+- **Disaster Display Names**: Customizable names with color codes
+- **Documentation**: Updated README with all 12 boss IDs and 14 disaster IDs
+- **Config**: All bosses and disasters enabled by default
 
 ### v1.1.0
 - **New Command**: `/vnboss` - Manually trigger boss events (wither, ender_dragon, giant, ghast)

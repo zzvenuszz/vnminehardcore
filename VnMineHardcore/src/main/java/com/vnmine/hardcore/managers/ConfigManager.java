@@ -141,6 +141,13 @@ public class ConfigManager {
     public Map<String, Integer> disasterEffectInterval = new HashMap<>();
     public Map<String, Integer> disasterEffectDuration = new HashMap<>();
 
+    // Disaster enabled/disabled flags
+    public Map<String, Boolean> disasterEnabled = new HashMap<>();
+
+    // Disaster display names and messages
+    public Map<String, String> disasterDisplayNames = new HashMap<>();
+    public Map<String, String> disasterMessages = new HashMap<>();
+
     // Earthquake specific
     public int earthquakeBlockFallChance;
     public int earthquakeRadius;
@@ -337,6 +344,36 @@ public class ConfigManager {
         loadDisasterConfig("end-surge");
         loadDisasterConfig("void-storm");
         loadDisasterConfig("chorus-explosion");
+
+        // Load disaster enabled flags
+        disasterEnabled.clear();
+        ConfigurationSection enabledSection = config.getConfigurationSection("disasters.enabled-disasters");
+        if (enabledSection != null) {
+            for (String key : enabledSection.getKeys(false)) {
+                disasterEnabled.put(key, enabledSection.getBoolean(key, true));
+            }
+        }
+
+        // Load disaster display names
+        disasterDisplayNames.clear();
+        ConfigurationSection displayNamesSection = config.getConfigurationSection("disasters.display-names");
+        if (displayNamesSection != null) {
+            for (String key : displayNamesSection.getKeys(false)) {
+                disasterDisplayNames.put(key, displayNamesSection.getString(key, key));
+            }
+        }
+
+        // Load disaster messages
+        disasterMessages.clear();
+        ConfigurationSection messagesSection = config.getConfigurationSection("disasters.messages");
+        if (messagesSection != null) {
+            disasterMessages.put("warning-title", messagesSection.getString("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠"));
+            disasterMessages.put("warning-subtitle", messagesSection.getString("warning-subtitle", "§c{name}\n§e§lSẽ xảy ra trong {time} giây!"));
+            disasterMessages.put("warning-broadcast", messagesSection.getString("warning-broadcast", "§4§l⚠ {name} §r§cđang đến gần!"));
+            disasterMessages.put("countdown-broadcast", messagesSection.getString("countdown-broadcast", "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!"));
+            disasterMessages.put("active-broadcast", messagesSection.getString("active-broadcast", "§4§l{name} - {message} (§e{duration}s§4)"));
+            disasterMessages.put("end-broadcast", messagesSection.getString("end-broadcast", "§a§l✅ {name} đã kết thúc!"));
+        }
 
         // Earthquake specific
         earthquakeBlockFallChance = config.getInt("disasters.earthquake.block-fall-chance", 15);

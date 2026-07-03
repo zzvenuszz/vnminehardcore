@@ -27,7 +27,6 @@ public class BossEventManager {
     private String currentBossName = null;
     private LivingEntity currentBoss = null;
     private BossBar bossBar;
-    private BossBar warningBossBar;
     private int timeSinceLastBoss = 0;
     private int warningTimeLeft = 0;
     private BossConfig pendingBoss = null;
@@ -68,13 +67,6 @@ public class BossEventManager {
             Component.text(""),
             1.0f,
             BossBar.Color.PURPLE,
-            BossBar.Overlay.PROGRESS
-        );
-
-        this.warningBossBar = BossBar.bossBar(
-            Component.text(""),
-            1.0f,
-            BossBar.Color.YELLOW,
             BossBar.Overlay.PROGRESS
         );
 
@@ -209,10 +201,10 @@ public class BossEventManager {
         warningTimeLeft = bc.warningSeconds;
         
         // Show warning bar
-        warningBossBar.name(Component.text("§e§l⚠ BOSS SẮP XUẤT HIỆN ⚠"));
-        warningBossBar.progress(1.0f);
+        bossBar.name(Component.text("§e§l⚠ BOSS SẮP XUẤT HIỆN ⚠"));
+        bossBar.progress(1.0f);
         for (Player p : Bukkit.getOnlinePlayers()) {
-            p.showBossBar(warningBossBar);
+            p.showBossBar(bossBar);
             p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 0.5f);
         }
         
@@ -221,8 +213,8 @@ public class BossEventManager {
 
     private void updateWarningBar() {
         if (warningTimeLeft > 0 && pendingBoss != null) {
-            warningBossBar.name(Component.text("§e§l⚠ " + pendingBoss.displayName + " §7- §c§l" + warningTimeLeft + "s"));
-            warningBossBar.progress((float) warningTimeLeft / pendingBoss.warningSeconds);
+            bossBar.name(Component.text("§e§l⚠ " + pendingBoss.displayName + " §7- §c§l" + warningTimeLeft + "s"));
+            bossBar.progress((float) warningTimeLeft / pendingBoss.warningSeconds);
             
             if (warningTimeLeft <= 10 || warningTimeLeft == 30) {
                 Bukkit.broadcastMessage("§c§l⚠ " + pendingBoss.displayName + " §csẽ xuất hiện trong §4§l" + warningTimeLeft + "§c giây!");
@@ -235,7 +227,7 @@ public class BossEventManager {
         
         // Hide warning bar
         for (Player p : Bukkit.getOnlinePlayers()) {
-            p.hideBossBar(warningBossBar);
+            p.hideBossBar(bossBar);
         }
 
         // Chọn player ngẫu nhiên
@@ -446,7 +438,7 @@ public class BossEventManager {
                     return;
                 }
 
-                // Ưu tiên 4: Di chuyển ngẫu nhiên và phá hủy block
+                // Ưu tiên 4: Di chuyển ngẫu nhiên và phá hủy địa hình
                 wanderAndDestroy(bossLoc, bossWorld, bc);
             }
         };
@@ -731,11 +723,8 @@ public class BossEventManager {
         stuckTicks = 0;
         bossBar.name(Component.text(""));
         bossBar.progress(0);
-        warningBossBar.name(Component.text(""));
-        warningBossBar.progress(0);
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.hideBossBar(bossBar);
-            p.hideBossBar(warningBossBar);
         }
     }
 

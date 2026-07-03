@@ -61,7 +61,13 @@ public class DisasterManager {
     public Set<String> getDisasterIds() { return disasterMap.keySet(); }
 
     public String getDisasterName(String id) {
-        return switch (id.toLowerCase()) {
+        String key = id.toLowerCase();
+        // Try to get from config display names first
+        String displayName = config.disasterDisplayNames.get(key);
+        if (displayName != null) return displayName;
+        
+        // Fallback to hardcoded names
+        return switch (key) {
             case "bloodmoon" -> "🌕 Blood Moon";
             case "meteor" -> "☄️ Meteor Shower";
             case "storm" -> "🌊 Mega Storm";
@@ -76,7 +82,7 @@ public class DisasterManager {
             case "endsurge" -> "👁️ End Surge";
             case "voidstorm" -> "🌌 Void Storm";
             case "chorusexplosion" -> "🌀 Chorus Explosion";
-            default -> id;
+            default -> key;
         };
     }
 
@@ -89,12 +95,16 @@ public class DisasterManager {
         currentDisaster = name;
         warningTimeLeft = warningTimeSeconds;
 
+        String warningTitle = config.disasterMessages.getOrDefault("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠");
+        String warningSubtitle = config.disasterMessages.getOrDefault("warning-subtitle", "§c{name}\n§e§lSẽ xảy ra trong {time} giây!");
+        String warningBroadcast = config.disasterMessages.getOrDefault("warning-broadcast", "§4§l⚠ {name} §r§cđang đến gần!");
+
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.showBossBar(warningBar);
-            p.sendTitle("§4§l⚠ CẢNH BÁO THIÊN TAI ⚠",
-                "§c" + name + "\n§e§lSẽ xảy ra trong " + warningTimeSeconds + " giây!", 10, 70, 20);
+            p.sendTitle(warningTitle,
+                warningSubtitle.replace("{name}", name).replace("{time}", String.valueOf(warningTimeSeconds)), 10, 70, 20);
             p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 0.5f);
-            p.sendMessage("§4§l⚠ " + name + " §r§cđã được kích hoạt thủ công!");
+            p.sendMessage(warningBroadcast.replace("{name}", name));
         }
         logManager.logDisaster(name + " (MANUAL - Warning " + warningTimeSeconds + "s)");
 
@@ -105,7 +115,9 @@ public class DisasterManager {
                 cd--;
                 if (cd <= 0) { this.cancel(); task.run(); return; }
                 if (cd <= 5 || cd == 10 || cd == 30) {
-                    broadcast("§4§l⚠ " + name + " §csẽ xảy ra trong §4§l" + cd + "§c giây!");
+                    String countdownMsg = config.disasterMessages.getOrDefault("countdown-broadcast", 
+                        "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!");
+                    broadcast(countdownMsg.replace("{name}", name).replace("{time}", String.valueOf(cd)));
                 }
             }
         }.runTaskTimer(plugin, 0L, 20L);
@@ -156,17 +168,17 @@ public class DisasterManager {
         if (hasOverworld) {
             // Blood Moon - chỉ ban đêm
             if (roll < config.bloodMoonChance) {
-                if (isNight) {
+                if (isNight && config.disasterEnabled.getOrDefault("blood-moon", true)) {
                     timeSinceLastDisaster = 0;
-                    scheduleDisaster("🌕 Blood Moon", this::startBloodMoon);
+                    scheduleDisaster(getDisasterName("bloodmoon"), this::startBloodMoon);
                     return;
                 } else {
                     // Ban ngày → thay thế bằng Solar Flare hoặc Eclipse ngẫu nhiên
                     timeSinceLastDisaster = 0;
-                    if (random.nextBoolean()) {
-                        scheduleDisaster("🔥 Solar Flare", this::startSolarFlare);
-                    } else {
-                        scheduleDisaster("📉 Solar Eclipse", this::startSolarEclipse);
+                    if (random.nextBoolean() && config.disasterEnabled.getOrDefault("solar-flare", true)) {
+                        scheduleDisaster(getDisasterName("solarflare"), this::startSolarFlare);
+                    } else if (config.disasterEnabled.getOrDefault("eclipse", true)) {
+                        scheduleDisaster(getDisasterName("eclipse"), this::startSolarEclipse);
                     }
                     return;
                 }
@@ -174,18 +186,26 @@ public class DisasterManager {
             roll -= config.bloodMoonChance;
 
             // Meteor Shower
-            if (roll < config.meteorChance) { timeSinceLastDisaster = 0; scheduleDisaster("☄️ Meteor Shower", this::startMeteorShower); return; }
+            if (roll < config.meteorChance && config.disasterEnabled.getOrDefault("meteor", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("meteor"), this::startMeteorShower); 
+                return; 
+            }
             roll -= config.meteorChance;
 
             // Mega Storm
-            if (roll < config.megaStormChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌊 Mega Storm", this::startMegaStorm); return; }
+            if (roll < config.megaStormChance && config.disasterEnabled.getOrDefault("mega-storm", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("storm"), this::startMegaStorm); 
+                return; 
+            }
             roll -= config.megaStormChance;
 
             // Solar Flare - chỉ ban ngày
             if (roll < config.solarFlareChance) {
-                if (!isNight) {
+                if (!isNight && config.disasterEnabled.getOrDefault("solar-flare", true)) {
                     timeSinceLastDisaster = 0;
-                    scheduleDisaster("🔥 Solar Flare", this::startSolarFlare);
+                    scheduleDisaster(getDisasterName("solarflare"), this::startSolarFlare);
                     return;
                 } else {
                     // Ban đêm → thay thế bằng event ngẫu nhiên khác (trừ bloodmoon)
@@ -197,18 +217,26 @@ public class DisasterManager {
             roll -= config.solarFlareChance;
 
             // Plague
-            if (roll < config.plagueChance) { timeSinceLastDisaster = 0; scheduleDisaster("🦠 Plague", this::startPlague); return; }
+            if (roll < config.plagueChance && config.disasterEnabled.getOrDefault("plague", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("plague"), this::startPlague); 
+                return; 
+            }
             roll -= config.plagueChance;
 
             // Tornado
-            if (roll < config.tornadoChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌪️ Tornado", this::startTornado); return; }
+            if (roll < config.tornadoChance && config.disasterEnabled.getOrDefault("tornado", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("tornado"), this::startTornado); 
+                return; 
+            }
             roll -= config.tornadoChance;
 
             // Solar Eclipse - chỉ ban ngày
             if (roll < config.eclipseChance) {
-                if (!isNight) {
+                if (!isNight && config.disasterEnabled.getOrDefault("eclipse", true)) {
                     timeSinceLastDisaster = 0;
-                    scheduleDisaster("📉 Solar Eclipse", this::startSolarEclipse);
+                    scheduleDisaster(getDisasterName("eclipse"), this::startSolarEclipse);
                     return;
                 } else {
                     // Ban đêm → thay thế bằng event ngẫu nhiên khác
@@ -220,27 +248,55 @@ public class DisasterManager {
             roll -= config.eclipseChance;
 
             // Earthquake
-            if (roll < config.earthquakeChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌍 Earthquake", this::startEarthquake); return; }
+            if (roll < config.earthquakeChance && config.disasterEnabled.getOrDefault("earthquake", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("earthquake"), this::startEarthquake); 
+                return; 
+            }
             roll -= config.earthquakeChance;
         }
 
         // Nether events
         if (hasNether) {
-            if (roll < config.infernoStormChance) { timeSinceLastDisaster = 0; scheduleDisaster("🔥 Inferno Storm", this::startInfernoStorm); return; }
+            if (roll < config.infernoStormChance && config.disasterEnabled.getOrDefault("inferno-storm", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("inferno"), this::startInfernoStorm); 
+                return; 
+            }
             roll -= config.infernoStormChance;
-            if (roll < config.soulEruptionChance) { timeSinceLastDisaster = 0; scheduleDisaster("💀 Soul Eruption", this::startSoulEruption); return; }
+            if (roll < config.soulEruptionChance && config.disasterEnabled.getOrDefault("soul-eruption", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("souleruption"), this::startSoulEruption); 
+                return; 
+            }
             roll -= config.soulEruptionChance;
-            if (roll < config.lavaGeyserChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌋 Lava Geyser", this::startLavaGeyser); return; }
+            if (roll < config.lavaGeyserChance && config.disasterEnabled.getOrDefault("lava-geyser", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("lavageyser"), this::startLavaGeyser); 
+                return; 
+            }
             roll -= config.lavaGeyserChance;
         }
 
         // End events
         if (hasEnd) {
-            if (roll < config.endSurgeChance) { timeSinceLastDisaster = 0; scheduleDisaster("👁️ End Surge", this::startEndSurge); return; }
+            if (roll < config.endSurgeChance && config.disasterEnabled.getOrDefault("end-surge", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("endsurge"), this::startEndSurge); 
+                return; 
+            }
             roll -= config.endSurgeChance;
-            if (roll < config.voidStormChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌌 Void Storm", this::startVoidStorm); return; }
+            if (roll < config.voidStormChance && config.disasterEnabled.getOrDefault("voidstorm", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("voidstorm"), this::startVoidStorm); 
+                return; 
+            }
             roll -= config.voidStormChance;
-            if (roll < config.chorusExplosionChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌀 Chorus Explosion", this::startChorusExplosion); return; }
+            if (roll < config.chorusExplosionChance && config.disasterEnabled.getOrDefault("chorus-explosion", true)) { 
+                timeSinceLastDisaster = 0; 
+                scheduleDisaster(getDisasterName("chorusexplosion"), this::startChorusExplosion); 
+                return; 
+            }
             roll -= config.chorusExplosionChance;
         }
     }
@@ -288,12 +344,16 @@ public class DisasterManager {
     private void scheduleDisaster(String name, Runnable disasterTask) {
         currentDisaster = name;
         warningTimeLeft = config.disasterWarningSeconds;
+        
+        String warningTitle = config.disasterMessages.getOrDefault("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠");
+        String warningBroadcast = config.disasterMessages.getOrDefault("warning-broadcast", "§4§l⚠ {name} §r§cđang đến gần!");
+        
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.showBossBar(warningBar);
-            p.sendTitle("§4§l⚠ CẢNH BÁO THIÊN TAI ⚠",
+            p.sendTitle(warningTitle,
                 "§c" + name + "\n§e§lSẽ xảy ra trong " + (config.disasterWarningSeconds / 60) + " phút!", 10, 70, 20);
             p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 0.5f);
-            p.sendMessage("§4§l⚠ " + name + " §r§cđang đến gần!");
+            p.sendMessage(warningBroadcast.replace("{name}", name));
         }
         logManager.logDisaster(name + " (WARNING)");
 
@@ -304,7 +364,9 @@ public class DisasterManager {
                 cd--;
                 if (cd <= 0) { this.cancel(); disasterTask.run(); return; }
                 if (cd == 60 || cd == 30 || cd == 10 || cd <= 5) {
-                    broadcast("§4§l⚠ " + currentDisaster + " §csẽ xảy ra trong §4§l" + cd + "§c giây!");
+                    String countdownMsg = config.disasterMessages.getOrDefault("countdown-broadcast",
+                        "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!");
+                    broadcast(countdownMsg.replace("{name}", currentDisaster).replace("{time}", String.valueOf(cd)));
                 }
             }
         }.runTaskTimer(plugin, 0L, 20L);
@@ -321,7 +383,13 @@ public class DisasterManager {
             p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.0f, 0.5f);
         }
         logManager.logDisaster(name + " (ACTIVE)");
-        broadcast("§4§l" + name + " - " + startMsg + " (§e" + (durationTicks / 20) + "s§4)");
+        
+        String activeBroadcast = config.disasterMessages.getOrDefault("active-broadcast", 
+            "§4§l{name} - {message} (§e{duration}s§4)");
+        String endBroadcast = config.disasterMessages.getOrDefault("end-broadcast", 
+            "§a§l✅ {name} đã kết thúc!");
+        
+        broadcast(activeBroadcast.replace("{name}", name).replace("{message}", startMsg).replace("{duration}", String.valueOf(durationTicks / 20)));
 
         // Lấy interval riêng cho disaster này
         String configKey = name.contains("Blood") ? "blood-moon" :
@@ -367,7 +435,7 @@ public class DisasterManager {
                 warningBar.progress(0);
                 for (Player p : Bukkit.getOnlinePlayers()) p.hideBossBar(warningBar);
                 if (endTask != null) endTask.run();
-                broadcast("§a§l✅ " + name + " đã kết thúc!");
+                broadcast(endBroadcast.replace("{name}", name));
             }
         }.runTaskLater(plugin, durationTicks);
     }

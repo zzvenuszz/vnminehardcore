@@ -171,17 +171,18 @@ timeout 15m mvn clean package
 ### Lỗi 7: `maven-resources-plugin` thiếu dependencies
 **Triệu chứng**:
 ```
-[ERROR] Failed to execute goal ...maven-resources-plugin:3.3.x:resources:
-A required class was missing: org/apache/commons/io/FilenameUtils
+[ERROR] Failed to execute goal ...maven-resources-plugin:3.2.0 hoặc 3.3.x:resources:
+A required class was missing: org/apache/commons/lang3/StringUtils
+hoặc org/apache/commons/io/output/DeferredFileOutputStream
 ```
-**Nguyên nhân**: Phiên bản maven-resources-plugin 3.3.0 và 3.3.1 có lỗi với Maven 3.9.x, thiếu dependencies.
+**Nguyên nhân**: Phiên bản maven-resources-plugin 3.2.0, 3.3.0 và 3.3.1 có lỗi với Maven 3.9.x, thiếu dependencies commons-lang3 hoặc commons-io.
 **Cách fix**: **Bỏ hoàn toàn plugin này khỏi pom.xml**. Maven đã có sẵn resources plugin mặc định hoạt động tốt:
 ```xml
 <!-- ❌ KHÔNG DÙNG - XÓA PHẦN NÀY -->
 <plugin>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-resources-plugin</artifactId>
-    <version>3.3.1</version>
+    <version>3.2.0 hoặc 3.3.x</version>
     <dependencies>
         <dependency>
             <groupId>org.apache.commons</groupId>

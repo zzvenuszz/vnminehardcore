@@ -168,22 +168,6 @@ hunger:
   # [EN] Enable raw food poisoning (raw meat, rotten flesh, pufferfish...)
   raw-food-poison: true
 
-  # [VI] Bật hiệu ứng nghẹn khi ăn quá nhanh
-  # [EN] Enable choking when eating too fast
-  choke-enabled: true
-
-  # [VI] Số lần ăn tối đa trong khung thời gian trước khi bị nghẹn
-  # [EN] Maximum eats within the time window before choking
-  choke-max-eats: 3
-
-  # [VI] Khung thời gian kiểm tra nghẹn (giây)
-  # [EN] Time window for choking check (seconds)
-  choke-window-seconds: 10
-
-  # [VI] Sát thương khi bị nghẹn (tim)
-  # [EN] Damage from choking (hearts)
-  choke-damage: 1.0
-
   # [VI] Bật hiệu ứng phát nổ khi ăn táo vàng enchanted (Notch Apple)
   # [EN] Enable explosion when eating enchanted golden apple (Notch Apple)
   notch-apple-explode: true
@@ -201,7 +185,7 @@ thirst:
   enabled: true
 
   # [VI] Thời gian giữa các lần giảm khát (giây)
-  # [EN] How often thirst decreases (seconds)
+  # [EN] How often thirst decreases (in seconds)
   drain-interval-seconds: 120
 
   # [VI] Sát thương khi khát về 0 (tim)
@@ -544,6 +528,56 @@ disasters:
   # 🌀 Chorus Explosion - Teleport ngẫu nhiên, damage
   chorus-explosion-chance: 1
 
+  # ===== ENABLE/DISABLE TỪNG THIÊN TAI =====
+  # [VI] Bật/tắt từng loại thiên tai (true = bật, false = tắt)
+  # [EN] Enable/disable each disaster type (true = on, false = off)
+  enabled-disasters:
+    blood-moon: true
+    meteor: true
+    mega-storm: true
+    solar-flare: true
+    plague: true
+    tornado: true
+    eclipse: true
+    earthquake: true
+    inferno-storm: true
+    soul-eruption: true
+    lava-geyser: true
+    end-surge: true
+    void-storm: true
+    chorus-explosion: true
+
+  # ===== DISPLAY NAMES =====
+  # [VI] Tên hiển thị cho từng thiên tai (hỗ trợ mã màu §)
+  # [EN] Display names for each disaster (supports color codes §)
+  display-names:
+    blood-moon: "§4§l🌕 Máu Trăng"
+    meteor: "§6§l☄️ Mưa Sao Băng"
+    mega-storm: "§9§l🌊 Siêu Bão"
+    solar-flare: "§c§l🔥 Bão Mặt Trời"
+    plague: "§2§l🦠 Dịch Bệnh"
+    tornado: "§8§l🌪️ Lốc Xoáy"
+    eclipse: "§0§l📉 Nhật Thực"
+    earthquake: "§6§l🌍 Động Đất"
+    inferno-storm: "§4§l🔥 Inferno Storm"
+    soul-eruption: "§2§l💀 Soul Eruption"
+    lava-geyser: "§6§l🌋 Lava Geyser"
+    end-surge: "§5§l👁️ End Surge"
+    void-storm: "§8§l🌌 Void Storm"
+    chorus-explosion: "§d§l🌀 Chorus Explosion"
+
+  # ===== MESSAGES =====
+  # [VI] Các thông báo có thể tùy chỉnh
+  # [EN] Customizable messages
+  # Placeholders: {name} = tên thiên tai, {time} = thời gian, {duration} = thời lượng, {message} = mô tả
+  messages:
+    warning-title: "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠"
+    warning-subtitle: "§c{name}\n§e§lSẽ xảy ra trong {time} giây!"
+    warning-broadcast: "§4§l⚠ {name} §r§cđang đến gần!"
+    countdown-broadcast: "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!"
+    active-broadcast: "§4§l{name} - {message} (§e{duration}s§4)"
+    end-broadcast: "§a§l✅ {name} đã kết thúc!"
+
   # ===== CẤU HÌNH RIÊNG CHO TỪNG THIÊN TAI =====
   # [VI] Mỗi thiên tai có thể cấu hình riêng thời gian hiệu ứng
   # [EN] Each disaster can have its own effect timing configuration
@@ -708,8 +742,8 @@ boss-events:
       # [EN] Enable/disable this boss
       enabled: true
 
-      # [VI] Loại entity (WITHER, ENDER_DRAGON, GIANT, GHAST...)
-      # [EN] Entity type (WITHER, ENDER_DRAGON, GIANT, GHAST...)
+      # [VI] Loại entity (WITHER, ENDER_DRAGON, GHAST, ZOMBIE, SKELETON, SPIDER, CREEPER, ENDERMAN, WITCH, RAVAGER, VINDICATOR, PHANTOM)
+      # [EN] Entity type (WITHER, ENDER_DRAGON, GHAST, ZOMBIE, SKELETON, SPIDER, CREEPER, ENDERMAN, WITCH, RAVAGER, VINDICATOR, PHANTOM)
       entity-type: WITHER
 
       # [VI] Tên hiển thị của boss (hỗ trợ mã màu §)
@@ -769,7 +803,7 @@ boss-events:
 
     # ===== ENDER DRAGON =====
     ender_dragon:
-      enabled: false
+      enabled: true
       entity-type: ENDER_DRAGON
       display-name: "§5§lRồng Tử Thần"
       hp: 1000
@@ -791,29 +825,9 @@ boss-events:
           max-amount: 4
           chance: 0.5
 
-    # ===== GIANT =====
-    giant:
-      enabled: false
-      entity-type: GIANT
-      display-name: "§a§lNgười Khổng Lồ"
-      hp: 200
-      damage-multiplier: 1.5
-      chance: 15
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        IRON_BLOCK:
-          min-amount: 5
-          max-amount: 15
-          chance: 0.8
-        GOLDEN_APPLE:
-          min-amount: 1
-          max-amount: 3
-          chance: 0.5
-
     # ===== GHAST =====
     ghast:
-      enabled: false
+      enabled: true
       entity-type: GHAST
       display-name: "§e§lGhast Khổng Lồ"
       hp: 100
@@ -830,6 +844,174 @@ boss-events:
           min-amount: 2
           max-amount: 5
           chance: 0.5
+
+    # ===== ZOMBIE BOSS =====
+    zombie_boss:
+      enabled: true
+      entity-type: ZOMBIE
+      display-name: "§2§lZombie Boss"
+      hp: 150
+      damage-multiplier: 1.5
+      chance: 15
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        ROTTEN_FLESH:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.8
+        IRON_INGOT:
+          min-amount: 2
+          max-amount: 5
+          chance: 0.5
+
+    # ===== SKELETON BOSS =====
+    skeleton_boss:
+      enabled: true
+      entity-type: SKELETON
+      display-name: "§8§lSkeleton Boss"
+      hp: 120
+      damage-multiplier: 2.0
+      chance: 15
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        BONE:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.8
+        ARROW:
+          min-amount: 10
+          max-amount: 30
+          chance: 0.7
+
+    # ===== SPIDER BOSS =====
+    spider_boss:
+      enabled: true
+      entity-type: SPIDER
+      display-name: "§0§lSpider Boss"
+      hp: 130
+      damage-multiplier: 1.8
+      chance: 10
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        STRING:
+          min-amount: 10
+          max-amount: 25
+          chance: 0.8
+        SPIDER_EYE:
+          min-amount: 3
+          max-amount: 8
+          chance: 0.6
+
+    # ===== CREEPER BOSS =====
+    creeper_boss:
+      enabled: true
+      entity-type: CREEPER
+      display-name: "§a§lCreeper Boss"
+      hp: 200
+      damage-multiplier: 3.0
+      chance: 10
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        GUNPOWDER:
+          min-amount: 10
+          max-amount: 30
+          chance: 0.9
+
+    # ===== ENDERMAN BOSS =====
+    enderman_boss:
+      enabled: true
+      entity-type: ENDERMAN
+      display-name: "§5§lEnderman Boss"
+      hp: 180
+      damage-multiplier: 2.2
+      chance: 10
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        ENDER_PEARL:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.8
+
+    # ===== WITCH BOSS =====
+    witch_boss:
+      enabled: true
+      entity-type: WITCH
+      display-name: "§9§lWitch Boss"
+      hp: 140
+      damage-multiplier: 2.0
+      chance: 10
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        POTION:
+          min-amount: 3
+          max-amount: 10
+          chance: 0.7
+        GLOWSTONE_DUST:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.6
+
+    # ===== RAVAGER BOSS =====
+    ravager_boss:
+      enabled: true
+      entity-type: RAVAGER
+      display-name: "§4§lRavager Boss"
+      hp: 250
+      damage-multiplier: 2.5
+      chance: 8
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        LEATHER:
+          min-amount: 10
+          max-amount: 25
+          chance: 0.8
+        SADDLE:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.3
+
+    # ===== VINDICATOR BOSS =====
+    vindicator_boss:
+      enabled: true
+      entity-type: VINDICATOR
+      display-name: "§c§lVindicator Boss"
+      hp: 160
+      damage-multiplier: 2.0
+      chance: 10
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        IRON_AXE:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.5
+        EMERALD:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.7
+
+    # ===== PHANTOM BOSS =====
+    phantom_boss:
+      enabled: true
+      entity-type: PHANTOM
+      display-name: "§8§lPhantom Boss"
+      hp: 100
+      damage-multiplier: 1.5
+      chance: 10
+      duration-seconds: 90
+      warning-seconds: 45
+      drops:
+        PHANTOM_MEMBRANE:
+          min-amount: 3
+          max-amount: 8
+          chance: 0.7
 
 # ============================================================
 # [ORE CONTROL] ⛏️ KIỂM SOÁT QUẶNG
