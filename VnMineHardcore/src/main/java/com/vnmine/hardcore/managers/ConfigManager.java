@@ -81,9 +81,13 @@ public class ConfigManager {
     public double heatDamage;
     public int heatAmplifier;
     public double helmetReducePercent;
+    public double helmetDamageReducePercent;
     public double coldDamage;
     public int coldAmplifier;
     public double armorReducePercent;
+    public double armorDamageReducePercent;
+    public int heatExposureDelaySeconds;
+    public int coldExposureDelaySeconds;
     public long waterDamageIntervalMs;
     public long acidRainIntervalMs;
     public boolean fogEnabled;
@@ -330,9 +334,13 @@ public class ConfigManager {
         heatDamage = config.getDouble("environment.temperature.heat-damage", 1.0);
         heatAmplifier = config.getInt("environment.temperature.heat-amplifier", 0);
         helmetReducePercent = config.getDouble("environment.temperature.helmet-reduce-percent", 0.5);
+        helmetDamageReducePercent = config.getDouble("environment.temperature.helmet-damage-reduce-percent", 0.5);
         coldDamage = config.getDouble("environment.temperature.cold-damage", 1.0);
         coldAmplifier = config.getInt("environment.temperature.cold-amplifier", 0);
         armorReducePercent = config.getDouble("environment.temperature.armor-reduce-percent", 0.25);
+        armorDamageReducePercent = config.getDouble("environment.temperature.armor-damage-reduce-percent", 0.20);
+        heatExposureDelaySeconds = config.getInt("environment.temperature.heat-exposure-delay-seconds", 10);
+        coldExposureDelaySeconds = config.getInt("environment.temperature.cold-exposure-delay-seconds", 10);
         waterDamageIntervalMs = config.getLong("environment.temperature.water-damage-interval-ms", 10000);
         acidRainIntervalMs = config.getLong("environment.temperature.acid-rain-interval-ms", 5000);
         fogEnabled = config.getBoolean("environment.fog.enabled", true);

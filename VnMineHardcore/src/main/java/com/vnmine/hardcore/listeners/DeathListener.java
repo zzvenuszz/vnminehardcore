@@ -8,6 +8,7 @@ import com.vnmine.hardcore.managers.DeathRenameManager;
 import com.vnmine.hardcore.managers.LogManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.GameMode;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -131,6 +132,15 @@ public class DeathListener implements Listener {
         // Remove combat tag on death (player already died)
         combatTagged.remove(player.getUniqueId());
 
+        // Nếu không bật ban-on-death, đảm bảo player không bị chuyển sang Spectator (hardcore mode)
+        if (!config.banOnDeath) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (player.isOnline()) {
+                    player.setGameMode(GameMode.SURVIVAL);
+                }
+            }, 1L);
+        }
+
         // Ban the player (if enabled)
         if (config.banOnDeath) {
             plugin.getServer().getScheduler().runTask(plugin, () -> {
@@ -149,6 +159,12 @@ public class DeathListener implements Listener {
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
+
+        // Nếu player không có bed spawn, respawn tại world spawn point
+        if (!event.isBedSpawn() || event.getRespawnLocation() == null) {
+            event.setRespawnLocation(player.getWorld().getSpawnLocation());
+        }
+
         // Apply death penalty on respawn (start recovery timer)
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             deathPenaltyManager.onPlayerRespawn(player);

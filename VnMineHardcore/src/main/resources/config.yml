@@ -290,6 +290,18 @@ environment:
     #     Any helmet type helps reduce
     helmet-reduce-percent: 0.5
 
+    # [VI] % giảm sát thương nóng khi đội mũ bảo hiểm (0.5 = 50%)
+    #     Bất kỳ loại mũ nào cũng giúp giảm sát thương nóng
+    # [EN] % heat damage reduction when wearing a helmet (0.5 = 50%)
+    #     Any helmet type helps reduce heat damage
+    helmet-damage-reduce-percent: 0.5
+
+    # [VI] Thời gian phơi nắng tối thiểu (giây) trước khi bắt đầu hiệu ứng nóng
+    #     Giúp người chơi có thời gian tìm bóng râm trước khi bị damage
+    # [EN] Minimum exposure time (seconds) before heat effect starts
+    #     Gives players time to find shade before taking damage
+    heat-exposure-delay-seconds: 10
+
     # [VI] Sát thương khi ở nơi quá lạnh (tim)
     # [EN] Damage when in cold environment (hearts)
     cold-damage: 1.0
@@ -303,6 +315,18 @@ environment:
     # [EN] % cold effect reduction per armor piece (0.25 = 25% per piece)
     #     Each armor piece (helmet, chestplate, leggings, boots) reduces independently
     armor-reduce-percent: 0.20
+
+    # [VI] % giảm sát thương lạnh mỗi món giáp (0.20 = 20% mỗi món)
+    #     Mỗi món giáp (mũ, áo, quần, giày) giảm sát thương lạnh độc lập
+    # [EN] % cold damage reduction per armor piece (0.20 = 20% per piece)
+    #     Each armor piece (helmet, chestplate, leggings, boots) reduces cold damage independently
+    armor-damage-reduce-percent: 0.20
+
+    # [VI] Thời gian tiếp xúc lạnh tối thiểu (giây) trước khi bắt đầu hiệu ứng lạnh
+    #     Giúp người chơi có thời gian tìm nơi ấm áp trước khi bị damage
+    # [EN] Minimum exposure time (seconds) before cold effect starts
+    #     Gives players time to find warmth before taking damage
+    cold-exposure-delay-seconds: 10
 
   # ===== SƯƠNG MÙ / FOG (DARKNESS EFFECT) =====
   fog:
@@ -514,7 +538,7 @@ disasters:
     name: "§4§l🌕 Trăng Máu"
     # [VI] Thời gian kéo dài tổng thể (giây)
     # [EN] Total duration (seconds)
-    duration-seconds: 600
+    duration-seconds: 300
     # [VI] Thời gian giữa các đợt áp dụng hiệu ứng (giây)
     # [EN] Interval between effect applications (seconds)
     effect-interval-seconds: 5
@@ -527,8 +551,8 @@ disasters:
     enabled: true
     chance: 5
     name: "§6§l☄️ Mưa Sao Băng"
-    duration-seconds: 400
-    effect-interval-seconds: 3
+    duration-seconds: 30
+    effect-interval-seconds: 5
     effect-duration-seconds: 3
 
   # 🌊 Siêu bão - Sấm sét, mưa axit, mù
@@ -545,7 +569,7 @@ disasters:
     enabled: true
     chance: 3
     name: "§c§l🔥 Bão Mặt Trời"
-    duration-seconds: 400
+    duration-seconds: 300
     effect-interval-seconds: 3
     effect-duration-seconds: 6
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -560,16 +584,16 @@ disasters:
     enabled: true
     chance: 2
     name: "§2§l🦠 Dịch Bệnh"
-    duration-seconds: 400
+    duration-seconds: 120
     effect-interval-seconds: 10
-    effect-duration-seconds: 5
+    effect-duration-seconds: 1
 
   # 🌪️ Lốc xoáy - Nhấc bổng người chơi, phá hủy khối
   tornado:
     enabled: true
     chance: 2
     name: "§8§l🌪️ Lốc Xoáy"
-    duration-seconds: 300
+    duration-seconds: 30
     effect-interval-seconds: 2
     effect-duration-seconds: 4
 
@@ -578,18 +602,18 @@ disasters:
     enabled: true
     chance: 1
     name: "§0§l📉 Nhật Thực"
-    duration-seconds: 600
-    effect-interval-seconds: 5
-    effect-duration-seconds: 10
+    duration-seconds: 300
+    effect-interval-seconds: 10
+    effect-duration-seconds: 5
 
   # 🌍 Động đất - Các khối trên cao rơi xuống, vùi lấp công trình
   earthquake:
     enabled: true
     chance: 2
     name: "§6§l🌍 Động Đất"
-    duration-seconds: 400
+    duration-seconds: 30
     effect-interval-seconds: 3
-    effect-duration-seconds: 5
+    effect-duration-seconds: 3
     # [VI] Tỷ lệ mỗi khối trên cao sẽ rơi xuống (phần trăm)
     # [EN] Chance for each block above to fall (percent)
     block-fall-chance: 15
@@ -611,7 +635,7 @@ disasters:
     enabled: true
     chance: 3
     name: "§4§l🔥 Bão Lửa Địa Ngục"
-    duration-seconds: 400
+    duration-seconds: 300
     effect-interval-seconds: 3
     effect-duration-seconds: 5
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -626,7 +650,7 @@ disasters:
     enabled: true
     chance: 2
     name: "§2§l💀 Thần Hồn Câu Diệt"
-    duration-seconds: 400
+    duration-seconds: 300
     effect-interval-seconds: 4
     effect-duration-seconds: 8
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -654,7 +678,7 @@ disasters:
     enabled: true
     chance: 2
     name: "§5§l👁️ Tận Thế Dâng Trào"
-    duration-seconds: 400
+    duration-seconds: 300
     effect-interval-seconds: 5
     effect-duration-seconds: 8
     # [VI] Tỷ lệ spawn Shulker (%) so với Endermite (20 = 20% Shulker, 80% Endermite)
@@ -666,7 +690,7 @@ disasters:
     enabled: true
     chance: 2
     name: "§8§l🌌 Bão Hư Không"
-    duration-seconds: 400
+    duration-seconds: 300
     effect-interval-seconds: 4
     effect-duration-seconds: 6
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -678,7 +702,7 @@ disasters:
     enabled: true
     chance: 1
     name: "§d§l🌀 Chorus Explosion"
-    duration-seconds: 300
+    duration-seconds: 200
     effect-interval-seconds: 6
     effect-duration-seconds: 10
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -723,7 +747,7 @@ boss-events:
 
       # [VI] Tên hiển thị của boss (hỗ trợ mã màu §)
       # [EN] Display name of boss (supports color codes §)
-      display-name: "§c§lWither Huyền Thoại"
+      display-name: "§e☠ §c§lWither Huyền Thoại §e☠"
 
       # [VI] HP tối đa của boss
       # [EN] Maximum HP of boss
@@ -735,7 +759,7 @@ boss-events:
 
       # [VI] Tỷ lệ xuất hiện (%) - tổng tất cả boss không được vượt quá 100
       # [EN] Spawn chance (%) - total of all bosses should not exceed 100
-      chance: 20
+      chance: 5
 
       # [VI] Thời gian tồn tại tối đa của boss (giây)
       #     Sau thời gian này boss sẽ tự động biến mất
@@ -778,7 +802,7 @@ boss-events:
 
     # ===== ENDER DRAGON =====
     ender_dragon:
-      enabled: true
+      enabled: false
       entity-type: ENDER_DRAGON
       display-name: "§5§lRồng Tử Thần"
       hp: 1000
@@ -807,7 +831,7 @@ boss-events:
       display-name: "§e§lGhast Khổng Lồ"
       hp: 100
       damage-multiplier: 2.5
-      chance: 15
+      chance: 10
       duration-seconds: 90
       warning-seconds: 45
       drops:

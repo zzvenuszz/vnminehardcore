@@ -4,6 +4,7 @@ import com.vnmine.hardcore.VnMineHardcore;
 import com.vnmine.hardcore.managers.ConfigManager;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -30,6 +31,9 @@ public class EnvironmentListener implements Listener {
     private final Map<UUID, Long> lastTemperatureCheck = new HashMap<>();
     private final Map<UUID, Long> lastWaterDamage = new HashMap<>();
     private final Map<UUID, Long> lastAcidRainDamage = new HashMap<>();
+    // Track exposure time for heat and cold
+    private final Map<UUID, Long> heatExposureStart = new HashMap<>();
+    private final Map<UUID, Long> coldExposureStart = new HashMap<>();
     private final Random random = new Random();
     private long tempCheckIntervalMs;
     private BukkitRunnable temperatureTask;
@@ -119,44 +123,94 @@ public class EnvironmentListener implements Listener {
 
                     boolean inHotBiome = HOT_BIOMES.stream().anyMatch(b -> biome.contains(b));
                     boolean inColdBiome = COLD_BIOMES.stream().anyMatch(b -> biome.contains(b));
-                    boolean exposedToSky = loc.getBlock().getLightFromSky() > 5;
+                    boolean inNether = player.getWorld().getEnvironment() == World.Environment.NETHER;
+                    boolean inWater = loc.getBlock().getType() == Material.WATER ||
+                                     loc.getBlock().getType() == Material.BUBBLE_COLUMN;
+                    // Kiểm tra có block che trên đầu (bóng râm)
+                    boolean hasBlockAbove = loc.getWorld().getHighestBlockYAt(loc.getBlockX(), loc.getBlockZ()) > loc.getBlockY();
+                    // Kiểm tra ban ngày (time 0-13000 = ban ngày)
+                    boolean isDaytime = player.getWorld().getTime() < 13000;
 
-                    if (inHotBiome && exposedToSky) {
-                        player.damage(config.heatDamage);
-                        player.setFireTicks(20);
+                    // ===== HEAT LOGIC =====
+                    // NETHER: luôn nóng (bỏ qua mọi điều kiện)
+                    // OVERWORLD: chỉ nóng khi ban ngày, không có mái che, không ở dưới nước
+                    boolean shouldBeHot = inHotBiome && (inNether || (isDaytime && !hasBlockAbove && !inWater));
 
-                        // Heat effect with amplifier and helmet reduction
-                        int heatAmp = config.heatAmplifier;
-                        if (hasHelmet(player)) {
-                            heatAmp = (int) Math.round(heatAmp * (1.0 - config.helmetReducePercent));
+                    if (shouldBeHot) {
+                        // Track exposure time
+                        if (!heatExposureStart.containsKey(uuid)) {
+                            heatExposureStart.put(uuid, now);
                         }
-                        if (heatAmp >= 0) {
-                            player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, Math.max(0, heatAmp)));
-                            player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, Math.max(0, heatAmp)));
-                        }
+                        long elapsed = (now - heatExposureStart.get(uuid)) / 1000;
+                        int delay = config.heatExposureDelaySeconds;
 
-                        player.sendActionBar("§c§l🔥 QUÁ NÓNG! §7Tìm bóng râm ngay!");
-                        logger.fine("[Environment] " + player.getName() + " heat damage in " + biome);
+                        if (elapsed >= delay) {
+                            // Calculate damage with helmet reduction
+                            double heatDamage = config.heatDamage;
+                            if (hasHelmet(player)) {
+                                heatDamage *= (1.0 - config.helmetDamageReducePercent);
+                            }
+                            if (heatDamage > 0) {
+                                player.damage(heatDamage);
+                            }
+
+                            // Heat effects (amplifier reduced by helmet)
+                            int heatAmp = config.heatAmplifier;
+                            if (hasHelmet(player)) {
+                                heatAmp = (int) Math.round(heatAmp * (1.0 - config.helmetReducePercent));
+                            }
+                            if (heatAmp >= 0) {
+                                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, Math.max(0, heatAmp)));
+                                player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, Math.max(0, heatAmp)));
+                            }
+
+                            player.sendActionBar("§c§l🔥 QUÁ NÓNG! §7Tìm bóng râm hoặc xuống nước ngay!");
+                            logger.fine("[Environment] " + player.getName() + " heat damage in " + biome);
+                        }
+                    } else {
+                        // Reset heat exposure if conditions are no longer met
+                        heatExposureStart.remove(uuid);
                     }
 
-                    if (inColdBiome && exposedToSky) {
-                        player.damage(config.coldDamage);
+                    // ===== COLD LOGIC =====
+                    // Lạnh khi: ở cold biome VÀ (không có mái che HOẶC ở dưới nước)
+                    // Cold biome luôn lạnh bất kể ngày/đêm, chỉ cần không có mái che hoặc ở dưới nước
+                    boolean shouldBeCold = inColdBiome && (!hasBlockAbove || inWater);
 
-                        // Cold effect with amplifier and armor reduction
-                        int coldAmp = config.coldAmplifier;
-                        coldAmp = reduceByArmor(coldAmp, player);
-
-                        if (coldAmp >= 0) {
-                            player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, Math.min(4, coldAmp + 1)));
-                            player.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 100, Math.max(0, coldAmp)));
+                    if (shouldBeCold) {
+                        // Track exposure time
+                        if (!coldExposureStart.containsKey(uuid)) {
+                            coldExposureStart.put(uuid, now);
                         }
+                        long elapsed = (now - coldExposureStart.get(uuid)) / 1000;
+                        int delay = config.coldExposureDelaySeconds;
 
-                        player.sendActionBar("§b§l❄ QUÁ LẠNH! §7Tìm nơi ấm áp ngay!");
-                        logger.fine("[Environment] " + player.getName() + " freeze damage in " + biome);
+                        if (elapsed >= delay) {
+                            // Calculate damage with armor reduction
+                            double coldDamage = config.coldDamage;
+                            coldDamage *= (1.0 - getArmorDamageReduction(player));
+                            if (coldDamage > 0) {
+                                player.damage(coldDamage);
+                            }
+
+                            // Cold effects (amplifier reduced by armor)
+                            int coldAmp = config.coldAmplifier;
+                            coldAmp = reduceByArmor(coldAmp, player);
+                            if (coldAmp >= 0) {
+                                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, Math.min(4, coldAmp + 1)));
+                                player.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 100, Math.max(0, coldAmp)));
+                            }
+
+                            player.sendActionBar("§b§l❄ QUÁ LẠNH! §7Tìm nơi ấm áp ngay!");
+                            logger.fine("[Environment] " + player.getName() + " freeze damage in " + biome);
+                        }
+                    } else {
+                        // Reset cold exposure if conditions are no longer met
+                        coldExposureStart.remove(uuid);
                     }
 
-                    if (loc.getBlock().getType() == Material.WATER ||
-                        loc.getBlock().getType() == Material.BUBBLE_COLUMN) {
+                    // Water damage (cold water)
+                    if (inWater) {
                         Long lastWater = lastWaterDamage.get(uuid);
                         if (lastWater == null || now - lastWater > config.waterDamageIntervalMs) {
                             player.damage(1.0);
@@ -165,7 +219,8 @@ public class EnvironmentListener implements Listener {
                         }
                     }
 
-                    if (exposedToSky && player.getWorld().hasStorm()) {
+                    // Acid rain damage
+                    if (player.getWorld().hasStorm() && !hasBlockAbove) {
                         Long lastAcid = lastAcidRainDamage.get(uuid);
                         if (lastAcid == null || now - lastAcid > config.acidRainIntervalMs) {
                             player.damage(1.0);
@@ -330,6 +385,20 @@ public class EnvironmentListener implements Listener {
         double reduction = armorPieces * config.armorReducePercent;
         if (reduction > 1.0) reduction = 1.0;
         return (int) Math.round(amplifier * (1.0 - reduction));
+    }
+
+    /**
+     * Tính % giảm sát thương lạnh dựa trên số món giáp đang mặc.
+     */
+    private double getArmorDamageReduction(Player player) {
+        int armorPieces = 0;
+        if (player.getInventory().getHelmet() != null && player.getInventory().getHelmet().getType() != Material.AIR) armorPieces++;
+        if (player.getInventory().getChestplate() != null && player.getInventory().getChestplate().getType() != Material.AIR) armorPieces++;
+        if (player.getInventory().getLeggings() != null && player.getInventory().getLeggings().getType() != Material.AIR) armorPieces++;
+        if (player.getInventory().getBoots() != null && player.getInventory().getBoots().getType() != Material.AIR) armorPieces++;
+
+        double reduction = armorPieces * config.armorDamageReducePercent;
+        return Math.min(1.0, reduction);
     }
 
     public boolean isTemperatureEnabled() { return config.temperatureEnabled; }
