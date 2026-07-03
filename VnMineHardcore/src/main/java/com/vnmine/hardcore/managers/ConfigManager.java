@@ -118,67 +118,24 @@ public class ConfigManager {
     public double spawnerHpMultiplier;
     public double spawnerDamageMultiplier;
 
-    // Disasters
+    // Disasters - General settings
     public boolean disastersEnabled;
     public int disasterMinIntervalSeconds;
     public int disasterWarningSeconds;
-    public int bloodMoonChance;
-    public int meteorChance;
-    public int megaStormChance;
-    public int solarFlareChance;
-    public int plagueChance;
-    public int tornadoChance;
-    public int eclipseChance;
-    public int earthquakeChance;
-    public int infernoStormChance;
-    public int soulEruptionChance;
-    public int lavaGeyserChance;
-    public int endSurgeChance;
-    public int voidStormChance;
-    public int chorusExplosionChance;
 
-    // Per-disaster configs (stored as Map for flexible access)
-    public Map<String, Integer> disasterEffectInterval = new HashMap<>();
-    public Map<String, Integer> disasterEffectDuration = new HashMap<>();
+    // Disaster config map - each disaster is a complete object
+    public Map<String, DisasterConfig> disasterConfigs = new HashMap<>();
 
-    // Disaster enabled/disabled flags
-    public Map<String, Boolean> disasterEnabled = new HashMap<>();
-
-    // Disaster display names and messages
-    public Map<String, String> disasterDisplayNames = new HashMap<>();
+    // Disaster messages (shared across all disasters)
     public Map<String, String> disasterMessages = new HashMap<>();
 
-    // Earthquake specific
-    public int earthquakeBlockFallChance;
-    public int earthquakeRadius;
-    public int earthquakeMinY;
-    public double earthquakeBlastResistanceFactor;
-
-    // Inferno Storm
-    public double infernoStormDamage;
-    public int infernoStormFireTicks;
-
-    // Soul Eruption
-    public double soulEruptionDamage;
-    public int soulEruptionWitherAmplifier;
-
-    // Lava Geyser
-    public double lavaGeyserDamage;
-
-    // End Surge
-    public int endSurgeShulkerChance;
-
-    // Void Storm
-    public double voidStormDamage;
-
-    // Chorus Explosion
-    public double chorusExplosionDamage;
-
-    // Boss Events
+    // Boss Events - General settings
     public boolean bossEventsEnabled;
     public int bossEventMinIntervalSeconds;
     public int bossEventSpawnRadius;
-    // Boss configs will be loaded dynamically
+
+    // Boss config map - each boss is a complete object
+    public Map<String, BossConfig> bossConfigs = new HashMap<>();
 
     // Ore Control
     public boolean oreControlEnabled;
@@ -193,6 +150,106 @@ public class ConfigManager {
     public boolean logDeaths;
     public boolean logBans;
     public boolean logDisasters;
+
+    // DisasterConfig class - holds all config for a single disaster
+    public static class DisasterConfig {
+        // [VI] Bật/tắt thiên tai này
+        // [EN] Enable/disable this disaster
+        public boolean enabled = true;
+
+        // [VI] Tỷ lệ xuất hiện (phần trăm)
+        // [EN] Spawn chance (percent)
+        public int chance = 5;
+
+        // [VI] Tên hiển thị (hỗ trợ mã màu §)
+        // [EN] Display name (supports color codes §)
+        public String name = "Unknown Disaster";
+
+        // [VI] Thời gian giữa các đợt áp dụng hiệu ứng (giây)
+        // [EN] Interval between effect applications (seconds)
+        public int effectIntervalSeconds = 5;
+
+        // [VI] Thời gian kéo dài của mỗi đợt hiệu ứng (giây)
+        // [EN] Duration of each effect wave (seconds)
+        public int effectDurationSeconds = 5;
+
+        // [VI] Thời gian kéo dài tổng thể của thiên tai (giây)
+        // [EN] Total duration of disaster (seconds)
+        public int durationSeconds = 600;
+
+        // Earthquake specific
+        public int blockFallChance = 15;
+        public int radius = 15;
+        public int minY = 30;
+        public double blastResistanceFactor = 0.1;
+
+        // Inferno Storm specific
+        public double damage = 2.0;
+        public int fireTicks = 100;
+
+        // Soul Eruption specific
+        public int witherAmplifier = 1;
+
+        // End Surge specific
+        public int shulkerChance = 20;
+
+        // Void Storm, Lava Geyser, Chorus Explosion specific
+        // (damage is already defined above)
+    }
+
+    // BossConfig class - holds all config for a single boss
+    public static class BossConfig {
+        // [VI] Bật/tắt boss này
+        // [EN] Enable/disable this boss
+        public boolean enabled = true;
+
+        // [VI] Loại entity (WITHER, ENDER_DRAGON, GHAST, ZOMBIE, SKELETON, SPIDER, CREEPER, ENDERMAN, WITCH, RAVAGER, VINDICATOR, PHANTOM)
+        // [EN] Entity type (WITHER, ENDER_DRAGON, GHAST, ZOMBIE, SKELETON, SPIDER, CREEPER, ENDERMAN, WITCH, RAVAGER, VINDICATOR, PHANTOM)
+        public String entityType = "WITHER";
+
+        // [VI] Tên hiển thị của boss (hỗ trợ mã màu §)
+        // [EN] Display name of boss (supports color codes §)
+        public String displayName = "§c§lBoss";
+
+        // [VI] HP tối đa của boss
+        // [EN] Maximum HP of boss
+        public double hp = 100.0;
+
+        // [VI] Hệ số nhân sát thương (1.0 = bình thường, 2.0 = gấp đôi)
+        // [EN] Damage multiplier (1.0 = normal, 2.0 = double)
+        public double damageMultiplier = 1.0;
+
+        // [VI] Tỷ lệ xuất hiện (%) - tổng tất cả boss không được vượt quá 100
+        // [EN] Spawn chance (%) - total of all bosses should not exceed 100
+        public int chance = 10;
+
+        // [VI] Thời gian tồn tại tối đa của boss (giây)
+        // [EN] Maximum boss duration (seconds)
+        public int durationSeconds = 120;
+
+        // [VI] Thời gian cảnh báo trước khi boss xuất hiện (giây)
+        // [EN] Warning time before boss spawns (seconds)
+        public int warningSeconds = 60;
+
+        // [VI] Danh sách item rơi ra khi boss bị tiêu diệt
+        // [EN] List of items dropped when boss is killed
+        public Map<String, DropConfig> drops = new HashMap<>();
+    }
+
+    // DropConfig class - holds drop configuration
+    public static class DropConfig {
+        // [VI] Số lượng tối thiểu rơi ra
+        // [EN] Minimum amount dropped
+        public int minAmount = 1;
+
+        // [VI] Số lượng tối đa rơi ra
+        // [EN] Maximum amount dropped
+        public int maxAmount = 1;
+
+        // [VI] Tỷ lệ rơi (0.0 = 0%, 1.0 = 100%)
+        // [EN] Drop chance (0.0 = 0%, 1.0 = 100%)
+        public double chance = 0.5;
+    }
 
     public ConfigManager(VnMineHardcore plugin) {
         this.plugin = plugin;
@@ -310,101 +367,24 @@ public class ConfigManager {
         spawnerHpMultiplier = config.getDouble("spawner-control.hp-multiplier", 3.0);
         spawnerDamageMultiplier = config.getDouble("spawner-control.damage-multiplier", 2.0);
 
-        // Disasters
+        // Disasters - General settings
         disastersEnabled = config.getBoolean("disasters.enabled", true);
-        disasterMinIntervalSeconds = config.getInt("disasters.min-interval-seconds", 600);
-        disasterWarningSeconds = config.getInt("disasters.warning-seconds", 300);
-        bloodMoonChance = config.getInt("disasters.blood-moon-chance", 30);
-        meteorChance = config.getInt("disasters.meteor-chance", 5);
-        megaStormChance = config.getInt("disasters.mega-storm-chance", 5);
-        solarFlareChance = config.getInt("disasters.solar-flare-chance", 3);
-        plagueChance = config.getInt("disasters.plague-chance", 2);
-        tornadoChance = config.getInt("disasters.tornado-chance", 2);
-        eclipseChance = config.getInt("disasters.eclipse-chance", 1);
-        earthquakeChance = config.getInt("disasters.earthquake-chance", 2);
-        infernoStormChance = config.getInt("disasters.inferno-storm-chance", 3);
-        soulEruptionChance = config.getInt("disasters.soul-eruption-chance", 2);
-        lavaGeyserChance = config.getInt("disasters.lava-geyser-chance", 2);
-        endSurgeChance = config.getInt("disasters.end-surge-chance", 2);
-        voidStormChance = config.getInt("disasters.void-storm-chance", 2);
-        chorusExplosionChance = config.getInt("disasters.chorus-explosion-chance", 1);
+        disasterMinIntervalSeconds = config.getInt("disasters.min-interval-seconds", 1200);
+        disasterWarningSeconds = config.getInt("disasters.warning-seconds", 60);
 
-        // Per-disaster configs
-        loadDisasterConfig("blood-moon");
-        loadDisasterConfig("meteor");
-        loadDisasterConfig("mega-storm");
-        loadDisasterConfig("solar-flare");
-        loadDisasterConfig("plague");
-        loadDisasterConfig("tornado");
-        loadDisasterConfig("eclipse");
-        loadDisasterConfig("earthquake");
-        loadDisasterConfig("inferno-storm");
-        loadDisasterConfig("soul-eruption");
-        loadDisasterConfig("lava-geyser");
-        loadDisasterConfig("end-surge");
-        loadDisasterConfig("void-storm");
-        loadDisasterConfig("chorus-explosion");
-
-        // Load disaster enabled flags
-        disasterEnabled.clear();
-        ConfigurationSection enabledSection = config.getConfigurationSection("disasters.enabled-disasters");
-        if (enabledSection != null) {
-            for (String key : enabledSection.getKeys(false)) {
-                disasterEnabled.put(key, enabledSection.getBoolean(key, true));
-            }
-        }
-
-        // Load disaster display names
-        disasterDisplayNames.clear();
-        ConfigurationSection displayNamesSection = config.getConfigurationSection("disasters.display-names");
-        if (displayNamesSection != null) {
-            for (String key : displayNamesSection.getKeys(false)) {
-                disasterDisplayNames.put(key, displayNamesSection.getString(key, key));
-            }
-        }
+        // Load all disaster configs
+        loadDisasterConfigs();
 
         // Load disaster messages
-        disasterMessages.clear();
-        ConfigurationSection messagesSection = config.getConfigurationSection("disasters.messages");
-        if (messagesSection != null) {
-            disasterMessages.put("warning-title", messagesSection.getString("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠"));
-            disasterMessages.put("warning-subtitle", messagesSection.getString("warning-subtitle", "§c{name}\n§e§lSẽ xảy ra trong {time} giây!"));
-            disasterMessages.put("warning-broadcast", messagesSection.getString("warning-broadcast", "§4§l⚠ {name} §r§cđang đến gần!"));
-            disasterMessages.put("countdown-broadcast", messagesSection.getString("countdown-broadcast", "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!"));
-            disasterMessages.put("active-broadcast", messagesSection.getString("active-broadcast", "§4§l{name} - {message} (§e{duration}s§4)"));
-            disasterMessages.put("end-broadcast", messagesSection.getString("end-broadcast", "§a§l✅ {name} đã kết thúc!"));
-        }
+        loadDisasterMessages();
 
-        // Earthquake specific
-        earthquakeBlockFallChance = config.getInt("disasters.earthquake.block-fall-chance", 15);
-        earthquakeRadius = config.getInt("disasters.earthquake.radius", 15);
-        earthquakeMinY = config.getInt("disasters.earthquake.min-y", 30);
-        earthquakeBlastResistanceFactor = config.getDouble("disasters.earthquake.blast-resistance-factor", 0.1);
-
-        // Inferno Storm
-        infernoStormDamage = config.getDouble("disasters.inferno-storm.damage", 2.0);
-        infernoStormFireTicks = config.getInt("disasters.inferno-storm.fire-ticks", 100);
-
-        // Soul Eruption
-        soulEruptionDamage = config.getDouble("disasters.soul-eruption.damage", 2.0);
-        soulEruptionWitherAmplifier = config.getInt("disasters.soul-eruption.wither-amplifier", 1);
-
-        // Lava Geyser
-        lavaGeyserDamage = config.getDouble("disasters.lava-geyser.damage", 3.0);
-
-        // End Surge
-        endSurgeShulkerChance = config.getInt("disasters.end-surge.shulker-chance", 20);
-
-        // Void Storm
-        voidStormDamage = config.getDouble("disasters.void-storm.damage", 2.0);
-
-        // Chorus Explosion
-        chorusExplosionDamage = config.getDouble("disasters.chorus-explosion.damage", 1.0);
-
-        // Boss Events
+        // Boss Events - General settings
         bossEventsEnabled = config.getBoolean("boss-events.enabled", true);
         bossEventMinIntervalSeconds = config.getInt("boss-events.min-interval-seconds", 1200);
         bossEventSpawnRadius = config.getInt("boss-events.spawn-radius", 50);
+
+        // Load all boss configs
+        loadBossConfigs();
 
         // Ore Control
         oreControlEnabled = config.getBoolean("ore-control.enabled", false);
@@ -436,9 +416,106 @@ public class ConfigManager {
         plugin.getLogger().info("[Config] Loaded configuration with " + config.getKeys(true).size() + " keys");
     }
 
-    private void loadDisasterConfig(String disasterId) {
-        String path = "disasters." + disasterId;
-        disasterEffectInterval.put(disasterId, config.getInt(path + ".effect-interval-seconds", 5));
-        disasterEffectDuration.put(disasterId, config.getInt(path + ".effect-duration-seconds", 5));
+    /**
+     * Load all disaster configurations from config
+     * Each disaster is a complete object with all its settings
+     */
+    private void loadDisasterConfigs() {
+        disasterConfigs.clear();
+        ConfigurationSection disastersSection = config.getConfigurationSection("disasters");
+        if (disastersSection == null) return;
+
+        // List of known disaster IDs
+        String[] disasterIds = {
+            "blood-moon", "meteor", "mega-storm", "solar-flare", "plague",
+            "tornado", "eclipse", "earthquake", "inferno-storm", "soul-eruption",
+            "lava-geyser", "end-surge", "void-storm", "chorus-explosion"
+        };
+
+        for (String disasterId : disasterIds) {
+            ConfigurationSection section = disastersSection.getConfigurationSection(disasterId);
+            if (section == null) continue;
+
+            DisasterConfig dc = new DisasterConfig();
+            dc.enabled = section.getBoolean("enabled", true);
+            dc.chance = section.getInt("chance", 5);
+            dc.name = section.getString("name", disasterId);
+            dc.effectIntervalSeconds = section.getInt("effect-interval-seconds", 5);
+            dc.effectDurationSeconds = section.getInt("effect-duration-seconds", 5);
+            dc.durationSeconds = section.getInt("duration-seconds", 600);
+
+            // Earthquake specific
+            dc.blockFallChance = section.getInt("block-fall-chance", 15);
+            dc.radius = section.getInt("radius", 15);
+            dc.minY = section.getInt("min-y", 30);
+            dc.blastResistanceFactor = section.getDouble("blast-resistance-factor", 0.1);
+
+            // Inferno Storm, Soul Eruption, Lava Geyser, Void Storm, Chorus Explosion specific
+            dc.damage = section.getDouble("damage", 2.0);
+            dc.fireTicks = section.getInt("fire-ticks", 100);
+            dc.witherAmplifier = section.getInt("wither-amplifier", 1);
+
+            // End Surge specific
+            dc.shulkerChance = section.getInt("shulker-chance", 20);
+
+            disasterConfigs.put(disasterId, dc);
+        }
+    }
+
+    /**
+     * Load disaster messages
+     */
+    private void loadDisasterMessages() {
+        disasterMessages.clear();
+        ConfigurationSection messagesSection = config.getConfigurationSection("disasters.messages");
+        if (messagesSection == null) return;
+
+        disasterMessages.put("warning-title", messagesSection.getString("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠"));
+        disasterMessages.put("warning-subtitle", messagesSection.getString("warning-subtitle", "§c{name}\n§e§lSẽ xảy ra trong {time} giây!"));
+        disasterMessages.put("warning-broadcast", messagesSection.getString("warning-broadcast", "§4§l⚠ {name} §r§cđang đến gần!"));
+        disasterMessages.put("countdown-broadcast", messagesSection.getString("countdown-broadcast", "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!"));
+        disasterMessages.put("active-broadcast", messagesSection.getString("active-broadcast", "§4§l{name} - {message} (§e{duration}s§4)"));
+        disasterMessages.put("end-broadcast", messagesSection.getString("end-broadcast", "§a§l✅ {name} đã kết thúc!"));
+    }
+
+    /**
+     * Load all boss configurations from config
+     * Each boss is a complete object with all its settings
+     */
+    private void loadBossConfigs() {
+        bossConfigs.clear();
+        ConfigurationSection bossesSection = config.getConfigurationSection("boss-events.bosses");
+        if (bossesSection == null) return;
+
+        for (String bossId : bossesSection.getKeys(false)) {
+            ConfigurationSection section = bossesSection.getConfigurationSection(bossId);
+            if (section == null) continue;
+
+            BossConfig bc = new BossConfig();
+            bc.enabled = section.getBoolean("enabled", true);
+            bc.entityType = section.getString("entity-type", "WITHER");
+            bc.displayName = section.getString("display-name", "§c§lBoss");
+            bc.hp = section.getDouble("hp", 100.0);
+            bc.damageMultiplier = section.getDouble("damage-multiplier", 1.0);
+            bc.chance = section.getInt("chance", 10);
+            bc.durationSeconds = section.getInt("duration-seconds", 120);
+            bc.warningSeconds = section.getInt("warning-seconds", 60);
+
+            // Load drops
+            ConfigurationSection dropsSection = section.getConfigurationSection("drops");
+            if (dropsSection != null) {
+                for (String dropKey : dropsSection.getKeys(false)) {
+                    ConfigurationSection dropSection = dropsSection.getConfigurationSection(dropKey);
+                    if (dropSection == null) continue;
+                    DropConfig dc = new DropConfig();
+                    dc.minAmount = dropSection.getInt("min-amount", 1);
+                    dc.maxAmount = dropSection.getInt("max-amount", 1);
+                    dc.chance = dropSection.getDouble("chance", 0.5);
+                    bc.drops.put(dropKey, dc);
+                }
+            }
+
+            bossConfigs.put(bossId, bc);
+        }
     }
 }

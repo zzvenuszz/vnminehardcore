@@ -5,7 +5,6 @@ import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import org.bukkit.*;
 import org.bukkit.block.Block;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -29,33 +28,12 @@ public class BossEventManager {
     private BossBar bossBar;
     private int timeSinceLastBoss = 0;
     private int warningTimeLeft = 0;
-    private BossConfig pendingBoss = null;
+    private ConfigManager.BossConfig pendingBoss = null;
 
     // AI tracking
     private Location lastBossLocation = null;
     private int stuckTicks = 0;
     private BukkitRunnable aiTask = null;
-
-    // Cấu trúc lưu config boss
-    private static class BossConfig {
-        boolean enabled;
-        EntityType entityType;
-        String displayName;
-        double hp;
-        double damageMultiplier;
-        int chance;
-        int durationSeconds;
-        int warningSeconds;
-        Map<String, DropConfig> drops = new HashMap<>();
-    }
-
-    private static class DropConfig {
-        int minAmount;
-        int maxAmount;
-        double chance;
-    }
-
-    private final Map<String, BossConfig> bossConfigs = new LinkedHashMap<>();
 
     public BossEventManager(VnMineHardcore plugin, ConfigManager config) {
         this.plugin = plugin;
@@ -70,61 +48,11 @@ public class BossEventManager {
             BossBar.Overlay.PROGRESS
         );
 
-        loadBossConfigs();
-
         if (config.bossEventsEnabled) start();
 
         logger.info("[BossEvent] Initialized: enabled=" + config.bossEventsEnabled +
             ", interval=" + config.bossEventMinIntervalSeconds + "s" +
-            ", bosses=" + bossConfigs.size());
-    }
-
-    private void loadBossConfigs() {
-        bossConfigs.clear();
-        ConfigurationSection bossesSection = plugin.getConfig().getConfigurationSection("boss-events.bosses");
-        if (bossesSection == null) return;
-
-        for (String bossId : bossesSection.getKeys(false)) {
-            ConfigurationSection section = bossesSection.getConfigurationSection(bossId);
-            if (section == null) continue;
-
-            BossConfig bc = new BossConfig();
-            // Mặc định enabled = true nếu không cấu hình
-            bc.enabled = section.getBoolean("enabled", true);
-            if (!bc.enabled) continue;
-
-            String entityTypeName = section.getString("entity-type", "WITHER");
-            try {
-                bc.entityType = EntityType.valueOf(entityTypeName.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                logger.warning("[BossEvent] Invalid entity-type '" + entityTypeName + "' for boss '" + bossId + "'");
-                continue;
-            }
-
-            bc.displayName = section.getString("display-name", "§c§lBoss");
-            bc.hp = section.getDouble("hp", 100);
-            bc.damageMultiplier = section.getDouble("damage-multiplier", 1.0);
-            bc.chance = section.getInt("chance", 10);
-            bc.durationSeconds = section.getInt("duration-seconds", 120);
-            bc.warningSeconds = section.getInt("warning-seconds", 60);
-
-            // Load drops
-            ConfigurationSection dropsSection = section.getConfigurationSection("drops");
-            if (dropsSection != null) {
-                for (String dropKey : dropsSection.getKeys(false)) {
-                    ConfigurationSection dropSection = dropsSection.getConfigurationSection(dropKey);
-                    if (dropSection == null) continue;
-                    DropConfig dc = new DropConfig();
-                    dc.minAmount = dropSection.getInt("min-amount", 1);
-                    dc.maxAmount = dropSection.getInt("max-amount", 1);
-                    dc.chance = dropSection.getDouble("chance", 0.5);
-                    bc.drops.put(dropKey, dc);
-                }
-            }
-
-            bossConfigs.put(bossId, bc);
-            logger.info("[BossEvent] Loaded boss: " + bossId + " (" + bc.entityType + ")");
-        }
+            ", bosses=" + config.bossConfigs.size());
     }
 
     public void start() {
@@ -156,9 +84,9 @@ public class BossEventManager {
         if (Bukkit.getOnlinePlayers().isEmpty()) return;
         if (pendingBoss != null) return; // Already has a warning in progress
 
-        // Lọc các boss enabled
-        List<Map.Entry<String, BossConfig>> enabledBosses = new ArrayList<>();
-        for (Map.Entry<String, BossConfig> entry : bossConfigs.entrySet()) {
+        // Lọc các boss enabled từ config.bossConfigs
+        List<Map.Entry<String, ConfigManager.BossConfig>> enabledBosses = new ArrayList<>();
+        for (Map.Entry<String, ConfigManager.BossConfig> entry : config.bossConfigs.entrySet()) {
             if (entry.getValue().enabled) {
                 enabledBosses.add(entry);
             }
@@ -168,7 +96,7 @@ public class BossEventManager {
 
         // Tính tổng chance
         int totalChance = 0;
-        for (Map.Entry<String, BossConfig> entry : enabledBosses) {
+        for (Map.Entry<String, ConfigManager.BossConfig> entry : enabledBosses) {
             totalChance += entry.getValue().chance;
         }
 
@@ -181,8 +109,8 @@ public class BossEventManager {
         // Weighted random: roll trong [0, totalChance)
         int roll = random.nextInt(totalChance);
         int cumulative = 0;
-        for (Map.Entry<String, BossConfig> entry : enabledBosses) {
-            BossConfig bc = entry.getValue();
+        for (Map.Entry<String, ConfigManager.BossConfig> entry : enabledBosses) {
+            ConfigManager.BossConfig bc = entry.getValue();
             cumulative += bc.chance;
             if (roll < cumulative) {
                 startWarning(bc);
@@ -194,7 +122,7 @@ public class BossEventManager {
         startWarning(enabledBosses.get(enabledBosses.size() - 1).getValue());
     }
 
-    private void startWarning(BossConfig bc) {
+    private void startWarning(ConfigManager.BossConfig bc) {
         if (bossActive) return;
         
         pendingBoss = bc;
@@ -222,7 +150,7 @@ public class BossEventManager {
         }
     }
 
-    private void spawnBoss(BossConfig bc) {
+    private void spawnBoss(ConfigManager.BossConfig bc) {
         if (bossActive) return;
         
         // Hide warning bar
@@ -242,8 +170,17 @@ public class BossEventManager {
         int y = world.getHighestBlockYAt(x, z) + 1;
         Location spawnLoc = new Location(world, x, y, z);
 
+        // Get entity type from config
+        EntityType entityType;
+        try {
+            entityType = EntityType.valueOf(bc.entityType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            logger.warning("[BossEvent] Invalid entity-type '" + bc.entityType + "' for boss");
+            return;
+        }
+
         // Spawn boss
-        currentBoss = (LivingEntity) world.spawnEntity(spawnLoc, bc.entityType);
+        currentBoss = (LivingEntity) world.spawnEntity(spawnLoc, entityType);
         currentBoss.setCustomName(bc.displayName);
         currentBoss.setCustomNameVisible(true);
         currentBoss.setMaxHealth(bc.hp);
@@ -321,7 +258,7 @@ public class BossEventManager {
     /**
      * AI cho boss: chạy mỗi tick (20 lần/giây) để boss có hành vi thông minh
      */
-    private void startBossAI(BossConfig bc) {
+    private void startBossAI(ConfigManager.BossConfig bc) {
         if (aiTask != null) {
             aiTask.cancel();
         }
@@ -449,7 +386,7 @@ public class BossEventManager {
     /**
      * Tấn công mục tiêu: di chuyển đến và gây sát thương
      */
-    private void attackTarget(LivingEntity target, BossConfig bc) {
+    private void attackTarget(LivingEntity target, ConfigManager.BossConfig bc) {
         if (currentBoss == null || currentBoss.isDead()) return;
 
         Location bossLoc = currentBoss.getLocation();
@@ -559,7 +496,7 @@ public class BossEventManager {
     /**
      * Di chuyển ngẫu nhiên và phá hủy block xung quanh
      */
-    private void wanderAndDestroy(Location bossLoc, World world, BossConfig bc) {
+    private void wanderAndDestroy(Location bossLoc, World world, ConfigManager.BossConfig bc) {
         if (currentBoss == null || currentBoss.isDead()) return;
 
         if (currentBoss instanceof EnderDragon) {
@@ -680,12 +617,12 @@ public class BossEventManager {
                entity instanceof Armadillo;
     }
 
-    private void onBossKilled(Player killer, BossConfig bc) {
+    private void onBossKilled(Player killer, ConfigManager.BossConfig bc) {
         Bukkit.broadcastMessage("§a§l🎉 " + killer.getName() + " đã tiêu diệt " + bc.displayName + "!");
 
         // Drop items
-        for (Map.Entry<String, DropConfig> dropEntry : bc.drops.entrySet()) {
-            DropConfig dc = dropEntry.getValue();
+        for (Map.Entry<String, ConfigManager.DropConfig> dropEntry : bc.drops.entrySet()) {
+            ConfigManager.DropConfig dc = dropEntry.getValue();
             if (random.nextDouble() < dc.chance) {
                 String materialName = dropEntry.getKey();
                 try {
@@ -737,11 +674,11 @@ public class BossEventManager {
     }
 
     public Set<String> getBossIds() {
-        return bossConfigs.keySet();
+        return config.bossConfigs.keySet();
     }
 
     public String getBossName(String id) {
-        BossConfig bc = bossConfigs.get(id.toLowerCase());
+        ConfigManager.BossConfig bc = config.bossConfigs.get(id.toLowerCase());
         if (bc == null) return "Unknown Boss";
         return bc.displayName;
     }
@@ -749,7 +686,7 @@ public class BossEventManager {
     public boolean triggerBoss(String bossId, int warningTimeSeconds, int durationSeconds) {
         if (bossActive) return false;
         
-        BossConfig bc = bossConfigs.get(bossId.toLowerCase());
+        ConfigManager.BossConfig bc = config.bossConfigs.get(bossId.toLowerCase());
         if (bc == null) return false;
 
         // Override warning time and duration

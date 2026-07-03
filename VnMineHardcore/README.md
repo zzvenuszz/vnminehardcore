@@ -59,6 +59,65 @@ rename:
 
 **Lưu ý:** Chức năng này chỉ thay đổi **tên hiển thị** trong chat và tab list (khi bấm phím Tab), **không** thay đổi tên thật của người chơi (`player.getName()`).
 
+### Disasters - Thiên tai
+
+```yaml
+disasters:
+  # [VI] Bật hệ thống thiên tai tự động
+  # [EN] Enable automatic disaster system
+  enabled: true
+
+  # [VI] Thời gian tối thiểu giữa các lần kiểm tra thiên tai (giây)
+  # [EN] Minimum seconds between disaster checks
+  min-interval-seconds: 1200
+
+  # [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
+  # [EN] Warning time in seconds before a disaster strikes
+  warning-seconds: 60
+
+  # [VI] Các thiên tai được cấu hình theo object
+  # [EN] Disasters configured as objects
+  types:
+    # [VI] Blood Moon - Trăng máu, tăng độ khó sinh sản quái vật
+    # [EN] Blood Moon - Blood red moon, increases mob spawn difficulty
+    blood-moon:
+      # [VI] Bật/tắt thiên tai này
+      # [EN] Enable/disable this disaster
+      enabled: true
+      # [VI] Tên hiển thị
+      # [EN] Display name
+      name: "Trăng Máu"
+      # [VI] Thời gian kéo dài (giây)
+      # [EN] Duration in seconds
+      duration-seconds: 300
+      # [VI] Tỷ lệ spawn quái vật tăng gấp (1.0 = tắt, 2.0 = gấp đôi)
+      # [EN] Mob spawn rate multiplier (1.0 = off, 2.0 = double)
+      spawn-multiplier: 2.0
+
+    # [VI] Mega Storm - Bão lớn, gió mạnh và sét
+    # [EN] Mega Storm - Large storm with strong winds and lightning
+    mega-storm:
+      enabled: true
+      name: "Bão Rực Rỡ"
+      duration-seconds: 180
+      # [VI] Tần suất sét (giây)
+      # [EN] Lightning frequency (seconds)
+      lightning-frequency-seconds: 5
+      # [VI] Sát thương từ sét (tim)
+      # [EN] Lightning damage (hearts)
+      lightning-damage: 4.0
+
+    # [VI] Solar Flare - Tia nắng, gây thiêu đốt
+    # [EN] Solar Flare - Solar rays causing burning
+    solar-flare:
+      enabled: true
+      name: "Tia Nắng"
+      duration-seconds: 120
+      # [VI] Sát thương mỗi giây (tim)
+      # [EN] Damage per second (hearts)
+      damage-per-second: 1.0
+```
+
 ## Yêu cầu
 
 - Minecraft Paper 1.21+

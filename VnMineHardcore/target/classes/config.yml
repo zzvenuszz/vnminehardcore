@@ -14,7 +14,7 @@
 death:
   # [VI] Cấm (ban) người chơi vĩnh viễn khi chết
   # [EN] Permanently ban the player upon death
-  ban-on-death: true
+  ban-on-death: false
 
   # [VI] Cũng cấm luôn địa chỉ IP (chỉ hoạt động nếu ban-on-death: true)
   # [EN] Also ban the player's IP address (only works if ban-on-death: true)
@@ -398,7 +398,7 @@ environment:
 
     # [VI] Cao độ Y tối thiểu để kích hoạt chóng mặt
     # [EN] Minimum Y level for vertigo to trigger
-    y-level: 100
+    y-level: 150
 
     # [VI] Tỷ lệ kích hoạt mỗi bước di chuyển (phần trăm)
     # [EN] Trigger chance per movement (percent)
@@ -462,9 +462,9 @@ spawner-control:
 # [DISASTERS] 🌋 THIÊN TAI / DISASTERS
 # ============================================================
 # [VI] Hệ thống thiên tai tự động xảy ra trong game.
-#      Mỗi loại thiên tai có cấu hình riêng về thời gian, hiệu ứng và tỷ lệ xuất hiện.
+#      Mỗi loại thiên tai là một object hoàn chỉnh với đầy đủ cấu hình.
 # [EN] Automatic disaster system in the game.
-#      Each disaster type has its own configuration for timing, effects, and spawn chance.
+#      Each disaster type is a complete object with all configuration.
 disasters:
   # [VI] Bật hệ thống thiên tai tự động
   # [EN] Enable automatic disaster system
@@ -472,200 +472,161 @@ disasters:
 
   # [VI] Thời gian tối thiểu giữa các lần kiểm tra thiên tai (giây)
   # [EN] Minimum seconds between disaster checks
-  min-interval-seconds: 600
+  min-interval-seconds: 1200
 
   # [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
   # [EN] Warning time in seconds before a disaster strikes
-  warning-seconds: 180
+  warning-seconds: 60
 
-  # [VI] Tỷ lệ xuất hiện của từng loại thiên tai (phần trăm)
-  #     Giá trị càng cao càng dễ xảy ra
-  # [EN] Spawn chance for each disaster type (percent)
-  #     Higher values = more likely to occur
-
-  # ===== OVERWORLD =====
-  # 🌕 Trăng máu - Quái vật sinh sản ồ ạt, mạnh hơn
-  blood-moon-chance: 10
-
-  # ☄️ Mưa sao băng - Thiên thạch rơi, nổ
-  meteor-chance: 5
-
-  # 🌊 Siêu bão - Sấm sét, mưa axit, mù
-  mega-storm-chance: 5
-
-  # 🔥 Bão mặt trời - Ánh nắng gây cháy, mù
-  solar-flare-chance: 3
-
-  # 🦠 Dịch bệnh - Gây độc, suy yếu, đói
-  plague-chance: 2
-
-  # 🌪️ Lốc xoáy - Nhấc bổng người chơi, phá hủy khối
-  tornado-chance: 2
-
-  # 📉 Nhật thực - Ban ngày thành đêm, quái xuất hiện
-  eclipse-chance: 1
-
-  # 🌍 Động đất - Các khối trên cao rơi xuống, vùi lấp công trình
-  earthquake-chance: 2
-
-  # ===== NETHER =====
-  # 🔥 Inferno Storm - Lửa địa ngục trút xuống, spawn Ghast/Magma Cube
-  inferno-storm-chance: 3
-
-  # 💀 Soul Eruption - Soul sand phát nổ, Wither effect, spawn Wither Skeleton
-  soul-eruption-chance: 2
-
-  # 🌋 Lava Geyser - Cột lava phun trào từ dưới đất
-  lava-geyser-chance: 2
-
-  # ===== THE END =====
-  # 👁️ End Surge - Sinh vật End trỗi dậy, Levitation
-  end-surge-chance: 2
-
-  # 🌌 Void Storm - Màn hình tối, damage liên tục
-  void-storm-chance: 2
-
-  # 🌀 Chorus Explosion - Teleport ngẫu nhiên, damage
-  chorus-explosion-chance: 1
-
-  # ===== ENABLE/DISABLE TỪNG THIÊN TAI =====
-  # [VI] Bật/tắt từng loại thiên tai (true = bật, false = tắt)
-  # [EN] Enable/disable each disaster type (true = on, false = off)
-  enabled-disasters:
-    blood-moon: true
-    meteor: true
-    mega-storm: true
-    solar-flare: true
-    plague: true
-    tornado: true
-    eclipse: true
-    earthquake: true
-    inferno-storm: true
-    soul-eruption: true
-    lava-geyser: true
-    end-surge: true
-    void-storm: true
-    chorus-explosion: true
-
-  # ===== DISPLAY NAMES =====
-  # [VI] Tên hiển thị cho từng thiên tai (hỗ trợ mã màu §)
-  # [EN] Display names for each disaster (supports color codes §)
-  display-names:
-    blood-moon: "§4§l🌕 Máu Trăng"
-    meteor: "§6§l☄️ Mưa Sao Băng"
-    mega-storm: "§9§l🌊 Siêu Bão"
-    solar-flare: "§c§l🔥 Bão Mặt Trời"
-    plague: "§2§l🦠 Dịch Bệnh"
-    tornado: "§8§l🌪️ Lốc Xoáy"
-    eclipse: "§0§l📉 Nhật Thực"
-    earthquake: "§6§l🌍 Động Đất"
-    inferno-storm: "§4§l🔥 Inferno Storm"
-    soul-eruption: "§2§l💀 Soul Eruption"
-    lava-geyser: "§6§l🌋 Lava Geyser"
-    end-surge: "§5§l👁️ End Surge"
-    void-storm: "§8§l🌌 Void Storm"
-    chorus-explosion: "§d§l🌀 Chorus Explosion"
-
-  # ===== MESSAGES =====
-  # [VI] Các thông báo có thể tùy chỉnh
-  # [EN] Customizable messages
-  # Placeholders: {name} = tên thiên tai, {time} = thời gian, {duration} = thời lượng, {message} = mô tả
+  # [VI] Các thông báo chung cho thiên tai
+  # [EN] Common messages for disasters
   messages:
+    # [VI] Tiêu đề khi cảnh báo thiên tai
+    # [EN] Title when warning about disaster
     warning-title: "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠"
+    # [VI] Phụ đề khi cảnh báo thiên tai
+    # [EN] Subtitle when warning about disaster
     warning-subtitle: "§c{name}\n§e§lSẽ xảy ra trong {time} giây!"
+    # [VI] Thông báo broadcast khi bắt đầu cảnh báo
+    # [EN] Broadcast message when warning starts
     warning-broadcast: "§4§l⚠ {name} §r§cđang đến gần!"
+    # [VI] Thông báo countdown khi còn ít giây
+    # [EN] Countdown broadcast message
     countdown-broadcast: "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!"
+    # [VI] Thông báo khi thiên tai đang hoạt động
+    # [EN] Active broadcast message
     active-broadcast: "§4§l{name} - {message} (§e{duration}s§4)"
+    # [VI] Thông báo khi thiên tai kết thúc
+    # [EN] End broadcast message
     end-broadcast: "§a§l✅ {name} đã kết thúc!"
 
-  # ===== CẤU HÌNH RIÊNG CHO TỪNG THIÊN TAI =====
-  # [VI] Mỗi thiên tai có thể cấu hình riêng thời gian hiệu ứng
-  # [EN] Each disaster can have its own effect timing configuration
-
-  # 🌕 Blood Moon
+  # ===== OVERWORLD DISASTERS =====
+  # 🌕 Trăng máu - Quái vật sinh sản ồ ạt, mạnh hơn
   blood-moon:
+    # [VI] Bật/tắt thiên tai này
+    # [EN] Enable/disable this disaster
+    enabled: true
+    # [VI] Tỷ lệ xuất hiện (phần trăm)
+    # [EN] Spawn chance (percent)
+    chance: 10
+    # [VI] Tên hiển thị (hỗ trợ mã màu §)
+    # [EN] Display name (supports color codes §)
+    name: "§4§l🌕 Trăng Máu"
+    # [VI] Thời gian kéo dài tổng thể (giây)
+    # [EN] Total duration (seconds)
+    duration-seconds: 600
     # [VI] Thời gian giữa các đợt áp dụng hiệu ứng (giây)
     # [EN] Interval between effect applications (seconds)
     effect-interval-seconds: 5
-
     # [VI] Thời gian kéo dài của mỗi đợt hiệu ứng (giây)
     # [EN] Duration of each effect wave (seconds)
     effect-duration-seconds: 10
 
-  # ☄️ Meteor Shower
+  # ☄️ Mưa sao băng - Thiên thạch rơi, nổ
   meteor:
+    enabled: true
+    chance: 5
+    name: "§6§l☄️ Mưa Sao Băng"
+    duration-seconds: 400
     effect-interval-seconds: 3
     effect-duration-seconds: 3
 
-  # 🌊 Mega Storm
+  # 🌊 Siêu bão - Sấm sét, mưa axit, mù
   mega-storm:
+    enabled: true
+    chance: 5
+    name: "§9§l🌊 Siêu Bão"
+    duration-seconds: 600
     effect-interval-seconds: 4
     effect-duration-seconds: 8
 
-  # 🔥 Solar Flare
+  # 🔥 Bão mặt trời - Ánh nắng gây cháy, mù
   solar-flare:
+    enabled: true
+    chance: 3
+    name: "§c§l🔥 Bão Mặt Trời"
+    duration-seconds: 400
     effect-interval-seconds: 3
     effect-duration-seconds: 6
+    # [VI] Sát thương mỗi đợt hiệu ứng (tim)
+    # [EN] Damage per effect wave (hearts)
+    damage: 2.0
+    # [VI] Thời gian cháy (tick, 20 tick = 1 giây)
+    # [EN] Fire tick duration (tick, 20 ticks = 1 second)
+    fire-ticks: 100
 
-  # 🦠 Plague
+  # 🦠 Dịch bệnh - Gây độc, suy yếu, đói
   plague:
+    enabled: true
+    chance: 2
+    name: "§2§l🦠 Dịch Bệnh"
+    duration-seconds: 400
     effect-interval-seconds: 10
     effect-duration-seconds: 5
 
-  # 🌪️ Tornado
+  # 🌪️ Lốc xoáy - Nhấc bổng người chơi, phá hủy khối
   tornado:
+    enabled: true
+    chance: 2
+    name: "§8§l🌪️ Lốc Xoáy"
+    duration-seconds: 300
     effect-interval-seconds: 2
     effect-duration-seconds: 4
 
-  # 📉 Solar Eclipse
+  # 📉 Nhật thực - Ban ngày thành đêm, quái xuất hiện
   eclipse:
+    enabled: true
+    chance: 1
+    name: "§0§l📉 Nhật Thực"
+    duration-seconds: 600
     effect-interval-seconds: 5
     effect-duration-seconds: 10
 
-  # ===== ĐỘNG ĐẤT / EARTHQUAKE =====
+  # 🌍 Động đất - Các khối trên cao rơi xuống, vùi lấp công trình
   earthquake:
-    # [VI] Thời gian giữa các đợt rung chuyển (giây)
-    # [EN] Interval between earthquake shakes (seconds)
+    enabled: true
+    chance: 2
+    name: "§6§l🌍 Động Đất"
+    duration-seconds: 400
     effect-interval-seconds: 3
-
-    # [VI] Thời gian kéo dài của động đất (giây)
-    # [EN] Duration of earthquake (seconds)
     effect-duration-seconds: 5
-
     # [VI] Tỷ lệ mỗi khối trên cao sẽ rơi xuống (phần trăm)
     # [EN] Chance for each block above to fall (percent)
     block-fall-chance: 15
-
     # [VI] Bán kính ảnh hưởng xung quanh mỗi người chơi (khối)
     # [EN] Effect radius around each player (blocks)
     radius: 30
-
     # [VI] Cao độ Y tối thiểu để block có thể rơi
     # [EN] Minimum Y level for blocks to fall
     min-y: 30
-
     # [VI] Hệ số giảm tỷ lệ rơi theo độ bền vỡ (blast resistance)
-    #     Block càng cứng (obsidian, bedrock...) càng khó rơi
     #     0.1 = giảm 10% tỷ lệ rơi mỗi điểm blast resistance
     # [EN] Blast resistance factor to reduce fall chance
-    #     Harder blocks (obsidian, bedrock...) are less likely to fall
     #     0.1 = reduces fall chance by 10% per blast resistance point
     blast-resistance-factor: 0.1
 
   # ===== NETHER DISASTERS =====
-  # 🔥 Inferno Storm
+  # 🔥 Inferno Storm - Lửa địa ngục trút xuống, spawn Ghast/Magma Cube
   inferno-storm:
+    enabled: true
+    chance: 3
+    name: "§4§l🔥 Bão Lửa Địa Ngục"
+    duration-seconds: 400
     effect-interval-seconds: 3
     effect-duration-seconds: 5
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
     # [EN] Damage per effect wave (hearts)
     damage: 2.0
-    # [VI] Thời gian block cháy (tick, 20 tick = 1 giây)
+    # [VI] Thời gian cháy (tick, 20 tick = 1 giây)
     # [EN] Fire tick duration (tick, 20 ticks = 1 second)
     fire-ticks: 100
 
-  # 💀 Soul Eruption
+  # 💀 Soul Eruption - Soul sand phát nổ, Wither effect, spawn Wither Skeleton
   soul-eruption:
+    enabled: true
+    chance: 2
+    name: "§2§l💀 Thần Hồn Câu Diệt"
+    duration-seconds: 400
     effect-interval-seconds: 4
     effect-duration-seconds: 8
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -675,8 +636,12 @@ disasters:
     # [EN] Wither effect amplifier (0 = Level I, 1 = Level II...)
     wither-amplifier: 1
 
-  # 🌋 Lava Geyser
+  # 🌋 Lava Geyser - Cột lava phun trào từ dưới đất
   lava-geyser:
+    enabled: true
+    chance: 2
+    name: "§6§l🌋 Hồn Kiếp"
+    duration-seconds: 300
     effect-interval-seconds: 5
     effect-duration-seconds: 10
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -684,24 +649,36 @@ disasters:
     damage: 3.0
 
   # ===== THE END DISASTERS =====
-  # 👁️ End Surge
+  # 👁️ End Surge - Sinh vật End trỗi dậy, Levitation
   end-surge:
+    enabled: true
+    chance: 2
+    name: "§5§l👁️ Tận Thế Dâng Trào"
+    duration-seconds: 400
     effect-interval-seconds: 5
     effect-duration-seconds: 8
     # [VI] Tỷ lệ spawn Shulker (%) so với Endermite (20 = 20% Shulker, 80% Endermite)
     # [EN] Shulker spawn chance (%) compared to Endermite (20 = 20% Shulker, 80% Endermite)
     shulker-chance: 20
 
-  # 🌌 Void Storm
+  # 🌌 Void Storm - Màn hình tối, damage liên tục
   void-storm:
+    enabled: true
+    chance: 2
+    name: "§8§l🌌 Bão Hư Không"
+    duration-seconds: 400
     effect-interval-seconds: 4
     effect-duration-seconds: 6
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
     # [EN] Damage per effect wave (hearts)
     damage: 2.0
 
-  # 🌀 Chorus Explosion
+  # 🌀 Chorus Explosion - Teleport ngẫu nhiên, damage
   chorus-explosion:
+    enabled: true
+    chance: 1
+    name: "§d§l🌀 Chorus Explosion"
+    duration-seconds: 300
     effect-interval-seconds: 6
     effect-duration-seconds: 10
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -712,11 +689,9 @@ disasters:
 # [BOSS EVENTS] 👹 BOSS NGẪU NHIÊN
 # ============================================================
 # [VI] Hệ thống boss ngẫu nhiên xuất hiện trong game.
-#      Boss có HP cao, damage mạnh, rơi item quý hiếm.
-#      Có hệ thống cảnh báo trước khi boss xuất hiện.
+#      Mỗi boss là một object hoàn chỉnh với đầy đủ cấu hình.
 # [EN] Random boss event system.
-#      Bosses have high HP, strong damage, drop rare items.
-#      Includes warning system before boss spawns.
+#      Each boss is a complete object with all configuration.
 boss-events:
   # [VI] Bật hệ thống boss ngẫu nhiên
   # [EN] Enable random boss event system
@@ -1102,7 +1077,6 @@ rename:
   #                  Ví dụ với số lần chết = 3:
   #                    000 -> 003
   #                    0000 -> 0003
-  #                    00 -> 03
   #                  Ví dụ với số lần chết = 15:
   #                    000 -> 015
   #                    0000 -> 0015

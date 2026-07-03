@@ -1,12 +1,12 @@
 com/vnmine/hardcore/listeners/SpawnerControlListener.class
 com/vnmine/hardcore/listeners/WaterListener$2.class
 com/vnmine/hardcore/managers/DeathPenaltyManager.class
-com/vnmine/hardcore/managers/BossEventManager$BossConfig.class
 com/vnmine/hardcore/managers/BossEventManager$3.class
 com/vnmine/hardcore/listeners/CombatListener.class
 com/vnmine/hardcore/managers/DisasterManager$4.class
 com/vnmine/hardcore/listeners/OreControlListener.class
 com/vnmine/hardcore/listeners/EnvironmentListener.class
+com/vnmine/hardcore/managers/ConfigManager$BossConfig.class
 com/vnmine/hardcore/listeners/VillagerTradeManager.class
 com/vnmine/hardcore/VnMineHardcore.class
 com/vnmine/hardcore/managers/LogManager$PlayerStats.class
@@ -20,6 +20,7 @@ com/vnmine/hardcore/managers/DisasterManager.class
 com/vnmine/hardcore/managers/DisasterManager$1.class
 com/vnmine/hardcore/listeners/HungerListener.class
 com/vnmine/hardcore/managers/DeathPenaltyManager$1.class
+com/vnmine/hardcore/managers/ConfigManager$DisasterConfig.class
 com/vnmine/hardcore/listeners/HungerListener$1.class
 com/vnmine/hardcore/managers/LogManager.class
 com/vnmine/hardcore/managers/BossEventManager$4.class
@@ -32,7 +33,7 @@ com/vnmine/hardcore/managers/BanManager.class
 com/vnmine/hardcore/listeners/DeathListener$1.class
 com/vnmine/hardcore/listeners/DeathListener.class
 com/vnmine/hardcore/listeners/VillagerTradeManager$1.class
-com/vnmine/hardcore/managers/BossEventManager$DropConfig.class
+com/vnmine/hardcore/managers/ConfigManager$DropConfig.class
 com/vnmine/hardcore/managers/DisasterManager$2.class
 com/vnmine/hardcore/managers/BossEventManager$2.class
 com/vnmine/hardcore/managers/ConfigManager.class
