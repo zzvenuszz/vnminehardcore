@@ -137,6 +137,8 @@ public class DisasterManager {
     }
 
     private void tryScheduleDisaster() {
+        if (timeSinceLastDisaster < config.disasterMinIntervalSeconds) return;
+
         int roll = random.nextInt(100);
         boolean isNight = Bukkit.getWorlds().get(0).getTime() > 13000;
 
@@ -149,32 +151,136 @@ public class DisasterManager {
             else hasOverworld = true;
         }
 
-        if (timeSinceLastDisaster < 1800) return;
-
         // Overworld events
         if (hasOverworld) {
-            if (isNight && roll < 30) { timeSinceLastDisaster = 0; scheduleDisaster("🌕 Blood Moon", this::startBloodMoon); return; }
-            if (roll < 5) { timeSinceLastDisaster = 0; scheduleDisaster("☄️ Meteor Shower", this::startMeteorShower); return; }
-            if (roll < 10) { timeSinceLastDisaster = 0; scheduleDisaster("🌊 Mega Storm", this::startMegaStorm); return; }
-            if (roll < 13) { timeSinceLastDisaster = 0; scheduleDisaster("🔥 Solar Flare", this::startSolarFlare); return; }
-            if (roll < 15) { timeSinceLastDisaster = 0; scheduleDisaster("🦠 Plague", this::startPlague); return; }
-            if (roll < 17) { timeSinceLastDisaster = 0; scheduleDisaster("🌪️ Tornado", this::startTornado); return; }
-            if (roll < 18 && !isNight) { timeSinceLastDisaster = 0; scheduleDisaster("📉 Solar Eclipse", this::startSolarEclipse); return; }
-            if (roll < 20) { timeSinceLastDisaster = 0; scheduleDisaster("🌍 Earthquake", this::startEarthquake); return; }
+            // Blood Moon - chỉ ban đêm
+            if (roll < config.bloodMoonChance) {
+                if (isNight) {
+                    timeSinceLastDisaster = 0;
+                    scheduleDisaster("🌕 Blood Moon", this::startBloodMoon);
+                    return;
+                } else {
+                    // Ban ngày → thay thế bằng Solar Flare hoặc Eclipse ngẫu nhiên
+                    timeSinceLastDisaster = 0;
+                    if (random.nextBoolean()) {
+                        scheduleDisaster("🔥 Solar Flare", this::startSolarFlare);
+                    } else {
+                        scheduleDisaster("📉 Solar Eclipse", this::startSolarEclipse);
+                    }
+                    return;
+                }
+            }
+            roll -= config.bloodMoonChance;
+
+            // Meteor Shower
+            if (roll < config.meteorChance) { timeSinceLastDisaster = 0; scheduleDisaster("☄️ Meteor Shower", this::startMeteorShower); return; }
+            roll -= config.meteorChance;
+
+            // Mega Storm
+            if (roll < config.megaStormChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌊 Mega Storm", this::startMegaStorm); return; }
+            roll -= config.megaStormChance;
+
+            // Solar Flare - chỉ ban ngày
+            if (roll < config.solarFlareChance) {
+                if (!isNight) {
+                    timeSinceLastDisaster = 0;
+                    scheduleDisaster("🔥 Solar Flare", this::startSolarFlare);
+                    return;
+                } else {
+                    // Ban đêm → thay thế bằng event ngẫu nhiên khác (trừ bloodmoon)
+                    timeSinceLastDisaster = 0;
+                    scheduleRandomOverworldDisasterExcluding("🔥 Solar Flare", "📉 Solar Eclipse");
+                    return;
+                }
+            }
+            roll -= config.solarFlareChance;
+
+            // Plague
+            if (roll < config.plagueChance) { timeSinceLastDisaster = 0; scheduleDisaster("🦠 Plague", this::startPlague); return; }
+            roll -= config.plagueChance;
+
+            // Tornado
+            if (roll < config.tornadoChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌪️ Tornado", this::startTornado); return; }
+            roll -= config.tornadoChance;
+
+            // Solar Eclipse - chỉ ban ngày
+            if (roll < config.eclipseChance) {
+                if (!isNight) {
+                    timeSinceLastDisaster = 0;
+                    scheduleDisaster("📉 Solar Eclipse", this::startSolarEclipse);
+                    return;
+                } else {
+                    // Ban đêm → thay thế bằng event ngẫu nhiên khác
+                    timeSinceLastDisaster = 0;
+                    scheduleRandomOverworldDisasterExcluding("📉 Solar Eclipse", "🔥 Solar Flare");
+                    return;
+                }
+            }
+            roll -= config.eclipseChance;
+
+            // Earthquake
+            if (roll < config.earthquakeChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌍 Earthquake", this::startEarthquake); return; }
+            roll -= config.earthquakeChance;
         }
 
         // Nether events
         if (hasNether) {
-            if (roll < 23) { timeSinceLastDisaster = 0; scheduleDisaster("🔥 Inferno Storm", this::startInfernoStorm); return; }
-            if (roll < 25) { timeSinceLastDisaster = 0; scheduleDisaster("💀 Soul Eruption", this::startSoulEruption); return; }
-            if (roll < 27) { timeSinceLastDisaster = 0; scheduleDisaster("🌋 Lava Geyser", this::startLavaGeyser); return; }
+            if (roll < config.infernoStormChance) { timeSinceLastDisaster = 0; scheduleDisaster("🔥 Inferno Storm", this::startInfernoStorm); return; }
+            roll -= config.infernoStormChance;
+            if (roll < config.soulEruptionChance) { timeSinceLastDisaster = 0; scheduleDisaster("💀 Soul Eruption", this::startSoulEruption); return; }
+            roll -= config.soulEruptionChance;
+            if (roll < config.lavaGeyserChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌋 Lava Geyser", this::startLavaGeyser); return; }
+            roll -= config.lavaGeyserChance;
         }
 
         // End events
         if (hasEnd) {
-            if (roll < 29) { timeSinceLastDisaster = 0; scheduleDisaster("👁️ End Surge", this::startEndSurge); return; }
-            if (roll < 31) { timeSinceLastDisaster = 0; scheduleDisaster("🌌 Void Storm", this::startVoidStorm); return; }
-            if (roll < 32) { timeSinceLastDisaster = 0; scheduleDisaster("🌀 Chorus Explosion", this::startChorusExplosion); return; }
+            if (roll < config.endSurgeChance) { timeSinceLastDisaster = 0; scheduleDisaster("👁️ End Surge", this::startEndSurge); return; }
+            roll -= config.endSurgeChance;
+            if (roll < config.voidStormChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌌 Void Storm", this::startVoidStorm); return; }
+            roll -= config.voidStormChance;
+            if (roll < config.chorusExplosionChance) { timeSinceLastDisaster = 0; scheduleDisaster("🌀 Chorus Explosion", this::startChorusExplosion); return; }
+            roll -= config.chorusExplosionChance;
+        }
+    }
+
+    /**
+     * Chọn ngẫu nhiên một overworld disaster khác, loại trừ các disaster được chỉ định
+     */
+    private void scheduleRandomOverworldDisasterExcluding(String... excludeNames) {
+        List<Runnable> available = new ArrayList<>();
+        List<String> availableNames = new ArrayList<>();
+
+        // Danh sách tất cả overworld disasters
+        java.util.Map<String, Runnable> overworldDisasters = new java.util.LinkedHashMap<>();
+        overworldDisasters.put("☄️ Meteor Shower", this::startMeteorShower);
+        overworldDisasters.put("🌊 Mega Storm", this::startMegaStorm);
+        overworldDisasters.put("🔥 Solar Flare", this::startSolarFlare);
+        overworldDisasters.put("🦠 Plague", this::startPlague);
+        overworldDisasters.put("🌪️ Tornado", this::startTornado);
+        overworldDisasters.put("📉 Solar Eclipse", this::startSolarEclipse);
+        overworldDisasters.put("🌍 Earthquake", this::startEarthquake);
+
+        for (java.util.Map.Entry<String, Runnable> entry : overworldDisasters.entrySet()) {
+            boolean excluded = false;
+            for (String ex : excludeNames) {
+                if (entry.getKey().equals(ex)) {
+                    excluded = true;
+                    break;
+                }
+            }
+            if (!excluded) {
+                available.add(entry.getValue());
+                availableNames.add(entry.getKey());
+            }
+        }
+
+        if (!available.isEmpty()) {
+            int idx = random.nextInt(available.size());
+            scheduleDisaster(availableNames.get(idx), available.get(idx));
+        } else {
+            // Fallback: meteor shower
+            scheduleDisaster("☄️ Meteor Shower", this::startMeteorShower);
         }
     }
 
