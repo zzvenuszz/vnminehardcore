@@ -19,6 +19,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private DeathRenameManager deathRenameManager;
     private DeathPenaltyManager deathPenaltyManager;
     private BossEventManager bossEventManager;
+    private VillagerDataManager villagerDataManager;
     private DeathListener deathListener;
     private CombatListener combatListener;
     private EnvironmentListener environmentListener;
@@ -48,6 +49,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.deathRenameManager = new DeathRenameManager(this, configManager);
         this.deathPenaltyManager = new DeathPenaltyManager(this, configManager);
         this.bossEventManager = new BossEventManager(this, configManager);
+        this.villagerDataManager = new VillagerDataManager(this, configManager);
 
         // Create listeners (pass config)
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
@@ -57,7 +59,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.waterListener = new WaterListener(this);
         this.worldInteractionListener = new WorldInteractionListener(this);
         this.spawnerControlListener = new SpawnerControlListener(this, configManager);
-        this.villagerTradeManager = new VillagerTradeManager(this, configManager);
+        this.villagerTradeManager = new VillagerTradeManager(this, configManager, villagerDataManager);
         this.oreControlListener = new OreControlListener(this, configManager);
 
         // Register listeners

@@ -147,7 +147,8 @@ public class EnvironmentListener implements Listener {
                         if (elapsed >= delay) {
                             // Calculate damage with helmet reduction
                             double heatDamage = config.heatDamage;
-                            if (hasHelmet(player)) {
+                            boolean hasHelm = hasHelmet(player);
+                            if (hasHelm) {
                                 heatDamage *= (1.0 - config.helmetDamageReducePercent);
                             }
                             if (heatDamage > 0) {
@@ -155,11 +156,13 @@ public class EnvironmentListener implements Listener {
                             }
 
                             // Heat effects (amplifier reduced by helmet)
+                            // Skip completely if helmet reduces 100% of effect
                             int heatAmp = config.heatAmplifier;
-                            if (hasHelmet(player)) {
+                            if (hasHelm) {
                                 heatAmp = (int) Math.round(heatAmp * (1.0 - config.helmetReducePercent));
                             }
-                            if (heatAmp >= 0) {
+                            // Only add effects if amplifier > 0 OR no helmet reduction
+                            if (heatAmp >= 0 && !(hasHelm && config.helmetReducePercent >= 1.0)) {
                                 player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, Math.max(0, heatAmp)));
                                 player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, Math.max(0, heatAmp)));
                             }
@@ -317,15 +320,19 @@ public class EnvironmentListener implements Listener {
         if (config.claustrophobiaEnabled && event.getTo().getY() < config.claustrophobiaYLevel) {
             if (random.nextInt(100) < config.claustrophobiaChance) {
                 int claustroAmp = config.claustrophobiaAmplifier;
+                boolean hasTorch = isHoldingTorch(player);
 
                 // Giảm amplifier nếu cầm đuốc
-                if (isHoldingTorch(player)) {
+                if (hasTorch) {
                     claustroAmp = (int) Math.round(claustroAmp * (1.0 - config.claustrophobiaTorchReducePercent));
                 }
 
-                player.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 100, Math.max(0, claustroAmp + 1)));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 100, Math.max(0, claustroAmp)));
-                player.sendActionBar("§0§l🕳 SỢ HẦM! §7Ngột ngạt dưới lòng đất...");
+                // Skip effect completely if torch reduces 100% of effect
+                if (!(hasTorch && config.claustrophobiaTorchReducePercent >= 1.0)) {
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 100, Math.max(0, claustroAmp + 1)));
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 100, Math.max(0, claustroAmp)));
+                    player.sendActionBar("§0§l🕳 SỢ HẦM! §7Ngột ngạt dưới lòng đất...");
+                }
             }
         }
 
@@ -333,15 +340,19 @@ public class EnvironmentListener implements Listener {
         if (config.vertigoEnabled && event.getTo().getY() > config.vertigoYLevel) {
             if (random.nextInt(100) < config.vertigoChance) {
                 int vertigoAmp = config.vertigoAmplifier;
+                boolean hasElytraFlag = hasElytra(player);
 
                 // Giảm amplifier nếu đeo elytra
-                if (hasElytra(player)) {
+                if (hasElytraFlag) {
                     vertigoAmp = (int) Math.round(vertigoAmp * (1.0 - config.vertigoElytraReducePercent));
                 }
 
-                player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 60, Math.max(0, vertigoAmp)));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, Math.max(0, vertigoAmp)));
-                player.sendActionBar("§d§l🌀 CHOÁNG VÁNG! §7Ở quá cao!");
+                // Skip effect completely if elytra reduces 100% of effect
+                if (!(hasElytraFlag && config.vertigoElytraReducePercent >= 1.0)) {
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 60, Math.max(0, vertigoAmp)));
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, Math.max(0, vertigoAmp)));
+                    player.sendActionBar("§d§l🌀 CHOÁNG VÁNG! §7Ở quá cao!");
+                }
             }
         }
     }

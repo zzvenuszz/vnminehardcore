@@ -51,7 +51,7 @@ public class BossEventManager {
         if (config.bossEventsEnabled) start();
 
         logger.info("[BossEvent] Initialized: enabled=" + config.bossEventsEnabled +
-            ", interval=" + config.bossEventMinIntervalSeconds + "s" +
+            ", interval=" + config.bossEventMinIntervalRaw + "s" +
             ", bosses=" + config.bossConfigs.size());
     }
 
@@ -62,7 +62,9 @@ public class BossEventManager {
                 if (Bukkit.getWorlds().isEmpty()) return;
                 timeSinceLastBoss++;
 
-                if (!bossActive && timeSinceLastBoss >= config.bossEventMinIntervalSeconds) {
+                // Use random interval from config (supports range format like "500-1200")
+                int currentInterval = ConfigManager.parseRangeOrInt(config.bossEventMinIntervalRaw, 1200);
+                if (!bossActive && timeSinceLastBoss >= currentInterval) {
                     trySpawnBoss();
                 }
 

@@ -6,8 +6,42 @@ import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ConfigManager {
+
+    private static final Random RANDOM = ThreadLocalRandom.current();
+
+    // Utility: parse range string like "500-1200" and return random value in that range
+    public static int parseRangeOrInt(String value, int defaultValue) {
+        if (value == null) return defaultValue;
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return defaultValue;
+        if (trimmed.contains("-")) {
+            String[] parts = trimmed.split("-");
+            try {
+                int min = Integer.parseInt(parts[0].trim());
+                int max = Integer.parseInt(parts[1].trim());
+                if (min > max) { int temp = min; min = max; max = temp; }
+                return min + RANDOM.nextInt(max - min + 1);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        try {
+            return Integer.parseInt(trimmed);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    // Utility: get raw string from config (supports both string and int)
+    public static String getStringFromConfig(ConfigurationSection section, String path, String defaultValue) {
+        if (section.isString(path)) return section.getString(path, defaultValue);
+        if (section.isInt(path)) return String.valueOf(section.getInt(path));
+        return defaultValue;
+    }
 
     private final VnMineHardcore plugin;
     private FileConfiguration config;
@@ -115,6 +149,7 @@ public class ConfigManager {
     // Villager Trading
     public boolean villagerTradingEnabled;
     public boolean disableRandomVillager;
+    public int villagerRegionSize;
 
     // Spawner Control
     public boolean spawnerControlEnabled;
@@ -124,7 +159,7 @@ public class ConfigManager {
 
     // Disasters - General settings
     public boolean disastersEnabled;
-    public int disasterMinIntervalSeconds;
+    public String disasterMinIntervalRaw;
     public int disasterWarningSeconds;
 
     // Disaster config map - each disaster is a complete object
@@ -135,7 +170,7 @@ public class ConfigManager {
 
     // Boss Events - General settings
     public boolean bossEventsEnabled;
-    public int bossEventMinIntervalSeconds;
+    public String bossEventMinIntervalRaw;
     public int bossEventSpawnRadius;
 
     // Boss config map - each boss is a complete object
@@ -157,29 +192,16 @@ public class ConfigManager {
 
     // DisasterConfig class - holds all config for a single disaster
     public static class DisasterConfig {
-        // [VI] Bật/tắt thiên tai này
-        // [EN] Enable/disable this disaster
         public boolean enabled = true;
-
-        // [VI] Tỷ lệ xuất hiện (phần trăm)
-        // [EN] Spawn chance (percent)
         public int chance = 5;
-
-        // [VI] Tên hiển thị (hỗ trợ mã màu §)
-        // [EN] Display name (supports color codes §)
         public String name = "Unknown Disaster";
-
-        // [VI] Thời gian giữa các đợt áp dụng hiệu ứng (giây)
-        // [EN] Interval between effect applications (seconds)
         public int effectIntervalSeconds = 5;
-
-        // [VI] Thời gian kéo dài của mỗi đợt hiệu ứng (giây)
-        // [EN] Duration of each effect wave (seconds)
         public int effectDurationSeconds = 5;
-
-        // [VI] Thời gian kéo dài tổng thể của thiên tai (giây)
-        // [EN] Total duration of disaster (seconds)
         public int durationSeconds = 600;
+
+        // Custom title/subtitle when disaster starts
+        public String startTitle = "";
+        public String startSubtitle = "";
 
         // Earthquake specific
         public int blockFallChance = 15;
@@ -196,62 +218,25 @@ public class ConfigManager {
 
         // End Surge specific
         public int shulkerChance = 20;
-
-        // Void Storm, Lava Geyser, Chorus Explosion specific
-        // (damage is already defined above)
     }
 
     // BossConfig class - holds all config for a single boss
     public static class BossConfig {
-        // [VI] Bật/tắt boss này
-        // [EN] Enable/disable this boss
         public boolean enabled = true;
-
-        // [VI] Loại entity (WITHER, ENDER_DRAGON, GHAST, ZOMBIE, SKELETON, SPIDER, CREEPER, ENDERMAN, WITCH, RAVAGER, VINDICATOR, PHANTOM)
-        // [EN] Entity type (WITHER, ENDER_DRAGON, GHAST, ZOMBIE, SKELETON, SPIDER, CREEPER, ENDERMAN, WITCH, RAVAGER, VINDICATOR, PHANTOM)
         public String entityType = "WITHER";
-
-        // [VI] Tên hiển thị của boss (hỗ trợ mã màu §)
-        // [EN] Display name of boss (supports color codes §)
         public String displayName = "§c§lBoss";
-
-        // [VI] HP tối đa của boss
-        // [EN] Maximum HP of boss
         public double hp = 100.0;
-
-        // [VI] Hệ số nhân sát thương (1.0 = bình thường, 2.0 = gấp đôi)
-        // [EN] Damage multiplier (1.0 = normal, 2.0 = double)
         public double damageMultiplier = 1.0;
-
-        // [VI] Tỷ lệ xuất hiện (%) - tổng tất cả boss không được vượt quá 100
-        // [EN] Spawn chance (%) - total of all bosses should not exceed 100
         public int chance = 10;
-
-        // [VI] Thời gian tồn tại tối đa của boss (giây)
-        // [EN] Maximum boss duration (seconds)
         public int durationSeconds = 120;
-
-        // [VI] Thời gian cảnh báo trước khi boss xuất hiện (giây)
-        // [EN] Warning time before boss spawns (seconds)
         public int warningSeconds = 60;
-
-        // [VI] Danh sách item rơi ra khi boss bị tiêu diệt
-        // [EN] List of items dropped when boss is killed
         public Map<String, DropConfig> drops = new HashMap<>();
     }
 
     // DropConfig class - holds drop configuration
     public static class DropConfig {
-        // [VI] Số lượng tối thiểu rơi ra
-        // [EN] Minimum amount dropped
         public int minAmount = 1;
-
-        // [VI] Số lượng tối đa rơi ra
-        // [EN] Maximum amount dropped
         public int maxAmount = 1;
-
-        // [VI] Tỷ lệ rơi (0.0 = 0%, 1.0 = 100%)
-        // [EN] Drop chance (0.0 = 0%, 1.0 = 100%)
         public double chance = 0.5;
     }
 
@@ -368,6 +353,7 @@ public class ConfigManager {
         // Villager Trading
         villagerTradingEnabled = config.getBoolean("villager-trading.enabled", true);
         disableRandomVillager = config.getBoolean("villager-trading.disable-random-villager", true);
+        villagerRegionSize = config.getInt("villager-trading.region-size", 500);
 
         // Spawner Control
         spawnerControlEnabled = config.getBoolean("spawner-control.enabled", true);
@@ -377,7 +363,7 @@ public class ConfigManager {
 
         // Disasters - General settings
         disastersEnabled = config.getBoolean("disasters.enabled", true);
-        disasterMinIntervalSeconds = config.getInt("disasters.min-interval-seconds", 1200);
+        disasterMinIntervalRaw = getStringFromConfig(config.getConfigurationSection("disasters"), "min-interval-seconds", "1200");
         disasterWarningSeconds = config.getInt("disasters.warning-seconds", 60);
 
         // Load all disaster configs
@@ -388,7 +374,7 @@ public class ConfigManager {
 
         // Boss Events - General settings
         bossEventsEnabled = config.getBoolean("boss-events.enabled", true);
-        bossEventMinIntervalSeconds = config.getInt("boss-events.min-interval-seconds", 1200);
+        bossEventMinIntervalRaw = getStringFromConfig(config.getConfigurationSection("boss-events"), "min-interval-seconds", "1200");
         bossEventSpawnRadius = config.getInt("boss-events.spawn-radius", 50);
 
         // Load all boss configs
@@ -426,14 +412,12 @@ public class ConfigManager {
 
     /**
      * Load all disaster configurations from config
-     * Each disaster is a complete object with all its settings
      */
     private void loadDisasterConfigs() {
         disasterConfigs.clear();
         ConfigurationSection disastersSection = config.getConfigurationSection("disasters");
         if (disastersSection == null) return;
 
-        // List of known disaster IDs
         String[] disasterIds = {
             "blood-moon", "meteor", "mega-storm", "solar-flare", "plague",
             "tornado", "eclipse", "earthquake", "inferno-storm", "soul-eruption",
@@ -451,6 +435,10 @@ public class ConfigManager {
             dc.effectIntervalSeconds = section.getInt("effect-interval-seconds", 5);
             dc.effectDurationSeconds = section.getInt("effect-duration-seconds", 5);
             dc.durationSeconds = section.getInt("duration-seconds", 600);
+
+            // Custom title/subtitle for disaster start
+            dc.startTitle = section.getString("start-title", "");
+            dc.startSubtitle = section.getString("start-subtitle", "");
 
             // Earthquake specific
             dc.blockFallChance = section.getInt("block-fall-chance", 15);
@@ -488,7 +476,6 @@ public class ConfigManager {
 
     /**
      * Load all boss configurations from config
-     * Each boss is a complete object with all its settings
      */
     private void loadBossConfigs() {
         bossConfigs.clear();

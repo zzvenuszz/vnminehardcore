@@ -55,31 +55,31 @@ death-penalty:
   stats:
     # [VI] % giảm HP tối đa mỗi lần chết
     # [EN] % max HP reduction per death
-    max-hp-per-death: 0.1
+    max-hp-per-death: 1.0
 
     # [VI] % giảm max thirst offset mỗi lần chết
     # [EN] % max thirst offset reduction per death
-    max-thirst-per-death: 0.1
+    max-thirst-per-death: 1.0
 
     # [VI] % giảm sát thương gây ra mỗi lần chết
     # [EN] % damage dealt reduction per death
-    damage-per-death: 0.1
+    damage-per-death: 0.5
 
     # [VI] % tăng sát thương nhận vào mỗi lần chết
     # [EN] % incoming damage increase per death
-    incoming-damage-per-death: 0.1
+    incoming-damage-per-death: 0.5
 
     # [VI] % giảm hồi phục mỗi lần chết
     # [EN] % regen reduction per death
-    regen-per-death: 0.1
+    regen-per-death: 0.5
 
     # [VI] % tăng tốc mất thức ăn mỗi lần chết
     # [EN] % food drain increase per death
-    food-drain-per-death: 0.1
+    food-drain-per-death: 0.5
 
     # [VI] % tăng tốc mất khát mỗi lần chết
     # [EN] % thirst drain increase per death
-    thirst-drain-per-death: 0.1
+    thirst-drain-per-death: 0.5
 
 # ============================================================
 # [COMBAT] ⚔ CHIẾN ĐẤU / COMBAT
@@ -300,7 +300,7 @@ environment:
     #     Giúp người chơi có thời gian tìm bóng râm trước khi bị damage
     # [EN] Minimum exposure time (seconds) before heat effect starts
     #     Gives players time to find shade before taking damage
-    heat-exposure-delay-seconds: 10
+    heat-exposure-delay-seconds: 30
 
     # [VI] Sát thương khi ở nơi quá lạnh (tim)
     # [EN] Damage when in cold environment (hearts)
@@ -326,7 +326,7 @@ environment:
     #     Giúp người chơi có thời gian tìm nơi ấm áp trước khi bị damage
     # [EN] Minimum exposure time (seconds) before cold effect starts
     #     Gives players time to find warmth before taking damage
-    cold-exposure-delay-seconds: 10
+    cold-exposure-delay-seconds: 30
 
   # ===== SƯƠNG MÙ / FOG (DARKNESS EFFECT) =====
   fog:
@@ -422,7 +422,7 @@ environment:
 
     # [VI] Cao độ Y tối thiểu để kích hoạt chóng mặt
     # [EN] Minimum Y level for vertigo to trigger
-    y-level: 150
+    y-level: 170
 
     # [VI] Tỷ lệ kích hoạt mỗi bước di chuyển (phần trăm)
     # [EN] Trigger chance per movement (percent)
@@ -453,6 +453,14 @@ villager-trading:
   # [VI] Không cho phép dân làng thất nghiệp học nghề random khi đặt workstation
   # [EN] Prevent unemployed villagers from randomly acquiring professions when placing workstations
   disable-random-villager: true
+
+  # [VI] Kích thước vùng (region) để đánh dấu biome instance (khối)
+  #     Mỗi vùng 500x500 blocks có data trade riêng, không phụ thuộc vùng khác
+  #     Cùng biome nhưng khác vùng → data trade khác nhau
+  # [EN] Region size to mark biome instances (blocks)
+  #     Each 500x500 region has its own trade data, independent from other regions
+  #     Same biome but different region → different trade data
+  region-size: 500
 
 # ============================================================
 # [SPAWNER CONTROL] 🪤 KIỂM SOÁT LỒNG FARM
@@ -495,7 +503,11 @@ disasters:
   enabled: true
 
   # [VI] Thời gian tối thiểu giữa các lần kiểm tra thiên tai (giây)
+  #     Hỗ trợ dạng range: "500-1200" để random từ 500 đến 1200 giây
+  #     Hoặc số cố định: 1200
   # [EN] Minimum seconds between disaster checks
+  #     Supports range format: "500-1200" to randomize between 500-1200 seconds
+  #     Or fixed number: 1200
   min-interval-seconds: 1200
 
   # [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
@@ -536,6 +548,16 @@ disasters:
     # [VI] Tên hiển thị (hỗ trợ mã màu §)
     # [EN] Display name (supports color codes §)
     name: "§4§l🌕 Trăng Máu"
+    # [VI] Tiêu đề khi thiên tai bắt đầu (hỗ trợ {name})
+    #     Để trống để dùng mặc định: "§4§l{name}"
+    # [EN] Title when disaster starts (supports {name})
+    #     Leave empty to use default: "§4§l{name}"
+    start-title: ""
+    # [VI] Phụ đề khi thiên tai bắt đầu (hỗ trợ {name})
+    #     Để trống để dùng mặc định: "§c{startMsg}"
+    # [EN] Subtitle when disaster starts (supports {name})
+    #     Leave empty to use default: "§c{startMsg}"
+    start-subtitle: ""
     # [VI] Thời gian kéo dài tổng thể (giây)
     # [EN] Total duration (seconds)
     duration-seconds: 300
@@ -722,8 +744,12 @@ boss-events:
   enabled: true
 
   # [VI] Thời gian tối thiểu giữa các lần kiểm tra boss (giây)
+  #     Hỗ trợ dạng range: "500-1200" để random từ 500 đến 1200 giây
+  #     Hoặc số cố định: 1200
   #     Boss chỉ có thể xuất hiện sau thời gian này kể từ lần cuối
   # [EN] Minimum seconds between boss checks
+  #     Supports range format: "500-1200" to randomize between 500-1200 seconds
+  #     Or fixed number: 1200
   #     Boss can only spawn after this time has passed since last spawn
   min-interval-seconds: 1200
 

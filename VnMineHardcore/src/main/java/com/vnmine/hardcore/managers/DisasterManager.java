@@ -129,7 +129,9 @@ public class DisasterManager {
             public void run() {
                 if (Bukkit.getWorlds().isEmpty()) return;
                 timeSinceLastDisaster++;
-                if (!disasterActive && timeSinceLastDisaster >= config.disasterMinIntervalSeconds) tryScheduleDisaster();
+                // Use random interval from config (supports range format like "500-1200")
+                int currentInterval = ConfigManager.parseRangeOrInt(config.disasterMinIntervalRaw, 1200);
+                if (!disasterActive && timeSinceLastDisaster >= currentInterval) tryScheduleDisaster();
                 if (warningTimeLeft > 0) {
                     warningTimeLeft--;
                     updateWarningBar();
@@ -148,7 +150,8 @@ public class DisasterManager {
     }
 
     private void tryScheduleDisaster() {
-        if (timeSinceLastDisaster < config.disasterMinIntervalSeconds) return;
+        int currentInterval = ConfigManager.parseRangeOrInt(config.disasterMinIntervalRaw, 1200);
+        if (timeSinceLastDisaster < currentInterval) return;
         if (currentDisaster != null) return; // Already has a disaster/warning in progress
 
         int roll = random.nextInt(100);
@@ -428,9 +431,16 @@ public class DisasterManager {
         currentDisaster = name;
         warningBar.name(Component.text("§4§l⚠ " + name + " ĐANG HOẠT ĐỘNG ⚠"));
         warningBar.progress(1.0f);
+        
+        // Lấy custom title/subtitle từ config nếu có
+        String configKey = getConfigKeyFromName(name);
+        ConfigManager.DisasterConfig dc = config.disasterConfigs.get(configKey);
+        String startTitle = (dc != null && !dc.startTitle.isEmpty()) ? dc.startTitle : "§4§l" + name;
+        String startSubtitle = (dc != null && !dc.startSubtitle.isEmpty()) ? dc.startSubtitle : "§c" + startMsg;
+        
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.showBossBar(warningBar);
-            p.sendTitle("§4§l" + name, "§c" + startMsg, 10, 60, 20);
+            p.sendTitle(startTitle, startSubtitle, 10, 60, 20);
             p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.0f, 0.5f);
         }
         logManager.logDisaster(name + " (ACTIVE)");
@@ -441,10 +451,6 @@ public class DisasterManager {
             "§a§l✅ {name} đã kết thúc!");
         
         broadcast(activeBroadcast.replace("{name}", name).replace("{message}", startMsg).replace("{duration}", String.valueOf(durationTicks / 20)));
-
-        // Lấy config cho disaster này
-        String configKey = getConfigKeyFromName(name);
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get(configKey);
 
         int effectIntervalTicks = (dc != null ? dc.effectIntervalSeconds : 5) * 20;
         int effectDurationTicks = (dc != null ? dc.effectDurationSeconds : 5) * 20;
