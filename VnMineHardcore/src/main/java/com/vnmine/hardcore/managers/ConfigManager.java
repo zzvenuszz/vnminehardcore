@@ -162,6 +162,13 @@ public class ConfigManager {
     public String disasterMinIntervalRaw;
     public int disasterWarningSeconds;
 
+    // Safe Zone settings
+    public boolean safeZoneEnabled;
+    public int safeZoneCheckRadius;
+    public int safeZoneRoofHeight;
+    public boolean safeZoneCheckWalls;
+    public int safeZoneMinWalls;
+
     // Disaster config map - each disaster is a complete object
     public Map<String, DisasterConfig> disasterConfigs = new HashMap<>();
 
@@ -365,6 +372,13 @@ public class ConfigManager {
         disastersEnabled = config.getBoolean("disasters.enabled", true);
         disasterMinIntervalRaw = getStringFromConfig(config.getConfigurationSection("disasters"), "min-interval-seconds", "1200");
         disasterWarningSeconds = config.getInt("disasters.warning-seconds", 60);
+
+        // Safe Zone settings
+        safeZoneEnabled = config.getBoolean("disasters.safe-zone.enabled", true);
+        safeZoneCheckRadius = config.getInt("disasters.safe-zone.check-radius", 2);
+        safeZoneRoofHeight = config.getInt("disasters.safe-zone.roof-height", 5);
+        safeZoneCheckWalls = config.getBoolean("disasters.safe-zone.check-walls", false);
+        safeZoneMinWalls = config.getInt("disasters.safe-zone.min-walls", 2);
 
         // Load all disaster configs
         loadDisasterConfigs();

@@ -514,6 +514,42 @@ disasters:
   # [EN] Warning time in seconds before a disaster strikes
   warning-seconds: 60
 
+  # ===== KHU VỰC AN TOÀN / SAFE ZONE =====
+  # [VI] Cấu hình kiểm tra khu vực an toàn khi có thiên tai.
+  #      Người chơi ở nơi có mái che (trong nhà, dưới hang) sẽ không bị ảnh hưởng bởi thiên tai.
+  #      Đồng thời sẽ hiển thị thông báo "Bạn đang an toàn trong nhà!".
+  # [EN] Safe zone check configuration during disasters.
+  #      Players with a solid roof over their head (inside a house, underground) will not be affected.
+  #      Also shows "You are safe inside!" notification.
+  safe-zone:
+    # [VI] Bật kiểm tra khu vực an toàn
+    # [EN] Enable safe zone checking
+    enabled: true
+
+    # [VI] Bán kính kiểm tra tường xung quanh (chỉ dùng khi check-walls: true)
+    # [EN] Radius to check surrounding walls (only used when check-walls: true)
+    check-radius: 2
+
+    # [VI] Chiều cao tối đa kiểm tra mái che (từ đầu người chơi trở lên)
+    #     Giá trị càng lớn càng kiểm tra xa, phù hợp với nhà cao trần
+    # [EN] Maximum height to check for roof (above player's head)
+    #     Higher values check farther up, suitable for tall ceiling houses
+    roof-height: 5
+
+    # [VI] Bật kiểm tra tường xung quanh
+    #     Nếu true: chỉ coi là an toàn khi có đủ tường xung quanh
+    #     Nếu false: chỉ cần có mái che là đủ
+    # [EN] Enable surrounding wall check
+    #     If true: only safe when there are enough walls around
+    #     If false: only needs a roof overhead
+    check-walls: false
+
+    # [VI] Số lượng block rắn tối thiểu xung quanh để coi là an toàn
+    #     Chỉ dùng khi check-walls: true
+    # [EN] Minimum number of solid blocks around to be considered safe
+    #     Only used when check-walls: true
+    min-walls: 2
+
   # [VI] Các thông báo chung cho thiên tai
   # [EN] Common messages for disasters
   messages:

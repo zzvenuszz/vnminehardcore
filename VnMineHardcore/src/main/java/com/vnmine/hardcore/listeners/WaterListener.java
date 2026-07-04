@@ -242,11 +242,12 @@ public class WaterListener implements Listener {
         // Trường hợp: Glass bottle -> lấy nước vào chai
         if (config.bottleFill && item.getType() == Material.GLASS_BOTTLE) {
             ItemStack waterBottle = new ItemStack(Material.POTION);
-            PotionMeta meta = (PotionMeta) waterBottle.getItemMeta();
-            if (meta != null) {
-                meta.setBasePotionType(PotionType.WATER);
-                waterBottle.setItemMeta(meta);
-            }
+            // Sử dụng editMeta API của Paper 1.21 để tránh thêm component không mong muốn
+            waterBottle.editMeta(meta -> {
+                if (meta instanceof PotionMeta potionMeta) {
+                    potionMeta.setBasePotionType(PotionType.WATER);
+                }
+            });
 
             if (item.getAmount() == 1) {
                 player.getInventory().setItemInMainHand(waterBottle);

@@ -5,6 +5,7 @@ import com.vnmine.hardcore.managers.ConfigManager;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.entity.Boat;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -124,8 +125,9 @@ public class EnvironmentListener implements Listener {
                     boolean inHotBiome = HOT_BIOMES.stream().anyMatch(b -> biome.contains(b));
                     boolean inColdBiome = COLD_BIOMES.stream().anyMatch(b -> biome.contains(b));
                     boolean inNether = player.getWorld().getEnvironment() == World.Environment.NETHER;
-                    boolean inWater = loc.getBlock().getType() == Material.WATER ||
-                                     loc.getBlock().getType() == Material.BUBBLE_COLUMN;
+                    boolean inWater = (loc.getBlock().getType() == Material.WATER ||
+                                     loc.getBlock().getType() == Material.BUBBLE_COLUMN) &&
+                                     !(player.isInsideVehicle() && player.getVehicle() instanceof Boat);
                     // Kiểm tra có block che trên đầu (bóng râm)
                     boolean hasBlockAbove = loc.getWorld().getHighestBlockYAt(loc.getBlockX(), loc.getBlockZ()) > loc.getBlockY();
                     // Kiểm tra ban ngày (time 0-13000 = ban ngày)
@@ -280,9 +282,16 @@ public class EnvironmentListener implements Listener {
         Player player = event.getPlayer();
         if (!player.getGameMode().toString().equals("CREATIVE")) {
             var item = player.getInventory().getItemInMainHand();
-            if (item != null && item.getType() != Material.AIR) {
-                short durability = item.getDurability();
-                item.setDurability((short) (durability + (int) config.toolWearMultiplier));
+            if (item != null && item.getType() != Material.AIR && item.getType().getMaxDurability() > 0) {
+                // Sử dụng ItemMeta để thay đổi durability thay vì setDurability() deprecated
+                // để tránh thêm component không mong muốn vào item
+                var meta = item.getItemMeta();
+                if (meta != null && meta instanceof org.bukkit.inventory.meta.Damageable damageable) {
+                    int currentDamage = damageable.getDamage();
+                    int newDamage = currentDamage + (int) config.toolWearMultiplier;
+                    damageable.setDamage(newDamage);
+                    item.setItemMeta((org.bukkit.inventory.meta.ItemMeta) damageable);
+                }
             }
         }
     }

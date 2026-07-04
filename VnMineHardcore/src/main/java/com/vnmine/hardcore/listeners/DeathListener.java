@@ -11,6 +11,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.GameMode;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -132,14 +133,9 @@ public class DeathListener implements Listener {
         // Remove combat tag on death (player already died)
         combatTagged.remove(player.getUniqueId());
 
-        // Nếu không bật ban-on-death, đảm bảo player không bị chuyển sang Spectator (hardcore mode)
-        if (!config.banOnDeath) {
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline()) {
-                    player.setGameMode(GameMode.SURVIVAL);
-                }
-            }, 1L);
-        }
+        // Force SURVIVAL mode ngay lập tức, tránh hardcore death screen (spectator menu)
+        // Chạy cả khi ban-on-death để tránh trường hợp hiện menu cho phép vào spectator
+        player.setGameMode(GameMode.SURVIVAL);
 
         // Ban the player (if enabled)
         if (config.banOnDeath) {
@@ -169,6 +165,15 @@ public class DeathListener implements Listener {
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             deathPenaltyManager.onPlayerRespawn(player);
         }, 10L);
+    }
+
+    @EventHandler
+    public void onPlayerResurrect(EntityResurrectEvent event) {
+        // Khi player chết ở hardcore mode, Paper gọi EntityResurrectEvent
+        // Chặn để tránh hardcore death screen hiện ra
+        if (event.getEntity() instanceof Player player) {
+            player.setGameMode(GameMode.SURVIVAL);
+        }
     }
 
     @EventHandler

@@ -30,6 +30,87 @@ public class DisasterManager {
 
     private final Map<String, Runnable> disasterMap = new LinkedHashMap<>();
 
+    // Block materials considered as "transparent" - không được coi là mái che an toàn
+    private static final Set<Material> TRANSPARENT_BLOCKS = new HashSet<>(Arrays.asList(
+        Material.AIR, Material.WATER, Material.LAVA, Material.BUBBLE_COLUMN,
+        Material.GLASS, Material.WHITE_STAINED_GLASS, Material.ORANGE_STAINED_GLASS,
+        Material.MAGENTA_STAINED_GLASS, Material.LIGHT_BLUE_STAINED_GLASS,
+        Material.YELLOW_STAINED_GLASS, Material.LIME_STAINED_GLASS,
+        Material.PINK_STAINED_GLASS, Material.GRAY_STAINED_GLASS,
+        Material.LIGHT_GRAY_STAINED_GLASS, Material.CYAN_STAINED_GLASS,
+        Material.PURPLE_STAINED_GLASS, Material.BLUE_STAINED_GLASS,
+        Material.BROWN_STAINED_GLASS, Material.GREEN_STAINED_GLASS,
+        Material.RED_STAINED_GLASS, Material.BLACK_STAINED_GLASS,
+        Material.TINTED_GLASS, Material.GLASS_PANE,
+        Material.WHITE_STAINED_GLASS_PANE, Material.ORANGE_STAINED_GLASS_PANE,
+        Material.MAGENTA_STAINED_GLASS_PANE, Material.LIGHT_BLUE_STAINED_GLASS_PANE,
+        Material.YELLOW_STAINED_GLASS_PANE, Material.LIME_STAINED_GLASS_PANE,
+        Material.PINK_STAINED_GLASS_PANE, Material.GRAY_STAINED_GLASS_PANE,
+        Material.LIGHT_GRAY_STAINED_GLASS_PANE, Material.CYAN_STAINED_GLASS_PANE,
+        Material.PURPLE_STAINED_GLASS_PANE, Material.BLUE_STAINED_GLASS_PANE,
+        Material.BROWN_STAINED_GLASS_PANE, Material.GREEN_STAINED_GLASS_PANE,
+        Material.RED_STAINED_GLASS_PANE, Material.BLACK_STAINED_GLASS_PANE,
+        Material.OAK_LEAVES, Material.SPRUCE_LEAVES, Material.BIRCH_LEAVES,
+        Material.JUNGLE_LEAVES, Material.ACACIA_LEAVES, Material.DARK_OAK_LEAVES,
+        Material.MANGROVE_LEAVES, Material.CHERRY_LEAVES,
+        Material.AZALEA_LEAVES, Material.FLOWERING_AZALEA_LEAVES,
+        Material.OAK_SLAB, Material.SPRUCE_SLAB, Material.BIRCH_SLAB,
+        Material.JUNGLE_SLAB, Material.ACACIA_SLAB, Material.DARK_OAK_SLAB,
+        Material.MANGROVE_SLAB, Material.CHERRY_SLAB,
+        Material.OAK_STAIRS, Material.SPRUCE_STAIRS, Material.BIRCH_STAIRS,
+        Material.JUNGLE_STAIRS, Material.ACACIA_STAIRS, Material.DARK_OAK_STAIRS,
+        Material.MANGROVE_STAIRS, Material.CHERRY_STAIRS,
+        Material.OAK_FENCE, Material.SPRUCE_FENCE, Material.BIRCH_FENCE,
+        Material.JUNGLE_FENCE, Material.ACACIA_FENCE, Material.DARK_OAK_FENCE,
+        Material.MANGROVE_FENCE, Material.CHERRY_FENCE,
+        Material.OAK_FENCE_GATE, Material.SPRUCE_FENCE_GATE, Material.BIRCH_FENCE_GATE,
+        Material.JUNGLE_FENCE_GATE, Material.ACACIA_FENCE_GATE, Material.DARK_OAK_FENCE_GATE,
+        Material.MANGROVE_FENCE_GATE, Material.CHERRY_FENCE_GATE,
+        Material.OAK_TRAPDOOR, Material.SPRUCE_TRAPDOOR, Material.BIRCH_TRAPDOOR,
+        Material.JUNGLE_TRAPDOOR, Material.ACACIA_TRAPDOOR, Material.DARK_OAK_TRAPDOOR,
+        Material.MANGROVE_TRAPDOOR, Material.CHERRY_TRAPDOOR,
+        Material.VINE, Material.LADDER, Material.SCAFFOLDING,
+        Material.IRON_BARS, Material.COBWEB, Material.TORCH, Material.SOUL_TORCH,
+        Material.REDSTONE_TORCH, Material.LANTERN, Material.SOUL_LANTERN,
+        Material.END_ROD, Material.SHORT_GRASS, Material.TALL_GRASS,
+        Material.SNOW, Material.CHORUS_PLANT, Material.CHORUS_FLOWER,
+        Material.COBWEB, Material.BAMBOO, Material.BAMBOO_SAPLING,
+        Material.SUGAR_CANE, Material.CACTUS, Material.KELP, Material.KELP_PLANT,
+        Material.SEAGRASS, Material.TALL_SEAGRASS, Material.LILY_PAD,
+        Material.BIG_DRIPLEAF, Material.SMALL_DRIPLEAF, Material.HANGING_ROOTS,
+        Material.ROOTED_DIRT, Material.MOSS_CARPET, Material.AZALEA,
+        Material.FLOWERING_AZALEA, Material.BROWN_MUSHROOM, Material.RED_MUSHROOM,
+        Material.CRIMSON_FUNGUS, Material.WARPED_FUNGUS, Material.CRIMSON_ROOTS,
+        Material.WARPED_ROOTS, Material.NETHER_SPROUTS, Material.TWISTING_VINES,
+        Material.TWISTING_VINES_PLANT, Material.WEEPING_VINES, Material.WEEPING_VINES_PLANT,
+        Material.DEAD_BUSH, Material.FERN, Material.LARGE_FERN,
+        Material.DANDELION, Material.POPPY, Material.BLUE_ORCHID, Material.ALLIUM,
+        Material.AZURE_BLUET, Material.OXEYE_DAISY, Material.CORNFLOWER,
+        Material.LILY_OF_THE_VALLEY, Material.WITHER_ROSE, Material.SUNFLOWER,
+        Material.LILAC, Material.PEONY, Material.ROSE_BUSH, Material.PITCHER_PLANT,
+        Material.TORCHFLOWER, Material.SPORE_BLOSSOM,
+        Material.BELL, Material.CHAIN, Material.LIGHTNING_ROD,
+        Material.DAYLIGHT_DETECTOR, Material.COMPARATOR, Material.REPEATER,
+        Material.REDSTONE_WIRE, Material.REDSTONE_TORCH, Material.LEVER,
+        Material.TRIPWIRE, Material.TRIPWIRE_HOOK, Material.PAINTING,
+        Material.ITEM_FRAME, Material.GLOW_ITEM_FRAME, Material.FLOWER_POT,
+        Material.DECORATED_POT, Material.BREWING_STAND, Material.CAULDRON,
+        Material.WATER_CAULDRON, Material.LAVA_CAULDRON, Material.POWDER_SNOW_CAULDRON,
+        Material.END_PORTAL, Material.END_GATEWAY, Material.NETHER_PORTAL,
+        Material.LECTERN, Material.COMPOSTER, Material.HOPPER,
+        Material.SNIFFER_EGG, Material.TURTLE_EGG, Material.FROGSPAWN,
+        Material.CANDLE, Material.WHITE_CANDLE, Material.ORANGE_CANDLE,
+        Material.MAGENTA_CANDLE, Material.LIGHT_BLUE_CANDLE, Material.YELLOW_CANDLE,
+        Material.LIME_CANDLE, Material.PINK_CANDLE, Material.GRAY_CANDLE,
+        Material.LIGHT_GRAY_CANDLE, Material.CYAN_CANDLE, Material.PURPLE_CANDLE,
+        Material.BLUE_CANDLE, Material.BROWN_CANDLE, Material.GREEN_CANDLE,
+        Material.RED_CANDLE, Material.BLACK_CANDLE, Material.CAKE,
+        Material.AMETHYST_CLUSTER, Material.LARGE_AMETHYST_BUD,
+        Material.MEDIUM_AMETHYST_BUD, Material.SMALL_AMETHYST_BUD,
+        Material.POINTED_DRIPSTONE, Material.BIG_DRIPLEAF_STEM,
+        Material.POWDER_SNOW, Material.BUBBLE_COLUMN
+    ));
+
     public DisasterManager(VnMineHardcore plugin, ConfigManager config) {
         this.plugin = plugin;
         this.config = config;
@@ -85,6 +166,68 @@ public class DisasterManager {
         };
     }
 
+    /**
+     * Kiểm tra xem player có đang ở nơi an toàn (có mái che) không.
+     * Kiểm tra block ngay trên đầu player và các block xung quanh.
+     */
+    public boolean isPlayerSafe(Player player) {
+        if (!config.safeZoneEnabled) return false;
+        
+        Location loc = player.getLocation();
+        World world = loc.getWorld();
+        if (world == null) return false;
+        
+        int playerX = loc.getBlockX();
+        int playerY = loc.getBlockY();
+        int playerZ = loc.getBlockZ();
+        
+        int checkRadius = config.safeZoneCheckRadius;
+        
+        // Kiểm tra block ngay trên đầu player (từ đầu đến trần)
+        boolean hasSolidRoof = false;
+        for (int y = playerY + 1; y <= playerY + config.safeZoneRoofHeight; y++) {
+            Block blockAbove = world.getBlockAt(playerX, y, playerZ);
+            if (!TRANSPARENT_BLOCKS.contains(blockAbove.getType())) {
+                hasSolidRoof = true;
+                break;
+            }
+        }
+        
+        if (!hasSolidRoof) return false;
+        
+        // Nếu bật kiểm tra xung quanh, kiểm tra có ít nhất 2 block rắn xung quanh
+        if (config.safeZoneCheckWalls) {
+            int solidWalls = 0;
+            for (int dx = -checkRadius; dx <= checkRadius; dx++) {
+                for (int dz = -checkRadius; dz <= checkRadius; dz++) {
+                    if (dx == 0 && dz == 0) continue;
+                    Block sideBlock = world.getBlockAt(playerX + dx, playerY, playerZ + dz);
+                    if (!TRANSPARENT_BLOCKS.contains(sideBlock.getType())) {
+                        solidWalls++;
+                    }
+                }
+            }
+            return solidWalls >= config.safeZoneMinWalls;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Gửi thông báo an toàn/không an toàn cho player dựa vào trạng thái hiện tại.
+     */
+    private void sendSafeZoneMessage(Player player) {
+        if (!config.safeZoneEnabled) return;
+        
+        if (isPlayerSafe(player)) {
+            player.sendActionBar("§a§l🏠 Bạn đang an toàn trong nhà!");
+        } else {
+            if (disasterActive) {
+                player.sendActionBar("§c§l⚠ Bạn đang ở ngoài trời! Vào nhà ngay!");
+            }
+        }
+    }
+
     public boolean triggerDisaster(String disasterId, int warningTimeSeconds, int durationSeconds) {
         if (disasterActive) return false;
         Runnable task = disasterMap.get(disasterId.toLowerCase());
@@ -117,6 +260,12 @@ public class DisasterManager {
                     String countdownMsg = config.disasterMessages.getOrDefault("countdown-broadcast", 
                         "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!");
                     broadcast(countdownMsg.replace("{name}", name).replace("{time}", String.valueOf(cd)));
+                }
+                // Gửi thông báo an toàn trong thời gian đếm ngược
+                if (config.safeZoneEnabled && cd % 5 == 0) {
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        sendSafeZoneMessage(p);
+                    }
                 }
             }
         }.runTaskTimer(plugin, 0L, 20L);
@@ -422,6 +571,12 @@ public class DisasterManager {
                         "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!");
                     broadcast(countdownMsg.replace("{name}", currentDisaster).replace("{time}", String.valueOf(cd)));
                 }
+                // Gửi thông báo an toàn trong thời gian đếm ngược (mỗi 5 giây)
+                if (config.safeZoneEnabled && cd % 5 == 0) {
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        sendSafeZoneMessage(p);
+                    }
+                }
             }
         }.runTaskTimer(plugin, 0L, 20L);
     }
@@ -466,6 +621,12 @@ public class DisasterManager {
                 if (tickCounter >= effectIntervalTicks / 20) {
                     tickCounter = 0;
                     duringTask.run();
+                }
+                // Gửi thông báo an toàn mỗi 5 giây trong khi thiên tai đang hoạt động
+                if (config.safeZoneEnabled && tickCounter % 5 == 0) {
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        sendSafeZoneMessage(p);
+                    }
                 }
                 elapsed += 20;
             }
@@ -522,6 +683,9 @@ public class DisasterManager {
         startDisaster("🌕 Blood Moon", "Máu trăng lên!", duration,
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     if (random.nextInt(10) < 3) {
                         Location loc = p.getLocation();
                         World w = p.getWorld();
@@ -548,6 +712,9 @@ public class DisasterManager {
         startDisaster("☄️ Meteor Shower", "Mưa sao băng!", duration,
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     if (random.nextInt(5) < 2) {
                         Location pl = p.getLocation();
                         World w = p.getWorld();
@@ -583,6 +750,10 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     Location l = p.getLocation();
+                    
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     if (random.nextInt(5) < 2) {
                         Location sl = l.clone().add(random.nextInt(10) - 5, 0, random.nextInt(10) - 5);
                         sl.setY(l.getWorld().getHighestBlockYAt(sl));
@@ -605,6 +776,9 @@ public class DisasterManager {
         startDisaster("🔥 Solar Flare", "Bão mặt trời!", duration,
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     if (p.getLocation().getBlock().getLightFromSky() > 10) {
                         p.damage(2.0); p.setFireTicks(40);
                         p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 40, 2));
@@ -620,6 +794,9 @@ public class DisasterManager {
         startDisaster("🦠 Plague", "Dịch bệnh lan rộng!", duration,
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     p.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 100, 1));
                     p.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, 2));
                     p.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, 100, 3));
@@ -634,6 +811,9 @@ public class DisasterManager {
         startDisaster("🌪️ Tornado", "Lốc xoáy!", duration,
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     if (p.getLocation().getBlock().getLightFromSky() > 5) {
                         Vector v = p.getVelocity();
                         v.setY(v.getY() + 1.5);
@@ -657,6 +837,10 @@ public class DisasterManager {
                 if (w != null && w.getTime() < 13000) w.setTime(13000);
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 60, 2));
+                    
+                    // Bỏ qua player an toàn trong nhà cho việc spawn mob
+                    if (isPlayerSafe(p)) continue;
+                    
                     if (random.nextInt(10) < 3) {
                         Location sl = p.getLocation().clone().add(random.nextInt(15) - 7, 0, random.nextInt(15) - 7);
                         sl.setY(p.getWorld().getHighestBlockYAt(sl) + 1);
@@ -675,6 +859,9 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     Location l = p.getLocation();
+                    
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
                     
                     // Hiệu ứng rung chuyển (shake)
                     p.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 30, 0));
@@ -720,6 +907,9 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     if (!p.getWorld().getEnvironment().equals(World.Environment.NETHER)) continue;
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     Location l = p.getLocation();
                     p.damage(damage);
                     p.setFireTicks(fireTicks);
@@ -753,6 +943,9 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     if (!p.getWorld().getEnvironment().equals(World.Environment.NETHER)) continue;
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     p.damage(damage);
                     p.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 100, witherAmplifier));
                     p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1));
@@ -783,6 +976,9 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     if (!p.getWorld().getEnvironment().equals(World.Environment.NETHER)) continue;
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
+                    
                     p.damage(damage);
                     p.setFireTicks(60);
 
@@ -814,6 +1010,8 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     if (!p.getWorld().getEnvironment().equals(World.Environment.THE_END)) continue;
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
 
                     if (random.nextInt(10) < 4) {
                         EntityType type = random.nextInt(100) < shulkerChance ? EntityType.SHULKER : EntityType.ENDERMITE;
@@ -838,6 +1036,8 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     if (!p.getWorld().getEnvironment().equals(World.Environment.THE_END)) continue;
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
 
                     p.damage(damage);
                     p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 60, 1));
@@ -856,6 +1056,8 @@ public class DisasterManager {
             () -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     if (!p.getWorld().getEnvironment().equals(World.Environment.THE_END)) continue;
+                    // Bỏ qua player an toàn trong nhà
+                    if (isPlayerSafe(p)) continue;
 
                     p.damage(damage);
 
