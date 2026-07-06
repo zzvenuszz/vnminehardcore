@@ -508,47 +508,11 @@ disasters:
   # [EN] Minimum seconds between disaster checks
   #     Supports range format: "500-1200" to randomize between 500-1200 seconds
   #     Or fixed number: 1200
-  min-interval-seconds: 1200
+  min-interval-seconds: 2400-4800
 
   # [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
   # [EN] Warning time in seconds before a disaster strikes
-  warning-seconds: 60
-
-  # ===== KHU VỰC AN TOÀN / SAFE ZONE =====
-  # [VI] Cấu hình kiểm tra khu vực an toàn khi có thiên tai.
-  #      Người chơi ở nơi có mái che (trong nhà, dưới hang) sẽ không bị ảnh hưởng bởi thiên tai.
-  #      Đồng thời sẽ hiển thị thông báo "Bạn đang an toàn trong nhà!".
-  # [EN] Safe zone check configuration during disasters.
-  #      Players with a solid roof over their head (inside a house, underground) will not be affected.
-  #      Also shows "You are safe inside!" notification.
-  safe-zone:
-    # [VI] Bật kiểm tra khu vực an toàn
-    # [EN] Enable safe zone checking
-    enabled: true
-
-    # [VI] Bán kính kiểm tra tường xung quanh (chỉ dùng khi check-walls: true)
-    # [EN] Radius to check surrounding walls (only used when check-walls: true)
-    check-radius: 2
-
-    # [VI] Chiều cao tối đa kiểm tra mái che (từ đầu người chơi trở lên)
-    #     Giá trị càng lớn càng kiểm tra xa, phù hợp với nhà cao trần
-    # [EN] Maximum height to check for roof (above player's head)
-    #     Higher values check farther up, suitable for tall ceiling houses
-    roof-height: 5
-
-    # [VI] Bật kiểm tra tường xung quanh
-    #     Nếu true: chỉ coi là an toàn khi có đủ tường xung quanh
-    #     Nếu false: chỉ cần có mái che là đủ
-    # [EN] Enable surrounding wall check
-    #     If true: only safe when there are enough walls around
-    #     If false: only needs a roof overhead
-    check-walls: false
-
-    # [VI] Số lượng block rắn tối thiểu xung quanh để coi là an toàn
-    #     Chỉ dùng khi check-walls: true
-    # [EN] Minimum number of solid blocks around to be considered safe
-    #     Only used when check-walls: true
-    min-walls: 2
+  warning-seconds: 120
 
   # [VI] Các thông báo chung cho thiên tai
   # [EN] Common messages for disasters
@@ -580,7 +544,7 @@ disasters:
     enabled: true
     # [VI] Tỷ lệ xuất hiện (phần trăm)
     # [EN] Spawn chance (percent)
-    chance: 10
+    chance: 20
     # [VI] Tên hiển thị (hỗ trợ mã màu §)
     # [EN] Display name (supports color codes §)
     name: "§4§l🌕 Trăng Máu"
@@ -588,15 +552,15 @@ disasters:
     #     Để trống để dùng mặc định: "§4§l{name}"
     # [EN] Title when disaster starts (supports {name})
     #     Leave empty to use default: "§4§l{name}"
-    start-title: ""
+    start-title: "§4§l🌕 Trăng Máu"
     # [VI] Phụ đề khi thiên tai bắt đầu (hỗ trợ {name})
     #     Để trống để dùng mặc định: "§c{startMsg}"
     # [EN] Subtitle when disaster starts (supports {name})
     #     Leave empty to use default: "§c{startMsg}"
-    start-subtitle: ""
+    start-subtitle: "Quái vật trở nên mạnh mẽ"
     # [VI] Thời gian kéo dài tổng thể (giây)
     # [EN] Total duration (seconds)
-    duration-seconds: 300
+    duration-seconds: 180
     # [VI] Thời gian giữa các đợt áp dụng hiệu ứng (giây)
     # [EN] Interval between effect applications (seconds)
     effect-interval-seconds: 5
@@ -618,31 +582,31 @@ disasters:
     enabled: true
     chance: 5
     name: "§9§l🌊 Siêu Bão"
-    duration-seconds: 600
-    effect-interval-seconds: 4
-    effect-duration-seconds: 8
+    duration-seconds: 300
+    effect-interval-seconds: 10
+    effect-duration-seconds: 1
 
   # 🔥 Bão mặt trời - Ánh nắng gây cháy, mù
   solar-flare:
     enabled: true
     chance: 3
     name: "§c§l🔥 Bão Mặt Trời"
-    duration-seconds: 300
-    effect-interval-seconds: 3
-    effect-duration-seconds: 6
+    duration-seconds: 60
+    effect-interval-seconds: 10
+    effect-duration-seconds: 1
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
     # [EN] Damage per effect wave (hearts)
-    damage: 2.0
+    damage: 1.0
     # [VI] Thời gian cháy (tick, 20 tick = 1 giây)
     # [EN] Fire tick duration (tick, 20 ticks = 1 second)
-    fire-ticks: 100
+    fire-ticks: 20
 
   # 🦠 Dịch bệnh - Gây độc, suy yếu, đói
   plague:
     enabled: true
     chance: 2
     name: "§2§l🦠 Dịch Bệnh"
-    duration-seconds: 120
+    duration-seconds: 30
     effect-interval-seconds: 10
     effect-duration-seconds: 1
 
@@ -660,9 +624,9 @@ disasters:
     enabled: true
     chance: 1
     name: "§0§l📉 Nhật Thực"
-    duration-seconds: 300
+    duration-seconds: 180
     effect-interval-seconds: 10
-    effect-duration-seconds: 5
+    effect-duration-seconds: 1
 
   # 🌍 Động đất - Các khối trên cao rơi xuống, vùi lấp công trình
   earthquake:
@@ -674,7 +638,7 @@ disasters:
     effect-duration-seconds: 3
     # [VI] Tỷ lệ mỗi khối trên cao sẽ rơi xuống (phần trăm)
     # [EN] Chance for each block above to fall (percent)
-    block-fall-chance: 15
+    block-fall-chance: 30
     # [VI] Bán kính ảnh hưởng xung quanh mỗi người chơi (khối)
     # [EN] Effect radius around each player (blocks)
     radius: 30
@@ -693,22 +657,22 @@ disasters:
     enabled: true
     chance: 3
     name: "§4§l🔥 Bão Lửa Địa Ngục"
-    duration-seconds: 300
+    duration-seconds: 180
     effect-interval-seconds: 3
     effect-duration-seconds: 5
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
     # [EN] Damage per effect wave (hearts)
-    damage: 2.0
+    damage: 1.0
     # [VI] Thời gian cháy (tick, 20 tick = 1 giây)
     # [EN] Fire tick duration (tick, 20 ticks = 1 second)
-    fire-ticks: 100
+    fire-ticks: 20
 
   # 💀 Soul Eruption - Soul sand phát nổ, Wither effect, spawn Wither Skeleton
   soul-eruption:
     enabled: true
     chance: 2
     name: "§2§l💀 Thần Hồn Câu Diệt"
-    duration-seconds: 300
+    duration-seconds: 120
     effect-interval-seconds: 4
     effect-duration-seconds: 8
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -723,7 +687,7 @@ disasters:
     enabled: true
     chance: 2
     name: "§6§l🌋 Hồn Kiếp"
-    duration-seconds: 300
+    duration-seconds: 180
     effect-interval-seconds: 5
     effect-duration-seconds: 10
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -736,7 +700,7 @@ disasters:
     enabled: true
     chance: 2
     name: "§5§l👁️ Tận Thế Dâng Trào"
-    duration-seconds: 300
+    duration-seconds: 180
     effect-interval-seconds: 5
     effect-duration-seconds: 8
     # [VI] Tỷ lệ spawn Shulker (%) so với Endermite (20 = 20% Shulker, 80% Endermite)
@@ -748,7 +712,7 @@ disasters:
     enabled: true
     chance: 2
     name: "§8§l🌌 Bão Hư Không"
-    duration-seconds: 300
+    duration-seconds: 180
     effect-interval-seconds: 4
     effect-duration-seconds: 6
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -760,7 +724,7 @@ disasters:
     enabled: true
     chance: 1
     name: "§d§l🌀 Chorus Explosion"
-    duration-seconds: 200
+    duration-seconds: 120
     effect-interval-seconds: 6
     effect-duration-seconds: 10
     # [VI] Sát thương mỗi đợt hiệu ứng (tim)
@@ -787,7 +751,7 @@ boss-events:
   #     Supports range format: "500-1200" to randomize between 500-1200 seconds
   #     Or fixed number: 1200
   #     Boss can only spawn after this time has passed since last spawn
-  min-interval-seconds: 1200
+  min-interval-seconds: 2400-4800
 
   # [VI] Bán kính spawn boss quanh player ngẫu nhiên (khối)
   # [EN] Boss spawn radius around random player (blocks)
@@ -796,283 +760,573 @@ boss-events:
   # ===== DANH SÁCH BOSS =====
   # [VI] Cấu hình từng boss với đầy đủ thông số
   # [EN] Configure each boss with full parameters
-  bosses:
-    # ===== WITHER =====
-    wither:
-      # [VI] Bật/tắt boss này
-      # [EN] Enable/disable this boss
-      enabled: true
+# ===== WITHER (Wither Huyền Thoại) =====
+wither:
+  enabled: true
+  entity-type: WITHER
+  display-name: "§e☠ §c§lWither Huyền Thoại §e☠"
+  hp: 600
+  damage-multiplier: 2.0
+  chance: 5
+  duration-seconds: 120
+  warning-seconds: 60
+  drops:
+    NETHERITE_INGOT:
+      min-amount: 2
+      max-amount: 5
+      chance: 1.0
+    DIAMOND:
+      min-amount: 5
+      max-amount: 10
+      chance: 0.8
+    EMERALD:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.7
+    IRON_INGOT:
+      min-amount: 15
+      max-amount: 30
+      chance: 0.6
+    GOLD_INGOT:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.6
+    DIAMOND_BLOCK:
+      min-amount: 1
+      max-amount: 3
+      chance: 0.5
+    WITHER_SKELETON_SKULL:
+      min-amount: 1
+      max-amount: 2
+      chance: 0.4
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 2
+      chance: 0.3
+    NETHER_STAR:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.2
+    BEACON:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.1
 
-      # [VI] Loại entity (WITHER, ENDER_DRAGON, GHAST, ZOMBIE, SKELETON, SPIDER, CREEPER, ENDERMAN, WITCH, RAVAGER, VINDICATOR, PHANTOM)
-      # [EN] Entity type (WITHER, ENDER_DRAGON, GHAST, ZOMBIE, SKELETON, SPIDER, CREEPER, ENDERMAN, WITCH, RAVAGER, VINDICATOR, PHANTOM)
-      entity-type: WITHER
+# ===== ENDER DRAGON (Rồng Tử Thần) =====
+ender_dragon:
+  enabled: false
+  entity-type: ENDER_DRAGON
+  display-name: "§5§lRồng Tử Thần"
+  hp: 1000
+  damage-multiplier: 3.0
+  chance: 5
+  duration-seconds: 180
+  warning-seconds: 120
+  drops:
+    DRAGON_EGG:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.15
+    ELYTRA:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.35
+    DIAMOND:
+      min-amount: 8
+      max-amount: 15
+      chance: 0.8
+    EMERALD:
+      min-amount: 15
+      max-amount: 25
+      chance: 0.7
+    IRON_INGOT:
+      min-amount: 20
+      max-amount: 40
+      chance: 0.7
+    SHULKER_SHELL:
+      min-amount: 2
+      max-amount: 4
+      chance: 0.6
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 3
+      chance: 0.4
+    END_CRYSTAL:
+      min-amount: 1
+      max-amount: 3
+      chance: 0.3
+    CHORUS_FRUIT:
+      min-amount: 5
+      max-amount: 15
+      chance: 0.5
+    DRAGON_BREATH:
+      min-amount: 1
+      max-amount: 3
+      chance: 0.3
 
-      # [VI] Tên hiển thị của boss (hỗ trợ mã màu §)
-      # [EN] Display name of boss (supports color codes §)
-      display-name: "§e☠ §c§lWither Huyền Thoại §e☠"
+# ===== GHAST (Ghast Khổng Lồ) =====
+ghast:
+  enabled: true
+  entity-type: GHAST
+  display-name: "§e§lGhast Khổng Lồ"
+  hp: 100
+  damage-multiplier: 2.5
+  chance: 10
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    GHAST_TEAR:
+      min-amount: 3
+      max-amount: 8
+      chance: 0.8
+    MAGMA_CREAM:
+      min-amount: 3
+      max-amount: 6
+      chance: 0.7
+    DIAMOND:
+      min-amount: 3
+      max-amount: 6
+      chance: 0.4
+    IRON_INGOT:
+      min-amount: 8
+      max-amount: 15
+      chance: 0.5
+    EMERALD:
+      min-amount: 5
+      max-amount: 10
+      chance: 0.4
+    GUNPOWDER:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.6
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.25
+    FIRE_CHARGE:
+      min-amount: 2
+      max-amount: 5
+      chance: 0.4
+    BLAZE_ROD:
+      min-amount: 2
+      max-amount: 5
+      chance: 0.35
 
-      # [VI] HP tối đa của boss
-      # [EN] Maximum HP of boss
-      hp: 600
+# ===== ZOMBIE BOSS =====
+zombie_boss:
+  enabled: true
+  entity-type: ZOMBIE
+  display-name: "§2§lZombie Boss"
+  hp: 150
+  damage-multiplier: 1.5
+  chance: 15
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    ROTTEN_FLESH:
+      min-amount: 10
+      max-amount: 25
+      chance: 0.9
+    IRON_INGOT:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.7
+    DIAMOND:
+      min-amount: 3
+      max-amount: 7
+      chance: 0.35
+    EMERALD:
+      min-amount: 8
+      max-amount: 15
+      chance: 0.5
+    GOLD_INGOT:
+      min-amount: 5
+      max-amount: 12
+      chance: 0.5
+    CARROT:
+      min-amount: 5
+      max-amount: 10
+      chance: 0.4
+    POTATO:
+      min-amount: 5
+      max-amount: 10
+      chance: 0.4
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.2
+    IRON_SWORD:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.3
+    IRON_HELMET:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.25
 
-      # [VI] Hệ số nhân sát thương (1.0 = bình thường, 2.0 = gấp đôi)
-      # [EN] Damage multiplier (1.0 = normal, 2.0 = double)
-      damage-multiplier: 2.0
+# ===== SKELETON BOSS =====
+skeleton_boss:
+  enabled: true
+  entity-type: SKELETON
+  display-name: "§8§lSkeleton Boss"
+  hp: 120
+  damage-multiplier: 2.0
+  chance: 15
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    BONE:
+      min-amount: 10
+      max-amount: 25
+      chance: 0.9
+    ARROW:
+      min-amount: 15
+      max-amount: 40
+      chance: 0.8
+    DIAMOND:
+      min-amount: 3
+      max-amount: 7
+      chance: 0.35
+    IRON_INGOT:
+      min-amount: 8
+      max-amount: 18
+      chance: 0.6
+    EMERALD:
+      min-amount: 8
+      max-amount: 15
+      chance: 0.5
+    BOW:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.35
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.25
+    FLINT_AND_STEEL:
+      min-amount: 1
+      max-amount: 2
+      chance: 0.3
+    SKELETON_SKULL:
+      min-amount: 1
+      max-amount: 2
+      chance: 0.2
 
-      # [VI] Tỷ lệ xuất hiện (%) - tổng tất cả boss không được vượt quá 100
-      # [EN] Spawn chance (%) - total of all bosses should not exceed 100
-      chance: 5
+# ===== SPIDER BOSS =====
+spider_boss:
+  enabled: true
+  entity-type: SPIDER
+  display-name: "§0§lSpider Boss"
+  hp: 130
+  damage-multiplier: 1.8
+  chance: 10
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    STRING:
+      min-amount: 15
+      max-amount: 35
+      chance: 0.9
+    SPIDER_EYE:
+      min-amount: 5
+      max-amount: 12
+      chance: 0.8
+    DIAMOND:
+      min-amount: 3
+      max-amount: 6
+      chance: 0.35
+    IRON_INGOT:
+      min-amount: 8
+      max-amount: 15
+      chance: 0.5
+    EMERALD:
+      min-amount: 5
+      max-amount: 12
+      chance: 0.4
+    COBWEB:
+      min-amount: 3
+      max-amount: 8
+      chance: 0.5
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.2
+    FERMENTED_SPIDER_EYE:
+      min-amount: 1
+      max-amount: 3
+      chance: 0.3
 
-      # [VI] Thời gian tồn tại tối đa của boss (giây)
-      #     Sau thời gian này boss sẽ tự động biến mất
-      # [EN] Maximum boss duration (seconds)
-      #     Boss will automatically disappear after this time
-      duration-seconds: 120
+# ===== CREEPER BOSS =====
+creeper_boss:
+  enabled: true
+  entity-type: CREEPER
+  display-name: "§a§lCreeper Boss"
+  hp: 200
+  damage-multiplier: 3.0
+  chance: 10
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    GUNPOWDER:
+      min-amount: 20
+      max-amount: 50
+      chance: 1.0
+    DIAMOND:
+      min-amount: 4
+      max-amount: 8
+      chance: 0.4
+    IRON_INGOT:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.6
+    EMERALD:
+      min-amount: 8
+      max-amount: 16
+      chance: 0.5
+    TNT:
+      min-amount: 2
+      max-amount: 6
+      chance: 0.5
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 2
+      chance: 0.25
+    FIREWORK_ROCKET:
+      min-amount: 5
+      max-amount: 15
+      chance: 0.4
+    CREEPER_HEAD:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.15
 
-      # [VI] Thời gian cảnh báo trước khi boss xuất hiện (giây)
-      #     Trong thời gian này sẽ có thông báo và boss bar
-      # [EN] Warning time before boss spawns (seconds)
-      #     During this time, there will be announcements and boss bar
-      warning-seconds: 60
+# ===== ENDERMAN BOSS =====
+enderman_boss:
+  enabled: true
+  entity-type: ENDERMAN
+  display-name: "§5§lEnderman Boss"
+  hp: 180
+  damage-multiplier: 2.2
+  chance: 10
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    ENDER_PEARL:
+      min-amount: 8
+      max-amount: 20
+      chance: 0.9
+    DIAMOND:
+      min-amount: 4
+      max-amount: 8
+      chance: 0.4
+    IRON_INGOT:
+      min-amount: 10
+      max-amount: 18
+      chance: 0.5
+    EMERALD:
+      min-amount: 8
+      max-amount: 15
+      chance: 0.5
+    OBSIDIAN:
+      min-amount: 5
+      max-amount: 15
+      chance: 0.6
+    ENDER_CHEST:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.2
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.25
+    CHORUS_FRUIT:
+      min-amount: 5
+      max-amount: 12
+      chance: 0.4
 
-      # ===== DROP ITEMS =====
-      # [VI] Danh sách item rơi ra khi boss bị tiêu diệt
-      # [EN] List of items dropped when boss is killed
-      drops:
-        # [VI] Tên item (tên Material của Minecraft, viết hoa)
-        # [EN] Item name (Minecraft Material name, uppercase)
-        NETHERITE_INGOT:
-          # [VI] Số lượng tối thiểu rơi ra
-          # [EN] Minimum amount dropped
-          min-amount: 1
-          # [VI] Số lượng tối đa rơi ra
-          # [EN] Maximum amount dropped
-          max-amount: 3
-          # [VI] Tỷ lệ rơi (0.0 = 0%, 1.0 = 100%)
-          # [EN] Drop chance (0.0 = 0%, 1.0 = 100%)
-          chance: 1.0
+# ===== WITCH BOSS =====
+witch_boss:
+  enabled: true
+  entity-type: WITCH
+  display-name: "§9§lWitch Boss"
+  hp: 140
+  damage-multiplier: 2.0
+  chance: 10
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    POTION:
+      min-amount: 5
+      max-amount: 15
+      chance: 0.8
+    GLOWSTONE_DUST:
+      min-amount: 10
+      max-amount: 25
+      chance: 0.8
+    DIAMOND:
+      min-amount: 3
+      max-amount: 6
+      chance: 0.35
+    IRON_INGOT:
+      min-amount: 8
+      max-amount: 15
+      chance: 0.5
+    EMERALD:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.6
+    REDSTONE:
+      min-amount: 15
+      max-amount: 30
+      chance: 0.7
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 2
+      chance: 0.3
+    SUGAR:
+      min-amount: 5
+      max-amount: 10
+      chance: 0.4
+    SPIDER_EYE:
+      min-amount: 3
+      max-amount: 8
+      chance: 0.4
+    GUNPOWDER:
+      min-amount: 5
+      max-amount: 10
+      chance: 0.4
 
-        DIAMOND_BLOCK:
-          min-amount: 1
-          max-amount: 5
-          chance: 0.5
+# ===== RAVAGER BOSS =====
+ravager_boss:
+  enabled: true
+  entity-type: RAVAGER
+  display-name: "§4§lRavager Boss"
+  hp: 250
+  damage-multiplier: 2.5
+  chance: 8
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    LEATHER:
+      min-amount: 15
+      max-amount: 35
+      chance: 0.9
+    DIAMOND:
+      min-amount: 5
+      max-amount: 10
+      chance: 0.45
+    IRON_INGOT:
+      min-amount: 12
+      max-amount: 25
+      chance: 0.65
+    EMERALD:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.6
+    SADDLE:
+      min-amount: 1
+      max-amount: 2
+      chance: 0.4
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.25
+    IRON_BLOCK:
+      min-amount: 2
+      max-amount: 5
+      chance: 0.35
+    BEEF:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.5
 
-        WITHER_SKELETON_SKULL:
-          min-amount: 1
-          max-amount: 1
-          chance: 0.3
+# ===== VINDICATOR BOSS =====
+vindicator_boss:
+  enabled: true
+  entity-type: VINDICATOR
+  display-name: "§c§lVindicator Boss"
+  hp: 160
+  damage-multiplier: 2.0
+  chance: 10
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    IRON_AXE:
+      min-amount: 1
+      max-amount: 2
+      chance: 0.6
+    EMERALD:
+      min-amount: 10
+      max-amount: 20
+      chance: 0.8
+    DIAMOND:
+      min-amount: 3
+      max-amount: 7
+      chance: 0.35
+    IRON_INGOT:
+      min-amount: 8
+      max-amount: 16
+      chance: 0.5
+    GOLD_INGOT:
+      min-amount: 5
+      max-amount: 10
+      chance: 0.4
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.25
+    DIAMOND_SWORD:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.15
 
-    # ===== ENDER DRAGON =====
-    ender_dragon:
-      enabled: false
-      entity-type: ENDER_DRAGON
-      display-name: "§5§lRồng Tử Thần"
-      hp: 1000
-      damage-multiplier: 3.0
-      chance: 5
-      duration-seconds: 180
-      warning-seconds: 120
-      drops:
-        DRAGON_EGG:
-          min-amount: 1
-          max-amount: 1
-          chance: 0.1
-        ELYTRA:
-          min-amount: 1
-          max-amount: 1
-          chance: 0.3
-        SHULKER_SHELL:
-          min-amount: 2
-          max-amount: 4
-          chance: 0.5
-
-    # ===== GHAST =====
-    ghast:
-      enabled: true
-      entity-type: GHAST
-      display-name: "§e§lGhast Khổng Lồ"
-      hp: 100
-      damage-multiplier: 2.5
-      chance: 10
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        GHAST_TEAR:
-          min-amount: 3
-          max-amount: 8
-          chance: 0.7
-        MAGMA_CREAM:
-          min-amount: 2
-          max-amount: 5
-          chance: 0.5
-
-    # ===== ZOMBIE BOSS =====
-    zombie_boss:
-      enabled: true
-      entity-type: ZOMBIE
-      display-name: "§2§lZombie Boss"
-      hp: 150
-      damage-multiplier: 1.5
-      chance: 15
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        ROTTEN_FLESH:
-          min-amount: 5
-          max-amount: 15
-          chance: 0.8
-        IRON_INGOT:
-          min-amount: 2
-          max-amount: 5
-          chance: 0.5
-
-    # ===== SKELETON BOSS =====
-    skeleton_boss:
-      enabled: true
-      entity-type: SKELETON
-      display-name: "§8§lSkeleton Boss"
-      hp: 120
-      damage-multiplier: 2.0
-      chance: 15
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        BONE:
-          min-amount: 5
-          max-amount: 15
-          chance: 0.8
-        ARROW:
-          min-amount: 10
-          max-amount: 30
-          chance: 0.7
-
-    # ===== SPIDER BOSS =====
-    spider_boss:
-      enabled: true
-      entity-type: SPIDER
-      display-name: "§0§lSpider Boss"
-      hp: 130
-      damage-multiplier: 1.8
-      chance: 10
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        STRING:
-          min-amount: 10
-          max-amount: 25
-          chance: 0.8
-        SPIDER_EYE:
-          min-amount: 3
-          max-amount: 8
-          chance: 0.6
-
-    # ===== CREEPER BOSS =====
-    creeper_boss:
-      enabled: true
-      entity-type: CREEPER
-      display-name: "§a§lCreeper Boss"
-      hp: 200
-      damage-multiplier: 3.0
-      chance: 10
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        GUNPOWDER:
-          min-amount: 10
-          max-amount: 30
-          chance: 0.9
-
-    # ===== ENDERMAN BOSS =====
-    enderman_boss:
-      enabled: true
-      entity-type: ENDERMAN
-      display-name: "§5§lEnderman Boss"
-      hp: 180
-      damage-multiplier: 2.2
-      chance: 10
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        ENDER_PEARL:
-          min-amount: 5
-          max-amount: 15
-          chance: 0.8
-
-    # ===== WITCH BOSS =====
-    witch_boss:
-      enabled: true
-      entity-type: WITCH
-      display-name: "§9§lWitch Boss"
-      hp: 140
-      damage-multiplier: 2.0
-      chance: 10
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        POTION:
-          min-amount: 3
-          max-amount: 10
-          chance: 0.7
-        GLOWSTONE_DUST:
-          min-amount: 5
-          max-amount: 15
-          chance: 0.6
-
-    # ===== RAVAGER BOSS =====
-    ravager_boss:
-      enabled: true
-      entity-type: RAVAGER
-      display-name: "§4§lRavager Boss"
-      hp: 250
-      damage-multiplier: 2.5
-      chance: 8
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        LEATHER:
-          min-amount: 10
-          max-amount: 25
-          chance: 0.8
-        SADDLE:
-          min-amount: 1
-          max-amount: 1
-          chance: 0.3
-
-    # ===== VINDICATOR BOSS =====
-    vindicator_boss:
-      enabled: true
-      entity-type: VINDICATOR
-      display-name: "§c§lVindicator Boss"
-      hp: 160
-      damage-multiplier: 2.0
-      chance: 10
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        IRON_AXE:
-          min-amount: 1
-          max-amount: 2
-          chance: 0.5
-        EMERALD:
-          min-amount: 5
-          max-amount: 15
-          chance: 0.7
-
-    # ===== PHANTOM BOSS =====
-    phantom_boss:
-      enabled: true
-      entity-type: PHANTOM
-      display-name: "§8§lPhantom Boss"
-      hp: 100
-      damage-multiplier: 1.5
-      chance: 10
-      duration-seconds: 90
-      warning-seconds: 45
-      drops:
-        PHANTOM_MEMBRANE:
-          min-amount: 3
-          max-amount: 8
-          chance: 0.7
+# ===== PHANTOM BOSS =====
+phantom_boss:
+  enabled: true
+  entity-type: PHANTOM
+  display-name: "§8§lPhantom Boss"
+  hp: 100
+  damage-multiplier: 1.5
+  chance: 10
+  duration-seconds: 90
+  warning-seconds: 45
+  drops:
+    PHANTOM_MEMBRANE:
+      min-amount: 5
+      max-amount: 15
+      chance: 0.9
+    DIAMOND:
+      min-amount: 3
+      max-amount: 6
+      chance: 0.35
+    IRON_INGOT:
+      min-amount: 8
+      max-amount: 15
+      chance: 0.5
+    EMERALD:
+      min-amount: 5
+      max-amount: 12
+      chance: 0.4
+    ENCHANTED_BOOK:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.25
+    FEATHER:
+      min-amount: 10
+      max-amount: 25
+      chance: 0.6
+    GHAST_TEAR:
+      min-amount: 1
+      max-amount: 3
+      chance: 0.3
+    EXPERIENCE_BOTTLE:
+      min-amount: 5
+      max-amount: 15
+      chance: 0.5
+    ELYTRA:
+      min-amount: 1
+      max-amount: 1
+      chance: 0.05
 
 # ============================================================
 # [ORE CONTROL] ⛏️ KIỂM SOÁT QUẶNG
