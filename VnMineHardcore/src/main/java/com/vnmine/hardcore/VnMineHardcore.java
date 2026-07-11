@@ -79,6 +79,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.getCommand("vnreload").setExecutor(this);
         this.getCommand("vnhelp").setExecutor(this);
         this.getCommand("vnevent").setExecutor(this);
+        this.getCommand("vnboss").setExecutor(this);
         this.getCommand("vn").setExecutor(this);
 
         getLogger().info("§a  VnMineHardcore enabled - Hell difficulty!");

@@ -190,7 +190,7 @@ thirst:
 
   # [VI] Sát thương khi khát về 0 (tim)
   # [EN] Damage when thirst reaches 0 (hearts)
-  thirst-damage: 1.0
+  thirst-damage: 2.0
 
   # [VI] Mức khát tối đa
   # [EN] Maximum thirst level
@@ -278,11 +278,11 @@ environment:
 
     # [VI] Sát thương khi ở nơi quá nóng (tim)
     # [EN] Damage when in hot environment (hearts)
-    heat-damage: 1.0
+    heat-damage: 2.0
 
     # [VI] Cường độ hiệu ứng nóng (0 = Cấp I, 1 = Cấp II...)
     # [EN] Heat effect amplifier (0 = Level I, 1 = Level II...)
-    heat-amplifier: 0
+    heat-amplifier: 1
 
     # [VI] % giảm cường độ hiệu ứng nóng khi đội mũ bảo hiểm (0.5 = 50%)
     #     Bất kỳ loại mũ nào cũng giúp giảm
@@ -304,11 +304,11 @@ environment:
 
     # [VI] Sát thương khi ở nơi quá lạnh (tim)
     # [EN] Damage when in cold environment (hearts)
-    cold-damage: 1.0
+    cold-damage: 2.0
 
     # [VI] Cường độ hiệu ứng lạnh (0 = Cấp I, 1 = Cấp II...)
     # [EN] Cold effect amplifier (0 = Level I, 1 = Level II...)
-    cold-amplifier: 0
+    cold-amplifier: 1
 
     # [VI] % giảm cường độ hiệu ứng lạnh khi mặc giáp (0.25 = 25% mỗi món)
     #     Mỗi món giáp (mũ, áo, quần, giày) giảm độc lập
@@ -362,7 +362,7 @@ environment:
 
     # [VI] Sát thương khi cố gắng ngủ (tim)
     # [EN] Damage taken when attempting to sleep (hearts)
-    damage: 1.0
+    damage: 2.0
 
   # ===== CÂY TRỒNG / CROP GROWTH =====
   crop-slow:
@@ -430,11 +430,11 @@ environment:
 
     # [VI] Cường độ hiệu ứng chóng mặt (0 = Cấp I, 1 = Cấp II...)
     # [EN] Vertigo effect amplifier (0 = Level I, 1 = Level II...)
-    amplifier: 0
+    amplifier: 1
 
     # [VI] % giảm cường độ hiệu ứng khi đeo cánh (0.5 = 50%)
     # [EN] % effect reduction when wearing elytra (0.5 = 50%)
-    elytra-reduce-percent: 1.0
+    elytra-reduce-percent: 0.5
 
 # ============================================================
 # [VILLAGER TRADING] 🏘️ GIAO DỊCH DÂN LÀNG
@@ -573,7 +573,7 @@ disasters:
     enabled: true
     chance: 5
     name: "§6§l☄️ Mưa Sao Băng"
-    duration-seconds: 30
+    duration-seconds: 60
     effect-interval-seconds: 5
     effect-duration-seconds: 3
 
@@ -751,7 +751,7 @@ boss-events:
   #     Supports range format: "500-1200" to randomize between 500-1200 seconds
   #     Or fixed number: 1200
   #     Boss can only spawn after this time has passed since last spawn
-  min-interval-seconds: 2400-4800
+  min-interval-seconds: 1200-2400
 
   # [VI] Bán kính spawn boss quanh player ngẫu nhiên (khối)
   # [EN] Boss spawn radius around random player (blocks)
@@ -760,573 +760,574 @@ boss-events:
   # ===== DANH SÁCH BOSS =====
   # [VI] Cấu hình từng boss với đầy đủ thông số
   # [EN] Configure each boss with full parameters
-# ===== WITHER (Wither Huyền Thoại) =====
-wither:
-  enabled: true
-  entity-type: WITHER
-  display-name: "§e☠ §c§lWither Huyền Thoại §e☠"
-  hp: 600
-  damage-multiplier: 2.0
-  chance: 5
-  duration-seconds: 120
-  warning-seconds: 60
-  drops:
-    NETHERITE_INGOT:
-      min-amount: 2
-      max-amount: 5
-      chance: 1.0
-    DIAMOND:
-      min-amount: 5
-      max-amount: 10
-      chance: 0.8
-    EMERALD:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.7
-    IRON_INGOT:
-      min-amount: 15
-      max-amount: 30
-      chance: 0.6
-    GOLD_INGOT:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.6
-    DIAMOND_BLOCK:
-      min-amount: 1
-      max-amount: 3
-      chance: 0.5
-    WITHER_SKELETON_SKULL:
-      min-amount: 1
-      max-amount: 2
-      chance: 0.4
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 2
-      chance: 0.3
-    NETHER_STAR:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.2
-    BEACON:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.1
+  bosses:
+    # ===== WITHER (Wither Huyền Thoại) =====
+    wither:
+      enabled: true
+      entity-type: WITHER
+      display-name: "§e☠ §c§lWither Huyền Thoại §e☠"
+      hp: 600
+      damage-multiplier: 2.0
+      chance: 10
+      duration-seconds: 1800
+      warning-seconds: 60
+      drops:
+        NETHERITE_INGOT:
+          min-amount: 2
+          max-amount: 5
+          chance: 1.0
+        DIAMOND:
+          min-amount: 5
+          max-amount: 10
+          chance: 0.8
+        EMERALD:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.7
+        IRON_INGOT:
+          min-amount: 15
+          max-amount: 30
+          chance: 0.6
+        GOLD_INGOT:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.6
+        DIAMOND_BLOCK:
+          min-amount: 1
+          max-amount: 3
+          chance: 0.5
+        WITHER_SKELETON_SKULL:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.4
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.3
+        NETHER_STAR:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.2
+        BEACON:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.1
 
-# ===== ENDER DRAGON (Rồng Tử Thần) =====
-ender_dragon:
-  enabled: false
-  entity-type: ENDER_DRAGON
-  display-name: "§5§lRồng Tử Thần"
-  hp: 1000
-  damage-multiplier: 3.0
-  chance: 5
-  duration-seconds: 180
-  warning-seconds: 120
-  drops:
-    DRAGON_EGG:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.15
-    ELYTRA:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.35
-    DIAMOND:
-      min-amount: 8
-      max-amount: 15
-      chance: 0.8
-    EMERALD:
-      min-amount: 15
-      max-amount: 25
-      chance: 0.7
-    IRON_INGOT:
-      min-amount: 20
-      max-amount: 40
-      chance: 0.7
-    SHULKER_SHELL:
-      min-amount: 2
-      max-amount: 4
-      chance: 0.6
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 3
-      chance: 0.4
-    END_CRYSTAL:
-      min-amount: 1
-      max-amount: 3
-      chance: 0.3
-    CHORUS_FRUIT:
-      min-amount: 5
-      max-amount: 15
-      chance: 0.5
-    DRAGON_BREATH:
-      min-amount: 1
-      max-amount: 3
-      chance: 0.3
+    # ===== ENDER DRAGON (Rồng Tử Thần) =====
+    ender_dragon:
+      enabled: false
+      entity-type: ENDER_DRAGON
+      display-name: "§5§lRồng Tử Thần"
+      hp: 1000
+      damage-multiplier: 3.0
+      chance: 5
+      duration-seconds: 1800
+      warning-seconds: 120
+      drops:
+        DRAGON_EGG:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.15
+        ELYTRA:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.35
+        DIAMOND:
+          min-amount: 8
+          max-amount: 15
+          chance: 0.8
+        EMERALD:
+          min-amount: 15
+          max-amount: 25
+          chance: 0.7
+        IRON_INGOT:
+          min-amount: 20
+          max-amount: 40
+          chance: 0.7
+        SHULKER_SHELL:
+          min-amount: 2
+          max-amount: 4
+          chance: 0.6
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 3
+          chance: 0.4
+        END_CRYSTAL:
+          min-amount: 1
+          max-amount: 3
+          chance: 0.3
+        CHORUS_FRUIT:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.5
+        DRAGON_BREATH:
+          min-amount: 1
+          max-amount: 3
+          chance: 0.3
 
-# ===== GHAST (Ghast Khổng Lồ) =====
-ghast:
-  enabled: true
-  entity-type: GHAST
-  display-name: "§e§lGhast Khổng Lồ"
-  hp: 100
-  damage-multiplier: 2.5
-  chance: 10
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    GHAST_TEAR:
-      min-amount: 3
-      max-amount: 8
-      chance: 0.8
-    MAGMA_CREAM:
-      min-amount: 3
-      max-amount: 6
-      chance: 0.7
-    DIAMOND:
-      min-amount: 3
-      max-amount: 6
-      chance: 0.4
-    IRON_INGOT:
-      min-amount: 8
-      max-amount: 15
-      chance: 0.5
-    EMERALD:
-      min-amount: 5
-      max-amount: 10
-      chance: 0.4
-    GUNPOWDER:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.6
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.25
-    FIRE_CHARGE:
-      min-amount: 2
-      max-amount: 5
-      chance: 0.4
-    BLAZE_ROD:
-      min-amount: 2
-      max-amount: 5
-      chance: 0.35
+    # ===== GHAST (Ghast Khổng Lồ) =====
+    ghast:
+      enabled: true
+      entity-type: GHAST
+      display-name: "§e§lGhast Khổng Lồ"
+      hp: 100
+      damage-multiplier: 2.5
+      chance: 10
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        GHAST_TEAR:
+          min-amount: 3
+          max-amount: 8
+          chance: 0.8
+        MAGMA_CREAM:
+          min-amount: 3
+          max-amount: 6
+          chance: 0.7
+        DIAMOND:
+          min-amount: 3
+          max-amount: 6
+          chance: 0.4
+        IRON_INGOT:
+          min-amount: 8
+          max-amount: 15
+          chance: 0.5
+        EMERALD:
+          min-amount: 5
+          max-amount: 10
+          chance: 0.4
+        GUNPOWDER:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.6
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.25
+        FIRE_CHARGE:
+          min-amount: 2
+          max-amount: 5
+          chance: 0.4
+        BLAZE_ROD:
+          min-amount: 2
+          max-amount: 5
+          chance: 0.35
 
-# ===== ZOMBIE BOSS =====
-zombie_boss:
-  enabled: true
-  entity-type: ZOMBIE
-  display-name: "§2§lZombie Boss"
-  hp: 150
-  damage-multiplier: 1.5
-  chance: 15
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    ROTTEN_FLESH:
-      min-amount: 10
-      max-amount: 25
-      chance: 0.9
-    IRON_INGOT:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.7
-    DIAMOND:
-      min-amount: 3
-      max-amount: 7
-      chance: 0.35
-    EMERALD:
-      min-amount: 8
-      max-amount: 15
-      chance: 0.5
-    GOLD_INGOT:
-      min-amount: 5
-      max-amount: 12
-      chance: 0.5
-    CARROT:
-      min-amount: 5
-      max-amount: 10
-      chance: 0.4
-    POTATO:
-      min-amount: 5
-      max-amount: 10
-      chance: 0.4
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.2
-    IRON_SWORD:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.3
-    IRON_HELMET:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.25
+    # ===== ZOMBIE BOSS =====
+    zombie_boss:
+      enabled: true
+      entity-type: ZOMBIE
+      display-name: "§2§lZombie Boss"
+      hp: 150
+      damage-multiplier: 1.5
+      chance: 15
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        ROTTEN_FLESH:
+          min-amount: 10
+          max-amount: 25
+          chance: 0.9
+        IRON_INGOT:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.7
+        DIAMOND:
+          min-amount: 3
+          max-amount: 7
+          chance: 0.35
+        EMERALD:
+          min-amount: 8
+          max-amount: 15
+          chance: 0.5
+        GOLD_INGOT:
+          min-amount: 5
+          max-amount: 12
+          chance: 0.5
+        CARROT:
+          min-amount: 5
+          max-amount: 10
+          chance: 0.4
+        POTATO:
+          min-amount: 5
+          max-amount: 10
+          chance: 0.4
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.2
+        IRON_SWORD:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.3
+        IRON_HELMET:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.25
 
-# ===== SKELETON BOSS =====
-skeleton_boss:
-  enabled: true
-  entity-type: SKELETON
-  display-name: "§8§lSkeleton Boss"
-  hp: 120
-  damage-multiplier: 2.0
-  chance: 15
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    BONE:
-      min-amount: 10
-      max-amount: 25
-      chance: 0.9
-    ARROW:
-      min-amount: 15
-      max-amount: 40
-      chance: 0.8
-    DIAMOND:
-      min-amount: 3
-      max-amount: 7
-      chance: 0.35
-    IRON_INGOT:
-      min-amount: 8
-      max-amount: 18
-      chance: 0.6
-    EMERALD:
-      min-amount: 8
-      max-amount: 15
-      chance: 0.5
-    BOW:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.35
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.25
-    FLINT_AND_STEEL:
-      min-amount: 1
-      max-amount: 2
-      chance: 0.3
-    SKELETON_SKULL:
-      min-amount: 1
-      max-amount: 2
-      chance: 0.2
+    # ===== SKELETON BOSS =====
+    skeleton_boss:
+      enabled: true
+      entity-type: SKELETON
+      display-name: "§8§lSkeleton Boss"
+      hp: 120
+      damage-multiplier: 2.0
+      chance: 15
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        BONE:
+          min-amount: 10
+          max-amount: 25
+          chance: 0.9
+        ARROW:
+          min-amount: 15
+          max-amount: 40
+          chance: 0.8
+        DIAMOND:
+          min-amount: 3
+          max-amount: 7
+          chance: 0.35
+        IRON_INGOT:
+          min-amount: 8
+          max-amount: 18
+          chance: 0.6
+        EMERALD:
+          min-amount: 8
+          max-amount: 15
+          chance: 0.5
+        BOW:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.35
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.25
+        FLINT_AND_STEEL:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.3
+        SKELETON_SKULL:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.2
 
-# ===== SPIDER BOSS =====
-spider_boss:
-  enabled: true
-  entity-type: SPIDER
-  display-name: "§0§lSpider Boss"
-  hp: 130
-  damage-multiplier: 1.8
-  chance: 10
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    STRING:
-      min-amount: 15
-      max-amount: 35
-      chance: 0.9
-    SPIDER_EYE:
-      min-amount: 5
-      max-amount: 12
-      chance: 0.8
-    DIAMOND:
-      min-amount: 3
-      max-amount: 6
-      chance: 0.35
-    IRON_INGOT:
-      min-amount: 8
-      max-amount: 15
-      chance: 0.5
-    EMERALD:
-      min-amount: 5
-      max-amount: 12
-      chance: 0.4
-    COBWEB:
-      min-amount: 3
-      max-amount: 8
-      chance: 0.5
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.2
-    FERMENTED_SPIDER_EYE:
-      min-amount: 1
-      max-amount: 3
-      chance: 0.3
+    # ===== SPIDER BOSS =====
+    spider_boss:
+      enabled: true
+      entity-type: SPIDER
+      display-name: "§0§lSpider Boss"
+      hp: 130
+      damage-multiplier: 1.8
+      chance: 20
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        STRING:
+          min-amount: 15
+          max-amount: 35
+          chance: 0.9
+        SPIDER_EYE:
+          min-amount: 5
+          max-amount: 12
+          chance: 0.8
+        DIAMOND:
+          min-amount: 3
+          max-amount: 6
+          chance: 0.35
+        IRON_INGOT:
+          min-amount: 8
+          max-amount: 15
+          chance: 0.5
+        EMERALD:
+          min-amount: 5
+          max-amount: 12
+          chance: 0.4
+        COBWEB:
+          min-amount: 3
+          max-amount: 8
+          chance: 0.5
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.2
+        FERMENTED_SPIDER_EYE:
+          min-amount: 1
+          max-amount: 3
+          chance: 0.3
 
-# ===== CREEPER BOSS =====
-creeper_boss:
-  enabled: true
-  entity-type: CREEPER
-  display-name: "§a§lCreeper Boss"
-  hp: 200
-  damage-multiplier: 3.0
-  chance: 10
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    GUNPOWDER:
-      min-amount: 20
-      max-amount: 50
-      chance: 1.0
-    DIAMOND:
-      min-amount: 4
-      max-amount: 8
-      chance: 0.4
-    IRON_INGOT:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.6
-    EMERALD:
-      min-amount: 8
-      max-amount: 16
-      chance: 0.5
-    TNT:
-      min-amount: 2
-      max-amount: 6
-      chance: 0.5
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 2
-      chance: 0.25
-    FIREWORK_ROCKET:
-      min-amount: 5
-      max-amount: 15
-      chance: 0.4
-    CREEPER_HEAD:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.15
+    # ===== CREEPER BOSS =====
+    creeper_boss:
+      enabled: true
+      entity-type: CREEPER
+      display-name: "§a§lCreeper Boss"
+      hp: 200
+      damage-multiplier: 3.0
+      chance: 10
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        GUNPOWDER:
+          min-amount: 20
+          max-amount: 50
+          chance: 1.0
+        DIAMOND:
+          min-amount: 4
+          max-amount: 8
+          chance: 0.4
+        IRON_INGOT:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.6
+        EMERALD:
+          min-amount: 8
+          max-amount: 16
+          chance: 0.5
+        TNT:
+          min-amount: 2
+          max-amount: 6
+          chance: 0.5
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.25
+        FIREWORK_ROCKET:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.4
+        CREEPER_HEAD:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.15
 
-# ===== ENDERMAN BOSS =====
-enderman_boss:
-  enabled: true
-  entity-type: ENDERMAN
-  display-name: "§5§lEnderman Boss"
-  hp: 180
-  damage-multiplier: 2.2
-  chance: 10
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    ENDER_PEARL:
-      min-amount: 8
-      max-amount: 20
-      chance: 0.9
-    DIAMOND:
-      min-amount: 4
-      max-amount: 8
-      chance: 0.4
-    IRON_INGOT:
-      min-amount: 10
-      max-amount: 18
-      chance: 0.5
-    EMERALD:
-      min-amount: 8
-      max-amount: 15
-      chance: 0.5
-    OBSIDIAN:
-      min-amount: 5
-      max-amount: 15
-      chance: 0.6
-    ENDER_CHEST:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.2
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.25
-    CHORUS_FRUIT:
-      min-amount: 5
-      max-amount: 12
-      chance: 0.4
+    # ===== ENDERMAN BOSS =====
+    enderman_boss:
+      enabled: true
+      entity-type: ENDERMAN
+      display-name: "§5§lEnderman Boss"
+      hp: 180
+      damage-multiplier: 2.2
+      chance: 10
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        ENDER_PEARL:
+          min-amount: 8
+          max-amount: 20
+          chance: 0.9
+        DIAMOND:
+          min-amount: 4
+          max-amount: 8
+          chance: 0.4
+        IRON_INGOT:
+          min-amount: 10
+          max-amount: 18
+          chance: 0.5
+        EMERALD:
+          min-amount: 8
+          max-amount: 15
+          chance: 0.5
+        OBSIDIAN:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.6
+        ENDER_CHEST:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.2
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.25
+        CHORUS_FRUIT:
+          min-amount: 5
+          max-amount: 12
+          chance: 0.4
 
-# ===== WITCH BOSS =====
-witch_boss:
-  enabled: true
-  entity-type: WITCH
-  display-name: "§9§lWitch Boss"
-  hp: 140
-  damage-multiplier: 2.0
-  chance: 10
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    POTION:
-      min-amount: 5
-      max-amount: 15
-      chance: 0.8
-    GLOWSTONE_DUST:
-      min-amount: 10
-      max-amount: 25
-      chance: 0.8
-    DIAMOND:
-      min-amount: 3
-      max-amount: 6
-      chance: 0.35
-    IRON_INGOT:
-      min-amount: 8
-      max-amount: 15
-      chance: 0.5
-    EMERALD:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.6
-    REDSTONE:
-      min-amount: 15
-      max-amount: 30
-      chance: 0.7
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 2
-      chance: 0.3
-    SUGAR:
-      min-amount: 5
-      max-amount: 10
-      chance: 0.4
-    SPIDER_EYE:
-      min-amount: 3
-      max-amount: 8
-      chance: 0.4
-    GUNPOWDER:
-      min-amount: 5
-      max-amount: 10
-      chance: 0.4
+    # ===== WITCH BOSS =====
+    witch_boss:
+      enabled: true
+      entity-type: WITCH
+      display-name: "§9§lWitch Boss"
+      hp: 140
+      damage-multiplier: 2.0
+      chance: 10
+      duration-seconds: 90
+      warning-seconds: 1800
+      drops:
+        POTION:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.8
+        GLOWSTONE_DUST:
+          min-amount: 10
+          max-amount: 25
+          chance: 0.8
+        DIAMOND:
+          min-amount: 3
+          max-amount: 6
+          chance: 0.35
+        IRON_INGOT:
+          min-amount: 8
+          max-amount: 15
+          chance: 0.5
+        EMERALD:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.6
+        REDSTONE:
+          min-amount: 15
+          max-amount: 30
+          chance: 0.7
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.3
+        SUGAR:
+          min-amount: 5
+          max-amount: 10
+          chance: 0.4
+        SPIDER_EYE:
+          min-amount: 3
+          max-amount: 8
+          chance: 0.4
+        GUNPOWDER:
+          min-amount: 5
+          max-amount: 10
+          chance: 0.4
 
-# ===== RAVAGER BOSS =====
-ravager_boss:
-  enabled: true
-  entity-type: RAVAGER
-  display-name: "§4§lRavager Boss"
-  hp: 250
-  damage-multiplier: 2.5
-  chance: 8
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    LEATHER:
-      min-amount: 15
-      max-amount: 35
-      chance: 0.9
-    DIAMOND:
-      min-amount: 5
-      max-amount: 10
-      chance: 0.45
-    IRON_INGOT:
-      min-amount: 12
-      max-amount: 25
-      chance: 0.65
-    EMERALD:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.6
-    SADDLE:
-      min-amount: 1
-      max-amount: 2
-      chance: 0.4
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.25
-    IRON_BLOCK:
-      min-amount: 2
-      max-amount: 5
-      chance: 0.35
-    BEEF:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.5
+    # ===== RAVAGER BOSS =====
+    ravager_boss:
+      enabled: true
+      entity-type: RAVAGER
+      display-name: "§4§lRavager Boss"
+      hp: 250
+      damage-multiplier: 2.5
+      chance: 8
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        LEATHER:
+          min-amount: 15
+          max-amount: 35
+          chance: 0.9
+        DIAMOND:
+          min-amount: 5
+          max-amount: 10
+          chance: 0.45
+        IRON_INGOT:
+          min-amount: 12
+          max-amount: 25
+          chance: 0.65
+        EMERALD:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.6
+        SADDLE:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.4
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.25
+        IRON_BLOCK:
+          min-amount: 2
+          max-amount: 5
+          chance: 0.35
+        BEEF:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.5
 
-# ===== VINDICATOR BOSS =====
-vindicator_boss:
-  enabled: true
-  entity-type: VINDICATOR
-  display-name: "§c§lVindicator Boss"
-  hp: 160
-  damage-multiplier: 2.0
-  chance: 10
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    IRON_AXE:
-      min-amount: 1
-      max-amount: 2
-      chance: 0.6
-    EMERALD:
-      min-amount: 10
-      max-amount: 20
-      chance: 0.8
-    DIAMOND:
-      min-amount: 3
-      max-amount: 7
-      chance: 0.35
-    IRON_INGOT:
-      min-amount: 8
-      max-amount: 16
-      chance: 0.5
-    GOLD_INGOT:
-      min-amount: 5
-      max-amount: 10
-      chance: 0.4
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.25
-    DIAMOND_SWORD:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.15
+    # ===== VINDICATOR BOSS =====
+    vindicator_boss:
+      enabled: true
+      entity-type: VINDICATOR
+      display-name: "§c§lVindicator Boss"
+      hp: 160
+      damage-multiplier: 2.0
+      chance: 10
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        IRON_AXE:
+          min-amount: 1
+          max-amount: 2
+          chance: 0.6
+        EMERALD:
+          min-amount: 10
+          max-amount: 20
+          chance: 0.8
+        DIAMOND:
+          min-amount: 3
+          max-amount: 7
+          chance: 0.35
+        IRON_INGOT:
+          min-amount: 8
+          max-amount: 16
+          chance: 0.5
+        GOLD_INGOT:
+          min-amount: 5
+          max-amount: 10
+          chance: 0.4
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.25
+        DIAMOND_SWORD:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.15
 
-# ===== PHANTOM BOSS =====
-phantom_boss:
-  enabled: true
-  entity-type: PHANTOM
-  display-name: "§8§lPhantom Boss"
-  hp: 100
-  damage-multiplier: 1.5
-  chance: 10
-  duration-seconds: 90
-  warning-seconds: 45
-  drops:
-    PHANTOM_MEMBRANE:
-      min-amount: 5
-      max-amount: 15
-      chance: 0.9
-    DIAMOND:
-      min-amount: 3
-      max-amount: 6
-      chance: 0.35
-    IRON_INGOT:
-      min-amount: 8
-      max-amount: 15
-      chance: 0.5
-    EMERALD:
-      min-amount: 5
-      max-amount: 12
-      chance: 0.4
-    ENCHANTED_BOOK:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.25
-    FEATHER:
-      min-amount: 10
-      max-amount: 25
-      chance: 0.6
-    GHAST_TEAR:
-      min-amount: 1
-      max-amount: 3
-      chance: 0.3
-    EXPERIENCE_BOTTLE:
-      min-amount: 5
-      max-amount: 15
-      chance: 0.5
-    ELYTRA:
-      min-amount: 1
-      max-amount: 1
-      chance: 0.05
+    # ===== PHANTOM BOSS =====
+    phantom_boss:
+      enabled: true
+      entity-type: PHANTOM
+      display-name: "§8§lPhantom Boss"
+      hp: 100
+      damage-multiplier: 1.5
+      chance: 10
+      duration-seconds: 1800
+      warning-seconds: 45
+      drops:
+        PHANTOM_MEMBRANE:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.9
+        DIAMOND:
+          min-amount: 3
+          max-amount: 6
+          chance: 0.35
+        IRON_INGOT:
+          min-amount: 8
+          max-amount: 15
+          chance: 0.5
+        EMERALD:
+          min-amount: 5
+          max-amount: 12
+          chance: 0.4
+        ENCHANTED_BOOK:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.25
+        FEATHER:
+          min-amount: 10
+          max-amount: 25
+          chance: 0.6
+        GHAST_TEAR:
+          min-amount: 1
+          max-amount: 3
+          chance: 0.3
+        EXPERIENCE_BOTTLE:
+          min-amount: 5
+          max-amount: 15
+          chance: 0.5
+        ELYTRA:
+          min-amount: 1
+          max-amount: 1
+          chance: 0.05
 
 # ============================================================
 # [ORE CONTROL] ⛏️ KIỂM SOÁT QUẶNG
