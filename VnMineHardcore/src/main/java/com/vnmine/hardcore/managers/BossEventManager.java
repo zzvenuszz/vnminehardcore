@@ -6,6 +6,9 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.*;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
@@ -14,7 +17,7 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
-public class BossEventManager {
+public class BossEventManager implements Listener {
 
     private final VnMineHardcore plugin;
     private final ConfigManager config;
@@ -29,6 +32,10 @@ public class BossEventManager {
     private int timeSinceLastBoss = 0;
     private int warningTimeLeft = 0;
     private ConfigManager.BossConfig pendingBoss = null;
+
+    // Tracking thời gian boss đã tồn tại
+    private int bossElapsedSeconds = 0;
+    private int bossDurationSeconds = 0;
 
     // AI tracking
     private Location lastBossLocation = null;
@@ -49,6 +56,9 @@ public class BossEventManager {
         );
 
         if (config.bossEventsEnabled) start();
+
+        // Đăng ký listener
+        Bukkit.getPluginManager().registerEvents(this, plugin);
 
         logger.info("[BossEvent] Initialized: enabled=" + config.bossEventsEnabled +
             ", interval=" + config.bossEventMinIntervalRaw + "s" +
@@ -80,6 +90,49 @@ public class BossEventManager {
                 }
             }
         }.runTaskTimer(plugin, 20L, 20L); // Every second
+    }
+
+    /**
+     * Khi player join, show boss bar hoặc warning bar nếu đang có sự kiện
+     */
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+
+        if (pendingBoss != null && warningTimeLeft > 0) {
+            // Đang trong giai đoạn warning
+            showWarningBarToPlayer(player);
+            player.playSound(player.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 0.5f);
+        } else if (bossActive && currentBoss != null && !currentBoss.isDead()) {
+            // Boss đang hoạt động
+            showBossBarToPlayer(player);
+            player.playSound(player.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.0f, 0.5f);
+        }
+    }
+
+    /**
+     * Hiển thị warning bar cho một player cụ thể
+     */
+    private void showWarningBarToPlayer(Player player) {
+        if (pendingBoss == null) return;
+        bossBar.name(Component.text("§e§l⚠ " + pendingBoss.displayName + " §7- §c§l" + warningTimeLeft + "s"));
+        bossBar.progress((float) warningTimeLeft / pendingBoss.warningSeconds);
+        player.showBossBar(bossBar);
+    }
+
+    /**
+     * Hiển thị boss bar cho một player cụ thể
+     */
+    private void showBossBarToPlayer(Player player) {
+        if (currentBoss == null || currentBoss.isDead()) return;
+        int remaining = Math.max(0, bossDurationSeconds - bossElapsedSeconds);
+        float hpProgress = (float) (currentBoss.getHealth() / currentBoss.getMaxHealth());
+        bossBar.progress(Math.max(0, hpProgress));
+        bossBar.name(Component.text("§4§l⚠ " + currentBossName +
+            " §7- §c" + String.format("%.0f", currentBoss.getHealth()) + "/" +
+            String.format("%.0f", currentBoss.getMaxHealth()) + " HP" +
+            " §7| §e" + remaining + "s"));
+        player.showBossBar(bossBar);
     }
 
     private void trySpawnBoss() {
@@ -130,7 +183,7 @@ public class BossEventManager {
         pendingBoss = bc;
         warningTimeLeft = bc.warningSeconds;
         
-        // Show warning bar
+        // Show warning bar cho tất cả
         bossBar.name(Component.text("§e§l⚠ BOSS SẮP XUẤT HIỆN ⚠"));
         bossBar.progress(1.0f);
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -155,7 +208,7 @@ public class BossEventManager {
     private void spawnBoss(ConfigManager.BossConfig bc) {
         if (bossActive) return;
         
-        // Hide warning bar
+        // Hide warning bar cho tất cả
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.hideBossBar(bossBar);
         }
@@ -198,6 +251,8 @@ public class BossEventManager {
         timeSinceLastBoss = 0;
         lastBossLocation = spawnLoc.clone();
         stuckTicks = 0;
+        bossElapsedSeconds = 0;
+        bossDurationSeconds = bc.durationSeconds;
 
         // Thông báo cho tất cả player
         String msg = "§4§l⚠ BOSS: §c" + bc.displayName + " §4§lđã xuất hiện tại §e" +
@@ -208,11 +263,9 @@ public class BossEventManager {
         Bukkit.broadcastMessage("§eThời gian tồn tại: " + bc.durationSeconds + " giây");
         Bukkit.broadcastMessage("§4§m========================================");
 
-        // Boss bar
-        bossBar.name(Component.text("§4§l⚠ " + bc.displayName + " §7- §c" + (int) bc.hp + " HP"));
-        bossBar.progress(1.0f);
+        // Boss bar - show cho tất cả online player
         for (Player p : Bukkit.getOnlinePlayers()) {
-            p.showBossBar(bossBar);
+            showBossBarToPlayer(p);
             p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.0f, 0.5f);
         }
 
@@ -223,9 +276,6 @@ public class BossEventManager {
 
         // Task theo dõi boss (cập nhật boss bar, kiểm tra chết/hết thời gian)
         new BukkitRunnable() {
-            int elapsed = 0;
-            final int maxDuration = bc.durationSeconds * 20; // ticks
-
             @Override
             public void run() {
                 if (currentBoss == null || currentBoss.isDead()) {
@@ -238,16 +288,18 @@ public class BossEventManager {
                     return;
                 }
 
-                elapsed += 20; // 1 second
+                bossElapsedSeconds++;
+                int remaining = Math.max(0, bossDurationSeconds - bossElapsedSeconds);
 
-                // Update boss bar
+                // Update boss bar - cập nhật cho tất cả online player
                 float progress = (float) (currentBoss.getHealth() / currentBoss.getMaxHealth());
                 bossBar.progress(Math.max(0, progress));
                 bossBar.name(Component.text("§4§l⚠ " + bc.displayName +
                     " §7- §c" + String.format("%.0f", currentBoss.getHealth()) + "/" +
-                    String.format("%.0f", currentBoss.getMaxHealth()) + " HP"));
+                    String.format("%.0f", currentBoss.getMaxHealth()) + " HP" +
+                    " §7| §e" + remaining + "s"));
 
-                if (elapsed >= maxDuration) {
+                if (bossElapsedSeconds >= bossDurationSeconds) {
                     // Hết thời gian - boss biến mất
                     Bukkit.broadcastMessage("§c§l⏰ " + bc.displayName + " đã biến mất!");
                     cleanup();
@@ -660,6 +712,8 @@ public class BossEventManager {
         warningTimeLeft = 0;
         lastBossLocation = null;
         stuckTicks = 0;
+        bossElapsedSeconds = 0;
+        bossDurationSeconds = 0;
         bossBar.name(Component.text(""));
         bossBar.progress(0);
         for (Player p : Bukkit.getOnlinePlayers()) {
