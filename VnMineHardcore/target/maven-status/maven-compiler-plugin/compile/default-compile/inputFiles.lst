@@ -2,6 +2,7 @@
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/CombatListener.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/DeathListener.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/EnvironmentListener.java
+/home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/GraveListener.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/HungerListener.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/OreControlListener.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/listeners/SpawnerControlListener.java
@@ -15,6 +16,7 @@
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DeathRenameManager.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DisasterAction.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DisasterManager.java
+/home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/GraveManager.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/LogManager.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/ThirstManager.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/VillagerDataManager.java

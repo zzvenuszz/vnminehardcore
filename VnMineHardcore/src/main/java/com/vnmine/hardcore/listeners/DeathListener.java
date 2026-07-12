@@ -10,6 +10,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.GameMode;
 import org.bukkit.Sound;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.EventHandler;
@@ -26,7 +27,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
-
 public class DeathListener implements Listener {
 
     private final VnMineHardcore plugin;
@@ -39,6 +39,7 @@ public class DeathListener implements Listener {
     private final Map<UUID, Long> combatTagged = new HashMap<>();
     private long combatTagDurationMs;
     private BukkitRunnable combatCheckTask;
+    private BukkitRunnable gamemodeCheckTask;
 
     public DeathListener(VnMineHardcore plugin, ConfigManager config, DeathRenameManager renameManager, DeathPenaltyManager deathPenaltyManager) {
         this.plugin = plugin;
@@ -52,6 +53,7 @@ public class DeathListener implements Listener {
         // Load combat tag duration from config (default 30s)
         reloadCombatTagDuration();
         startCombatCheckTask();
+        startGamemodeCheckTask();
 
         logger.info("[Death] Initialized: ban-on-death=" + config.banOnDeath +
             ", combat-tag-duration=" + (combatTagDurationMs / 1000) + "s");
@@ -59,6 +61,33 @@ public class DeathListener implements Listener {
 
     public void reload() {
         reloadCombatTagDuration();
+    }
+    
+    /**
+     * Task kiểm tra game mode mỗi 2 giây.
+     * Nếu player không phải OP và không ở SURVIVAL, ép về SURVIVAL.
+     * Tránh hardcore tự động đưa vào SPECTATOR.
+     */
+    private void startGamemodeCheckTask() {
+        if (gamemodeCheckTask != null) {
+            gamemodeCheckTask.cancel();
+        }
+        
+        gamemodeCheckTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    // Bỏ qua OP players - họ được quyền dùng spectator/creative
+                    if (player.isOp()) continue;
+                    // Nếu không ở SURVIVAL, ép về SURVIVAL
+                    if (player.getGameMode() != GameMode.SURVIVAL) {
+                        player.setGameMode(GameMode.SURVIVAL);
+                        player.sendMessage("§c§l⚠ Bạn đã bị ép về chế độ Survival!");
+                    }
+                }
+            }
+        };
+        gamemodeCheckTask.runTaskTimer(plugin, 40L, 40L); // 2 giây
     }
 
     private void reloadCombatTagDuration() {

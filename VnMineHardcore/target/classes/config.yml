@@ -640,3 +640,79 @@ logging:
   # [VI] Ghi nhật ký các sự kiện thiên tai
   # [EN] Log disasters
   log-disasters: true
+
+# ============================================================
+# [GRAVES] ⚰️ NGÔI MỘ / GRAVES
+# ============================================================
+# [VI] Khi người chơi chết, một ngôi mộ sẽ được xây tại vị trí chết.
+#      Ngôi mộ chứa toàn bộ items của người chơi.
+#      Người chơi có thể click vào đầu (head) trên bia mộ để lấy lại items.
+#
+#      Thời gian bảo vệ:
+#      1. Protection (mặc định 30 phút): Chỉ chủ mộ mới lấy được items
+#      2. Public (mặc định 15 phút): Mọi người đều có thể lấy items
+#      3. Hết hạn: Mộ thành trống, chỉ hiển thị tin nhắn
+#
+#      Nếu người chơi chết thêm x lần (expire-deaths) thì mộ cũ sẽ tự động
+#      thành trống dù chưa hết thời gian.
+# [EN] When a player dies, a grave is built at their death location.
+#      The grave contains all of the player's items.
+#      Players can click the head on the gravestone to retrieve items.
+#
+#      Time phases:
+#      1. Protection (default 30 min): Only the owner can retrieve
+#      2. Public (default 15 min): Everyone can retrieve
+#      3. Expired: Grave becomes empty, shows message only
+#
+#      If the player dies x more times (expire-deaths), old graves become
+#      empty even if the time hasn't expired.
+graves:
+  # [VI] Bật hệ thống ngôi mộ
+  # [EN] Enable grave system
+  enabled: true
+
+  # [VI] Thời gian chỉ chủ mộ được lấy items (phút)
+  #     Trong thời gian này, chỉ người chết mới có thể click vào mộ
+  #     để lấy lại đồ. Thời gian hiển thị màu XANH LÁ.
+  # [EN] Time only the grave owner can retrieve items (minutes)
+  #     During this time, only the deceased can click the grave
+  #     to retrieve items. Time displayed in GREEN.
+  protection-minutes: 30
+
+  # [VI] Thời gian mọi người có thể lấy items (phút)
+  #     Sau thời gian protection, bất kỳ ai cũng có thể lấy items từ mộ.
+  #     Thời gian hiển thị màu XANH DA TRỜI.
+  # [EN] Time everyone can retrieve items (minutes)
+  #     After protection time, anyone can retrieve items from the grave.
+  #     Time displayed in BLUE.
+  public-minutes: 15
+
+  # [VI] Sau bao nhiêu lần chết thì mộ cũ thành trống
+  #     Ví dụ: expire-deaths: 3
+  #     Nếu người chơi chết lần 1 (tạo mộ A), chết lần 4 (cách 3 lần chết)
+  #     thì mộ A sẽ tự động thành trống.
+  #     0 = vô hiệu hóa (chỉ dựa vào thời gian)
+  # [EN] After how many deaths the old grave becomes empty
+  #     Example: expire-deaths: 3
+  #     If player dies 1st time (creates grave A), dies 4th time (3 deaths later)
+  #     then grave A becomes empty.
+  #     0 = disabled (time-based only)
+  expire-deaths: 3
+
+  # [VI] Tin nhắn khi mộ đã trống (không còn items)
+  # [EN] Message when grave is empty (no items left)
+  empty-message: "§7Ngôi mộ này chỉ còn xương trắng..."
+
+  # [VI] Định dạng hiển thị tên trên bia mộ
+  #     {name} - Tên người chơi (tự động thêm màu đỏ)
+  #     {time} - Thời gian còn lại (MM:SS, tự động đổi màu)
+  #     Màu sắc thời gian tự động:
+  #       - §a§l (xanh lá đậm): đang trong protection
+  #       - §b§l (xanh da trời đậm): đang trong public
+  # [EN] Grave display name format
+  #     {name} - Player name (auto-colored red)
+  #     {time} - Remaining time (MM:SS, auto-colored)
+  #     Time colors:
+  #       - §a§l (bold green): in protection phase
+  #       - §b§l (bold blue): in public phase
+  display-format: "§cR.I.P §4{name} §c- {time}"

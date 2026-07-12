@@ -19,6 +19,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private DeathRenameManager deathRenameManager;
     private DeathPenaltyManager deathPenaltyManager;
     private BossEventManager bossEventManager;
+    private GraveManager graveManager;
     private VillagerDataManager villagerDataManager;
     private DeathListener deathListener;
     private CombatListener combatListener;
@@ -29,6 +30,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private SpawnerControlListener spawnerControlListener;
     private VillagerTradeManager villagerTradeManager;
     private OreControlListener oreControlListener;
+    private GraveListener graveListener;
 
     @Override
     public void onEnable() {
@@ -50,6 +52,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.deathPenaltyManager = new DeathPenaltyManager(this, configManager);
         this.bossEventManager = new BossEventManager(this, configManager);
         this.villagerDataManager = new VillagerDataManager(this, configManager);
+        this.graveManager = new GraveManager(this, configManager);
 
         // Create listeners (pass config)
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
@@ -61,6 +64,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.spawnerControlListener = new SpawnerControlListener(this, configManager);
         this.villagerTradeManager = new VillagerTradeManager(this, configManager, villagerDataManager);
         this.oreControlListener = new OreControlListener(this, configManager);
+        this.graveListener = new GraveListener(this, graveManager);
 
         // Register listeners
         Bukkit.getPluginManager().registerEvents(deathListener, this);
@@ -72,6 +76,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(spawnerControlListener, this);
         Bukkit.getPluginManager().registerEvents(villagerTradeManager, this);
         Bukkit.getPluginManager().registerEvents(oreControlListener, this);
+        Bukkit.getPluginManager().registerEvents(graveListener, this);
 
         // Register commands
         this.getCommand("vnstats").setExecutor(this);
@@ -95,6 +100,8 @@ public final class VnMineHardcore extends JavaPlugin {
         if (thirstManager != null) thirstManager.stop();
         if (disasterManager != null) disasterManager.stop();
         if (bossEventManager != null) bossEventManager.stop();
+        if (graveManager != null) graveManager.stop();
+        if (logManager != null) logManager.stop();
         getLogger().info("VnMineHardcore disabled.");
     }
 
@@ -329,4 +336,5 @@ public final class VnMineHardcore extends JavaPlugin {
     public DisasterManager getDisasterManager() { return disasterManager; }
     public DeathPenaltyManager getDeathPenaltyManager() { return deathPenaltyManager; }
     public BossEventManager getBossEventManager() { return bossEventManager; }
+    public GraveManager getGraveManager() { return graveManager; }
 }

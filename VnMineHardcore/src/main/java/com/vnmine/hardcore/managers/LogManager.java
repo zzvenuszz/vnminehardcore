@@ -1,7 +1,9 @@
 package com.vnmine.hardcore.managers;
 
 import com.vnmine.hardcore.VnMineHardcore;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.*;
 import java.nio.file.*;
@@ -14,6 +16,10 @@ public class LogManager {
     private final VnMineHardcore plugin;
     private final File dataFolder;
     private final Map<UUID, PlayerStats> playerStats = new ConcurrentHashMap<>();
+    private final File statsFile;
+    private final File statsBackupFile;
+    private boolean dirty = false; // Đánh dấu cần save
+    private BukkitRunnable saveTask;
 
     private static class PlayerStats {
         int deathCount = 0;
@@ -26,7 +32,10 @@ public class LogManager {
         this.plugin = plugin;
         this.dataFolder = new File(plugin.getDataFolder(), "logs");
         this.dataFolder.mkdirs();
+        this.statsFile = new File(dataFolder, "stats.yml");
+        this.statsBackupFile = new File(dataFolder, "stats.yml.bak");
         loadStats();
+        startSaveTask();
     }
 
     public void logDeath(Player player, String cause) {
@@ -44,7 +53,7 @@ public class LogManager {
         PlayerStats stats = playerStats.computeIfAbsent(player.getUniqueId(), k -> new PlayerStats());
         stats.deathCount++;
         stats.lastDeath = System.currentTimeMillis();
-        saveStats();
+        markDirty();
     }
 
     public void logBan(String playerName, String uuid, String ip, String reason) {
@@ -57,7 +66,7 @@ public class LogManager {
     public void logMobKill(Player player) {
         PlayerStats stats = playerStats.computeIfAbsent(player.getUniqueId(), k -> new PlayerStats());
         stats.mobKills++;
-        saveStats();
+        markDirty();
     }
 
     public void logDisaster(String disasterName) {
@@ -79,7 +88,7 @@ public class LogManager {
         if (stats != null) {
             stats.deathCount = 0;
             stats.lastDeath = 0;
-            saveStats();
+            markDirty();
             plugin.getLogger().info("[LogManager] Reset death count for UUID: " + uuid);
         } else {
             plugin.getLogger().warning("[LogManager] Cannot reset death count: no stats found for UUID: " + uuid);
@@ -110,6 +119,13 @@ public class LogManager {
             stats.firstJoin = System.currentTimeMillis();
             return stats;
         });
+        markDirty();
+    }
+
+    /**
+     * Lưu ngay lập tức (gọi khi plugin disable)
+     */
+    public void saveImmediately() {
         saveStats();
     }
 
@@ -126,55 +142,130 @@ public class LogManager {
         }
     }
 
-    private void saveStats() {
-        File statsFile = new File(dataFolder, "stats.yml");
-        try (PrintWriter writer = new PrintWriter(new FileWriter(statsFile))) {
-            for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
-                PlayerStats stats = entry.getValue();
-                writer.printf("%s: deaths=%d, firstJoin=%d, lastDeath=%d, mobKills=%d%n",
-                    entry.getKey().toString(),
-                    stats.deathCount,
-                    stats.firstJoin,
-                    stats.lastDeath,
-                    stats.mobKills);
+    /**
+     * Đánh dấu cần save, task định kỳ sẽ tự động lưu
+     */
+    private void markDirty() {
+        dirty = true;
+    }
+
+    /**
+     * Task lưu stats định kỳ mỗi 30 giây (chỉ lưu khi có thay đổi)
+     */
+    private void startSaveTask() {
+        saveTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (dirty) {
+                    saveStats();
+                    dirty = false;
+                }
             }
-        } catch (IOException e) {
-            plugin.getLogger().warning("Failed to save stats: " + e.getMessage());
+        };
+        saveTask.runTaskTimer(plugin, 600L, 600L); // 30 giây
+    }
+
+    public void stop() {
+        if (saveTask != null) {
+            saveTask.cancel();
+            saveTask = null;
+        }
+        // Lưu ngay khi stop
+        if (dirty) {
+            saveStats();
+            dirty = false;
         }
     }
 
-    private void loadStats() {
-        File statsFile = new File(dataFolder, "stats.yml");
-        if (!statsFile.exists()) return;
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(statsFile))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty()) continue;
-
-                String[] parts = line.split(": ");
-                if (parts.length < 2) continue;
-
-                UUID uuid = UUID.fromString(parts[0]);
-                String[] values = parts[1].split(", ");
-                PlayerStats stats = new PlayerStats();
-
-                for (String val : values) {
-                    String[] kv = val.split("=");
-                    if (kv.length == 2) {
-                        switch (kv[0]) {
-                            case "deaths" -> stats.deathCount = Integer.parseInt(kv[1]);
-                            case "firstJoin" -> stats.firstJoin = Long.parseLong(kv[1]);
-                            case "lastDeath" -> stats.lastDeath = Long.parseLong(kv[1]);
-                            case "mobKills" -> stats.mobKills = Integer.parseInt(kv[1]);
-                        }
-                    }
-                }
-                playerStats.put(uuid, stats);
+    /**
+     * Lưu stats dùng YamlConfiguration (atomic write)
+     * Tự động tạo backup trước khi ghi
+     */
+    private synchronized void saveStats() {
+        try {
+            // Backup file cũ nếu tồn tại
+            if (statsFile.exists()) {
+                Files.copy(statsFile.toPath(), statsBackupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
-        } catch (IOException | NumberFormatException e) {
-            plugin.getLogger().warning("Failed to load stats: " + e.getMessage());
+
+            YamlConfiguration yaml = new YamlConfiguration();
+            for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
+                String path = entry.getKey().toString();
+                PlayerStats stats = entry.getValue();
+                yaml.set(path + ".deaths", stats.deathCount);
+                yaml.set(path + ".firstJoin", stats.firstJoin);
+                yaml.set(path + ".lastDeath", stats.lastDeath);
+                yaml.set(path + ".mobKills", stats.mobKills);
+            }
+            yaml.save(statsFile);
+        } catch (Exception e) {
+            plugin.getLogger().warning("[LogManager] Failed to save stats: " + e.getMessage());
+            // Thử khôi phục từ backup
+            if (statsBackupFile.exists()) {
+                try {
+                    Files.copy(statsBackupFile.toPath(), statsFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    plugin.getLogger().info("[LogManager] Restored stats from backup file.");
+                } catch (IOException ex) {
+                    plugin.getLogger().warning("[LogManager] Could not restore from backup: " + ex.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Load stats từ file YAML
+     * Tự động thử load từ backup nếu file chính bị lỗi
+     */
+    private synchronized void loadStats() {
+        playerStats.clear();
+
+        // Thử load từ file chính trước
+        if (statsFile.exists()) {
+            if (!loadFromFile(statsFile)) {
+                // Nếu file chính lỗi, thử load từ backup
+                plugin.getLogger().warning("[LogManager] Main stats file corrupted, trying backup...");
+                if (statsBackupFile.exists()) {
+                    if (loadFromFile(statsBackupFile)) {
+                        plugin.getLogger().info("[LogManager] Successfully loaded stats from backup.");
+                    } else {
+                        plugin.getLogger().warning("[LogManager] Backup file also corrupted. Starting fresh.");
+                    }
+                } else {
+                    plugin.getLogger().warning("[LogManager] No backup found. Starting fresh.");
+                }
+            }
+        }
+
+        plugin.getLogger().info("[LogManager] Loaded stats for " + playerStats.size() + " players.");
+    }
+
+    /**
+     * Load stats từ một file cụ thể
+     */
+    private boolean loadFromFile(File file) {
+        try {
+            YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+            if (yaml.getKeys(false).isEmpty()) {
+                return false;
+            }
+            for (String uuidStr : yaml.getKeys(false)) {
+                try {
+                    UUID uuid = UUID.fromString(uuidStr);
+                    String path = uuidStr;
+                    PlayerStats stats = new PlayerStats();
+                    stats.deathCount = yaml.getInt(path + ".deaths", 0);
+                    stats.firstJoin = yaml.getLong(path + ".firstJoin", System.currentTimeMillis());
+                    stats.lastDeath = yaml.getLong(path + ".lastDeath", 0);
+                    stats.mobKills = yaml.getInt(path + ".mobKills", 0);
+                    playerStats.put(uuid, stats);
+                } catch (IllegalArgumentException e) {
+                    plugin.getLogger().warning("[LogManager] Invalid UUID in stats file: " + uuidStr);
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            plugin.getLogger().warning("[LogManager] Error loading stats from " + file.getName() + ": " + e.getMessage());
+            return false;
         }
     }
 }

@@ -3,10 +3,12 @@ com/vnmine/hardcore/listeners/OreControlListener.class
 com/vnmine/hardcore/managers/DisasterAction.class
 com/vnmine/hardcore/managers/VillagerDataManager.class
 com/vnmine/hardcore/managers/ThirstManager.class
+com/vnmine/hardcore/managers/GraveManager.class
 com/vnmine/hardcore/managers/BossEventManager$1.class
 com/vnmine/hardcore/managers/BossEventManager.class
 com/vnmine/hardcore/managers/DisasterAction$MobSpawnData.class
 com/vnmine/hardcore/managers/DisasterManager$6.class
+com/vnmine/hardcore/managers/GraveManager$GraveData.class
 com/vnmine/hardcore/listeners/HungerListener.class
 com/vnmine/hardcore/managers/ConfigManager$DisasterConfig.class
 com/vnmine/hardcore/managers/BossEventManager$4.class
@@ -18,6 +20,7 @@ com/vnmine/hardcore/listeners/DeathListener.class
 com/vnmine/hardcore/listeners/VillagerTradeManager$1.class
 com/vnmine/hardcore/managers/DisasterManager$7.class
 com/vnmine/hardcore/managers/VillagerDataManager$TradeEntry.class
+com/vnmine/hardcore/managers/GraveManager$GraveBlock.class
 com/vnmine/hardcore/managers/DisasterAction$ActionCondition.class
 com/vnmine/hardcore/managers/ConfigManager.class
 com/vnmine/hardcore/listeners/HungerListener$2.class
@@ -36,8 +39,11 @@ com/vnmine/hardcore/managers/LogManager$PlayerStats.class
 com/vnmine/hardcore/VnMineHardcore.class
 com/vnmine/hardcore/managers/DeathRenameManager.class
 com/vnmine/hardcore/listeners/WaterListener.class
+com/vnmine/hardcore/managers/LogManager$1.class
+com/vnmine/hardcore/listeners/DeathListener$2.class
 com/vnmine/hardcore/managers/DisasterManager.class
 com/vnmine/hardcore/managers/DisasterManager$1.class
+com/vnmine/hardcore/managers/GraveManager$1.class
 com/vnmine/hardcore/managers/DeathPenaltyManager$1.class
 com/vnmine/hardcore/listeners/HungerListener$1.class
 com/vnmine/hardcore/managers/LogManager.class
@@ -51,3 +57,4 @@ com/vnmine/hardcore/managers/BossEventManager$2.class
 com/vnmine/hardcore/listeners/EnvironmentListener$1.class
 com/vnmine/hardcore/managers/DisasterManager$5.class
 com/vnmine/hardcore/managers/DisasterAction$PotionEffectData.class
+com/vnmine/hardcore/listeners/GraveListener.class
