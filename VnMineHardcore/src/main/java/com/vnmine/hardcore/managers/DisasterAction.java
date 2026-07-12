@@ -51,7 +51,10 @@ public class DisasterAction {
 
         // === NEW WORLD ACTIONS ===
         WORLD_TIME,          // Đặt thời gian
-        WORLD_WEATHER        // Đặt thời tiết
+        WORLD_WEATHER,       // Đặt thời tiết
+
+        // === FIREBALL ACTIONS ===
+        FIREBALL_RAIN        // Mưa fireball từ trên trời
     }
 
     // ===== TARGET TYPES =====
@@ -65,6 +68,7 @@ public class DisasterAction {
         TREES,               // Block gỗ, lá cây
         BLOCKS,              // Block rắn bất kỳ
         SURFACE_BLOCKS,      // Block trên bề mặt
+        METAL_BLOCKS,        // Block kim loại (iron, gold, copper, netherite, lightning_rod)
         RANDOM_BLOCKS,       // Block ngẫu nhiên từ danh sách (format: random_blocks:MATERIAL1,MATERIAL2)
         RANDOM               // Random từ array target (format: random:target1,target2)
     }

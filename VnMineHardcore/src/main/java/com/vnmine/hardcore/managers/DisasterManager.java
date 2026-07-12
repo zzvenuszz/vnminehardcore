@@ -1020,6 +1020,75 @@ public class DisasterManager {
                 } catch (Exception ignored) {}
                 break;
             }
+
+            // ===== FIREBALL RAIN =====
+            case FIREBALL_RAIN: {
+                int count = getParamInt(action.params, "count-per-target", 3);
+                int radius = getParamInt(action.params, "radius", 20);
+                int fireballHeight = getParamInt(action.params, "fireball-height", 60);
+                double fireballSpeed = getParamDouble(action.params, "fireball-speed", 1.5);
+                String fireballType = (String) action.params.get("fireball-type");
+                boolean isLarge = "LARGE".equalsIgnoreCase(fireballType);
+                float explosionPower = (float) getParamDouble(action.params, "explosion-power", 3.0f);
+                boolean explosionFire = getParamBool(action.params, "explosion-fire", true);
+                boolean breakBlocks = getParamBool(action.params, "explosion-break-blocks", true);
+                int fireTicks = getParamInt(action.params, "fire-ticks", 100);
+                double damage = getParamDouble(action.params, "damage", 6.0);
+                int delayTicks = getParamInt(action.params, "delay-ticks", 20);
+
+                for (int i = 0; i < count; i++) {
+                    // Chọn vị trí rơi ngẫu nhiên xung quanh target
+                    Location impactLoc = getRandomLocationAround(targetLoc, radius);
+                    
+                    // Tạo vị trí spawn fireball trên cao, lệch góc để bay chéo xuống
+                    double angle = random.nextDouble() * Math.PI * 2;
+                    double horizOffset = 10 + random.nextDouble() * 20; // 10-30 blocks lệch ngang
+                    int spawnX = impactLoc.getBlockX() + (int)(Math.cos(angle) * horizOffset);
+                    int spawnZ = impactLoc.getBlockZ() + (int)(Math.sin(angle) * horizOffset);
+                    int spawnY = impactLoc.getBlockY() + fireballHeight;
+                    
+                    Location spawnLoc = new Location(targetLoc.getWorld(), spawnX + 0.5, spawnY, spawnZ + 0.5);
+                    
+                    // Tính vector vận tốc hướng từ spawn đến impact
+                    Vector velocity = new Vector(
+                        impactLoc.getX() - spawnLoc.getX(),
+                        impactLoc.getY() - spawnLoc.getY(),
+                        impactLoc.getZ() - spawnLoc.getZ()
+                    ).normalize().multiply(fireballSpeed);
+                    
+                    // Spawn fireball với delay để tạo hiệu ứng
+                    Location finalImpactLoc = impactLoc;
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                if (isLarge) {
+                                    // Large fireball (Ghast fireball) - có thể nổ khi va chạm
+                                    Fireball fireball = targetLoc.getWorld().spawn(spawnLoc, Fireball.class);
+                                    fireball.setVelocity(velocity);
+                                    fireball.setDirection(velocity);
+                                    fireball.setYield(explosionPower);
+                                    fireball.setIsIncendiary(explosionFire);
+                                    // Custom metadata để xử lý khi va chạm
+                                    // Dùng scheduler để kiểm tra và nổ khi fireball đến gần mặt đất
+                                    trackFireball(fireball, finalImpactLoc, explosionPower, explosionFire, breakBlocks, damage, fireTicks);
+                                } else {
+                                    // Small fireball (Blaze fireball)
+                                    SmallFireball fireball = targetLoc.getWorld().spawn(spawnLoc, SmallFireball.class);
+                                    fireball.setVelocity(velocity);
+                                    fireball.setDirection(velocity);
+                                    // SmallFireball tự động gây cháy khi va chạm
+                                    trackFireball(fireball, finalImpactLoc, explosionPower, explosionFire, breakBlocks, damage, fireTicks);
+                                }
+                            } catch (Exception e) {
+                                // Fallback: tạo explosion trực tiếp tại impact nếu không spawn được fireball
+                                targetLoc.getWorld().createExplosion(finalImpactLoc, explosionPower, explosionFire, breakBlocks);
+                            }
+                        }
+                    }.runTaskLater(plugin, (long) i * delayTicks);
+                }
+                break;
+            }
         }
     }
 
@@ -1313,6 +1382,41 @@ public class DisasterManager {
                         }
                     }
                 }
+            } else if (entityType.equals("metal_blocks")) {
+                // Metal blocks - khối kim loại (sét ưu tiên đánh vào)
+                Set<Material> METAL_MATERIALS = new HashSet<>(Arrays.asList(
+                    Material.IRON_BLOCK, Material.GOLD_BLOCK, Material.COPPER_BLOCK,
+                    Material.WAXED_COPPER_BLOCK, Material.EXPOSED_COPPER, Material.WEATHERED_COPPER,
+                    Material.OXIDIZED_COPPER, Material.WAXED_EXPOSED_COPPER,
+                    Material.WAXED_WEATHERED_COPPER, Material.WAXED_OXIDIZED_COPPER,
+                    Material.CUT_COPPER, Material.EXPOSED_CUT_COPPER,
+                    Material.WEATHERED_CUT_COPPER, Material.OXIDIZED_CUT_COPPER,
+                    Material.WAXED_CUT_COPPER, Material.WAXED_EXPOSED_CUT_COPPER,
+                    Material.WAXED_WEATHERED_CUT_COPPER, Material.WAXED_OXIDIZED_CUT_COPPER,
+                    Material.NETHERITE_BLOCK, Material.LIGHTNING_ROD,
+                    Material.IRON_ORE, Material.GOLD_ORE, Material.COPPER_ORE,
+                    Material.DEEPSLATE_IRON_ORE, Material.DEEPSLATE_GOLD_ORE, Material.DEEPSLATE_COPPER_ORE,
+                    Material.NETHER_GOLD_ORE, Material.RAW_IRON_BLOCK, Material.RAW_GOLD_BLOCK,
+                    Material.RAW_COPPER_BLOCK, Material.ANVIL, Material.CHIPPED_ANVIL,
+                    Material.DAMAGED_ANVIL, Material.CAULDRON, Material.HOPPER,
+                    Material.IRON_BARS, Material.IRON_DOOR, Material.IRON_TRAPDOOR,
+                    Material.LANTERN, Material.SOUL_LANTERN, Material.CHAIN
+                ));
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dy = -radius; dy <= radius; dy++) {
+                            for (int dz = -radius; dz <= radius; dz++) {
+                                Block b = p.getLocation().getBlock().getRelative(dx, dy, dz);
+                                if (METAL_MATERIALS.contains(b.getType())) {
+                                    // Bỏ qua block nằm trong safe zone
+                                    if (requireOutdoor && !ignoreSafeZone && isLocationSafe(b.getLocation())) continue;
+                                    result.add(b);
+                                }
+                            }
+                        }
+                    }
+                }
             } else if (entityType.equals("surface_blocks")) {
                 // Surface blocks
                 for (Player p : Bukkit.getOnlinePlayers()) {
@@ -1415,6 +1519,85 @@ public class DisasterManager {
         int z = center.getBlockZ() + random.nextInt(radius * 2) - radius;
         int y = center.getWorld().getHighestBlockYAt(x, z) + 1;
         return new Location(center.getWorld(), x, y, z);
+    }
+
+    /**
+     * Theo dõi fireball và kích nổ khi đến gần mặt đất
+     */
+    private void trackFireball(Projectile fireball, Location impactLoc, float explosionPower, boolean fire, boolean breakBlocks, double damage, int fireTicks) {
+        new BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                if (fireball.isDead() || !fireball.isValid()) {
+                    this.cancel();
+                    // Kích nổ tại vị trí hiện tại nếu fireball chết
+                    Location currentLoc = fireball.getLocation();
+                    currentLoc.getWorld().createExplosion(currentLoc, explosionPower, fire, breakBlocks);
+                    // Gây cháy khu vực
+                    if (fire) {
+                        igniteArea(currentLoc, 5, fireTicks);
+                    }
+                    // Gây damage cho entity gần đó
+                    damageEntitiesInRadius(currentLoc, damage, 6);
+                    return;
+                }
+                ticks++;
+                // Kiểm tra nếu fireball ở gần mặt đất (Y thấp) hoặc chạm block
+                Location loc = fireball.getLocation();
+                Block blockBelow = loc.getBlock().getRelative(0, -1, 0);
+                if (loc.getY() <= impactLoc.getY() + 3 || 
+                    blockBelow.getType() != Material.AIR || 
+                    loc.getBlock().getType() != Material.AIR) {
+                    this.cancel();
+                    // Kích nổ
+                    loc.getWorld().createExplosion(loc, explosionPower, fire, breakBlocks);
+                    // Gây cháy khu vực
+                    if (fire) {
+                        igniteArea(loc, 5, fireTicks);
+                    }
+                    // Gây damage cho entity gần đó
+                    damageEntitiesInRadius(loc, damage, 6);
+                    fireball.remove();
+                    return;
+                }
+                // Timeout sau 10 giây
+                if (ticks > 200) {
+                    this.cancel();
+                    fireball.remove();
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    /**
+     * Đốt cháy khu vực xung quanh
+     */
+    private void igniteArea(Location center, int radius, int fireTicks) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (random.nextDouble() > 0.3) continue; // 30% cơ hội đốt mỗi block
+                Block block = center.getBlock().getRelative(dx, 0, dz);
+                if (block.getType() == Material.AIR && block.getRelative(0, -1, 0).getType().isSolid()) {
+                    block.setType(Material.FIRE);
+                }
+            }
+        }
+    }
+
+    /**
+     * Gây damage cho entity trong bán kính
+     */
+    private void damageEntitiesInRadius(Location center, double damage, int radius) {
+        for (Entity e : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
+            if (e instanceof LivingEntity le && !(e instanceof Player)) {
+                double distance = le.getLocation().distance(center);
+                double dmg = damage * (1.0 - distance / radius);
+                if (dmg > 0) {
+                    le.damage(dmg);
+                }
+            }
+        }
     }
 
     private void spawnMobAt(Location location, String entityTypeStr, int radius, Map<?, ?> mobData) {

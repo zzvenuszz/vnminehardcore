@@ -8,6 +8,7 @@ com/vnmine/hardcore/managers/BossEventManager$1.class
 com/vnmine/hardcore/managers/BossEventManager.class
 com/vnmine/hardcore/managers/DisasterAction$MobSpawnData.class
 com/vnmine/hardcore/managers/DisasterManager$6.class
+com/vnmine/hardcore/managers/DisasterManager$9.class
 com/vnmine/hardcore/managers/GraveManager$GraveData.class
 com/vnmine/hardcore/listeners/HungerListener.class
 com/vnmine/hardcore/managers/ConfigManager$DisasterConfig.class
@@ -51,6 +52,7 @@ com/vnmine/hardcore/listeners/WorldInteractionListener.class
 com/vnmine/hardcore/managers/BanManager.class
 com/vnmine/hardcore/managers/DisasterAction$ActionType.class
 com/vnmine/hardcore/listeners/DeathListener$1.class
+com/vnmine/hardcore/managers/DisasterManager$8.class
 com/vnmine/hardcore/managers/ConfigManager$DropConfig.class
 com/vnmine/hardcore/managers/DisasterManager$2.class
 com/vnmine/hardcore/managers/BossEventManager$2.class

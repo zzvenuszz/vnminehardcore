@@ -2,7 +2,19 @@
 # [MEGA STORM] 🌊 SIÊU BÃO
 # ============================================================
 # [VI] Sấm sét, mưa axit, mù. Xảy ra ở Overworld.
+#      Sét ưu tiên: lightning_rod > kim loại > cây cối > player/mob
+#      An toàn khi ở trong nhà (có mái che).
 # [EN] Lightning, acid rain, fog. Occurs in Overworld.
+#      Lightning priority: lightning_rod > metal blocks > trees > player/mob
+#      Safe indoors (under a roof).
+# [VI] Cấu hình sét:
+#   - require-outdoor: true → chỉ sét đánh nơi không có mái che
+#   - explosion-fire: false → sét không gây cháy (siêu bão có mưa)
+#   - count-per-target: dùng random:metal_blocks,trees,player để chọn target ưu tiên
+# [EN] Lightning config:
+#   - require-outdoor: true → lightning only strikes outdoor areas
+#   - explosion-fire: false → lightning doesn't cause fire (rainy storm)
+#   - count-per-target: uses random:metal_blocks,trees,player for priority targeting
 
 disaster-id: mega-storm
 enabled: true
@@ -25,20 +37,34 @@ start-sound-volume: 1.0
 start-sound-pitch: 0.8
 
 actions:
+  # ===== 1. SÉT ĐÁNH (ƯU TIÊN KIM LOẠI & CÂY) =====
+  # [VI] Sét sẽ ưu tiên đánh vào:
+  #   1. Khối kim loại (iron_block, gold_block, copper_block, lightning_rod...)
+  #   2. Cây cối (logs, leaves)
+  #   3. Người chơi (nếu không có mục tiêu ưu tiên nào)
+  #   KHÔNG gây cháy (vì trời đang mưa)
+  # [EN] Lightning prioritizes:
+  #   1. Metal blocks (iron, gold, copper, lightning rod...)
+  #   2. Trees (logs, leaves)
+  #   3. Players (if no higher priority target found)
+  #   NO fire (it's raining)
   - type: lightning_strike
     condition:
       require-outdoor: true
       ignore-safe-zone: false
     targets:
-      player:
+      random:metal_blocks,trees,player:
         weight: 100
-    count-per-player: 1
-    radius: 5
+        radius: 15
+    count-per-target: 2
     explosion-power: 0
     explosion-fire: false
     explosion-break-blocks: false
-    delay-ticks: 0
+    damage-multiplier: 0.5
 
+  # ===== 2. SÁT THƯƠNG MƯA AXIT =====
+  # [VI] Mưa axit gây sát thương nhẹ cho người chơi ngoài trời
+  # [EN] Acid rain deals minor damage to outdoor players
   - type: damage
     condition:
       require-outdoor: true
@@ -49,23 +75,31 @@ actions:
     damage: 1.0
     ignore-armor: false
 
+  # ===== 3. HIỆU ỨNG MƯA AXIT =====
+  # [VI] Hiệu ứng phụ từ mưa axit: chậm và yếu đi
+  # [EN] Acid rain side effects: slowness and weakness
   - type: potion_effect
     condition:
-      require-outdoor: false
+      require-outdoor: true
       ignore-safe-zone: false
     targets:
-      all_players:
+      player:
         weight: 100
     effects:
       - type: SLOWNESS
         duration-ticks: 30
         amplifier: 1
+      - type: WEAKNESS
+        duration-ticks: 30
+        amplifier: 0
 
+  # ===== 4. THỜI TIẾT =====
   - type: set_weather
     storm: true
     thunder: true
     duration-ticks: 200000
 
+  # ===== 5. THÔNG BÁO =====
   - type: action_bar
     condition:
       require-outdoor: false

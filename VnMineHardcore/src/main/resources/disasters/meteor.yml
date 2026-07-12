@@ -1,8 +1,24 @@
 # ============================================================
 # [METEOR] ☄️ MƯA SAO BĂNG
 # ============================================================
-# [VI] Thiên thạch rơi, nổ. Xảy ra ở Overworld.
-# [EN] Meteors fall, explode. Occurs in Overworld.
+# [VI] Thiên thạch rơi, fireball bay chéo từ trời xuống, gây nổ và cháy.
+#      Xảy ra ở Overworld. An toàn khi ở trong nhà.
+# [EN] Meteors fall, fireballs fly diagonally from the sky, cause explosions and fire.
+#      Occurs in Overworld. Safe indoors.
+# [VI] Cấu hình fireball:
+#   - fireball-height: Độ cao spawn fireball (block)
+#   - fireball-speed: Tốc độ bay của fireball
+#   - fireball-type: SMALL (SmallFireball - Blaze) hoặc LARGE (Fireball - Ghast)
+#   - explosion-fire: true = gây cháy khi nổ
+#   - fire-ticks: Thời gian cháy kéo dài (ticks, 20 ticks = 1 giây)
+#   - damage: Sát thương lên entity trong bán kính
+# [EN] Fireball config:
+#   - fireball-height: Fireball spawn height (blocks)
+#   - fireball-speed: Fireball travel speed
+#   - fireball-type: SMALL (SmallFireball - Blaze) or LARGE (Fireball - Ghast)
+#   - explosion-fire: true = causes fire on explosion
+#   - fire-ticks: Fire duration (ticks, 20 ticks = 1 second)
+#   - damage: Damage to entities in radius
 
 disaster-id: meteor
 enabled: true
@@ -25,7 +41,32 @@ start-sound-volume: 1.0
 start-sound-pitch: 0.8
 
 actions:
-  - type: lightning_strike
+  # ===== 1. FIREBALL TỪ TRỜI RƠI XUỐNG =====
+  # [VI] Fireball bay chéo từ trên trời xuống, gây nổ + cháy khi va chạm
+  # [EN] Fireballs fly diagonally from the sky, causing explosion + fire on impact
+  - type: fireball_rain
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    count-per-target: 3
+    radius: 20
+    fireball-height: 60
+    fireball-speed: 1.5
+    fireball-type: SMALL
+    explosion-power: 3.0
+    explosion-fire: true
+    explosion-break-blocks: true
+    fire-ticks: 100
+    damage: 6.0
+    delay-ticks: 20
+
+  # ===== 2. NỔ MẶT ĐẤT =====
+  # [VI] Nổ bổ sung tại mặt đất xung quanh người chơi
+  # [EN] Additional explosions on the ground around players
+  - type: explosion
     condition:
       require-outdoor: true
       ignore-safe-zone: false
@@ -35,23 +76,10 @@ actions:
     count-per-player: 2
     radius: 15
     explosion-power: 3.0
-    explosion-fire: false
-    explosion-break-blocks: true
-    delay-ticks: 30
-
-  - type: explosion
-    condition:
-      require-outdoor: false
-      ignore-safe-zone: false
-    targets:
-      ground:
-        weight: 100
-    count-per-player: 2
-    radius: 15
-    explosion-power: 3.0
-    explosion-fire: false
+    explosion-fire: true
     explosion-break-blocks: true
 
+  # ===== 3. THÔNG BÁO =====
   - type: action_bar
     condition:
       require-outdoor: false

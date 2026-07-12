@@ -1,0 +1,74 @@
+# ============================================================
+# [GRAVE STRUCTURE] ⚰️ CẤU TRÚC MỘ / GRAVE STRUCTURE
+# ============================================================
+# [VI] File cấu hình cấu trúc ngôi mộ.
+#      Được tự động tạo từ file grave.litematic (Litematica schema).
+#      Người chơi có thể chỉnh sửa file này để thay đổi kiểu mộ.
+#
+#      CẤU TRÚC BLOCK:
+#      Mỗi block trong danh sách "blocks" có các trường sau:
+#        - dx, dy, dz: Tọa độ relative so với vị trí đặt mộ (vị trí chết)
+#        - material: Tên Material trong Bukkit/Spigot (viết HOA)
+#        - data: (TÙY CHỌN) Dữ liệu đặc biệt cho block:
+#            * player-head: đánh dấu vị trí đặt đầu người chơi
+#            * flower: đánh dấu vị trí đặt hoa trang trí
+#
+#      VÍ DỤ chỉnh sửa:
+#        - Đổi COBBLESTONE thành STONE: sửa material
+#        - Thêm/bớt block: thêm/xóa dòng trong danh sách
+#        - Đổi hoa: sửa material của block có data: flower
+#
+# [EN] Grave structure configuration file.
+#      Auto-generated from grave.litematic (Litematica schema).
+#      Players can edit this file to change the grave design.
+#
+#      BLOCK STRUCTURE:
+#      Each block in "blocks" list has the following fields:
+#        - dx, dy, dz: Relative coordinates to grave position (death location)
+#        - material: Bukkit/Spigot Material name (UPPERCASE)
+#        - data: (OPTIONAL) Special block data:
+#            * player-head: marks player head placement
+#            * flower: marks flower decoration placement
+#
+# ============================================================
+# [VI] Kích thước tổng thể mộ (tự động tính từ danh sách block)
+# [EN] Overall grave dimensions (auto-calculated from block list)
+dimensions:
+  width: 3     # [VI] Chiều rộng (trục x) / [EN] Width (x-axis)
+  height: 3    # [VI] Chiều cao (trục y) / [EN] Height (y-axis)
+  depth: 5     # [VI] Chiều sâu (trục z) / [EN] Depth (z-axis)
+
+# [VI] Danh sách các block tạo nên ngôi mộ
+#     LƯU Ý: Block PLAYER_HEAD sẽ tự động được đặt skin của người chết
+#     Hướng mộ: Hoa ở phía sau (dz=0), đầu người ở phía trước (dz=4)
+#     Người chơi nhìn từ hoa (dz=0) về phía đầu (dz=4)
+# [EN] List of blocks that make up the grave
+#     NOTE: PLAYER_HEAD blocks will automatically get the deceased's skin
+#     Grave orientation: Flowers at back (dz=0), player head at front (dz=4)
+#     Player looks from flowers (dz=0) towards the head (dz=4)
+blocks:
+  # Lớp dưới cùng (y=0) - Phần đế mộ
+  - {dx: 0, dy: 0, dz: 0, material: TORCHFLOWER, data: flower}
+  - {dx: 0, dy: 0, dz: 1, material: COBBLESTONE}
+  - {dx: 0, dy: 0, dz: 2, material: COBBLESTONE}
+  - {dx: 0, dy: 0, dz: 3, material: COBBLESTONE}
+  - {dx: 0, dy: 0, dz: 4, material: COBBLESTONE}
+  - {dx: 1, dy: 0, dz: 4, material: COBBLESTONE}
+  - {dx: 2, dy: 0, dz: 4, material: COBBLESTONE}
+  
+  # Lớp giữa (y=1) - Thân mộ + đầu người chơi
+  - {dx: 0, dy: 1, dz: 1, material: COBBLESTONE}
+  - {dx: 0, dy: 1, dz: 2, material: COBBLESTONE}
+  - {dx: 0, dy: 1, dz: 3, material: COBBLESTONE}
+  - {dx: 0, dy: 1, dz: 4, material: COBBLESTONE}
+  - {dx: 1, dy: 1, dz: 4, material: PLAYER_HEAD, data: player-head}
+  - {dx: 2, dy: 1, dz: 4, material: COBBLESTONE}
+  
+  # Lớp trên cùng (y=2) - Đỉnh bia mộ
+  - {dx: 0, dy: 2, dz: 0, material: TORCHFLOWER, data: flower}
+  - {dx: 0, dy: 2, dz: 1, material: COBBLESTONE}
+  - {dx: 0, dy: 2, dz: 2, material: COBBLESTONE}
+  - {dx: 0, dy: 2, dz: 3, material: COBBLESTONE}
+  - {dx: 0, dy: 2, dz: 4, material: COBBLESTONE}
+  - {dx: 1, dy: 2, dz: 4, material: COBBLESTONE}
+  - {dx: 2, dy: 2, dz: 4, material: COBBLESTONE}
