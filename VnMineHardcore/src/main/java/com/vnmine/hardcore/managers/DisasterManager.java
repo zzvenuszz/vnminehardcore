@@ -169,21 +169,30 @@ public class DisasterManager {
 
     public boolean isPlayerSafe(Player player) {
         if (!config.safeZoneEnabled) return false;
+        return isLocationSafe(player.getLocation());
+    }
+
+    /**
+     * Kiểm tra một vị trí bất kỳ có nằm trong khu vực an toàn (dưới mái che) không
+     * @param loc Vị trí cần kiểm tra
+     * @return true nếu vị trí nằm dưới mái che (có block rắn phía trên)
+     */
+    public boolean isLocationSafe(Location loc) {
+        if (!config.safeZoneEnabled) return false;
         
-        Location loc = player.getLocation();
         World world = loc.getWorld();
         if (world == null) return false;
         
-        int playerX = loc.getBlockX();
-        int playerY = loc.getBlockY();
-        int playerZ = loc.getBlockZ();
+        int blockX = loc.getBlockX();
+        int blockY = loc.getBlockY();
+        int blockZ = loc.getBlockZ();
         
         int checkRadius = config.safeZoneCheckRadius;
         
-        // Kiểm tra block ngay trên đầu player (từ đầu đến trần)
+        // Kiểm tra block ngay trên vị trí (từ vị trí đến trần)
         boolean hasSolidRoof = false;
-        for (int y = playerY + 1; y <= playerY + config.safeZoneRoofHeight; y++) {
-            Block blockAbove = world.getBlockAt(playerX, y, playerZ);
+        for (int y = blockY + 1; y <= blockY + config.safeZoneRoofHeight; y++) {
+            Block blockAbove = world.getBlockAt(blockX, y, blockZ);
             if (!TRANSPARENT_BLOCKS.contains(blockAbove.getType())) {
                 hasSolidRoof = true;
                 break;
@@ -198,7 +207,7 @@ public class DisasterManager {
             for (int dx = -checkRadius; dx <= checkRadius; dx++) {
                 for (int dz = -checkRadius; dz <= checkRadius; dz++) {
                     if (dx == 0 && dz == 0) continue;
-                    Block sideBlock = world.getBlockAt(playerX + dx, playerY, playerZ + dz);
+                    Block sideBlock = world.getBlockAt(blockX + dx, blockY, blockZ + dz);
                     if (!TRANSPARENT_BLOCKS.contains(sideBlock.getType())) {
                         solidWalls++;
                     }
@@ -1265,6 +1274,8 @@ public class DisasterManager {
                     if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
                     Block ground = p.getLocation().getBlock().getRelative(0, -1, 0);
                     if (ground.getType() != Material.AIR && ground.getType() != Material.WATER && ground.getType() != Material.LAVA) {
+                        // Bỏ qua block nằm trong safe zone
+                        if (requireOutdoor && !ignoreSafeZone && isLocationSafe(ground.getLocation())) continue;
                         result.add(ground);
                     }
                 }
@@ -1277,6 +1288,8 @@ public class DisasterManager {
                             for (int dz = -radius; dz <= radius; dz++) {
                                 Block b = p.getLocation().getBlock().getRelative(dx, dy, dz);
                                 if (TREE_MATERIALS.contains(b.getType())) {
+                                    // Bỏ qua block nằm trong safe zone
+                                    if (requireOutdoor && !ignoreSafeZone && isLocationSafe(b.getLocation())) continue;
                                     result.add(b);
                                 }
                             }
@@ -1292,6 +1305,8 @@ public class DisasterManager {
                             for (int dz = -radius; dz <= radius; dz++) {
                                 Block b = p.getLocation().getBlock().getRelative(dx, dy, dz);
                                 if (!TRANSPARENT_BLOCKS.contains(b.getType()) && b.getType().isSolid()) {
+                                    // Bỏ qua block nằm trong safe zone
+                                    if (requireOutdoor && !ignoreSafeZone && isLocationSafe(b.getLocation())) continue;
                                     result.add(b);
                                 }
                             }
@@ -1306,6 +1321,8 @@ public class DisasterManager {
                     int highestY = loc.getWorld().getHighestBlockYAt(loc.getBlockX(), loc.getBlockZ());
                     Block surface = loc.getWorld().getBlockAt(loc.getBlockX(), highestY, loc.getBlockZ());
                     if (!TRANSPARENT_BLOCKS.contains(surface.getType())) {
+                        // Bỏ qua block nằm trong safe zone
+                        if (requireOutdoor && !ignoreSafeZone && isLocationSafe(surface.getLocation())) continue;
                         result.add(surface);
                     }
                 }
@@ -1327,6 +1344,8 @@ public class DisasterManager {
                                 for (int dz = -radius; dz <= radius; dz++) {
                                     Block b = p.getLocation().getBlock().getRelative(dx, dy, dz);
                                     if (targetMaterials.contains(b.getType())) {
+                                        // Bỏ qua block nằm trong safe zone
+                                        if (requireOutdoor && !ignoreSafeZone && isLocationSafe(b.getLocation())) continue;
                                         result.add(b);
                                     }
                                 }
