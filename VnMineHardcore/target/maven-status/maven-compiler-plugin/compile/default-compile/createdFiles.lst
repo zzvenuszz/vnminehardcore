@@ -24,6 +24,7 @@ com/vnmine/hardcore/listeners/HungerListener$2.class
 com/vnmine/hardcore/managers/DisasterAction$ActionTarget.class
 com/vnmine/hardcore/listeners/CombatListener$1.class
 com/vnmine/hardcore/listeners/SpawnerControlListener.class
+com/vnmine/hardcore/managers/DisasterAction$TargetType.class
 com/vnmine/hardcore/listeners/WaterListener$2.class
 com/vnmine/hardcore/managers/BossEventManager$3.class
 com/vnmine/hardcore/listeners/CombatListener.class

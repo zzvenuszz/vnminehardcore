@@ -1,8 +1,10 @@
 # ============================================================
 # [TORNADO] 🌪️ LỐC XOÁY
 # ============================================================
-# [VI] Nhấc bổng người chơi, phá hủy khối.
-# [EN] Lifts players, destroys blocks.
+# [VI] Nhấc bổng người chơi, sinh vật, và block lên không trung.
+#      Hỗ trợ multi-target và chain-actions.
+# [EN] Lifts players, mobs, and blocks into the air.
+#      Supports multi-target and chain-actions.
 
 disaster-id: tornado
 enabled: true
@@ -25,6 +27,9 @@ start-sound-volume: 1.0
 start-sound-pitch: 0.8
 
 actions:
+  # ===== 1. CUỐN PLAYER LÊN CAO =====
+  # [VI] Đẩy người chơi lên không trung kèm sát thương nhẹ
+  # [EN] Launches players into the air with minor damage
   - type: velocity
     condition:
       require-outdoor: true
@@ -32,10 +37,122 @@ actions:
     targets:
       player:
         weight: 100
-    velocity-y: 1.5
+        radius: 20
+    velocity-y: 2.5
+    velocity-x-range: -1.5-1.5
+    velocity-z-range: -1.5-1.5
+    chain-actions:
+      - type: damage
+        damage: 1.0
+        radius: 3
+        ignore-armor: true
+
+  # ===== 2. CUỐN SINH VẬT LÊN CAO =====
+  # [VI] Cuốn cả sinh vật thân thiện và thù địch lên
+  # [EN] Lifts both friendly and hostile mobs
+  - type: velocity
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      friendly_mobs:
+        weight: 50
+        radius: 15
+      hostile_mobs:
+        weight: 30
+        radius: 12
+    velocity-y: 2.0
     velocity-x-range: -1.0-1.0
     velocity-z-range: -1.0-1.0
 
+  # ===== 3. NHẤC BLOCK MẶT ĐẤT LÊN =====
+  # [VI] Nhấc block dưới mặt đất và cây cối lên không trung
+  #      Khi rơi xuống gây sát thương
+  # [EN] Lifts ground blocks and trees into the air
+  #      Deals damage when they land
+  - type: block_velocity
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      ground:
+        weight: 100
+        radius: 5
+      trees:
+        weight: 70
+        radius: 8
+    velocity-y: 3.0
+    damage-on-land: true
+    damage-amount: 4.0
+    replace-with-air: true
+    count-per-target: 3
+    chain-actions:
+      - type: falling_block
+        damage-on-land: true
+        damage-amount: 4.0
+        replace-with-air: true
+
+  # ===== 4. SÉT ĐÁNH VÀO BLOCK SẮT (WEIGHT CAO) VÀ CÂY CỐI =====
+  # [VI] Sét đánh ưu tiên vào block sắt, sau đó là cây cối
+  #      Kèm nổ nhẹ và đốt cháy xung quanh
+  # [EN] Lightning strikes iron blocks (high weight) and trees
+  #      With small explosion and fire
+  - type: lightning_strike
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      random_blocks:IRON_BLOCK,IRON_ORE,DEEPSLATE_IRON_ORE:
+        weight: 100
+        radius: 30
+      trees:
+        weight: 60
+        radius: 20
+      player:
+        weight: 10
+        radius: 15
+    count-per-target: 1
+    damage-multiplier: 2.0
+    explosion-power: 1.5
+    explosion-fire: true
+    explosion-break-blocks: false
+    chain-actions:
+      - type: explosion
+        power: 1.5
+        fire: true
+        break-blocks: false
+      - type: set_fire
+        fire-ticks: 100
+        radius: 4
+      - type: damage
+        damage: 8.0
+        radius: 5
+        ignore-armor: false
+      - type: potion_effect
+        radius: 5
+        effects:
+          - type: SLOWNESS
+            duration-ticks: 200
+            amplifier: 1
+          - type: WEAKNESS
+            duration-ticks: 200
+            amplifier: 0
+
+  # ===== 5. GÂY SÁT THƯƠNG CHO SINH VẬT XUNG QUANH =====
+  # [VI] Gây sát thương cho tất cả sinh vật trong bán kính lốc xoáy
+  # [EN] Damages all mobs within tornado radius
+  - type: damage
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      all_mobs:
+        weight: 100
+        radius: 20
+    damage: 2.0
+    ignore-armor: false
+
+  # ===== 6. THÔNG BÁO =====
   - type: action_bar
     condition:
       require-outdoor: false
@@ -48,3 +165,4 @@ actions:
 on-end:
   - type: broadcast
     message: "§a🌪️ Lốc xoáy đã tan."
+  - type: clear_weather

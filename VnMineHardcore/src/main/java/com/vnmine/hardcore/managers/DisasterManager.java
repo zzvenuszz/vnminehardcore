@@ -5,6 +5,7 @@ import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -14,6 +15,7 @@ import org.bukkit.util.Vector;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 public class DisasterManager {
 
@@ -108,6 +110,37 @@ public class DisasterManager {
         Material.MEDIUM_AMETHYST_BUD, Material.SMALL_AMETHYST_BUD,
         Material.POINTED_DRIPSTONE, Material.BIG_DRIPLEAF_STEM,
         Material.POWDER_SNOW, Material.BUBBLE_COLUMN
+    ));
+
+    // Danh sách block được coi là "cây cối" (trees)
+    private static final Set<Material> TREE_MATERIALS = new HashSet<>(Arrays.asList(
+        Material.OAK_LOG, Material.SPRUCE_LOG, Material.BIRCH_LOG,
+        Material.JUNGLE_LOG, Material.ACACIA_LOG, Material.DARK_OAK_LOG,
+        Material.MANGROVE_LOG, Material.CHERRY_LOG,
+        Material.OAK_WOOD, Material.SPRUCE_WOOD, Material.BIRCH_WOOD,
+        Material.JUNGLE_WOOD, Material.ACACIA_WOOD, Material.DARK_OAK_WOOD,
+        Material.MANGROVE_WOOD, Material.CHERRY_WOOD,
+        Material.STRIPPED_OAK_LOG, Material.STRIPPED_SPRUCE_LOG,
+        Material.STRIPPED_BIRCH_LOG, Material.STRIPPED_JUNGLE_LOG,
+        Material.STRIPPED_ACACIA_LOG, Material.STRIPPED_DARK_OAK_LOG,
+        Material.STRIPPED_MANGROVE_LOG, Material.STRIPPED_CHERRY_LOG,
+        Material.OAK_LEAVES, Material.SPRUCE_LEAVES, Material.BIRCH_LEAVES,
+        Material.JUNGLE_LEAVES, Material.ACACIA_LEAVES, Material.DARK_OAK_LEAVES,
+        Material.MANGROVE_LEAVES, Material.CHERRY_LEAVES,
+        Material.AZALEA_LEAVES, Material.FLOWERING_AZALEA_LEAVES,
+        Material.MANGROVE_ROOTS, Material.MUDDY_MANGROVE_ROOTS
+    ));
+
+    // Danh sách friendly mobs
+    private static final Set<Class<? extends Entity>> FRIENDLY_MOB_CLASSES = new HashSet<>(Arrays.asList(
+        Cow.class, Sheep.class, Pig.class, Chicken.class, Rabbit.class,
+        Horse.class, Donkey.class, Mule.class, Llama.class, TraderLlama.class,
+        Wolf.class, Cat.class, Ocelot.class, Parrot.class,
+        Villager.class, WanderingTrader.class, IronGolem.class, Snowman.class,
+        Bee.class, Fox.class, Panda.class, PolarBear.class,
+        Turtle.class, Dolphin.class, Squid.class, GlowSquid.class,
+        Allay.class, Axolotl.class, Camel.class, Frog.class, Goat.class, Sniffer.class,
+        Armadillo.class, Bogged.class
     ));
 
     public DisasterManager(VnMineHardcore plugin, ConfigManager config) {
@@ -308,8 +341,6 @@ public class DisasterManager {
      */
     private boolean canDisasterHappen(String disasterId, ConfigManager.DisasterConfig dc) {
         // Kiểm tra world conditions từ file YAML
-        // Đọc file disaster để lấy conditions (tạm thời dùng logic cũ)
-        // Conditions: only-night, only-day, worlds
         boolean isNight = Bukkit.getWorlds().get(0).getTime() > 13000;
         
         // Kiểm tra có player trong dimension phù hợp không
@@ -468,29 +499,57 @@ public class DisasterManager {
         }
     }
 
+    /**
+     * Thực thi một action và chain-actions của nó
+     */
     private void executeSingleAction(DisasterAction action, ConfigManager.DisasterConfig dc) {
-        // Determine which players are affected based on conditions and targets
-        List<Player> affectedPlayers = getAffectedPlayers(action);
+        // Lấy danh sách targets dựa trên action targets
+        List<Object> targets = getAffectedTargets(action);
+
+        if (targets.isEmpty()) return;
+
+        // Thực thi action chính trên mỗi target
+        for (Object target : targets) {
+            executeActionOnTarget(action, target);
+        }
+
+        // Thực thi chain-actions nếu có
+        if (!action.chainActions.isEmpty()) {
+            for (Object target : targets) {
+                for (DisasterAction chainAction : action.chainActions) {
+                    // Chain action thực thi trên vị trí của target chính
+                    Location chainLocation = getTargetLocation(target);
+                    if (chainLocation != null) {
+                        executeChainActionAt(chainAction, chainLocation, target);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Thực thi action trên một target cụ thể
+     */
+    @SuppressWarnings("unchecked")
+    private void executeActionOnTarget(DisasterAction action, Object target) {
+        Location targetLoc = getTargetLocation(target);
+        if (targetLoc == null) return;
 
         switch (action.type) {
+            // ===== CORE ACTIONS =====
             case DAMAGE: {
                 double damage = getParamDouble(action.params, "damage", 2.0);
                 boolean ignoreArmor = getParamBool(action.params, "ignore-armor", false);
-                for (Player p : affectedPlayers) {
-                    if (ignoreArmor) {
-                        p.damage(damage);
-                    } else {
-                        p.damage(damage);
-                    }
+                if (target instanceof LivingEntity le) {
+                    le.damage(damage);
                 }
                 break;
             }
 
             case POTION_EFFECT: {
-                // Parse effects list from params
                 List<Map<?, ?>> effectsList = (List<Map<?, ?>>) action.params.get("effects");
                 if (effectsList == null) break;
-                for (Player p : affectedPlayers) {
+                if (target instanceof LivingEntity le) {
                     for (Map<?, ?> effectMap : effectsList) {
                         String effectType = (String) effectMap.get("type");
                         int duration = toInt(effectMap.get("duration-ticks"), 100);
@@ -499,7 +558,7 @@ public class DisasterManager {
                         try {
                             PotionEffectType pet = PotionEffectType.getByName(effectType.toUpperCase());
                             if (pet != null) {
-                                p.addPotionEffect(new PotionEffect(pet, duration, amplifier, false, false));
+                                le.addPotionEffect(new PotionEffect(pet, duration, amplifier, false, false));
                             }
                         } catch (Exception ignored) {}
                     }
@@ -510,7 +569,7 @@ public class DisasterManager {
             case SPAWN_MOBS: {
                 Map<?, ?> mobsMap = (Map<?, ?>) action.params.get("mobs");
                 if (mobsMap == null) break;
-                int countPerPlayer = getParamInt(action.params, "count-per-player", 1);
+                int countPerTarget = getParamInt(action.params, "count-per-target", 1);
                 int radius = getParamInt(action.params, "radius", 10);
 
                 // Tính tổng weight
@@ -523,18 +582,15 @@ public class DisasterManager {
                     totalWeight += toInt(mobData.get("weight"), 100);
                 }
 
-                for (Player p : affectedPlayers) {
-                    for (int i = 0; i < countPerPlayer; i++) {
-                        if (totalWeight <= 0) break;
-                        // Weighted random chọn mob
-                        int roll = random.nextInt(totalWeight);
-                        int cum = 0;
-                        for (Map.Entry<String, Map<?, ?>> entry : mobEntries.entrySet()) {
-                            cum += toInt(entry.getValue().get("weight"), 100);
-                            if (roll < cum) {
-                                spawnMobNear(p, entry.getKey(), radius, entry.getValue());
-                                break;
-                            }
+                for (int i = 0; i < countPerTarget; i++) {
+                    if (totalWeight <= 0) break;
+                    int roll = random.nextInt(totalWeight);
+                    int cum = 0;
+                    for (Map.Entry<String, Map<?, ?>> entry : mobEntries.entrySet()) {
+                        cum += toInt(entry.getValue().get("weight"), 100);
+                        if (roll < cum) {
+                            spawnMobAt(targetLoc, entry.getKey(), radius, entry.getValue());
+                            break;
                         }
                     }
                 }
@@ -542,73 +598,73 @@ public class DisasterManager {
             }
 
             case LIGHTNING_STRIKE: {
-                int count = getParamInt(action.params, "count-per-player", 1);
+                int count = getParamInt(action.params, "count-per-target", 1);
                 int radius = getParamInt(action.params, "radius", 15);
-                float explosionPower = (float) getParamDouble(action.params, "explosion-power", 3.0);
+                float explosionPower = (float) getParamDouble(action.params, "explosion-power", 3.0f);
                 boolean fire = getParamBool(action.params, "explosion-fire", false);
                 boolean breakBlocks = getParamBool(action.params, "explosion-break-blocks", true);
                 int delayTicks = getParamInt(action.params, "delay-ticks", 0);
+                double damageMultiplier = getParamDouble(action.params, "damage-multiplier", 1.0);
 
-                for (Player p : affectedPlayers) {
-                    for (int i = 0; i < count; i++) {
-                        Location targetLoc = getRandomLocationAround(p, radius);
-                        if (delayTicks > 0) {
-                            Location finalTarget = targetLoc;
-                            new BukkitRunnable() {
-                                @Override
-                                public void run() {
-                                    strikeLightningAt(finalTarget, explosionPower, fire, breakBlocks, affectedPlayers);
-                                }
-                            }.runTaskLater(plugin, delayTicks);
-                        } else {
-                            strikeLightningAt(targetLoc, explosionPower, fire, breakBlocks, affectedPlayers);
-                        }
+                for (int i = 0; i < count; i++) {
+                    Location strikeLoc = getRandomLocationAround(targetLoc, radius);
+                    if (delayTicks > 0) {
+                        Location finalTarget = strikeLoc;
+                        new BukkitRunnable() {
+                            @Override
+                            public void run() {
+                                strikeLightningAt(finalTarget, explosionPower, fire, breakBlocks, damageMultiplier);
+                            }
+                        }.runTaskLater(plugin, delayTicks);
+                    } else {
+                        strikeLightningAt(strikeLoc, explosionPower, fire, breakBlocks, damageMultiplier);
                     }
                 }
                 break;
             }
 
             case EXPLOSION: {
-                int count = getParamInt(action.params, "count-per-player", 1);
+                int count = getParamInt(action.params, "count-per-target", 1);
                 int radius = getParamInt(action.params, "radius", 15);
-                float power = (float) getParamDouble(action.params, "explosion-power", 3.0);
+                float power = (float) getParamDouble(action.params, "explosion-power", 3.0f);
                 boolean fire = getParamBool(action.params, "explosion-fire", false);
                 boolean breakBlocks = getParamBool(action.params, "explosion-break-blocks", true);
 
-                for (Player p : affectedPlayers) {
-                    for (int i = 0; i < count; i++) {
-                        Location targetLoc = getRandomLocationAround(p, radius);
-                        p.getWorld().createExplosion(targetLoc, power, fire, breakBlocks);
-                    }
+                for (int i = 0; i < count; i++) {
+                    Location explLoc = getRandomLocationAround(targetLoc, radius);
+                    targetLoc.getWorld().createExplosion(explLoc, power, fire, breakBlocks);
                 }
                 break;
             }
 
             case SET_FIRE: {
                 int fireTicks = getParamInt(action.params, "fire-ticks", 100);
-                for (Player p : affectedPlayers) {
-                    p.setFireTicks(fireTicks);
+                if (target instanceof LivingEntity le) {
+                    le.setFireTicks(fireTicks);
+                } else if (target instanceof Block block) {
+                    // Đốt block (nếu là block cháy được)
+                    if (block.getType() == Material.AIR) {
+                        block.setType(Material.FIRE);
+                    }
                 }
                 break;
             }
 
             case PLACE_BLOCK: {
                 String blockType = (String) action.params.get("block-type");
-                int count = getParamInt(action.params, "count-per-player", 3);
+                int count = getParamInt(action.params, "count-per-target", 3);
                 int radius = getParamInt(action.params, "radius", 10);
                 int placeHeight = getParamInt(action.params, "place-height", 1);
                 if (blockType == null) break;
                 Material material;
                 try { material = Material.valueOf(blockType.toUpperCase()); } catch (Exception e) { break; }
 
-                for (Player p : affectedPlayers) {
-                    for (int i = 0; i < count; i++) {
-                        Location loc = getRandomLocationAround(p, radius);
-                        for (int dy = 0; dy < placeHeight; dy++) {
-                            Location blockLoc = loc.clone().add(0, dy, 0);
-                            if (blockLoc.getBlock().getType() == Material.AIR) {
-                                blockLoc.getBlock().setType(material);
-                            }
+                for (int i = 0; i < count; i++) {
+                    Location loc = getRandomLocationAround(targetLoc, radius);
+                    for (int dy = 0; dy < placeHeight; dy++) {
+                        Location blockLoc = loc.clone().add(0, dy, 0);
+                        if (blockLoc.getBlock().getType() == Material.AIR) {
+                            blockLoc.getBlock().setType(material);
                         }
                     }
                 }
@@ -620,26 +676,23 @@ public class DisasterManager {
                 int minY = getParamInt(action.params, "min-y", 30);
                 int blockFallChance = getParamInt(action.params, "block-fall-chance", 30);
                 double resistanceFactor = getParamDouble(action.params, "blast-resistance-factor", 0.1);
-                int blocksPerPlayer = getParamInt(action.params, "blocks-per-player", 5);
+                int blocksPerTarget = getParamInt(action.params, "blocks-per-target", 5);
 
-                for (Player p : affectedPlayers) {
-                    Location l = p.getLocation();
-                    for (int i = 0; i < blocksPerPlayer; i++) {
-                        int bx = l.getBlockX() + random.nextInt(radius * 2) - radius;
-                        int bz = l.getBlockZ() + random.nextInt(radius * 2) - radius;
-                        int by = minY + random.nextInt(60);
-                        Block block = new Location(p.getWorld(), bx, by, bz).getBlock();
-                        Material bt = block.getType();
-                        if (bt == Material.AIR || bt == Material.WATER || bt == Material.LAVA || bt == Material.BEDROCK) continue;
+                for (int i = 0; i < blocksPerTarget; i++) {
+                    int bx = targetLoc.getBlockX() + random.nextInt(radius * 2) - radius;
+                    int bz = targetLoc.getBlockZ() + random.nextInt(radius * 2) - radius;
+                    int by = minY + random.nextInt(60);
+                    Block block = new Location(targetLoc.getWorld(), bx, by, bz).getBlock();
+                    Material bt = block.getType();
+                    if (bt == Material.AIR || bt == Material.WATER || bt == Material.LAVA || bt == Material.BEDROCK) continue;
 
-                        double blastRes = bt.getBlastResistance();
-                        double fallProb = blockFallChance / (1.0 + blastRes * resistanceFactor);
-                        if (random.nextDouble() * 100 < fallProb) {
-                            FallingBlock fb = p.getWorld().spawnFallingBlock(block.getLocation().add(0.5, 0, 0.5), block.getBlockData());
-                            fb.setDropItem(true);
-                            fb.setHurtEntities(true);
-                            block.setType(Material.AIR);
-                        }
+                    double blastRes = bt.getBlastResistance();
+                    double fallProb = blockFallChance / (1.0 + blastRes * resistanceFactor);
+                    if (random.nextDouble() * 100 < fallProb) {
+                        FallingBlock fb = targetLoc.getWorld().spawnFallingBlock(block.getLocation().add(0.5, 0, 0.5), block.getBlockData());
+                        fb.setDropItem(true);
+                        fb.setHurtEntities(true);
+                        block.setType(Material.AIR);
                     }
                 }
                 break;
@@ -650,8 +703,8 @@ public class DisasterManager {
                 String xRange = (String) action.params.get("velocity-x-range");
                 String zRange = (String) action.params.get("velocity-z-range");
 
-                for (Player p : affectedPlayers) {
-                    Vector v = p.getVelocity();
+                if (target instanceof LivingEntity le) {
+                    Vector v = le.getVelocity();
                     v.setY(v.getY() + velY);
                     if (xRange != null) {
                         String[] parts = xRange.split("-");
@@ -669,13 +722,14 @@ public class DisasterManager {
                     } else {
                         v.setZ(v.getZ() + (random.nextDouble() - 0.5) * 2);
                     }
-                    p.setVelocity(v);
-                    p.setFallDistance(0);
+                    le.setVelocity(v);
+                    le.setFallDistance(0);
                 }
                 break;
             }
 
-            case SET_TIME: {
+            case SET_TIME:
+            case WORLD_TIME: {
                 int time = getParamInt(action.params, "time", 1000);
                 for (World w : Bukkit.getWorlds()) {
                     w.setTime(time);
@@ -683,7 +737,8 @@ public class DisasterManager {
                 break;
             }
 
-            case SET_WEATHER: {
+            case SET_WEATHER:
+            case WORLD_WEATHER: {
                 boolean storm = getParamBool(action.params, "storm", false);
                 boolean thunder = getParamBool(action.params, "thunder", false);
                 int durationTicks = getParamInt(action.params, "duration-ticks", 200000);
@@ -723,8 +778,8 @@ public class DisasterManager {
 
             case TELEPORT_RANDOM: {
                 int radius = getParamInt(action.params, "radius", 30);
-                for (Player p : affectedPlayers) {
-                    Location randomLoc = getRandomLocationAround(p, radius);
+                if (target instanceof Player p) {
+                    Location randomLoc = getRandomLocationAround(p.getLocation(), radius);
                     randomLoc.setY(p.getWorld().getHighestBlockYAt(randomLoc) + 1);
                     p.teleport(randomLoc);
                 }
@@ -744,66 +799,613 @@ public class DisasterManager {
                 } catch (Exception ignored) {}
                 break;
             }
+
+            // ===== NEW BLOCK ACTIONS =====
+            case BLOCK_VELOCITY: {
+                double velY = getParamDouble(action.params, "velocity-y", 2.0);
+                boolean damageOnLand = getParamBool(action.params, "damage-on-land", true);
+                double damageAmount = getParamDouble(action.params, "damage-amount", 4.0);
+                boolean replaceWithAir = getParamBool(action.params, "replace-with-air", true);
+
+                if (target instanceof Block block) {
+                    Material bt = block.getType();
+                    if (bt == Material.AIR || bt == Material.WATER || bt == Material.LAVA || bt == Material.BEDROCK) break;
+                    
+                    FallingBlock fb = targetLoc.getWorld().spawnFallingBlock(
+                        block.getLocation().add(0.5, 0, 0.5), block.getBlockData());
+                    fb.setDropItem(true);
+                    fb.setHurtEntities(damageOnLand);
+                    if (replaceWithAir) {
+                        block.setType(Material.AIR);
+                    }
+                    // Đẩy block lên
+                    fb.setVelocity(new Vector(
+                        (random.nextDouble() - 0.5) * 2,
+                        velY,
+                        (random.nextDouble() - 0.5) * 2
+                    ));
+                }
+                break;
+            }
+
+            case BLOCK_EXPLOSION: {
+                int radius = getParamInt(action.params, "radius", 5);
+                float power = (float) getParamDouble(action.params, "power", 2.0f);
+                boolean dropItems = getParamBool(action.params, "drop-items", true);
+
+                if (target instanceof Block block) {
+                    // Phá hủy block dạng nổ
+                    block.getWorld().createExplosion(block.getLocation(), power, false, dropItems);
+                } else {
+                    // Nổ tại vị trí target
+                    targetLoc.getWorld().createExplosion(targetLoc, power, false, dropItems);
+                }
+                break;
+            }
+
+            case BLOCK_REPLACE: {
+                String fromMaterial = (String) action.params.get("from-material");
+                String toMaterial = (String) action.params.get("to-material");
+                int replaceRadius = getParamInt(action.params, "radius", 3);
+                if (fromMaterial == null || toMaterial == null) break;
+                
+                Material fromMat;
+                Material toMat;
+                try {
+                    fromMat = Material.valueOf(fromMaterial.toUpperCase());
+                    toMat = Material.valueOf(toMaterial.toUpperCase());
+                } catch (Exception e) { break; }
+
+                for (int dx = -replaceRadius; dx <= replaceRadius; dx++) {
+                    for (int dy = -replaceRadius; dy <= replaceRadius; dy++) {
+                        for (int dz = -replaceRadius; dz <= replaceRadius; dz++) {
+                            Block b = targetLoc.getBlock().getRelative(dx, dy, dz);
+                            if (b.getType() == fromMat) {
+                                b.setType(toMat);
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+            case BLOCK_IGNITE: {
+                int igniteRadius = getParamInt(action.params, "radius", 3);
+                int fireTicks = getParamInt(action.params, "fire-ticks", 100);
+
+                for (int dx = -igniteRadius; dx <= igniteRadius; dx++) {
+                    for (int dy = -igniteRadius; dy <= igniteRadius; dy++) {
+                        for (int dz = -igniteRadius; dz <= igniteRadius; dz++) {
+                            Block b = targetLoc.getBlock().getRelative(dx, dy, dz);
+                            if (b.getType() == Material.AIR && b.getRelative(0, -1, 0).getType().isSolid()) {
+                                b.setType(Material.FIRE);
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+            case BLOCK_LIQUID: {
+                String liquidType = (String) action.params.get("liquid-type");
+                int liquidRadius = getParamInt(action.params, "radius", 3);
+                if (liquidType == null) break;
+                
+                Material liquidMat;
+                try {
+                    liquidMat = Material.valueOf(liquidType.toUpperCase());
+                } catch (Exception e) { break; }
+                
+                if (liquidMat != Material.WATER && liquidMat != Material.LAVA) break;
+
+                for (int dx = -liquidRadius; dx <= liquidRadius; dx++) {
+                    for (int dy = -liquidRadius; dy <= liquidRadius; dy++) {
+                        for (int dz = -liquidRadius; dz <= liquidRadius; dz++) {
+                            Block b = targetLoc.getBlock().getRelative(dx, dy, dz);
+                            if (b.getType() == Material.AIR) {
+                                b.setType(liquidMat);
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+            case BLOCK_FERTILIZE: {
+                int fertilizeRadius = getParamInt(action.params, "radius", 5);
+                double bonemealChance = getParamDouble(action.params, "bonemeal-chance", 0.3);
+
+                for (int dx = -fertilizeRadius; dx <= fertilizeRadius; dx++) {
+                    for (int dz = -fertilizeRadius; dz <= fertilizeRadius; dz++) {
+                        Block b = targetLoc.getBlock().getRelative(dx, 0, dz);
+                        if (random.nextDouble() < bonemealChance) {
+                            b.applyBoneMeal(org.bukkit.block.BlockFace.UP);
+                        }
+                    }
+                }
+                break;
+            }
+
+            // ===== NEW ENTITY ACTIONS =====
+            case ENTITY_PULL: {
+                double pullStrength = getParamDouble(action.params, "pull-strength", 1.0);
+                int pullRadius = getParamInt(action.params, "radius", 10);
+
+                for (Entity e : targetLoc.getWorld().getNearbyEntities(targetLoc, pullRadius, pullRadius, pullRadius)) {
+                    if (e instanceof LivingEntity le && !(e instanceof Player)) {
+                        Vector pull = targetLoc.toVector().subtract(le.getLocation().toVector()).normalize().multiply(pullStrength);
+                        le.setVelocity(le.getVelocity().add(pull));
+                    }
+                }
+                break;
+            }
+
+            case ENTITY_PUSH: {
+                double pushStrength = getParamDouble(action.params, "push-strength", 1.0);
+                int pushRadius = getParamInt(action.params, "radius", 10);
+
+                for (Entity e : targetLoc.getWorld().getNearbyEntities(targetLoc, pushRadius, pushRadius, pushRadius)) {
+                    if (e instanceof LivingEntity le && !(e instanceof Player)) {
+                        Vector push = le.getLocation().toVector().subtract(targetLoc.toVector()).normalize().multiply(pushStrength);
+                        le.setVelocity(le.getVelocity().add(push));
+                    }
+                }
+                break;
+            }
+
+            case ENTITY_FREEZE: {
+                int freezeDuration = getParamInt(action.params, "duration-ticks", 100);
+                int freezeRadius = getParamInt(action.params, "radius", 5);
+
+                for (Entity e : targetLoc.getWorld().getNearbyEntities(targetLoc, freezeRadius, freezeRadius, freezeRadius)) {
+                    if (e instanceof LivingEntity le) {
+                        le.setFreezeTicks(freezeDuration);
+                    }
+                }
+                break;
+            }
+
+            case ENTITY_DISMOUNT: {
+                int dismountRadius = getParamInt(action.params, "radius", 10);
+                for (Entity e : targetLoc.getWorld().getNearbyEntities(targetLoc, dismountRadius, dismountRadius, dismountRadius)) {
+                    if (e instanceof LivingEntity le) {
+                        le.eject();
+                        le.leaveVehicle();
+                    }
+                }
+                break;
+            }
+
+            case ENTITY_MOUNT: {
+                String mountType = (String) action.params.get("mount-type");
+                int mountRadius = getParamInt(action.params, "radius", 10);
+                if (mountType == null) break;
+                
+                try {
+                    EntityType mountEntityType = EntityType.valueOf(mountType.toUpperCase());
+                    for (Entity e : targetLoc.getWorld().getNearbyEntities(targetLoc, mountRadius, mountRadius, mountRadius)) {
+                        if (e instanceof LivingEntity le && !(e instanceof Player)) {
+                            Entity mount = targetLoc.getWorld().spawnEntity(le.getLocation(), mountEntityType);
+                            if (mount instanceof LivingEntity) {
+                                le.addPassenger(mount);
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+                break;
+            }
+
+            // ===== NEW ITEM ACTIONS =====
+            case ITEM_DROP: {
+                String itemMaterial = (String) action.params.get("material");
+                int itemAmount = getParamInt(action.params, "amount", 1);
+                int itemRadius = getParamInt(action.params, "radius", 3);
+                if (itemMaterial == null) break;
+                
+                try {
+                    Material mat = Material.valueOf(itemMaterial.toUpperCase());
+                    for (int i = 0; i < itemAmount; i++) {
+                        Location dropLoc = getRandomLocationAround(targetLoc, itemRadius);
+                        targetLoc.getWorld().dropItemNaturally(dropLoc, new ItemStack(mat, 1));
+                    }
+                } catch (Exception ignored) {}
+                break;
+            }
         }
+    }
+
+    /**
+     * Thực thi chain action tại một vị trí cụ thể
+     */
+    private void executeChainActionAt(DisasterAction chainAction, Location location, Object originalTarget) {
+        // Tạo một action tạm thời với target là vị trí hiện tại
+        // Chain action luôn thực thi tại vị trí của target chính
+        switch (chainAction.type) {
+            case EXPLOSION: {
+                float power = (float) getParamDouble(chainAction.params, "power", 2.0f);
+                boolean fire = getParamBool(chainAction.params, "fire", false);
+                boolean breakBlocks = getParamBool(chainAction.params, "break-blocks", true);
+                location.getWorld().createExplosion(location, power, fire, breakBlocks);
+                break;
+            }
+
+            case DAMAGE: {
+                double damage = getParamDouble(chainAction.params, "damage", 2.0);
+                int damageRadius = getParamInt(chainAction.params, "radius", 5);
+                boolean ignoreArmor = getParamBool(chainAction.params, "ignore-armor", false);
+                for (Entity e : location.getWorld().getNearbyEntities(location, damageRadius, damageRadius, damageRadius)) {
+                    if (e instanceof LivingEntity le) {
+                        le.damage(damage);
+                    }
+                }
+                break;
+            }
+
+            case SET_FIRE: {
+                int fireTicks = getParamInt(chainAction.params, "fire-ticks", 100);
+                int fireRadius = getParamInt(chainAction.params, "radius", 3);
+                for (int dx = -fireRadius; dx <= fireRadius; dx++) {
+                    for (int dy = -fireRadius; dy <= fireRadius; dy++) {
+                        for (int dz = -fireRadius; dz <= fireRadius; dz++) {
+                            Block b = location.getBlock().getRelative(dx, dy, dz);
+                            if (b.getType() == Material.AIR && b.getRelative(0, -1, 0).getType().isSolid()) {
+                                b.setType(Material.FIRE);
+                            }
+                        }
+                    }
+                }
+                // Đốt entity trong bán kính
+                for (Entity e : location.getWorld().getNearbyEntities(location, fireRadius, fireRadius, fireRadius)) {
+                    if (e instanceof LivingEntity le) {
+                        le.setFireTicks(fireTicks);
+                    }
+                }
+                break;
+            }
+
+            case POTION_EFFECT: {
+                @SuppressWarnings("unchecked")
+                List<Map<?, ?>> effectsList = (List<Map<?, ?>>) chainAction.params.get("effects");
+                if (effectsList == null) break;
+                int effectRadius = getParamInt(chainAction.params, "radius", 5);
+                for (Entity e : location.getWorld().getNearbyEntities(location, effectRadius, effectRadius, effectRadius)) {
+                    if (e instanceof LivingEntity le) {
+                        for (Map<?, ?> effectMap : effectsList) {
+                            String effectType = (String) effectMap.get("type");
+                            int duration = toInt(effectMap.get("duration-ticks"), 100);
+                            int amplifier = toInt(effectMap.get("amplifier"), 0);
+                            if (effectType == null) continue;
+                            try {
+                                PotionEffectType pet = PotionEffectType.getByName(effectType.toUpperCase());
+                                if (pet != null) {
+                                    le.addPotionEffect(new PotionEffect(pet, duration, amplifier, false, false));
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+                break;
+            }
+
+            case LIGHTNING_STRIKE: {
+                float explosionPower = (float) getParamDouble(chainAction.params, "explosion-power", 0f);
+                boolean fire = getParamBool(chainAction.params, "fire", false);
+                boolean breakBlocks = getParamBool(chainAction.params, "break-blocks", false);
+                double damageMultiplier = getParamDouble(chainAction.params, "damage-multiplier", 1.0);
+                strikeLightningAt(location, explosionPower, fire, breakBlocks, damageMultiplier);
+                break;
+            }
+
+            case FALLING_BLOCK: {
+                boolean damageOnLand = getParamBool(chainAction.params, "damage-on-land", true);
+                double damageAmount = getParamDouble(chainAction.params, "damage-amount", 4.0);
+                boolean replaceWithAir = getParamBool(chainAction.params, "replace-with-air", true);
+                
+                // Tạo falling block tại vị trí
+                Block block = location.getBlock();
+                if (block.getType() != Material.AIR && block.getType() != Material.WATER && block.getType() != Material.LAVA) {
+                    FallingBlock fb = location.getWorld().spawnFallingBlock(
+                        location.add(0.5, 2, 0.5), block.getBlockData());
+                    fb.setDropItem(true);
+                    fb.setHurtEntities(damageOnLand);
+                    if (replaceWithAir) {
+                        block.setType(Material.AIR);
+                    }
+                }
+                break;
+            }
+
+            case VELOCITY: {
+                double velY = getParamDouble(chainAction.params, "velocity-y", 1.5);
+                int velRadius = getParamInt(chainAction.params, "radius", 5);
+                for (Entity e : location.getWorld().getNearbyEntities(location, velRadius, velRadius, velRadius)) {
+                    if (e instanceof LivingEntity le) {
+                        Vector v = le.getVelocity();
+                        v.setY(v.getY() + velY);
+                        v.setX(v.getX() + (random.nextDouble() - 0.5) * 2);
+                        v.setZ(v.getZ() + (random.nextDouble() - 0.5) * 2);
+                        le.setVelocity(v);
+                    }
+                }
+                break;
+            }
+
+            case BLOCK_VELOCITY: {
+                double velY = getParamDouble(chainAction.params, "velocity-y", 2.0);
+                boolean damageOnLand = getParamBool(chainAction.params, "damage-on-land", true);
+                boolean replaceWithAir = getParamBool(chainAction.params, "replace-with-air", true);
+                int bvRadius = getParamInt(chainAction.params, "radius", 3);
+
+                for (int dx = -bvRadius; dx <= bvRadius; dx++) {
+                    for (int dz = -bvRadius; dz <= bvRadius; dz++) {
+                        Block b = location.getBlock().getRelative(dx, 0, dz);
+                        Material bt = b.getType();
+                        if (bt == Material.AIR || bt == Material.WATER || bt == Material.LAVA || bt == Material.BEDROCK) continue;
+                        if (random.nextInt(3) != 0) continue; // Không nhấc tất cả
+                        
+                        FallingBlock fb = location.getWorld().spawnFallingBlock(
+                            b.getLocation().add(0.5, 0, 0.5), b.getBlockData());
+                        fb.setDropItem(true);
+                        fb.setHurtEntities(damageOnLand);
+                        if (replaceWithAir) {
+                            b.setType(Material.AIR);
+                        }
+                        fb.setVelocity(new Vector(
+                            (random.nextDouble() - 0.5) * 2,
+                            velY,
+                            (random.nextDouble() - 0.5) * 2
+                        ));
+                    }
+                }
+                break;
+            }
+
+            case ITEM_DROP: {
+                String itemMaterial = (String) chainAction.params.get("material");
+                int itemAmount = getParamInt(chainAction.params, "amount", 1);
+                if (itemMaterial == null) break;
+                try {
+                    Material mat = Material.valueOf(itemMaterial.toUpperCase());
+                    for (int i = 0; i < itemAmount; i++) {
+                        location.getWorld().dropItemNaturally(location, new ItemStack(mat, 1));
+                    }
+                } catch (Exception ignored) {}
+                break;
+            }
+
+            case PLAY_SOUND: {
+                String soundStr = (String) chainAction.params.get("sound");
+                if (soundStr == null) break;
+                try {
+                    Sound sound = Sound.valueOf(soundStr.toUpperCase());
+                    float volume = (float) getParamDouble(chainAction.params, "volume", 1.0);
+                    float pitch = (float) getParamDouble(chainAction.params, "pitch", 1.0);
+                    location.getWorld().playSound(location, sound, volume, pitch);
+                } catch (Exception ignored) {}
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+
+    // ===== TARGET SYSTEM =====
+
+    /**
+     * Lấy danh sách các đối tượng target dựa trên action targets
+     * Trả về List<Object> có thể chứa Player, LivingEntity, Block, Location
+     */
+    private List<Object> getAffectedTargets(DisasterAction action) {
+        List<Object> result = new ArrayList<>();
+        boolean requireOutdoor = action.condition.requireOutdoor;
+        boolean ignoreSafeZone = action.condition.ignoreSafeZone;
+
+        // Nếu không có targets, mặc định là tất cả player
+        if (action.targets.isEmpty()) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                result.add(p);
+            }
+            return result;
+        }
+
+        // Xử lý từng target type
+        for (DisasterAction.ActionTarget target : action.targets) {
+            String entityType = target.entityType;
+            int weight = target.weight;
+            int radius = target.radius;
+
+            // Parse target type
+            if (entityType.equals("player") || entityType.equals("all_players")) {
+                // Player targets
+                List<Player> players = new ArrayList<>();
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    // Check condition
+                    if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                    if (requireOutdoor && ignoreSafeZone) {
+                        if (p.getLocation().getBlock().getLightFromSky() <= 5) continue;
+                    }
+                    // Check world filter
+                    if (!target.worlds.contains("all") && !target.worlds.contains(p.getWorld().getEnvironment().name().toLowerCase())) continue;
+                    players.add(p);
+                }
+
+                if (entityType.equals("all_players")) {
+                    result.addAll(players);
+                } else {
+                    // player: weighted random chọn 1
+                    if (!players.isEmpty()) {
+                        result.add(players.get(random.nextInt(players.size())));
+                    }
+                }
+            } else if (entityType.equals("friendly_mobs") || entityType.equals("hostile_mobs") || entityType.equals("all_mobs")) {
+                // Mob targets
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                    
+                    for (Entity e : p.getWorld().getNearbyEntities(p.getLocation(), radius, radius, radius)) {
+                        if (e instanceof LivingEntity le && !(e instanceof Player)) {
+                            boolean isFriendly = isFriendlyMob(le);
+                            boolean isHostile = !isFriendly && !(le instanceof Boss);
+
+                            if (entityType.equals("friendly_mobs") && isFriendly) {
+                                result.add(le);
+                            } else if (entityType.equals("hostile_mobs") && isHostile) {
+                                result.add(le);
+                            } else if (entityType.equals("all_mobs")) {
+                                result.add(le);
+                            }
+                        }
+                    }
+                }
+            } else if (entityType.equals("ground")) {
+                // Ground blocks - block dưới chân mỗi player
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                    Block ground = p.getLocation().getBlock().getRelative(0, -1, 0);
+                    if (ground.getType() != Material.AIR && ground.getType() != Material.WATER && ground.getType() != Material.LAVA) {
+                        result.add(ground);
+                    }
+                }
+            } else if (entityType.equals("trees")) {
+                // Tree blocks
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dy = -radius; dy <= radius; dy++) {
+                            for (int dz = -radius; dz <= radius; dz++) {
+                                Block b = p.getLocation().getBlock().getRelative(dx, dy, dz);
+                                if (TREE_MATERIALS.contains(b.getType())) {
+                                    result.add(b);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (entityType.equals("blocks")) {
+                // All solid blocks
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dy = -radius; dy <= radius; dy++) {
+                            for (int dz = -radius; dz <= radius; dz++) {
+                                Block b = p.getLocation().getBlock().getRelative(dx, dy, dz);
+                                if (!TRANSPARENT_BLOCKS.contains(b.getType()) && b.getType().isSolid()) {
+                                    result.add(b);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (entityType.equals("surface_blocks")) {
+                // Surface blocks
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                    Location loc = p.getLocation();
+                    int highestY = loc.getWorld().getHighestBlockYAt(loc.getBlockX(), loc.getBlockZ());
+                    Block surface = loc.getWorld().getBlockAt(loc.getBlockX(), highestY, loc.getBlockZ());
+                    if (!TRANSPARENT_BLOCKS.contains(surface.getType())) {
+                        result.add(surface);
+                    }
+                }
+            } else if (entityType.startsWith("random_blocks:")) {
+                // Random blocks from material list
+                String materialsStr = entityType.substring("random_blocks:".length());
+                String[] materialNames = materialsStr.split(",");
+                List<Material> targetMaterials = new ArrayList<>();
+                for (String matName : materialNames) {
+                    try {
+                        targetMaterials.add(Material.valueOf(matName.trim().toUpperCase()));
+                    } catch (Exception ignored) {}
+                }
+                if (!targetMaterials.isEmpty()) {
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+                        for (int dx = -radius; dx <= radius; dx++) {
+                            for (int dy = -radius; dy <= radius; dy++) {
+                                for (int dz = -radius; dz <= radius; dz++) {
+                                    Block b = p.getLocation().getBlock().getRelative(dx, dy, dz);
+                                    if (targetMaterials.contains(b.getType())) {
+                                        result.add(b);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (entityType.startsWith("random:")) {
+                // Random từ array target types
+                String targetsStr = entityType.substring("random:".length());
+                String[] targetTypes = targetsStr.split(",");
+                List<String> targetList = Arrays.asList(targetTypes);
+                String selectedType = targetList.get(random.nextInt(targetList.size()));
+                
+                // Tạo action target tạm thời và đệ quy
+                DisasterAction.ActionTarget tempTarget = new DisasterAction.ActionTarget();
+                tempTarget.entityType = selectedType.trim();
+                tempTarget.weight = weight;
+                tempTarget.radius = radius;
+                tempTarget.worlds = target.worlds;
+                tempTarget.blockMaterials = target.blockMaterials;
+                
+                DisasterAction tempAction = new DisasterAction(action.type);
+                tempAction.targets.add(tempTarget);
+                tempAction.condition = action.condition;
+                result.addAll(getAffectedTargets(tempAction));
+            }
+        }
+
+        // Giới hạn số lượng target để tránh lag
+        int maxTargets = getParamInt(action.params, "max-targets", 50);
+        if (result.size() > maxTargets) {
+            // Random subset
+            Collections.shuffle(result, random);
+            result = result.subList(0, maxTargets);
+        }
+
+        return result;
+    }
+
+    /**
+     * Lấy vị trí của target
+     */
+    private Location getTargetLocation(Object target) {
+        if (target instanceof Player p) return p.getLocation();
+        if (target instanceof LivingEntity le) return le.getLocation();
+        if (target instanceof Block b) return b.getLocation();
+        if (target instanceof Location loc) return loc;
+        if (target instanceof Entity e) return e.getLocation();
+        return null;
+    }
+
+    /**
+     * Kiểm tra entity có phải friendly mob không
+     */
+    private boolean isFriendlyMob(LivingEntity entity) {
+        for (Class<? extends Entity> clazz : FRIENDLY_MOB_CLASSES) {
+            if (clazz.isInstance(entity)) return true;
+        }
+        return false;
     }
 
     // ===== HELPERS =====
 
-    /**
-     * Lấy danh sách player bị ảnh hưởng dựa trên action conditions và targets
-     */
-    private List<Player> getAffectedPlayers(DisasterAction action) {
-        List<Player> result = new ArrayList<>();
-        boolean requireOutdoor = action.condition.requireOutdoor;
-        boolean ignoreSafeZone = action.condition.ignoreSafeZone;
-
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            // Check condition
-            if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
-            if (requireOutdoor && ignoreSafeZone) {
-                // Even if ignore safe zone, still require outdoor (light from sky)
-                if (p.getLocation().getBlock().getLightFromSky() <= 5) continue;
-            }
-            
-            // Check targets: if no targets specified, affect all players
-            if (action.targets.isEmpty()) {
-                result.add(p);
-                continue;
-            }
-
-            // Weighted target selection
-            List<DisasterAction.ActionTarget> validTargets = new ArrayList<>();
-            int totalWeight = 0;
-            for (DisasterAction.ActionTarget t : action.targets) {
-                if (t.entityType.equals("all_players") || t.entityType.equals("player")) {
-                    // Check world filter
-                    if (!t.worlds.contains("all") && !t.worlds.contains(p.getWorld().getEnvironment().name().toLowerCase())) continue;
-                    validTargets.add(t);
-                    totalWeight += t.weight;
-                }
-            }
-            if (totalWeight > 0) {
-                // All matched targets include this player
-                result.add(p);
-            }
-        }
-        return result;
+    private Location getRandomLocationAround(Location center, int radius) {
+        int x = center.getBlockX() + random.nextInt(radius * 2) - radius;
+        int z = center.getBlockZ() + random.nextInt(radius * 2) - radius;
+        int y = center.getWorld().getHighestBlockYAt(x, z) + 1;
+        return new Location(center.getWorld(), x, y, z);
     }
 
-    private Location getRandomLocationAround(Player player, int radius) {
-        int x = player.getLocation().getBlockX() + random.nextInt(radius * 2) - radius;
-        int z = player.getLocation().getBlockZ() + random.nextInt(radius * 2) - radius;
-        int y = player.getWorld().getHighestBlockYAt(x, z) + 1;
-        return new Location(player.getWorld(), x, y, z);
-    }
-
-    private void spawnMobNear(Player player, String entityTypeStr, int radius, Map<?, ?> mobData) {
+    private void spawnMobAt(Location location, String entityTypeStr, int radius, Map<?, ?> mobData) {
         try {
             EntityType entityType = EntityType.valueOf(entityTypeStr.toUpperCase());
-            Location spawnLoc = getRandomLocationAround(player, radius);
-            Entity entity = player.getWorld().spawnEntity(spawnLoc, entityType);
+            Location spawnLoc = getRandomLocationAround(location, radius);
+            Entity entity = location.getWorld().spawnEntity(spawnLoc, entityType);
             
             // Apply potion effects from mob config
+            @SuppressWarnings("unchecked")
             List<Map<?, ?>> effectsList = (List<Map<?, ?>>) mobData.get("effects");
             if (effectsList != null && entity instanceof LivingEntity le) {
                 for (Map<?, ?> effectMap : effectsList) {
@@ -824,18 +1426,20 @@ public class DisasterManager {
         }
     }
 
-    private void strikeLightningAt(Location loc, float explosionPower, boolean fire, boolean breakBlocks, List<Player> affectedPlayers) {
+    private void strikeLightningAt(Location loc, float explosionPower, boolean fire, boolean breakBlocks, double damageMultiplier) {
         loc.getWorld().strikeLightningEffect(new Location(loc.getWorld(), loc.getBlockX(), loc.getBlockY() + 30, loc.getBlockZ()));
         if (explosionPower > 0) {
             new BukkitRunnable() {
                 @Override
                 public void run() {
                     loc.getWorld().createExplosion(loc, explosionPower, fire, breakBlocks);
-                    // Damage only affected players
-                    for (Player p : affectedPlayers) {
-                        if (p.getLocation().distance(loc) < 8) {
-                            double dmg = 8.0 * (1.0 - p.getLocation().distance(loc) / 8.0);
-                            p.damage(dmg);
+                    // Damage entities in radius
+                    for (Entity e : loc.getWorld().getNearbyEntities(loc, 8, 8, 8)) {
+                        if (e instanceof LivingEntity le) {
+                            double dmg = 8.0 * damageMultiplier * (1.0 - le.getLocation().distance(loc) / 8.0);
+                            if (dmg > 0) {
+                                le.damage(dmg);
+                            }
                         }
                     }
                 }

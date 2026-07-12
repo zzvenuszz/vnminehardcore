@@ -14,6 +14,9 @@ Plugin nâng độ khó Minecraft lên mức khó gấp đôi. **Chết 1 lần 
 - [Commands](#-commands)
 - [Permissions](#-permissions)
 - [Configuration](#-configuration)
+- [Disaster Config Guide](#-disaster-config-guide)
+- [Boss Config Guide](#-boss-config-guide)
+- [Log Files](#-log-files)
 - [Changelog](#-changelog)
 
 ---
@@ -26,6 +29,25 @@ Plugin nâng độ khó Minecraft lên mức khó gấp đôi. **Chết 1 lần 
 - Broadcast death + âm thanh wither
 - Death counter + thống kê
 
+### 💀 Death Penalty System
+- **Giảm chỉ số mỗi lần chết**: Max HP, sát thương gây ra, tăng sát thương nhận vào
+- **Phục hồi sau thời gian sống sót** (configurable, mặc định 300s)
+- **Tối đa 5 stack** penalty, tránh penalty quá lớn
+- **Các chỉ số bị ảnh hưởng**:
+  - Max Health (giảm %)
+  - Damage Dealt (giảm %)
+  - Incoming Damage (tăng %)
+  - Regen (giảm %)
+  - Food Drain (tăng %)
+  - Thirst Drain (tăng %)
+  - Max Thirst (giảm)
+
+### 🏷 Death Rename System
+- **Tự động đổi tên hiển thị** trong CHAT và TAB LIST sau khi chết
+- **Placeholder hỗ trợ**: `<name>`, `<count>`, `000` (padding số 0)
+- **Ví dụ**: `<name> ☠ <count>` → `hoanbh ☠ 3`
+- Không ảnh hưởng đến tên thật của người chơi
+
 ### ⚔️ Combat
 - **Damage multipliers**: Mob x2, Fall x2, Fire x2, Drowning x2, Explosion x1.5, PvP x1.25
 - Mobs có thêm máu (x1.5) + armor ngẫu nhiên
@@ -34,6 +56,9 @@ Plugin nâng độ khó Minecraft lên mức khó gấp đôi. **Chết 1 lần 
 - Ender Pearl gây sát thương 5♥
 - Táo vàng enchanted (Notch Apple) phát nổ
 - Friendly mobs không kích hoạt combat tag
+- **Witch Speed Boost**: Witch có Speed II vĩnh viễn
+- **Creeper Explosion x2**: Bán kính nổ Creeper gấp đôi
+- **Skeleton Arrow Poison**: Mũi tên Skeleton gây Poison + Slowness
 
 ### 🍔 Hunger System
 - Đói nhanh (mỗi 4s), chết đói 1♥/4s
@@ -56,8 +81,31 @@ Plugin nâng độ khó Minecraft lên mức khó gấp đôi. **Chết 1 lần 
 - **Cây chậm**: 25% chậm hơn
 - **Công cụ hao mòn**: 1.5x nhanh hơn
 - **Cấm bay** (trừ permission bypass)
-- **Sợ hầm**: Mining Fatigue + Darkness dưới y=30
-- **Chóng mặt**: Nausea + Slowness trên y=200
+- **Sợ hầm**: Mining Fatigue + Darkness dưới y=30 (giảm khi cầm đuốc)
+- **Chóng mặt**: Nausea + Slowness trên y=200 (giảm khi đeo elytra)
+- **Nước lạnh**: Damage khi ở dưới nước lạnh
+- **Mưa axit**: Damage khi ở ngoài trời mưa
+
+### 🏘️ Villager Trading System
+- **Quản lý giao dịch dân làng theo biome**
+- **Chặn random nghề** khi đặt workstation
+- **Region system**: Mỗi vùng 500x500 blocks có data trade riêng
+- Cùng biome nhưng khác vùng → data trade khác nhau
+
+### 🪤 Spawner Control
+- **Giảm tỷ lệ spawn** từ lồng farm (mặc định 30%)
+- **Tăng HP** cho mob từ spawner (x3)
+- **Tăng damage** cho mob từ spawner (x2, dạng Strength effect)
+
+### ⛏️ Ore Control
+- **Giảm tỷ lệ quặng** theo từng world
+- Hỗ trợ tất cả loại quặng (overworld, deepslate, nether)
+- Cấu hình riêng cho từng loại quặng
+- Áp dụng khi tạo world mới
+
+### 🌊 World Interaction
+- **Fix cobblestone/stone generation**: Không sinh khoáng sản ngẫu nhiên khi lava + nước
+- Hỗ trợ blackstone/cobbled deepslate generation
 
 ### 👹 Boss Events (12 types)
 Tất cả boss đều **enabled by default**:
@@ -84,6 +132,8 @@ Tất cả boss đều **enabled by default**:
 - **Block destruction**: Boss có thể phá hủy địa hình
 - **Smart movement**: Tránh kẹt, teleport khi cần
 - **Unique behaviors**: Mỗi boss có AI đặc trưng
+- **Immunities**: Configurable (sunlight-burn, fire, fall-damage, wither, poison)
+- **Drops**: Configurable với chance, min/max amount
 
 ### 🌋 Disasters (14 types)
 Tất cả disasters đều **enabled by default**:
@@ -152,6 +202,7 @@ disasters:
 | `/vnboss <id> <warning> <duration>` | Manually trigger a boss | `vnmine.hardcore.admin` |
 | `/vnreload` | Reload config.yml | `vnmine.hardcore.admin` |
 | `/vnhelp` | Show command help | `vnmine.hardcore.stats` |
+| `/vn` | Main command. Use `/vn help` for details | `vnmine.hardcore.stats` |
 
 ### `/vnevent` Usage
 
@@ -209,7 +260,7 @@ disasters:
 | Permission | Description | Default |
 |------------|-------------|---------|
 | `vnmine.hardcore.stats` | View statistics (/vnstats, /vnhelp) | `true` |
-| `vnmine.hardcore.admin` | Admin commands (status, unban, reload, trigger disaster) | `op` |
+| `vnmine.hardcore.admin` | Admin commands (status, unban, reload, trigger disaster/boss) | `op` |
 | `vnmine.hardcore.bypass` | Bypass flight block | — |
 
 ---
@@ -229,6 +280,22 @@ death:
   play-sound: true          # Play wither death sound
 ```
 
+### Death Penalty Section
+```yaml
+death-penalty:
+  enabled: true                     # Enable death penalty system
+  recovery-seconds: 300             # Survival time to recover stats
+  max-penalty-stack: 5              # Max penalty stack
+  stats:
+    max-hp-per-death: 1.0           # Max HP reduction per death (%)
+    max-thirst-per-death: 1.0       # Max thirst reduction per death (%)
+    damage-per-death: 0.5           # Damage dealt reduction per death (%)
+    incoming-damage-per-death: 0.5  # Incoming damage increase per death (%)
+    regen-per-death: 0.5            # Regen reduction per death (%)
+    food-drain-per-death: 0.5       # Food drain increase per death (%)
+    thirst-drain-per-death: 0.5     # Thirst drain increase per death (%)
+```
+
 ### Combat Section
 ```yaml
 combat:
@@ -243,6 +310,41 @@ combat:
   regen-multiplier: 1.0               # Regen % (if regen enabled)
   combat-tag-duration-seconds: 30     # Combat tag duration
   ender-pearl-damage: 10.0            # Ender pearl damage (5♥)
+```
+
+### Rename Section
+```yaml
+rename:
+  enabled: true                     # Enable rename feature
+  name-structure: "<name> ☠ <count>"  # Display name format
+```
+
+### Villager Trading Section
+```yaml
+villager-trading:
+  enabled: true                     # Enable villager trading system
+  disable-random-villager: true     # Prevent random profession
+  region-size: 500                  # Region size (blocks)
+```
+
+### Spawner Control Section
+```yaml
+spawner-control:
+  enabled: true                     # Enable spawner control
+  spawn-rate-reduction: 0.3         # Spawn rate (30% of original)
+  hp-multiplier: 3.0               # HP multiplier
+  damage-multiplier: 2.0           # Damage multiplier
+```
+
+### Ore Control Section
+```yaml
+ore-control:
+  enabled: false                    # Enable ore control
+  worlds:
+    world:
+      DIAMOND_ORE: 0.08            # Diamond ore rate (%)
+      IRON_ORE: 0.60               # Iron ore rate (%)
+      # ... other ores
 ```
 
 ### Thirst - Natural Water
@@ -300,7 +402,288 @@ disasters:
     end-broadcast: "§a§l✅ {name} đã kết thúc!"
 ```
 
+### Logging Section
+```yaml
+logging:
+  console-debug: false          # Enable debug console logs
+  log-deaths: true              # Log deaths
+  log-bans: true                # Log bans
+  log-disasters: true           # Log disasters
+```
+
 For the **full configuration** with bilingual comments, see `plugins/VnMineHardcore/config.yml`.
+
+---
+
+## 📖 Disaster Config Guide
+
+### Cấu trúc file disaster
+
+Mỗi disaster được cấu hình trong file riêng tại `plugins/VnMineHardcore/disasters/<id>.yml`.
+
+### Action Types
+
+| Action Type | Mô tả | Parameters |
+|-------------|-------|------------|
+| `damage` | Gây sát thương | `damage`, `ignore-armor`, `radius` |
+| `potion_effect` | Gây hiệu ứng | `effects[]` (type, duration-ticks, amplifier) |
+| `spawn_mobs` | Spawn quái | `mobs{}`, `count-per-target`, `radius` |
+| `lightning_strike` | Sét đánh | `count-per-target`, `damage-multiplier`, `explosion-power`, `explosion-fire`, `delay-ticks` |
+| `explosion` | Phát nổ | `explosion-power`, `explosion-fire`, `explosion-break-blocks` |
+| `set_fire` | Đốt cháy | `fire-ticks`, `radius` |
+| `place_block` | Đặt block | `block-type`, `count-per-target`, `place-height` |
+| `falling_block` | Block rơi | `block-fall-chance`, `blast-resistance-factor`, `blocks-per-target` |
+| `velocity` | Đẩy bay | `velocity-y`, `velocity-x-range`, `velocity-z-range` |
+| `set_time` | Đặt thời gian | `time` |
+| `set_weather` | Đặt thời tiết | `storm`, `thunder`, `duration-ticks` |
+| `clear_weather` | Xóa thời tiết | — |
+| `broadcast` | Thông báo | `message` |
+| `action_bar` | Action bar | `message` |
+| `teleport_random` | Teleport ngẫu nhiên | `radius` |
+| `play_sound` | Phát âm thanh | `sound`, `volume`, `pitch` |
+| `block_velocity` | Nhấc block lên | `velocity-y`, `damage-on-land`, `damage-amount`, `replace-with-air` |
+| `block_explosion` | Phá block dạng nổ | `power`, `drop-items` |
+| `block_replace` | Thay thế block | `from-material`, `to-material`, `radius` |
+| `block_ignite` | Đốt block | `radius`, `fire-ticks` |
+| `block_liquid` | Đặt chất lỏng | `liquid-type` (WATER/LAVA), `radius` |
+| `block_fertilize` | Thúc cây trồng | `radius`, `bonemeal-chance` |
+| `entity_pull` | Kéo entity | `pull-strength`, `radius` |
+| `entity_push` | Đẩy entity | `push-strength`, `radius` |
+| `entity_freeze` | Đóng băng | `duration-ticks`, `radius` |
+| `entity_dismount` | Hất khỏi thú cưỡi | `radius` |
+| `entity_mount` | Bắt lên thú cưỡi | `mount-type`, `radius` |
+| `item_drop` | Rơi item | `material`, `amount`, `radius` |
+| `world_time` | Đặt thời gian | `time` |
+| `world_weather` | Đặt thời tiết | `storm`, `thunder`, `duration-ticks` |
+
+### Target Types
+
+| Target Type | Mô tả | Ví dụ |
+|-------------|-------|-------|
+| `player` | Người chơi (weighted random) | `player: { weight: 100 }` |
+| `all_players` | Tất cả người chơi | `all_players: { weight: 100 }` |
+| `friendly_mobs` | Sinh vật thân thiện | `friendly_mobs: { weight: 50, radius: 15 }` |
+| `hostile_mobs` | Sinh vật thù địch | `hostile_mobs: { weight: 30, radius: 12 }` |
+| `all_mobs` | Tất cả sinh vật | `all_mobs: { weight: 100, radius: 20 }` |
+| `ground` | Block mặt đất dưới chân | `ground: { weight: 100, radius: 5 }` |
+| `trees` | Block gỗ, lá cây | `trees: { weight: 70, radius: 8 }` |
+| `blocks` | Block rắn bất kỳ | `blocks: { weight: 50, radius: 10 }` |
+| `surface_blocks` | Block trên bề mặt | `surface_blocks: { weight: 50, radius: 10 }` |
+| `random_blocks:MAT1,MAT2,...` | Block ngẫu nhiên từ danh sách | `random_blocks:IRON_BLOCK,DIAMOND_BLOCK: { weight: 100, radius: 30 }` |
+| `random:target1,target2,...` | Random từ array target | `random:player,ground,trees: { weight: 100 }` |
+
+### Chain Actions
+
+Mỗi action có thể kích hoạt nhiều **chain-actions** trên cùng vị trí target. Chain-actions thực thi ngay sau action chính.
+
+```yaml
+- type: lightning_strike
+  targets:
+    random_blocks:IRON_BLOCK:
+      weight: 100
+      radius: 30
+  count-per-target: 1
+  damage-multiplier: 2.0
+  explosion-power: 1.5
+  explosion-fire: true
+  chain-actions:
+    - type: explosion
+      power: 1.5
+      fire: true
+      break-blocks: false
+    - type: set_fire
+      fire-ticks: 100
+      radius: 4
+    - type: damage
+      damage: 8.0
+      radius: 5
+    - type: potion_effect
+      radius: 5
+      effects:
+        - type: SLOWNESS
+          duration-ticks: 200
+          amplifier: 1
+```
+
+### Ví dụ Config Nâng Cao
+
+#### Tornado (Lốc xoáy)
+```yaml
+actions:
+  # Cuốn player lên
+  - type: velocity
+    targets:
+      player: { weight: 100, radius: 20 }
+    velocity-y: 2.5
+    velocity-x-range: -1.5-1.5
+    velocity-z-range: -1.5-1.5
+    chain-actions:
+      - type: damage
+        damage: 1.0
+        radius: 3
+        ignore-armor: true
+
+  # Cuốn mob lên
+  - type: velocity
+    targets:
+      friendly_mobs: { weight: 50, radius: 15 }
+      hostile_mobs: { weight: 30, radius: 12 }
+    velocity-y: 2.0
+
+  # Nhấc block mặt đất + cây cối
+  - type: block_velocity
+    targets:
+      ground: { weight: 100, radius: 5 }
+      trees: { weight: 70, radius: 8 }
+    velocity-y: 3.0
+    damage-on-land: true
+    damage-amount: 4.0
+    replace-with-air: true
+    count-per-target: 3
+
+  # Sét đánh ưu tiên block sắt
+  - type: lightning_strike
+    targets:
+      random_blocks:IRON_BLOCK,IRON_ORE: { weight: 100, radius: 30 }
+      trees: { weight: 60, radius: 20 }
+      player: { weight: 10, radius: 15 }
+    count-per-target: 1
+    damage-multiplier: 2.0
+    explosion-power: 1.5
+    explosion-fire: true
+    chain-actions:
+      - type: explosion
+        power: 1.5
+        fire: true
+      - type: set_fire
+        fire-ticks: 100
+        radius: 4
+      - type: damage
+        damage: 8.0
+        radius: 5
+      - type: potion_effect
+        radius: 5
+        effects:
+          - type: SLOWNESS
+            duration-ticks: 200
+            amplifier: 1
+```
+
+#### Mega Storm (Bão lớn)
+```yaml
+actions:
+  # Sét đánh khắp nơi
+  - type: lightning_strike
+    targets:
+      random_blocks:IRON_BLOCK,LIGHTNING_ROD: { weight: 100, radius: 50 }
+      trees: { weight: 80, radius: 30 }
+      player: { weight: 20, radius: 20 }
+    count-per-target: 3
+    damage-multiplier: 1.5
+    explosion-power: 2.0
+    explosion-fire: true
+    chain-actions:
+      - type: set_fire
+        fire-ticks: 200
+        radius: 3
+
+  # Mưa axit gây damage
+  - type: damage
+    targets:
+      all_players: { weight: 100 }
+      friendly_mobs: { weight: 50, radius: 20 }
+    damage: 1.0
+    ignore-armor: true
+
+  # Gió mạnh đẩy bay
+  - type: velocity
+    targets:
+      player: { weight: 100, radius: 30 }
+      all_mobs: { weight: 50, radius: 20 }
+    velocity-y: 1.0
+    velocity-x-range: -2.0-2.0
+    velocity-z-range: -2.0-2.0
+```
+
+---
+
+## 📖 Boss Config Guide
+
+### Cấu trúc file boss
+
+Mỗi boss được cấu hình trong file riêng tại `plugins/VnMineHardcore/bosses/<id>.yml`.
+
+### Ví dụ Config Boss
+
+```yaml
+# plugins/VnMineHardcore/bosses/creeper_boss.yml
+enabled: true
+entity-type: CREEPER
+display-name: "§a§lCreeper Boss"
+hp: 200.0
+damage-multiplier: 3.0
+chance: 10
+duration-seconds: 120
+warning-seconds: 60
+
+# Immunities (miễn nhiễm)
+immunities:
+  sunlight-burn: true      # Không cháy dưới nắng
+  fire: true               # Miễn nhiễm lửa
+  fall-damage: false       # Có thể bị damage ngã
+  wither: false            # Có thể bị wither
+  poison: false            # Có thể bị poison
+  potion-effects:          # Miễn nhiễm potion cụ thể
+    - SLOWNESS
+    - WEAKNESS
+
+# Drops (vật phẩm rơi ra khi chết)
+drops:
+  DIAMOND:
+    min-amount: 1
+    max-amount: 3
+    chance: 0.8            # 80%
+  GUNPOWDER:
+    min-amount: 8
+    max-amount: 16
+    chance: 1.0            # 100%
+  TNT:
+    min-amount: 2
+    max-amount: 5
+    chance: 0.5            # 50%
+```
+
+### Boss Config Parameters
+
+| Parameter | Mô tả | Giá trị mặc định |
+|-----------|-------|-----------------|
+| `enabled` | Bật/tắt boss | `true` |
+| `entity-type` | Loại entity (EntityType name) | `WITHER` |
+| `display-name` | Tên hiển thị (có màu) | `§c§lBoss` |
+| `hp` | Máu tối đa | `100.0` |
+| `damage-multiplier` | Hệ số nhân sát thương | `1.0` |
+| `chance` | Tỷ lệ xuất hiện (weight) | `10` |
+| `duration-seconds` | Thời gian tồn tại | `120` |
+| `warning-seconds` | Thời gian cảnh báo | `60` |
+
+### Immunities
+
+| Immunity | Mô tả |
+|----------|-------|
+| `sunlight-burn` | Không cháy dưới ánh nắng (Zombie, Skeleton) |
+| `fire` | Miễn nhiễm lửa và dung nham |
+| `fall-damage` | Miễn nhiễm sát thương ngã |
+| `wither` | Miễn nhiễm hiệu ứng Wither |
+| `poison` | Miễn nhiễm hiệu ứng Poison |
+| `potion-effects` | Danh sách PotionEffectType bị miễn nhiễm |
+
+### Drops
+
+| Parameter | Mô tả |
+|-----------|-------|
+| `min-amount` | Số lượng tối thiểu |
+| `max-amount` | Số lượng tối đa |
+| `chance` | Tỷ lệ rơi (0.0 - 1.0) |
 
 ---
 
@@ -314,10 +697,28 @@ Located in `plugins/VnMineHardcore/`:
 | `bans.log` | Ban records with IP and UUID |
 | `disasters.log` | Disaster event logs |
 | `stats.yml` | Player statistics |
+| `death-penalty.yml` | Death penalty data (stacks, recovery) |
 
 ---
 
 ## 📝 Changelog
+
+### v1.3.0
+- **Multi-Target System**: Disasters can now target players, mobs (friendly/hostile/all), blocks (ground, trees, blocks, surface, random_blocks), and random combinations
+- **Chain Actions**: Each action can trigger multiple sub-actions (explosion, fire, damage, potion effects) on the same target
+- **New Action Types**: block_velocity, block_explosion, block_replace, block_ignite, block_liquid, block_fertilize, entity_pull, entity_push, entity_freeze, entity_dismount, entity_mount, item_drop
+- **New Target Types**: friendly_mobs, hostile_mobs, all_mobs, ground, trees, blocks, surface_blocks, random_blocks:MATERIALS, random:TARGETS
+- **Death Penalty System**: Stat reduction on death with recovery timer
+- **Death Rename System**: Auto-rename display name in chat/tab after death
+- **Villager Trading System**: Biome-based villager trading management
+- **Spawner Control**: Reduce spawn rate, increase HP/damage for spawner mobs
+- **Ore Control**: Per-world ore rate configuration
+- **World Interaction**: Lava+water cobblestone/stone fix
+- **Environment Expansion**: Cold water damage, acid rain, torch reduces claustrophobia, elytra reduces vertigo
+- **Combat Expansion**: Witch Speed boost, Creeper explosion x2, Skeleton arrow poison
+- **Logging System**: Configurable debug, death, ban, disaster logging
+- **New Command**: `/vn` - Main command with help system
+- **Documentation**: Updated README with disaster config guide, boss config guide, multi-target system
 
 ### v1.2.0
 - **New Bosses**: Added 9 new boss types (Zombie, Skeleton, Spider, Creeper, Enderman, Witch, Ravager, Vindicator, Phantom)
