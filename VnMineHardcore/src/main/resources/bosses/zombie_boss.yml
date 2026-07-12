@@ -1,0 +1,59 @@
+# ============================================================
+# [ZOMBIE BOSS] 🧟 ZOMBIE BOSS
+# ============================================================
+boss-id: zombie_boss
+enabled: true
+entity-type: ZOMBIE
+display-name: "§2§lZombie Boss"
+hp: 150
+damage-multiplier: 1.5
+chance: 15
+duration-seconds: 1800
+warning-seconds: 45
+
+immunities:
+  sunlight-burn: true
+  potion-effects:
+    - SLOWNESS
+
+drops:
+  ROTTEN_FLESH:
+    min-amount: 10
+    max-amount: 25
+    chance: 0.9
+  IRON_INGOT:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.7
+  DIAMOND:
+    min-amount: 3
+    max-amount: 7
+    chance: 0.35
+  EMERALD:
+    min-amount: 8
+    max-amount: 15
+    chance: 0.5
+  GOLD_INGOT:
+    min-amount: 5
+    max-amount: 12
+    chance: 0.5
+  CARROT:
+    min-amount: 5
+    max-amount: 10
+    chance: 0.4
+  POTATO:
+    min-amount: 5
+    max-amount: 10
+    chance: 0.4
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.2
+  IRON_SWORD:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.3
+  IRON_HELMET:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.25

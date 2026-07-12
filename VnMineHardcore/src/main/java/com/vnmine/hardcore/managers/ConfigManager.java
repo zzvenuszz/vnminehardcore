@@ -1,13 +1,19 @@
 package com.vnmine.hardcore.managers;
 
 import com.vnmine.hardcore.VnMineHardcore;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.Level;
 
 public class ConfigManager {
 
@@ -38,6 +44,7 @@ public class ConfigManager {
 
     // Utility: get raw string from config (supports both string and int)
     public static String getStringFromConfig(ConfigurationSection section, String path, String defaultValue) {
+        if (section == null) return defaultValue;
         if (section.isString(path)) return section.getString(path, defaultValue);
         if (section.isInt(path)) return String.valueOf(section.getInt(path));
         return defaultValue;
@@ -157,12 +164,12 @@ public class ConfigManager {
     public double spawnerHpMultiplier;
     public double spawnerDamageMultiplier;
 
-    // Disasters - General settings
+    // Disasters - General settings (loaded from disasters/_settings.yml)
     public boolean disastersEnabled;
     public String disasterMinIntervalRaw;
     public int disasterWarningSeconds;
 
-    // Safe Zone settings
+    // Safe Zone settings (loaded from disasters/_settings.yml)
     public boolean safeZoneEnabled;
     public int safeZoneCheckRadius;
     public int safeZoneRoofHeight;
@@ -172,15 +179,15 @@ public class ConfigManager {
     // Disaster config map - each disaster is a complete object
     public Map<String, DisasterConfig> disasterConfigs = new HashMap<>();
 
-    // Disaster messages (shared across all disasters)
+    // Disaster messages (shared across all disasters, loaded from disasters/_settings.yml)
     public Map<String, String> disasterMessages = new HashMap<>();
 
-    // Boss Events - General settings
+    // Boss Events - General settings (loaded from bosses/_settings.yml)
     public boolean bossEventsEnabled;
     public String bossEventMinIntervalRaw;
     public int bossEventSpawnRadius;
 
-    // Boss config map - each boss is a complete object
+    // Boss config map - each boss is a complete object (loaded from bosses/*.yml)
     public Map<String, BossConfig> bossConfigs = new HashMap<>();
 
     // Ore Control
@@ -205,26 +212,20 @@ public class ConfigManager {
         public int effectIntervalSeconds = 5;
         public int effectDurationSeconds = 5;
         public int durationSeconds = 600;
-
-        // Custom title/subtitle when disaster starts
         public String startTitle = "";
         public String startSubtitle = "";
-
-        // Earthquake specific
         public int blockFallChance = 15;
         public int radius = 15;
         public int minY = 30;
         public double blastResistanceFactor = 0.1;
-
-        // Inferno Storm specific
         public double damage = 2.0;
         public int fireTicks = 100;
-
-        // Soul Eruption specific
         public int witherAmplifier = 1;
-
-        // End Surge specific
         public int shulkerChance = 20;
+        
+        // Action engine - parsed from YAML actions: list
+        public List<DisasterAction> actions = new ArrayList<>();
+        public List<DisasterAction> onEnd = new ArrayList<>();
     }
 
     // BossConfig class - holds all config for a single boss
@@ -237,6 +238,8 @@ public class ConfigManager {
         public int chance = 10;
         public int durationSeconds = 120;
         public int warningSeconds = 60;
+        public Map<String, Boolean> immunities = new HashMap<>();
+        public java.util.List<String> immunityPotionEffects = new java.util.ArrayList<>();
         public Map<String, DropConfig> drops = new HashMap<>();
     }
 
@@ -256,6 +259,9 @@ public class ConfigManager {
         plugin.saveDefaultConfig();
         plugin.reloadConfig();
         this.config = plugin.getConfig();
+
+        // ===== Save default external configs (bosses/, disasters/) =====
+        saveDefaultExternalConfigs();
 
         // Death
         banOnDeath = config.getBoolean("death.ban-on-death", true);
@@ -368,30 +374,11 @@ public class ConfigManager {
         spawnerHpMultiplier = config.getDouble("spawner-control.hp-multiplier", 3.0);
         spawnerDamageMultiplier = config.getDouble("spawner-control.damage-multiplier", 2.0);
 
-        // Disasters - General settings
-        disastersEnabled = config.getBoolean("disasters.enabled", true);
-        disasterMinIntervalRaw = getStringFromConfig(config.getConfigurationSection("disasters"), "min-interval-seconds", "1200");
-        disasterWarningSeconds = config.getInt("disasters.warning-seconds", 60);
-
-        // Safe Zone settings
-        safeZoneEnabled = config.getBoolean("disasters.safe-zone.enabled", true);
-        safeZoneCheckRadius = config.getInt("disasters.safe-zone.check-radius", 2);
-        safeZoneRoofHeight = config.getInt("disasters.safe-zone.roof-height", 5);
-        safeZoneCheckWalls = config.getBoolean("disasters.safe-zone.check-walls", false);
-        safeZoneMinWalls = config.getInt("disasters.safe-zone.min-walls", 2);
-
-        // Load all disaster configs
+        // ===== LOAD FROM EXTERNAL FILES =====
+        loadDisasterSettings();
         loadDisasterConfigs();
-
-        // Load disaster messages
         loadDisasterMessages();
-
-        // Boss Events - General settings
-        bossEventsEnabled = config.getBoolean("boss-events.enabled", true);
-        bossEventMinIntervalRaw = getStringFromConfig(config.getConfigurationSection("boss-events"), "min-interval-seconds", "1200");
-        bossEventSpawnRadius = config.getInt("boss-events.spawn-radius", 50);
-
-        // Load all boss configs
+        loadBossSettings();
         loadBossConfigs();
 
         // Ore Control
@@ -422,24 +409,113 @@ public class ConfigManager {
         logDisasters = config.getBoolean("logging.log-disasters", true);
 
         plugin.getLogger().info("[Config] Loaded configuration with " + config.getKeys(true).size() + " keys");
+        plugin.getLogger().info("[Config] Loaded " + bossConfigs.size() + " bosses from bosses/");
+        plugin.getLogger().info("[Config] Loaded " + disasterConfigs.size() + " disasters from disasters/");
     }
 
     /**
-     * Load all disaster configurations from config
+     * Save default external config files (bosses/*.yml, disasters/*.yml)
+     */
+    private void saveDefaultExternalConfigs() {
+        // Save disasters/_settings.yml
+        saveResourceIfNotExists("disasters/_settings.yml");
+        // Save disaster files
+        saveResourceIfNotExists("disasters/blood-moon.yml");
+        saveResourceIfNotExists("disasters/meteor.yml");
+        saveResourceIfNotExists("disasters/mega-storm.yml");
+        saveResourceIfNotExists("disasters/solar-flare.yml");
+        saveResourceIfNotExists("disasters/plague.yml");
+        saveResourceIfNotExists("disasters/tornado.yml");
+        saveResourceIfNotExists("disasters/eclipse.yml");
+        saveResourceIfNotExists("disasters/earthquake.yml");
+        saveResourceIfNotExists("disasters/inferno-storm.yml");
+        saveResourceIfNotExists("disasters/soul-eruption.yml");
+        saveResourceIfNotExists("disasters/lava-geyser.yml");
+        saveResourceIfNotExists("disasters/end-surge.yml");
+        saveResourceIfNotExists("disasters/void-storm.yml");
+        saveResourceIfNotExists("disasters/chorus-explosion.yml");
+
+        // Save bosses/_settings.yml
+        saveResourceIfNotExists("bosses/_settings.yml");
+        // Save boss files
+        saveResourceIfNotExists("bosses/wither.yml");
+        saveResourceIfNotExists("bosses/ender_dragon.yml");
+        saveResourceIfNotExists("bosses/ghast.yml");
+        saveResourceIfNotExists("bosses/zombie_boss.yml");
+        saveResourceIfNotExists("bosses/skeleton_boss.yml");
+        saveResourceIfNotExists("bosses/spider_boss.yml");
+        saveResourceIfNotExists("bosses/creeper_boss.yml");
+        saveResourceIfNotExists("bosses/enderman_boss.yml");
+        saveResourceIfNotExists("bosses/witch_boss.yml");
+        saveResourceIfNotExists("bosses/ravager_boss.yml");
+        saveResourceIfNotExists("bosses/vindicator_boss.yml");
+        saveResourceIfNotExists("bosses/phantom_boss.yml");
+    }
+
+    /**
+     * Save a resource from the JAR to the plugin's data folder if it doesn't exist already
+     */
+    private void saveResourceIfNotExists(String resourcePath) {
+        File outFile = new File(plugin.getDataFolder(), resourcePath);
+        if (!outFile.exists()) {
+            // Create parent directories
+            outFile.getParentFile().mkdirs();
+            // Save the resource
+            plugin.saveResource(resourcePath, false);
+            plugin.getLogger().info("[Config] Created default: " + resourcePath);
+        }
+    }
+
+    /**
+     * Load disaster general settings from disasters/_settings.yml
+     */
+    private void loadDisasterSettings() {
+        File settingsFile = new File(plugin.getDataFolder(), "disasters/_settings.yml");
+        if (!settingsFile.exists()) {
+            disastersEnabled = false;
+            disasterMinIntervalRaw = "2400";
+            disasterWarningSeconds = 120;
+            safeZoneEnabled = false;
+            return;
+        }
+
+        FileConfiguration ds = YamlConfiguration.loadConfiguration(settingsFile);
+
+        disastersEnabled = ds.getBoolean("enabled", true);
+        disasterMinIntervalRaw = getStringFromConfig(ds.getConfigurationSection(""), "min-interval-seconds", "2400-4800");
+        disasterWarningSeconds = ds.getInt("warning-seconds", 120);
+
+        // Safe Zone
+        ConfigurationSection sz = ds.getConfigurationSection("safe-zone");
+        if (sz != null) {
+            safeZoneEnabled = sz.getBoolean("enabled", true);
+            safeZoneCheckRadius = sz.getInt("check-radius", 2);
+            safeZoneRoofHeight = sz.getInt("roof-height", 5);
+            safeZoneCheckWalls = sz.getBoolean("check-walls", false);
+            safeZoneMinWalls = sz.getInt("min-walls", 2);
+        } else {
+            safeZoneEnabled = false;
+        }
+    }
+
+    /**
+     * Load all disaster configurations from disasters/*.yml files
+     * Now supports dynamic disaster IDs by scanning all .yml files
      */
     private void loadDisasterConfigs() {
         disasterConfigs.clear();
-        ConfigurationSection disastersSection = config.getConfigurationSection("disasters");
-        if (disastersSection == null) return;
 
-        String[] disasterIds = {
-            "blood-moon", "meteor", "mega-storm", "solar-flare", "plague",
-            "tornado", "eclipse", "earthquake", "inferno-storm", "soul-eruption",
-            "lava-geyser", "end-surge", "void-storm", "chorus-explosion"
-        };
+        File disastersDir = new File(plugin.getDataFolder(), "disasters");
+        if (!disastersDir.exists() || !disastersDir.isDirectory()) return;
 
-        for (String disasterId : disasterIds) {
-            ConfigurationSection section = disastersSection.getConfigurationSection(disasterId);
+        File[] disasterFiles = disastersDir.listFiles((dir, name) -> name.endsWith(".yml") && !name.equals("_settings.yml"));
+        if (disasterFiles == null) return;
+
+        for (File file : disasterFiles) {
+            String fileName = file.getName();
+            String disasterId = fileName.substring(0, fileName.length() - 4); // Remove .yml
+
+            FileConfiguration section = YamlConfiguration.loadConfiguration(file);
             if (section == null) continue;
 
             DisasterConfig dc = new DisasterConfig();
@@ -460,7 +536,7 @@ public class ConfigManager {
             dc.minY = section.getInt("min-y", 30);
             dc.blastResistanceFactor = section.getDouble("blast-resistance-factor", 0.1);
 
-            // Inferno Storm, Soul Eruption, Lava Geyser, Void Storm, Chorus Explosion specific
+            // Damage/Fire/Wither
             dc.damage = section.getDouble("damage", 2.0);
             dc.fireTicks = section.getInt("fire-ticks", 100);
             dc.witherAmplifier = section.getInt("wither-amplifier", 1);
@@ -468,16 +544,31 @@ public class ConfigManager {
             // End Surge specific
             dc.shulkerChance = section.getInt("shulker-chance", 20);
 
+            // Parse actions from YAML list
+            List<Map<?, ?>> actionsList = section.getMapList("actions");
+            if (!actionsList.isEmpty()) {
+                dc.actions = DisasterAction.parseActionList(actionsList);
+            }
+            List<Map<?, ?>> onEndList = section.getMapList("on-end");
+            if (!onEndList.isEmpty()) {
+                dc.onEnd = DisasterAction.parseActionList(onEndList);
+            }
+
             disasterConfigs.put(disasterId, dc);
         }
     }
 
     /**
-     * Load disaster messages
+     * Load disaster messages from disasters/_settings.yml
      */
     private void loadDisasterMessages() {
         disasterMessages.clear();
-        ConfigurationSection messagesSection = config.getConfigurationSection("disasters.messages");
+
+        File settingsFile = new File(plugin.getDataFolder(), "disasters/_settings.yml");
+        if (!settingsFile.exists()) return;
+
+        FileConfiguration ds = YamlConfiguration.loadConfiguration(settingsFile);
+        ConfigurationSection messagesSection = ds.getConfigurationSection("messages");
         if (messagesSection == null) return;
 
         disasterMessages.put("warning-title", messagesSection.getString("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠"));
@@ -489,15 +580,42 @@ public class ConfigManager {
     }
 
     /**
-     * Load all boss configurations from config
+     * Load boss general settings from bosses/_settings.yml
+     */
+    private void loadBossSettings() {
+        File settingsFile = new File(plugin.getDataFolder(), "bosses/_settings.yml");
+        if (!settingsFile.exists()) {
+            bossEventsEnabled = false;
+            bossEventMinIntervalRaw = "1200";
+            bossEventSpawnRadius = 50;
+            return;
+        }
+
+        FileConfiguration bs = YamlConfiguration.loadConfiguration(settingsFile);
+
+        bossEventsEnabled = bs.getBoolean("enabled", true);
+        bossEventMinIntervalRaw = getStringFromConfig(bs.getConfigurationSection(""), "min-interval-seconds", "1200-2400");
+        bossEventSpawnRadius = bs.getInt("spawn-radius", 50);
+    }
+
+    /**
+     * Load all boss configurations from bosses/*.yml files
+     * Dynamically discovers all .yml files in the bosses/ directory
      */
     private void loadBossConfigs() {
         bossConfigs.clear();
-        ConfigurationSection bossesSection = config.getConfigurationSection("boss-events.bosses");
-        if (bossesSection == null) return;
 
-        for (String bossId : bossesSection.getKeys(false)) {
-            ConfigurationSection section = bossesSection.getConfigurationSection(bossId);
+        File bossesDir = new File(plugin.getDataFolder(), "bosses");
+        if (!bossesDir.exists() || !bossesDir.isDirectory()) return;
+
+        File[] bossFiles = bossesDir.listFiles((dir, name) -> name.endsWith(".yml") && !name.equals("_settings.yml"));
+        if (bossFiles == null) return;
+
+        for (File file : bossFiles) {
+            String fileName = file.getName();
+            String bossId = fileName.substring(0, fileName.length() - 4); // Remove .yml
+
+            FileConfiguration section = YamlConfiguration.loadConfiguration(file);
             if (section == null) continue;
 
             BossConfig bc = new BossConfig();
@@ -509,6 +627,18 @@ public class ConfigManager {
             bc.chance = section.getInt("chance", 10);
             bc.durationSeconds = section.getInt("duration-seconds", 120);
             bc.warningSeconds = section.getInt("warning-seconds", 60);
+
+            // Load immunities
+            ConfigurationSection immunitiesSection = section.getConfigurationSection("immunities");
+            if (immunitiesSection != null) {
+                // Boolean immunities
+                for (String key : immunitiesSection.getKeys(false)) {
+                    if (key.equals("potion-effects")) continue;
+                    bc.immunities.put(key, immunitiesSection.getBoolean(key, false));
+                }
+                // Potion effect list immunity
+                bc.immunityPotionEffects = immunitiesSection.getStringList("potion-effects");
+            }
 
             // Load drops
             ConfigurationSection dropsSection = section.getConfigurationSection("drops");

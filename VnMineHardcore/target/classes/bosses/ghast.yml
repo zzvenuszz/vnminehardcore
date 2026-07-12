@@ -1,0 +1,55 @@
+# ============================================================
+# [GHAST] 👻 GHAST KHỔNG LỒ
+# ============================================================
+boss-id: ghast
+enabled: true
+entity-type: GHAST
+display-name: "§e§lGhast Khổng Lồ"
+hp: 100
+damage-multiplier: 2.5
+chance: 10
+duration-seconds: 1800
+warning-seconds: 45
+
+immunities:
+  fire: true
+  sunlight-burn: true
+  fall-damage: true
+
+drops:
+  GHAST_TEAR:
+    min-amount: 3
+    max-amount: 8
+    chance: 0.8
+  MAGMA_CREAM:
+    min-amount: 3
+    max-amount: 6
+    chance: 0.7
+  DIAMOND:
+    min-amount: 3
+    max-amount: 6
+    chance: 0.4
+  IRON_INGOT:
+    min-amount: 8
+    max-amount: 15
+    chance: 0.5
+  EMERALD:
+    min-amount: 5
+    max-amount: 10
+    chance: 0.4
+  GUNPOWDER:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.6
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.25
+  FIRE_CHARGE:
+    min-amount: 2
+    max-amount: 5
+    chance: 0.4
+  BLAZE_ROD:
+    min-amount: 2
+    max-amount: 5
+    chance: 0.35

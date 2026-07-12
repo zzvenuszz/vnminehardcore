@@ -1,0 +1,68 @@
+# ============================================================
+# [END SURGE] 👁️ TẬN THẾ DÂNG TRÀO
+# ============================================================
+# [VI] Sinh vật End trỗi dậy, Levitation. Chỉ ở The End.
+# [EN] End creatures rise up, Levitation. The End only.
+
+disaster-id: end-surge
+enabled: true
+chance: 2
+name: "§5§l👁️ Tận Thế Dâng Trào"
+duration-seconds: 180
+effect-interval-seconds: 5
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["world_the_end"]
+  min-players-online: 1
+
+start-title: "§5§l👁️ Tận Thế Dâng Trào"
+start-subtitle: "Sinh vật End trỗi dậy!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: spawn_mobs
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    count-per-player: 2
+    radius: 10
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_the_end"]
+    mobs:
+      ENDERMITE:
+        weight: 80
+      SHULKER:
+        weight: 20
+
+  - type: potion_effect
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_the_end"]
+    effects:
+      - type: LEVITATION
+        duration-ticks: 40
+        amplifier: 0
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§5§l👁️ End Surge! Sinh vật End trỗi dậy!"
+
+on-end:
+  - type: broadcast
+    message: "§a👁️ End Surge đã kết thúc."

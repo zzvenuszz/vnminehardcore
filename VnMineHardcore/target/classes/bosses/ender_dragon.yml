@@ -1,0 +1,64 @@
+# ============================================================
+# [ENDER DRAGON] 🐉 RỒNG TỬ THẦN
+# ============================================================
+boss-id: ender_dragon
+enabled: false
+entity-type: ENDER_DRAGON
+display-name: "§5§lRồng Tử Thần"
+hp: 1000
+damage-multiplier: 3.0
+chance: 5
+duration-seconds: 1800
+warning-seconds: 120
+
+immunities:
+  fire: true
+  poison: true
+  wither: true
+  sunlight-burn: true
+  fall-damage: true
+  potion-effects:
+    - SLOWNESS
+    - WEAKNESS
+
+drops:
+  DRAGON_EGG:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.15
+  ELYTRA:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.35
+  DIAMOND:
+    min-amount: 8
+    max-amount: 15
+    chance: 0.8
+  EMERALD:
+    min-amount: 15
+    max-amount: 25
+    chance: 0.7
+  IRON_INGOT:
+    min-amount: 20
+    max-amount: 40
+    chance: 0.7
+  SHULKER_SHELL:
+    min-amount: 2
+    max-amount: 4
+    chance: 0.6
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 3
+    chance: 0.4
+  END_CRYSTAL:
+    min-amount: 1
+    max-amount: 3
+    chance: 0.3
+  CHORUS_FRUIT:
+    min-amount: 5
+    max-amount: 15
+    chance: 0.5
+  DRAGON_BREATH:
+    min-amount: 1
+    max-amount: 3
+    chance: 0.3

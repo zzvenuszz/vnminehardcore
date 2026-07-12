@@ -1,0 +1,53 @@
+# ============================================================
+# [PHANTOM BOSS] 👻 PHANTOM BOSS
+# ============================================================
+boss-id: phantom_boss
+enabled: true
+entity-type: PHANTOM
+display-name: "§8§lPhantom Boss"
+hp: 100
+damage-multiplier: 1.5
+chance: 10
+duration-seconds: 1800
+warning-seconds: 45
+
+immunities:
+  fall-damage: true
+
+drops:
+  PHANTOM_MEMBRANE:
+    min-amount: 5
+    max-amount: 15
+    chance: 0.9
+  DIAMOND:
+    min-amount: 3
+    max-amount: 6
+    chance: 0.35
+  IRON_INGOT:
+    min-amount: 8
+    max-amount: 15
+    chance: 0.5
+  EMERALD:
+    min-amount: 5
+    max-amount: 12
+    chance: 0.4
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.25
+  FEATHER:
+    min-amount: 10
+    max-amount: 25
+    chance: 0.6
+  GHAST_TEAR:
+    min-amount: 1
+    max-amount: 3
+    chance: 0.3
+  EXPERIENCE_BOTTLE:
+    min-amount: 5
+    max-amount: 15
+    chance: 0.5
+  ELYTRA:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.05

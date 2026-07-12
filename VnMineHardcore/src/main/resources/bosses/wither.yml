@@ -1,0 +1,71 @@
+# ============================================================
+# [WITHER] ☠ WITHER HUYỀN THOẠI
+# ============================================================
+# [VI] Wither Huyền Thoại - Boss mạnh nhất trong số các boss
+# [EN] Legendary Wither - The strongest among all bosses
+
+boss-id: wither
+enabled: true
+entity-type: WITHER
+display-name: "§e☠ §c§lWither Huyền Thoại §e☠"
+hp: 600
+damage-multiplier: 2.0
+chance: 10
+duration-seconds: 1800
+warning-seconds: 60
+
+# ===== MIỄN NHIỄM / IMMUNITIES =====
+# [VI] Các hiệu ứng boss này miễn nhiễm
+# [EN] Effects this boss is immune to
+immunities:
+  fire: true
+  poison: true
+  wither: true
+  sunlight-burn: true
+  fall-damage: true
+  potion-effects:
+    - SLOWNESS
+    - WEAKNESS
+
+# ===== DROPS / VẬT PHẨM RƠI =====
+drops:
+  NETHERITE_INGOT:
+    min-amount: 2
+    max-amount: 5
+    chance: 1.0
+  DIAMOND:
+    min-amount: 5
+    max-amount: 10
+    chance: 0.8
+  EMERALD:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.7
+  IRON_INGOT:
+    min-amount: 15
+    max-amount: 30
+    chance: 0.6
+  GOLD_INGOT:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.6
+  DIAMOND_BLOCK:
+    min-amount: 1
+    max-amount: 3
+    chance: 0.5
+  WITHER_SKELETON_SKULL:
+    min-amount: 1
+    max-amount: 2
+    chance: 0.4
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 2
+    chance: 0.3
+  NETHER_STAR:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.2
+  BEACON:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.1

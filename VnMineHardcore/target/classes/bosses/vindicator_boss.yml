@@ -1,0 +1,44 @@
+# ============================================================
+# [VINDICATOR BOSS] 🪓 VINDICATOR BOSS
+# ============================================================
+boss-id: vindicator_boss
+enabled: true
+entity-type: VINDICATOR
+display-name: "§c§lVindicator Boss"
+hp: 160
+damage-multiplier: 2.0
+chance: 10
+duration-seconds: 1800
+warning-seconds: 45
+
+immunities: {}
+
+drops:
+  IRON_AXE:
+    min-amount: 1
+    max-amount: 2
+    chance: 0.6
+  EMERALD:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.8
+  DIAMOND:
+    min-amount: 3
+    max-amount: 7
+    chance: 0.35
+  IRON_INGOT:
+    min-amount: 8
+    max-amount: 16
+    chance: 0.5
+  GOLD_INGOT:
+    min-amount: 5
+    max-amount: 10
+    chance: 0.4
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.25
+  DIAMOND_SWORD:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.15

@@ -13,6 +13,7 @@
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/ConfigManager.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DeathPenaltyManager.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DeathRenameManager.java
+/home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DisasterAction.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/DisasterManager.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/LogManager.java
 /home/zzvenuszz/vnminehardcore/VnMineHardcore/src/main/java/com/vnmine/hardcore/managers/ThirstManager.java

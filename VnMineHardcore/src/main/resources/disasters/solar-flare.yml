@@ -1,0 +1,70 @@
+# ============================================================
+# [SOLAR FLARE] 🔥 BÃO MẶT TRỜI
+# ============================================================
+# [VI] Ánh nắng gây cháy, mù. Chỉ xảy ra ban ngày.
+# [EN] Sunlight causes burns, blindness. Only occurs during day.
+
+disaster-id: solar-flare
+enabled: true
+chance: 3
+name: "§c§l🔥 Bão Mặt Trời"
+duration-seconds: 60
+effect-interval-seconds: 10
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: true
+  worlds: ["overworld"]
+  min-players-online: 1
+
+start-title: "§c§l🔥 Bão Mặt Trời"
+start-subtitle: "Ánh nắng thiêu đốt!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: damage
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    damage: 2.0
+    ignore-armor: false
+
+  - type: set_fire
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    fire-ticks: 40
+
+  - type: potion_effect
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    effects:
+      - type: BLINDNESS
+        duration-ticks: 40
+        amplifier: 2
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§c§l🔥 Bão mặt trời! Vào nhà ngay!"
+
+on-end:
+  - type: broadcast
+    message: "§a🔥 Bão mặt trời đã qua."

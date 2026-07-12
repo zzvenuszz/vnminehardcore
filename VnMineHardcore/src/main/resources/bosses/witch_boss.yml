@@ -1,0 +1,59 @@
+# ============================================================
+# [WITCH BOSS] 🧙 WITCH BOSS
+# ============================================================
+boss-id: witch_boss
+enabled: true
+entity-type: WITCH
+display-name: "§9§lWitch Boss"
+hp: 140
+damage-multiplier: 2.0
+chance: 10
+duration-seconds: 90
+warning-seconds: 45
+
+immunities:
+  poison: true
+  potion-effects:
+    - WEAKNESS
+
+drops:
+  POTION:
+    min-amount: 5
+    max-amount: 15
+    chance: 0.8
+  GLOWSTONE_DUST:
+    min-amount: 10
+    max-amount: 25
+    chance: 0.8
+  DIAMOND:
+    min-amount: 3
+    max-amount: 6
+    chance: 0.35
+  IRON_INGOT:
+    min-amount: 8
+    max-amount: 15
+    chance: 0.5
+  EMERALD:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.6
+  REDSTONE:
+    min-amount: 15
+    max-amount: 30
+    chance: 0.7
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 2
+    chance: 0.3
+  SUGAR:
+    min-amount: 5
+    max-amount: 10
+    chance: 0.4
+  SPIDER_EYE:
+    min-amount: 3
+    max-amount: 8
+    chance: 0.4
+  GUNPOWDER:
+    min-amount: 5
+    max-amount: 10
+    chance: 0.4

@@ -1,0 +1,76 @@
+# ============================================================
+# [ECLIPSE] 📉 NHẬT THỰC
+# ============================================================
+# [VI] Ban ngày thành đêm, quái xuất hiện. Chỉ xảy ra ban ngày.
+# [EN] Day turns to night, mobs spawn. Only occurs during day.
+
+disaster-id: eclipse
+enabled: true
+chance: 1
+name: "§0§l📉 Nhật Thực"
+duration-seconds: 180
+effect-interval-seconds: 10
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: true
+  worlds: ["overworld"]
+  min-players-online: 1
+
+start-title: "§0§l📉 Nhật Thực"
+start-subtitle: "Mặt trời biến mất!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: set_time
+    time: 13000
+
+  - type: potion_effect
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    effects:
+      - type: DARKNESS
+        duration-ticks: 60
+        amplifier: 2
+
+  - type: spawn_mobs
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    count-per-player: 1
+    radius: 7
+    targets:
+      player:
+        weight: 100
+        worlds: ["overworld"]
+    mobs:
+      ZOMBIE:
+        weight: 30
+      SKELETON:
+        weight: 30
+      CREEPER:
+        weight: 20
+      SPIDER:
+        weight: 20
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§0§l📉 Nhật thực! Bóng tối bao trùm!"
+
+on-end:
+  - type: set_time
+    time: 1000
+  - type: broadcast
+    message: "§a📉 Nhật thực kết thúc."

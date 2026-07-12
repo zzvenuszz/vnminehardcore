@@ -1,0 +1,66 @@
+# ============================================================
+# [METEOR] ☄️ MƯA SAO BĂNG
+# ============================================================
+# [VI] Thiên thạch rơi, nổ. Xảy ra ở Overworld.
+# [EN] Meteors fall, explode. Occurs in Overworld.
+
+disaster-id: meteor
+enabled: true
+chance: 5
+name: "§6§l☄️ Mưa Sao Băng"
+duration-seconds: 60
+effect-interval-seconds: 5
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["overworld"]
+  min-players-online: 1
+
+start-title: "§6§l☄️ Mưa Sao Băng"
+start-subtitle: "Thiên thạch đang rơi!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: lightning_strike
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    count-per-player: 2
+    radius: 15
+    explosion-power: 3.0
+    explosion-fire: false
+    explosion-break-blocks: true
+    delay-ticks: 30
+
+  - type: explosion
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: false
+    targets:
+      ground:
+        weight: 100
+    count-per-player: 2
+    radius: 15
+    explosion-power: 3.0
+    explosion-fire: false
+    explosion-break-blocks: true
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§6§l☄️ Mưa sao băng! Tránh xa khu vực trống!"
+
+on-end:
+  - type: broadcast
+    message: "§a☄️ Mưa sao băng đã kết thúc."

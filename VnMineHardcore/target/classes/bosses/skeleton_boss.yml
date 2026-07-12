@@ -1,0 +1,55 @@
+# ============================================================
+# [SKELETON BOSS] 💀 SKELETON BOSS
+# ============================================================
+boss-id: skeleton_boss
+enabled: true
+entity-type: SKELETON
+display-name: "§8§lSkeleton Boss"
+hp: 120
+damage-multiplier: 2.0
+chance: 15
+duration-seconds: 1800
+warning-seconds: 45
+
+immunities:
+  sunlight-burn: true
+  potion-effects:
+    - SLOWNESS
+
+drops:
+  BONE:
+    min-amount: 10
+    max-amount: 25
+    chance: 0.9
+  ARROW:
+    min-amount: 15
+    max-amount: 40
+    chance: 0.8
+  DIAMOND:
+    min-amount: 3
+    max-amount: 7
+    chance: 0.35
+  IRON_INGOT:
+    min-amount: 8
+    max-amount: 18
+    chance: 0.6
+  EMERALD:
+    min-amount: 8
+    max-amount: 15
+    chance: 0.5
+  BOW:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.35
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.25
+  FLINT_AND_STEEL:
+    min-amount: 1
+    max-amount: 2
+    chance: 0.3
+  SKELETON_SKULL:
+    min-amount: 1
+    max-amount: 2
+    chance: 0.2

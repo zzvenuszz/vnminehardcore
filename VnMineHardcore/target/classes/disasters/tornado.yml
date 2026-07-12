@@ -1,0 +1,50 @@
+# ============================================================
+# [TORNADO] 🌪️ LỐC XOÁY
+# ============================================================
+# [VI] Nhấc bổng người chơi, phá hủy khối.
+# [EN] Lifts players, destroys blocks.
+
+disaster-id: tornado
+enabled: true
+chance: 2
+name: "§8§l🌪️ Lốc Xoáy"
+duration-seconds: 30
+effect-interval-seconds: 2
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["overworld"]
+  min-players-online: 1
+
+start-title: "§8§l🌪️ Lốc Xoáy"
+start-subtitle: "Lốc xoáy cuốn phăng mọi thứ!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: velocity
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    velocity-y: 1.5
+    velocity-x-range: -1.0-1.0
+    velocity-z-range: -1.0-1.0
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§8§l🌪️ Lốc xoáy! Cẩn thận bị cuốn bay!"
+
+on-end:
+  - type: broadcast
+    message: "§a🌪️ Lốc xoáy đã tan."

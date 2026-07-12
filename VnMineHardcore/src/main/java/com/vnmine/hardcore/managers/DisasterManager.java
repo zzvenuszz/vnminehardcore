@@ -24,11 +24,10 @@ public class DisasterManager {
 
     private boolean disasterActive = false;
     private String currentDisaster = null;
+    private String currentDisasterId = null;
     private BossBar warningBar;
     private int warningTimeLeft = 0;
     private int timeSinceLastDisaster = 0;
-
-    private final Map<String, Runnable> disasterMap = new LinkedHashMap<>();
 
     // Block materials considered as "transparent" - không được coi là mái che an toàn
     private static final Set<Material> TRANSPARENT_BLOCKS = new HashSet<>(Arrays.asList(
@@ -118,58 +117,23 @@ public class DisasterManager {
         this.warningBar = BossBar.bossBar(
             Component.text(""), 1.0f, BossBar.Color.RED, BossBar.Overlay.PROGRESS
         );
-        registerDisasters();
         if (config.disastersEnabled) start();
     }
 
-    private void registerDisasters() {
-        disasterMap.put("blood-moon", this::startBloodMoon);
-        disasterMap.put("meteor", this::startMeteorShower);
-        disasterMap.put("mega-storm", this::startMegaStorm);
-        disasterMap.put("solar-flare", this::startSolarFlare);
-        disasterMap.put("plague", this::startPlague);
-        disasterMap.put("tornado", this::startTornado);
-        disasterMap.put("eclipse", this::startSolarEclipse);
-        disasterMap.put("earthquake", this::startEarthquake);
-        disasterMap.put("inferno-storm", this::startInfernoStorm);
-        disasterMap.put("soul-eruption", this::startSoulEruption);
-        disasterMap.put("lava-geyser", this::startLavaGeyser);
-        disasterMap.put("end-surge", this::startEndSurge);
-        disasterMap.put("void-storm", this::startVoidStorm);
-        disasterMap.put("chorus-explosion", this::startChorusExplosion);
+    public Set<String> getDisasterIds() {
+        return config.disasterConfigs.keySet();
     }
-
-    public Set<String> getDisasterIds() { return disasterMap.keySet(); }
 
     public String getDisasterName(String id) {
         ConfigManager.DisasterConfig dc = config.disasterConfigs.get(id.toLowerCase());
         if (dc != null && dc.name != null && !dc.name.isEmpty()) {
             return dc.name;
         }
-        // Fallback to hardcoded names
-        return switch (id.toLowerCase()) {
-            case "blood-moon" -> "🌕 Blood Moon";
-            case "meteor" -> "☄️ Meteor Shower";
-            case "mega-storm" -> "🌊 Mega Storm";
-            case "solar-flare" -> "🔥 Solar Flare";
-            case "plague" -> "🦠 Plague";
-            case "tornado" -> "🌪️ Tornado";
-            case "eclipse" -> "📉 Solar Eclipse";
-            case "earthquake" -> "🌍 Earthquake";
-            case "inferno-storm" -> "🔥 Inferno Storm";
-            case "soul-eruption" -> "💀 Soul Eruption";
-            case "lava-geyser" -> "🌋 Lava Geyser";
-            case "end-surge" -> "👁️ End Surge";
-            case "void-storm" -> "🌌 Void Storm";
-            case "chorus-explosion" -> "🌀 Chorus Explosion";
-            default -> id;
-        };
+        return id;
     }
 
-    /**
-     * Kiểm tra xem player có đang ở nơi an toàn (có mái che) không.
-     * Kiểm tra block ngay trên đầu player và các block xung quanh.
-     */
+    // ===== SAFE ZONE =====
+
     public boolean isPlayerSafe(Player player) {
         if (!config.safeZoneEnabled) return false;
         
@@ -213,55 +177,44 @@ public class DisasterManager {
         return true;
     }
 
-    /**
-     * Gửi thông báo an toàn/không an toàn cho player dựa vào trạng thái hiện tại.
-     */
     private void sendSafeZoneMessage(Player player) {
         if (!config.safeZoneEnabled) return;
-        
         if (isPlayerSafe(player)) {
             player.sendActionBar("§a§l🏠 Bạn đang an toàn trong nhà!");
-        } else {
-            if (disasterActive) {
-                player.sendActionBar("§c§l⚠ Bạn đang ở ngoài trời! Vào nhà ngay!");
-            }
+        } else if (disasterActive) {
+            player.sendActionBar("§c§l⚠ Bạn đang ở ngoài trời! Vào nhà ngay!");
         }
     }
 
+    // ===== TRIGGER (MANUAL) =====
+
     public boolean triggerDisaster(String disasterId, int warningTimeSeconds, int durationSeconds) {
         if (disasterActive) return false;
-        Runnable task = disasterMap.get(disasterId.toLowerCase());
-        if (task == null) return false;
+        if (currentDisaster != null) return false;
 
-        String name = getDisasterName(disasterId);
+        ConfigManager.DisasterConfig dc = config.disasterConfigs.get(disasterId.toLowerCase());
+        if (dc == null) return false;
+
+        String name = dc.name != null && !dc.name.isEmpty() ? dc.name : disasterId;
         currentDisaster = name;
+        currentDisasterId = disasterId;
         warningTimeLeft = warningTimeSeconds;
 
-        String warningTitle = config.disasterMessages.getOrDefault("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠");
-        String warningSubtitle = config.disasterMessages.getOrDefault("warning-subtitle", "§c{name}\n§e§lSẽ xảy ra trong {time} giây!");
-        String warningBroadcast = config.disasterMessages.getOrDefault("warning-broadcast", "§4§l⚠ {name} §r§cđang đến gần!");
-
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            p.showBossBar(warningBar);
-            p.sendTitle(warningTitle,
-                warningSubtitle.replace("{name}", name).replace("{time}", String.valueOf(warningTimeSeconds)), 10, 70, 20);
-            p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 0.5f);
-            p.sendMessage(warningBroadcast.replace("{name}", name));
-        }
-        logManager.logDisaster(name + " (MANUAL - Warning " + warningTimeSeconds + "s)");
+        broadcastWarning(name, warningTimeSeconds);
 
         new BukkitRunnable() {
             int cd = warningTimeSeconds;
             @Override
             public void run() {
                 cd--;
-                if (cd <= 0) { this.cancel(); task.run(); return; }
-                if (cd <= 5 || cd == 10 || cd == 30) {
-                    String countdownMsg = config.disasterMessages.getOrDefault("countdown-broadcast", 
-                        "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!");
-                    broadcast(countdownMsg.replace("{name}", name).replace("{time}", String.valueOf(cd)));
+                if (cd <= 0) {
+                    this.cancel();
+                    startDisasterById(disasterId, durationSeconds);
+                    return;
                 }
-                // Gửi thông báo an toàn trong thời gian đếm ngược
+                if (cd <= 5 || cd == 10 || cd == 30) {
+                    broadcastCountdown(name, cd);
+                }
                 if (config.safeZoneEnabled && cd % 5 == 0) {
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         sendSafeZoneMessage(p);
@@ -272,15 +225,18 @@ public class DisasterManager {
         return true;
     }
 
+    // ===== SCHEDULER =====
+
     public void start() {
         new BukkitRunnable() {
             @Override
             public void run() {
                 if (Bukkit.getWorlds().isEmpty()) return;
                 timeSinceLastDisaster++;
-                // Use random interval from config (supports range format like "500-1200")
                 int currentInterval = ConfigManager.parseRangeOrInt(config.disasterMinIntervalRaw, 1200);
-                if (!disasterActive && timeSinceLastDisaster >= currentInterval) tryScheduleDisaster();
+                if (!disasterActive && timeSinceLastDisaster >= currentInterval) {
+                    tryScheduleDisaster();
+                }
                 if (warningTimeLeft > 0) {
                     warningTimeLeft--;
                     updateWarningBar();
@@ -298,15 +254,65 @@ public class DisasterManager {
         for (Player p : Bukkit.getOnlinePlayers()) p.hideBossBar(warningBar);
     }
 
+    public boolean isDisasterActive() {
+        return disasterActive;
+    }
+
+    public String getCurrentDisaster() {
+        return currentDisaster;
+    }
+
     private void tryScheduleDisaster() {
         int currentInterval = ConfigManager.parseRangeOrInt(config.disasterMinIntervalRaw, 1200);
         if (timeSinceLastDisaster < currentInterval) return;
-        if (currentDisaster != null) return; // Already has a disaster/warning in progress
+        if (currentDisaster != null) return;
 
-        int roll = random.nextInt(100);
+        // Collect enabled disasters from config (dynamic!)
+        List<Map.Entry<String, ConfigManager.DisasterConfig>> enabledDisasters = new ArrayList<>();
+        for (Map.Entry<String, ConfigManager.DisasterConfig> entry : config.disasterConfigs.entrySet()) {
+            ConfigManager.DisasterConfig dc = entry.getValue();
+            if (!dc.enabled) continue;
+            if (dc.actions.isEmpty()) continue; // Bỏ qua disaster không có actions
+            enabledDisasters.add(entry);
+        }
+
+        if (enabledDisasters.isEmpty()) return;
+
+        // Tính tổng chance
+        int totalChance = 0;
+        for (Map.Entry<String, ConfigManager.DisasterConfig> entry : enabledDisasters) {
+            totalChance += entry.getValue().chance;
+        }
+        if (totalChance <= 0) return;
+
+        // Weighted random
+        int roll = random.nextInt(totalChance);
+        int cumulative = 0;
+        for (Map.Entry<String, ConfigManager.DisasterConfig> entry : enabledDisasters) {
+            String disasterId = entry.getKey();
+            ConfigManager.DisasterConfig dc = entry.getValue();
+            cumulative += dc.chance;
+            if (roll < cumulative) {
+                // Kiểm tra conditions (world, time)
+                if (!canDisasterHappen(disasterId, dc)) continue;
+                
+                timeSinceLastDisaster = 0;
+                scheduleDisaster(disasterId, dc);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Kiểm tra điều kiện disaster có thể xảy ra không
+     */
+    private boolean canDisasterHappen(String disasterId, ConfigManager.DisasterConfig dc) {
+        // Kiểm tra world conditions từ file YAML
+        // Đọc file disaster để lấy conditions (tạm thời dùng logic cũ)
+        // Conditions: only-night, only-day, worlds
         boolean isNight = Bukkit.getWorlds().get(0).getTime() > 13000;
-
-        // Xác định dimension có player
+        
+        // Kiểm tra có player trong dimension phù hợp không
         boolean hasNether = false, hasEnd = false, hasOverworld = false;
         for (Player p : Bukkit.getOnlinePlayers()) {
             String env = p.getWorld().getEnvironment().name();
@@ -315,249 +321,32 @@ public class DisasterManager {
             else hasOverworld = true;
         }
 
-        // Overworld events
-        if (hasOverworld) {
-            // Blood Moon - chỉ ban đêm
-            ConfigManager.DisasterConfig bloodMoonConfig = config.disasterConfigs.get("blood-moon");
-            int bloodMoonChance = bloodMoonConfig != null ? bloodMoonConfig.chance : 10;
-            boolean bloodMoonEnabled = bloodMoonConfig != null && bloodMoonConfig.enabled;
+        // Xác định disaster thuộc dimension nào dựa trên tên
+        String id = disasterId.toLowerCase();
+        boolean isNether = id.contains("inferno") || id.contains("soul") || id.contains("lava");
+        boolean isEnd = id.contains("end-surge") || id.contains("void") || id.contains("chorus");
+        
+        if (isNether && !hasNether) return false;
+        if (isEnd && !hasEnd) return false;
+        if (!isNether && !isEnd && !hasOverworld) return false;
 
-            if (roll < bloodMoonChance) {
-                if (isNight && bloodMoonEnabled) {
-                    timeSinceLastDisaster = 0;
-                    scheduleDisaster(getDisasterName("blood-moon"), this::startBloodMoon);
-                    return;
-                } else {
-                    // Ban ngày → thay thế bằng Solar Flare hoặc Eclipse ngẫu nhiên
-                    timeSinceLastDisaster = 0;
-                    ConfigManager.DisasterConfig solarFlareConfig = config.disasterConfigs.get("solar-flare");
-                    ConfigManager.DisasterConfig eclipseConfig = config.disasterConfigs.get("eclipse");
-                    boolean solarFlareEnabled = solarFlareConfig != null && solarFlareConfig.enabled;
-                    boolean eclipseEnabled = eclipseConfig != null && eclipseConfig.enabled;
+        // Time conditions (approximate based on old behavior)
+        if (id.equals("blood-moon") && !isNight) return false;
+        if (id.equals("solar-flare") && isNight) return false;
+        if (id.equals("eclipse") && isNight) return false;
 
-                    if (random.nextBoolean() && solarFlareEnabled) {
-                        scheduleDisaster(getDisasterName("solar-flare"), this::startSolarFlare);
-                    } else if (eclipseEnabled) {
-                        scheduleDisaster(getDisasterName("eclipse"), this::startSolarEclipse);
-                    }
-                    return;
-                }
-            }
-            roll -= bloodMoonChance;
-
-            // Meteor Shower
-            ConfigManager.DisasterConfig meteorConfig = config.disasterConfigs.get("meteor");
-            int meteorChance = meteorConfig != null ? meteorConfig.chance : 5;
-            boolean meteorEnabled = meteorConfig != null && meteorConfig.enabled;
-            if (roll < meteorChance && meteorEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("meteor"), this::startMeteorShower); 
-                return; 
-            }
-            roll -= meteorChance;
-
-            // Mega Storm
-            ConfigManager.DisasterConfig megaStormConfig = config.disasterConfigs.get("mega-storm");
-            int megaStormChance = megaStormConfig != null ? megaStormConfig.chance : 5;
-            boolean megaStormEnabled = megaStormConfig != null && megaStormConfig.enabled;
-            if (roll < megaStormChance && megaStormEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("mega-storm"), this::startMegaStorm); 
-                return; 
-            }
-            roll -= megaStormChance;
-
-            // Solar Flare - chỉ ban ngày
-            ConfigManager.DisasterConfig solarFlareConfig2 = config.disasterConfigs.get("solar-flare");
-            int solarFlareChance = solarFlareConfig2 != null ? solarFlareConfig2.chance : 3;
-            boolean solarFlareEnabled2 = solarFlareConfig2 != null && solarFlareConfig2.enabled;
-            if (roll < solarFlareChance) {
-                if (!isNight && solarFlareEnabled2) {
-                    timeSinceLastDisaster = 0;
-                    scheduleDisaster(getDisasterName("solar-flare"), this::startSolarFlare);
-                    return;
-                } else {
-                    // Ban đêm → thay thế bằng event ngẫu nhiên khác (trừ bloodmoon)
-                    timeSinceLastDisaster = 0;
-                    scheduleRandomOverworldDisasterExcluding("🔥 Solar Flare", "📉 Solar Eclipse");
-                    return;
-                }
-            }
-            roll -= solarFlareChance;
-
-            // Plague
-            ConfigManager.DisasterConfig plagueConfig = config.disasterConfigs.get("plague");
-            int plagueChance = plagueConfig != null ? plagueConfig.chance : 2;
-            boolean plagueEnabled = plagueConfig != null && plagueConfig.enabled;
-            if (roll < plagueChance && plagueEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("plague"), this::startPlague); 
-                return; 
-            }
-            roll -= plagueChance;
-
-            // Tornado
-            ConfigManager.DisasterConfig tornadoConfig = config.disasterConfigs.get("tornado");
-            int tornadoChance = tornadoConfig != null ? tornadoConfig.chance : 2;
-            boolean tornadoEnabled = tornadoConfig != null && tornadoConfig.enabled;
-            if (roll < tornadoChance && tornadoEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("tornado"), this::startTornado); 
-                return; 
-            }
-            roll -= tornadoChance;
-
-            // Solar Eclipse - chỉ ban ngày
-            ConfigManager.DisasterConfig eclipseConfig2 = config.disasterConfigs.get("eclipse");
-            int eclipseChance = eclipseConfig2 != null ? eclipseConfig2.chance : 1;
-            boolean eclipseEnabled2 = eclipseConfig2 != null && eclipseConfig2.enabled;
-            if (roll < eclipseChance) {
-                if (!isNight && eclipseEnabled2) {
-                    timeSinceLastDisaster = 0;
-                    scheduleDisaster(getDisasterName("eclipse"), this::startSolarEclipse);
-                    return;
-                } else {
-                    // Ban đêm → thay thế bằng event ngẫu nhiên khác
-                    timeSinceLastDisaster = 0;
-                    scheduleRandomOverworldDisasterExcluding("📉 Solar Eclipse", "🔥 Solar Flare");
-                    return;
-                }
-            }
-            roll -= eclipseChance;
-
-            // Earthquake
-            ConfigManager.DisasterConfig earthquakeConfig = config.disasterConfigs.get("earthquake");
-            int earthquakeChance = earthquakeConfig != null ? earthquakeConfig.chance : 2;
-            boolean earthquakeEnabled = earthquakeConfig != null && earthquakeConfig.enabled;
-            if (roll < earthquakeChance && earthquakeEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("earthquake"), this::startEarthquake); 
-                return; 
-            }
-            roll -= earthquakeChance;
-        }
-
-        // Nether events
-        if (hasNether) {
-            ConfigManager.DisasterConfig infernoConfig = config.disasterConfigs.get("inferno-storm");
-            int infernoChance = infernoConfig != null ? infernoConfig.chance : 3;
-            boolean infernoEnabled = infernoConfig != null && infernoConfig.enabled;
-            if (roll < infernoChance && infernoEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("inferno-storm"), this::startInfernoStorm); 
-                return; 
-            }
-            roll -= infernoChance;
-
-            ConfigManager.DisasterConfig soulConfig = config.disasterConfigs.get("soul-eruption");
-            int soulChance = soulConfig != null ? soulConfig.chance : 2;
-            boolean soulEnabled = soulConfig != null && soulConfig.enabled;
-            if (roll < soulChance && soulEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("soul-eruption"), this::startSoulEruption); 
-                return; 
-            }
-            roll -= soulChance;
-
-            ConfigManager.DisasterConfig lavaConfig = config.disasterConfigs.get("lava-geyser");
-            int lavaChance = lavaConfig != null ? lavaConfig.chance : 2;
-            boolean lavaEnabled = lavaConfig != null && lavaConfig.enabled;
-            if (roll < lavaChance && lavaEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("lava-geyser"), this::startLavaGeyser); 
-                return; 
-            }
-            roll -= lavaChance;
-        }
-
-        // End events
-        if (hasEnd) {
-            ConfigManager.DisasterConfig endSurgeConfig = config.disasterConfigs.get("end-surge");
-            int endSurgeChance = endSurgeConfig != null ? endSurgeConfig.chance : 2;
-            boolean endSurgeEnabled = endSurgeConfig != null && endSurgeConfig.enabled;
-            if (roll < endSurgeChance && endSurgeEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("end-surge"), this::startEndSurge); 
-                return; 
-            }
-            roll -= endSurgeChance;
-
-            ConfigManager.DisasterConfig voidConfig = config.disasterConfigs.get("void-storm");
-            int voidChance = voidConfig != null ? voidConfig.chance : 2;
-            boolean voidEnabled = voidConfig != null && voidConfig.enabled;
-            if (roll < voidChance && voidEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("void-storm"), this::startVoidStorm); 
-                return; 
-            }
-            roll -= voidChance;
-
-            ConfigManager.DisasterConfig chorusConfig = config.disasterConfigs.get("chorus-explosion");
-            int chorusChance = chorusConfig != null ? chorusConfig.chance : 1;
-            boolean chorusEnabled = chorusConfig != null && chorusConfig.enabled;
-            if (roll < chorusChance && chorusEnabled) { 
-                timeSinceLastDisaster = 0; 
-                scheduleDisaster(getDisasterName("chorus-explosion"), this::startChorusExplosion); 
-                return; 
-            }
-            roll -= chorusChance;
-        }
+        return true;
     }
 
-    /**
-     * Chọn ngẫu nhiên một overworld disaster khác, loại trừ các disaster được chỉ định
-     */
-    private void scheduleRandomOverworldDisasterExcluding(String... excludeNames) {
-        List<Runnable> available = new ArrayList<>();
-        List<String> availableNames = new ArrayList<>();
+    // ===== SCHEDULE WITH WARNING =====
 
-        // Danh sách tất cả overworld disasters
-        java.util.Map<String, Runnable> overworldDisasters = new java.util.LinkedHashMap<>();
-        overworldDisasters.put("☄️ Meteor Shower", this::startMeteorShower);
-        overworldDisasters.put("🌊 Mega Storm", this::startMegaStorm);
-        overworldDisasters.put("🔥 Solar Flare", this::startSolarFlare);
-        overworldDisasters.put("🦠 Plague", this::startPlague);
-        overworldDisasters.put("🌪️ Tornado", this::startTornado);
-        overworldDisasters.put("📉 Solar Eclipse", this::startSolarEclipse);
-        overworldDisasters.put("🌍 Earthquake", this::startEarthquake);
-
-        for (java.util.Map.Entry<String, Runnable> entry : overworldDisasters.entrySet()) {
-            boolean excluded = false;
-            for (String ex : excludeNames) {
-                if (entry.getKey().equals(ex)) {
-                    excluded = true;
-                    break;
-                }
-            }
-            if (!excluded) {
-                available.add(entry.getValue());
-                availableNames.add(entry.getKey());
-            }
-        }
-
-        if (!available.isEmpty()) {
-            int idx = random.nextInt(available.size());
-            scheduleDisaster(availableNames.get(idx), available.get(idx));
-        } else {
-            // Fallback: meteor shower
-            scheduleDisaster("☄️ Meteor Shower", this::startMeteorShower);
-        }
-    }
-
-    private void scheduleDisaster(String name, Runnable disasterTask) {
+    private void scheduleDisaster(String disasterId, ConfigManager.DisasterConfig dc) {
+        String name = dc.name != null && !dc.name.isEmpty() ? dc.name : disasterId;
         currentDisaster = name;
+        currentDisasterId = disasterId;
         warningTimeLeft = config.disasterWarningSeconds;
-        
-        String warningTitle = config.disasterMessages.getOrDefault("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠");
-        String warningBroadcast = config.disasterMessages.getOrDefault("warning-broadcast", "§4§l⚠ {name} §r§cđang đến gần!");
-        
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            p.showBossBar(warningBar);
-            p.sendTitle(warningTitle,
-                "§c" + name + "\n§e§lSẽ xảy ra trong " + (config.disasterWarningSeconds / 60) + " phút!", 10, 70, 20);
-            p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 0.5f);
-            p.sendMessage(warningBroadcast.replace("{name}", name));
-        }
+
+        broadcastWarning(name, config.disasterWarningSeconds);
         logManager.logDisaster(name + " (WARNING)");
 
         new BukkitRunnable() {
@@ -565,13 +354,14 @@ public class DisasterManager {
             @Override
             public void run() {
                 cd--;
-                if (cd <= 0) { this.cancel(); disasterTask.run(); return; }
-                if (cd == 60 || cd == 30 || cd == 10 || cd <= 5) {
-                    String countdownMsg = config.disasterMessages.getOrDefault("countdown-broadcast",
-                        "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!");
-                    broadcast(countdownMsg.replace("{name}", currentDisaster).replace("{time}", String.valueOf(cd)));
+                if (cd <= 0) {
+                    this.cancel();
+                    startDisasterById(disasterId, dc.durationSeconds);
+                    return;
                 }
-                // Gửi thông báo an toàn trong thời gian đếm ngược (mỗi 5 giây)
+                if (cd == 60 || cd == 30 || cd == 10 || cd <= 5) {
+                    broadcastCountdown(name, cd);
+                }
                 if (config.safeZoneEnabled && cd % 5 == 0) {
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         sendSafeZoneMessage(p);
@@ -581,17 +371,23 @@ public class DisasterManager {
         }.runTaskTimer(plugin, 0L, 20L);
     }
 
-    private void startDisaster(String name, String startMsg, int durationTicks, Runnable duringTask, Runnable endTask) {
+    // ===== START DISASTER (ACTION ENGINE) =====
+
+    private void startDisasterById(String disasterId, int durationSecondsOverride) {
+        ConfigManager.DisasterConfig dc = config.disasterConfigs.get(disasterId);
+        if (dc == null) return;
+
         disasterActive = true;
-        currentDisaster = name;
+        String name = dc.name != null && !dc.name.isEmpty() ? dc.name : disasterId;
+
+        int totalDurationTicks = (durationSecondsOverride > 0 ? durationSecondsOverride : dc.durationSeconds) * 20;
+
+        // Show start title
+        String startTitle = (dc.startTitle != null && !dc.startTitle.isEmpty()) ? dc.startTitle : "§4§l⚠ " + name;
+        String startSubtitle = (dc.startSubtitle != null && !dc.startSubtitle.isEmpty()) ? dc.startSubtitle : "§cĐã bắt đầu!";
+
         warningBar.name(Component.text("§4§l⚠ " + name + " ĐANG HOẠT ĐỘNG ⚠"));
         warningBar.progress(1.0f);
-        
-        // Lấy custom title/subtitle từ config nếu có
-        String configKey = getConfigKeyFromName(name);
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get(configKey);
-        String startTitle = (dc != null && !dc.startTitle.isEmpty()) ? dc.startTitle : "§4§l" + name;
-        String startSubtitle = (dc != null && !dc.startSubtitle.isEmpty()) ? dc.startSubtitle : "§c" + startMsg;
         
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.showBossBar(warningBar);
@@ -599,281 +395,236 @@ public class DisasterManager {
             p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.0f, 0.5f);
         }
         logManager.logDisaster(name + " (ACTIVE)");
-        
-        String activeBroadcast = config.disasterMessages.getOrDefault("active-broadcast", 
+
+        String activeBroadcast = config.disasterMessages.getOrDefault("active-broadcast",
             "§4§l{name} - {message} (§e{duration}s§4)");
-        String endBroadcast = config.disasterMessages.getOrDefault("end-broadcast", 
-            "§a§l✅ {name} đã kết thúc!");
-        
-        broadcast(activeBroadcast.replace("{name}", name).replace("{message}", startMsg).replace("{duration}", String.valueOf(durationTicks / 20)));
+        broadcast(activeBroadcast.replace("{name}", name)
+            .replace("{message}", startSubtitle)
+            .replace("{duration}", String.valueOf(totalDurationTicks / 20)));
 
-        int effectIntervalTicks = (dc != null ? dc.effectIntervalSeconds : 5) * 20;
-        int effectDurationTicks = (dc != null ? dc.effectDurationSeconds : 5) * 20;
+        int effectIntervalTicks = dc.effectIntervalSeconds * 20;
 
+        // Execute on-end actions when disaster finishes
         new BukkitRunnable() {
             int elapsed = 0;
             int tickCounter = 0;
+            boolean started = false;
+
             @Override
             public void run() {
-                if (elapsed >= durationTicks) { this.cancel(); return; }
-                warningBar.progress(1.0f - (float) elapsed / durationTicks);
-                tickCounter++;
-                if (tickCounter >= effectIntervalTicks / 20) {
-                    tickCounter = 0;
-                    duringTask.run();
+                if (!started) {
+                    started = true;
+                    // Execute first wave immediately
+                    executeActions(dc.actions, dc);
                 }
-                // Gửi thông báo an toàn mỗi 5 giây trong khi thiên tai đang hoạt động
-                if (config.safeZoneEnabled && tickCounter % 5 == 0) {
+                elapsed += 20;
+                if (elapsed >= totalDurationTicks) {
+                    this.cancel();
+                    disasterActive = false;
+                    currentDisaster = null;
+                    currentDisasterId = null;
+                    warningBar.name(Component.text(""));
+                    warningBar.progress(0);
+                    for (Player p : Bukkit.getOnlinePlayers()) p.hideBossBar(warningBar);
+                    
+                    // Execute on-end actions
+                    executeActions(dc.onEnd, dc);
+                    
+                    String endBroadcast = config.disasterMessages.getOrDefault("end-broadcast",
+                        "§a§l✅ {name} đã kết thúc!");
+                    broadcast(endBroadcast.replace("{name}", name));
+                    return;
+                }
+                warningBar.progress(1.0f - (float) elapsed / totalDurationTicks);
+                tickCounter += 20;
+                if (tickCounter >= effectIntervalTicks) {
+                    tickCounter = 0;
+                    executeActions(dc.actions, dc);
+                }
+                if (config.safeZoneEnabled && tickCounter % 100 == 0) {
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         sendSafeZoneMessage(p);
                     }
                 }
-                elapsed += 20;
             }
         }.runTaskTimer(plugin, 0L, 20L);
-
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                disasterActive = false;
-                currentDisaster = null;
-                warningBar.name(Component.text(""));
-                warningBar.progress(0);
-                for (Player p : Bukkit.getOnlinePlayers()) p.hideBossBar(warningBar);
-                if (endTask != null) endTask.run();
-                broadcast(endBroadcast.replace("{name}", name));
-            }
-        }.runTaskLater(plugin, durationTicks);
     }
+
+    // ===== ACTION ENGINE =====
 
     /**
-     * Get config key from disaster display name
+     * Thực thi danh sách actions từ config
      */
-    private String getConfigKeyFromName(String name) {
-        if (name.contains("Blood")) return "blood-moon";
-        if (name.contains("Meteor")) return "meteor";
-        if (name.contains("Mega")) return "mega-storm";
-        if (name.contains("Solar") && !name.contains("Eclipse")) return "solar-flare";
-        if (name.contains("Plague")) return "plague";
-        if (name.contains("Tornado")) return "tornado";
-        if (name.contains("Eclipse")) return "eclipse";
-        if (name.contains("Earthquake")) return "earthquake";
-        if (name.contains("Inferno")) return "inferno-storm";
-        if (name.contains("Soul")) return "soul-eruption";
-        if (name.contains("Lava")) return "lava-geyser";
-        if (name.contains("End Surge")) return "end-surge";
-        if (name.contains("Void")) return "void-storm";
-        if (name.contains("Chorus")) return "chorus-explosion";
-        return "blood-moon";
-    }
+    @SuppressWarnings("unchecked")
+    private void executeActions(List<DisasterAction> actions, ConfigManager.DisasterConfig dc) {
+        if (actions == null || actions.isEmpty()) return;
 
-    private void updateWarningBar() {
-        if (warningTimeLeft > 0) {
-            warningBar.name(Component.text("§4§l⚠ " + currentDisaster + " §7- §e§l" + (warningTimeLeft / 60) + ":" + String.format("%02d", warningTimeLeft % 60)));
-            warningBar.progress((float) warningTimeLeft / 300f);
+        for (DisasterAction action : actions) {
+            try {
+                executeSingleAction(action, dc);
+            } catch (Exception e) {
+                plugin.getLogger().warning("[Disaster] Error executing action " + action.type + ": " + e.getMessage());
+            }
         }
     }
 
-    // ============ EXISTING DISASTERS ============
+    private void executeSingleAction(DisasterAction action, ConfigManager.DisasterConfig dc) {
+        // Determine which players are affected based on conditions and targets
+        List<Player> affectedPlayers = getAffectedPlayers(action);
 
-    private void startBloodMoon() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("blood-moon");
-        int duration = (dc != null ? dc.durationSeconds : 600) * 20;
+        switch (action.type) {
+            case DAMAGE: {
+                double damage = getParamDouble(action.params, "damage", 2.0);
+                boolean ignoreArmor = getParamBool(action.params, "ignore-armor", false);
+                for (Player p : affectedPlayers) {
+                    if (ignoreArmor) {
+                        p.damage(damage);
+                    } else {
+                        p.damage(damage);
+                    }
+                }
+                break;
+            }
 
-        startDisaster("🌕 Blood Moon", "Máu trăng lên!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    if (random.nextInt(10) < 3) {
-                        Location loc = p.getLocation();
-                        World w = p.getWorld();
-                        for (int i = 0; i < 3; i++) {
-                            Location sl = loc.clone().add(random.nextInt(20) - 10, 0, random.nextInt(20) - 10);
-                            sl.setY(w.getHighestBlockYAt(sl) + 1);
-                            EntityType[] mobs = {EntityType.ZOMBIE, EntityType.SKELETON, EntityType.SPIDER, EntityType.CREEPER};
-                            Entity e = w.spawnEntity(sl, mobs[random.nextInt(mobs.length)]);
-                            if (e instanceof Mob m) {
-                                m.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 600, 1));
-                                m.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 600, 0));
+            case POTION_EFFECT: {
+                // Parse effects list from params
+                List<Map<?, ?>> effectsList = (List<Map<?, ?>>) action.params.get("effects");
+                if (effectsList == null) break;
+                for (Player p : affectedPlayers) {
+                    for (Map<?, ?> effectMap : effectsList) {
+                        String effectType = (String) effectMap.get("type");
+                        int duration = toInt(effectMap.get("duration-ticks"), 100);
+                        int amplifier = toInt(effectMap.get("amplifier"), 0);
+                        if (effectType == null) continue;
+                        try {
+                            PotionEffectType pet = PotionEffectType.getByName(effectType.toUpperCase());
+                            if (pet != null) {
+                                p.addPotionEffect(new PotionEffect(pet, duration, amplifier, false, false));
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+                break;
+            }
+
+            case SPAWN_MOBS: {
+                Map<?, ?> mobsMap = (Map<?, ?>) action.params.get("mobs");
+                if (mobsMap == null) break;
+                int countPerPlayer = getParamInt(action.params, "count-per-player", 1);
+                int radius = getParamInt(action.params, "radius", 10);
+
+                // Tính tổng weight
+                Map<String, Map<?, ?>> mobEntries = new HashMap<>();
+                int totalWeight = 0;
+                for (Map.Entry<?, ?> entry : mobsMap.entrySet()) {
+                    String entityType = entry.getKey().toString();
+                    Map<?, ?> mobData = (Map<?, ?>) entry.getValue();
+                    mobEntries.put(entityType, mobData);
+                    totalWeight += toInt(mobData.get("weight"), 100);
+                }
+
+                for (Player p : affectedPlayers) {
+                    for (int i = 0; i < countPerPlayer; i++) {
+                        if (totalWeight <= 0) break;
+                        // Weighted random chọn mob
+                        int roll = random.nextInt(totalWeight);
+                        int cum = 0;
+                        for (Map.Entry<String, Map<?, ?>> entry : mobEntries.entrySet()) {
+                            cum += toInt(entry.getValue().get("weight"), 100);
+                            if (roll < cum) {
+                                spawnMobNear(p, entry.getKey(), radius, entry.getValue());
+                                break;
                             }
                         }
                     }
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 40, 0, false, false));
                 }
-            }, () -> broadcast("§6Mặt trăng đã trở lại bình thường."));
-    }
+                break;
+            }
 
-    private void startMeteorShower() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("meteor");
-        int duration = (dc != null ? dc.durationSeconds : 400) * 20;
+            case LIGHTNING_STRIKE: {
+                int count = getParamInt(action.params, "count-per-player", 1);
+                int radius = getParamInt(action.params, "radius", 15);
+                float explosionPower = (float) getParamDouble(action.params, "explosion-power", 3.0);
+                boolean fire = getParamBool(action.params, "explosion-fire", false);
+                boolean breakBlocks = getParamBool(action.params, "explosion-break-blocks", true);
+                int delayTicks = getParamInt(action.params, "delay-ticks", 0);
 
-        startDisaster("☄️ Meteor Shower", "Mưa sao băng!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    if (random.nextInt(5) < 2) {
-                        Location pl = p.getLocation();
-                        World w = p.getWorld();
-                        for (int i = 0; i < 2 + random.nextInt(3); i++) {
-                            int x = pl.getBlockX() + random.nextInt(30) - 15;
-                            int z = pl.getBlockZ() + random.nextInt(30) - 15;
-                            Location il = new Location(w, x, w.getHighestBlockYAt(x, z), z);
-                            w.strikeLightningEffect(new Location(w, x, pl.getBlockY() + 30, z));
+                for (Player p : affectedPlayers) {
+                    for (int i = 0; i < count; i++) {
+                        Location targetLoc = getRandomLocationAround(p, radius);
+                        if (delayTicks > 0) {
+                            Location finalTarget = targetLoc;
                             new BukkitRunnable() {
                                 @Override
                                 public void run() {
-                                    w.createExplosion(il, 3.0f, false, true);
-                                    for (Player pl2 : Bukkit.getOnlinePlayers()) {
-                                        if (pl2.getLocation().distance(il) < 8) {
-                                            double dmg = 8.0 * (1.0 - pl2.getLocation().distance(il) / 8.0);
-                                            pl2.damage(dmg);
-                                        }
-                                    }
+                                    strikeLightningAt(finalTarget, explosionPower, fire, breakBlocks, affectedPlayers);
                                 }
-                            }.runTaskLater(plugin, 30L);
+                            }.runTaskLater(plugin, delayTicks);
+                        } else {
+                            strikeLightningAt(targetLoc, explosionPower, fire, breakBlocks, affectedPlayers);
                         }
                     }
                 }
-            }, () -> broadcast("§aBầu trời đã trở lại bình thường."));
-    }
+                break;
+            }
 
-    private void startMegaStorm() {
-        for (World w : Bukkit.getWorlds()) { w.setStorm(true); w.setThundering(true); w.setWeatherDuration(200000); }
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("mega-storm");
-        int duration = (dc != null ? dc.durationSeconds : 600) * 20;
+            case EXPLOSION: {
+                int count = getParamInt(action.params, "count-per-player", 1);
+                int radius = getParamInt(action.params, "radius", 15);
+                float power = (float) getParamDouble(action.params, "explosion-power", 3.0);
+                boolean fire = getParamBool(action.params, "explosion-fire", false);
+                boolean breakBlocks = getParamBool(action.params, "explosion-break-blocks", true);
 
-        startDisaster("🌊 Mega Storm", "Siêu bão đổ bộ!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
+                for (Player p : affectedPlayers) {
+                    for (int i = 0; i < count; i++) {
+                        Location targetLoc = getRandomLocationAround(p, radius);
+                        p.getWorld().createExplosion(targetLoc, power, fire, breakBlocks);
+                    }
+                }
+                break;
+            }
+
+            case SET_FIRE: {
+                int fireTicks = getParamInt(action.params, "fire-ticks", 100);
+                for (Player p : affectedPlayers) {
+                    p.setFireTicks(fireTicks);
+                }
+                break;
+            }
+
+            case PLACE_BLOCK: {
+                String blockType = (String) action.params.get("block-type");
+                int count = getParamInt(action.params, "count-per-player", 3);
+                int radius = getParamInt(action.params, "radius", 10);
+                int placeHeight = getParamInt(action.params, "place-height", 1);
+                if (blockType == null) break;
+                Material material;
+                try { material = Material.valueOf(blockType.toUpperCase()); } catch (Exception e) { break; }
+
+                for (Player p : affectedPlayers) {
+                    for (int i = 0; i < count; i++) {
+                        Location loc = getRandomLocationAround(p, radius);
+                        for (int dy = 0; dy < placeHeight; dy++) {
+                            Location blockLoc = loc.clone().add(0, dy, 0);
+                            if (blockLoc.getBlock().getType() == Material.AIR) {
+                                blockLoc.getBlock().setType(material);
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+            case FALLING_BLOCK: {
+                int radius = getParamInt(action.params, "radius", 15);
+                int minY = getParamInt(action.params, "min-y", 30);
+                int blockFallChance = getParamInt(action.params, "block-fall-chance", 30);
+                double resistanceFactor = getParamDouble(action.params, "blast-resistance-factor", 0.1);
+                int blocksPerPlayer = getParamInt(action.params, "blocks-per-player", 5);
+
+                for (Player p : affectedPlayers) {
                     Location l = p.getLocation();
-                    
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    if (random.nextInt(5) < 2) {
-                        Location sl = l.clone().add(random.nextInt(10) - 5, 0, random.nextInt(10) - 5);
-                        sl.setY(l.getWorld().getHighestBlockYAt(sl));
-                        l.getWorld().strikeLightning(sl);
-                        if (p.getLocation().distance(sl) < 4) p.damage(4.0);
-                    }
-                    if (l.getBlock().getLightFromSky() > 10 && random.nextInt(5) < 2) p.damage(1.0);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1));
-                }
-            }, () -> {
-                for (World w : Bukkit.getWorlds()) { w.setStorm(false); w.setThundering(false); }
-                broadcast("§aBão đã tan.");
-            });
-    }
-
-    private void startSolarFlare() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("solar-flare");
-        int duration = (dc != null ? dc.durationSeconds : 400) * 20;
-
-        startDisaster("🔥 Solar Flare", "Bão mặt trời!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    if (p.getLocation().getBlock().getLightFromSky() > 10) {
-                        p.damage(2.0); p.setFireTicks(40);
-                        p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 40, 2));
-                    }
-                }
-            }, () -> broadcast("§aBão mặt trời đã qua."));
-    }
-
-    private void startPlague() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("plague");
-        int duration = (dc != null ? dc.durationSeconds : 400) * 20;
-
-        startDisaster("🦠 Plague", "Dịch bệnh lan rộng!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 100, 1));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, 2));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.HUNGER, 100, 3));
-                }
-            }, () -> broadcast("§aDịch bệnh đã được kiểm soát."));
-    }
-
-    private void startTornado() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("tornado");
-        int duration = (dc != null ? dc.durationSeconds : 300) * 20;
-
-        startDisaster("🌪️ Tornado", "Lốc xoáy!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    if (p.getLocation().getBlock().getLightFromSky() > 5) {
-                        Vector v = p.getVelocity();
-                        v.setY(v.getY() + 1.5);
-                        v.setX(v.getX() + (random.nextDouble() - 0.5) * 2);
-                        v.setZ(v.getZ() + (random.nextDouble() - 0.5) * 2);
-                        p.setVelocity(v);
-                        p.setFallDistance(0);
-                    }
-                }
-            }, () -> broadcast("§aLốc xoáy đã tan."));
-    }
-
-    private void startSolarEclipse() {
-        World w = Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
-        long ot = w != null ? w.getTime() : 0;
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("eclipse");
-        int duration = (dc != null ? dc.durationSeconds : 600) * 20;
-
-        startDisaster("📉 Solar Eclipse", "Nhật thực toàn phần!", duration,
-            () -> {
-                if (w != null && w.getTime() < 13000) w.setTime(13000);
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 60, 2));
-                    
-                    // Bỏ qua player an toàn trong nhà cho việc spawn mob
-                    if (isPlayerSafe(p)) continue;
-                    
-                    if (random.nextInt(10) < 3) {
-                        Location sl = p.getLocation().clone().add(random.nextInt(15) - 7, 0, random.nextInt(15) - 7);
-                        sl.setY(p.getWorld().getHighestBlockYAt(sl) + 1);
-                        EntityType[] mobs = {EntityType.ZOMBIE, EntityType.SKELETON, EntityType.CREEPER, EntityType.SPIDER};
-                        p.getWorld().spawnEntity(sl, mobs[random.nextInt(mobs.length)]);
-                    }
-                }
-            }, () -> { if (w != null) w.setTime(Math.max(ot, 1000)); broadcast("§aNhật thực kết thúc!"); });
-    }
-
-    private void startEarthquake() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("earthquake");
-        int duration = (dc != null ? dc.durationSeconds : 400) * 20;
-
-        startDisaster("🌍 Earthquake", "Động đất dữ dội!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    Location l = p.getLocation();
-                    
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    // Hiệu ứng rung chuyển (shake)
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 30, 0));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1));
-                    p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.5f);
-                    
-                    int radius = (dc != null ? dc.radius : 15);
-                    int minY = (dc != null ? dc.minY : 30);
-                    int chance = (dc != null ? dc.blockFallChance : 15);
-                    double resistanceFactor = (dc != null ? dc.blastResistanceFactor : 0.1);
-
-                    for (int i = 0; i < 5; i++) {
+                    for (int i = 0; i < blocksPerPlayer; i++) {
                         int bx = l.getBlockX() + random.nextInt(radius * 2) - radius;
                         int bz = l.getBlockZ() + random.nextInt(radius * 2) - radius;
                         int by = minY + random.nextInt(60);
@@ -881,9 +632,8 @@ public class DisasterManager {
                         Material bt = block.getType();
                         if (bt == Material.AIR || bt == Material.WATER || bt == Material.LAVA || bt == Material.BEDROCK) continue;
 
-                        // Block có blast resistance càng cao càng khó rơi
                         double blastRes = bt.getBlastResistance();
-                        double fallProb = chance / (1.0 + blastRes * resistanceFactor);
+                        double fallProb = blockFallChance / (1.0 + blastRes * resistanceFactor);
                         if (random.nextDouble() * 100 < fallProb) {
                             FallingBlock fb = p.getWorld().spawnFallingBlock(block.getLocation().add(0.5, 0, 0.5), block.getBlockData());
                             fb.setDropItem(true);
@@ -892,191 +642,266 @@ public class DisasterManager {
                         }
                     }
                 }
-            }, () -> broadcast("§aĐộng đất đã kết thúc."));
+                break;
+            }
+
+            case VELOCITY: {
+                double velY = getParamDouble(action.params, "velocity-y", 1.5);
+                String xRange = (String) action.params.get("velocity-x-range");
+                String zRange = (String) action.params.get("velocity-z-range");
+
+                for (Player p : affectedPlayers) {
+                    Vector v = p.getVelocity();
+                    v.setY(v.getY() + velY);
+                    if (xRange != null) {
+                        String[] parts = xRange.split("-");
+                        double min = Double.parseDouble(parts[0]);
+                        double max = Double.parseDouble(parts[1]);
+                        v.setX(v.getX() + min + random.nextDouble() * (max - min));
+                    } else {
+                        v.setX(v.getX() + (random.nextDouble() - 0.5) * 2);
+                    }
+                    if (zRange != null) {
+                        String[] parts = zRange.split("-");
+                        double min = Double.parseDouble(parts[0]);
+                        double max = Double.parseDouble(parts[1]);
+                        v.setZ(v.getZ() + min + random.nextDouble() * (max - min));
+                    } else {
+                        v.setZ(v.getZ() + (random.nextDouble() - 0.5) * 2);
+                    }
+                    p.setVelocity(v);
+                    p.setFallDistance(0);
+                }
+                break;
+            }
+
+            case SET_TIME: {
+                int time = getParamInt(action.params, "time", 1000);
+                for (World w : Bukkit.getWorlds()) {
+                    w.setTime(time);
+                }
+                break;
+            }
+
+            case SET_WEATHER: {
+                boolean storm = getParamBool(action.params, "storm", false);
+                boolean thunder = getParamBool(action.params, "thunder", false);
+                int durationTicks = getParamInt(action.params, "duration-ticks", 200000);
+                for (World w : Bukkit.getWorlds()) {
+                    w.setStorm(storm);
+                    w.setThundering(thunder);
+                    w.setWeatherDuration(durationTicks);
+                }
+                break;
+            }
+
+            case CLEAR_WEATHER: {
+                for (World w : Bukkit.getWorlds()) {
+                    w.setStorm(false);
+                    w.setThundering(false);
+                }
+                break;
+            }
+
+            case BROADCAST: {
+                String message = (String) action.params.get("message");
+                if (message != null) {
+                    broadcast(message.replace("{name}", currentDisaster != null ? currentDisaster : ""));
+                }
+                break;
+            }
+
+            case ACTION_BAR: {
+                String message = (String) action.params.get("message");
+                if (message != null) {
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        p.sendActionBar(message.replace("{name}", currentDisaster != null ? currentDisaster : ""));
+                    }
+                }
+                break;
+            }
+
+            case TELEPORT_RANDOM: {
+                int radius = getParamInt(action.params, "radius", 30);
+                for (Player p : affectedPlayers) {
+                    Location randomLoc = getRandomLocationAround(p, radius);
+                    randomLoc.setY(p.getWorld().getHighestBlockYAt(randomLoc) + 1);
+                    p.teleport(randomLoc);
+                }
+                break;
+            }
+
+            case PLAY_SOUND: {
+                String soundStr = (String) action.params.get("sound");
+                if (soundStr == null) break;
+                try {
+                    Sound sound = Sound.valueOf(soundStr.toUpperCase());
+                    float volume = (float) getParamDouble(action.params, "volume", 1.0);
+                    float pitch = (float) getParamDouble(action.params, "pitch", 1.0);
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        p.playSound(p.getLocation(), sound, volume, pitch);
+                    }
+                } catch (Exception ignored) {}
+                break;
+            }
+        }
     }
 
-    // ============ NETHER DISASTERS ============
+    // ===== HELPERS =====
 
-    private void startInfernoStorm() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("inferno-storm");
-        int duration = (dc != null ? dc.durationSeconds : 400) * 20;
-        double damage = (dc != null ? dc.damage : 2.0);
-        int fireTicks = (dc != null ? dc.fireTicks : 100);
+    /**
+     * Lấy danh sách player bị ảnh hưởng dựa trên action conditions và targets
+     */
+    private List<Player> getAffectedPlayers(DisasterAction action) {
+        List<Player> result = new ArrayList<>();
+        boolean requireOutdoor = action.condition.requireOutdoor;
+        boolean ignoreSafeZone = action.condition.ignoreSafeZone;
 
-        startDisaster("🔥 Inferno Storm", "Lửa địa ngục trút xuống!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (!p.getWorld().getEnvironment().equals(World.Environment.NETHER)) continue;
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    Location l = p.getLocation();
-                    p.damage(damage);
-                    p.setFireTicks(fireTicks);
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            // Check condition
+            if (requireOutdoor && !ignoreSafeZone && isPlayerSafe(p)) continue;
+            if (requireOutdoor && ignoreSafeZone) {
+                // Even if ignore safe zone, still require outdoor (light from sky)
+                if (p.getLocation().getBlock().getLightFromSky() <= 5) continue;
+            }
+            
+            // Check targets: if no targets specified, affect all players
+            if (action.targets.isEmpty()) {
+                result.add(p);
+                continue;
+            }
 
-                    if (random.nextInt(10) < 3) {
-                        p.getWorld().spawnEntity(l, random.nextBoolean() ? EntityType.GHAST : EntityType.MAGMA_CUBE);
-                    }
+            // Weighted target selection
+            List<DisasterAction.ActionTarget> validTargets = new ArrayList<>();
+            int totalWeight = 0;
+            for (DisasterAction.ActionTarget t : action.targets) {
+                if (t.entityType.equals("all_players") || t.entityType.equals("player")) {
+                    // Check world filter
+                    if (!t.worlds.contains("all") && !t.worlds.contains(p.getWorld().getEnvironment().name().toLowerCase())) continue;
+                    validTargets.add(t);
+                    totalWeight += t.weight;
+                }
+            }
+            if (totalWeight > 0) {
+                // All matched targets include this player
+                result.add(p);
+            }
+        }
+        return result;
+    }
 
-                    // Lửa rơi từ trần nether
-                    for (int i = 0; i < 3; i++) {
-                        int fx = l.getBlockX() + random.nextInt(20) - 10;
-                        int fz = l.getBlockZ() + random.nextInt(20) - 10;
-                        int fy = Math.min(l.getBlockY() + 20, p.getWorld().getMaxHeight() - 1);
-                        Location fl = new Location(p.getWorld(), fx, fy, fz);
-                        if (fl.getBlock().getType() == Material.AIR) {
-                            fl.getBlock().setType(Material.FIRE);
+    private Location getRandomLocationAround(Player player, int radius) {
+        int x = player.getLocation().getBlockX() + random.nextInt(radius * 2) - radius;
+        int z = player.getLocation().getBlockZ() + random.nextInt(radius * 2) - radius;
+        int y = player.getWorld().getHighestBlockYAt(x, z) + 1;
+        return new Location(player.getWorld(), x, y, z);
+    }
+
+    private void spawnMobNear(Player player, String entityTypeStr, int radius, Map<?, ?> mobData) {
+        try {
+            EntityType entityType = EntityType.valueOf(entityTypeStr.toUpperCase());
+            Location spawnLoc = getRandomLocationAround(player, radius);
+            Entity entity = player.getWorld().spawnEntity(spawnLoc, entityType);
+            
+            // Apply potion effects from mob config
+            List<Map<?, ?>> effectsList = (List<Map<?, ?>>) mobData.get("effects");
+            if (effectsList != null && entity instanceof LivingEntity le) {
+                for (Map<?, ?> effectMap : effectsList) {
+                    String effectType = (String) effectMap.get("type");
+                    int duration = toInt(effectMap.get("duration-ticks"), 600);
+                    int amplifier = toInt(effectMap.get("amplifier"), 0);
+                    if (effectType == null) continue;
+                    try {
+                        PotionEffectType pet = PotionEffectType.getByName(effectType.toUpperCase());
+                        if (pet != null) {
+                            le.addPotionEffect(new PotionEffect(pet, duration, amplifier, true, false));
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().warning("[Disaster] Invalid entity type: " + entityTypeStr);
+        }
+    }
+
+    private void strikeLightningAt(Location loc, float explosionPower, boolean fire, boolean breakBlocks, List<Player> affectedPlayers) {
+        loc.getWorld().strikeLightningEffect(new Location(loc.getWorld(), loc.getBlockX(), loc.getBlockY() + 30, loc.getBlockZ()));
+        if (explosionPower > 0) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    loc.getWorld().createExplosion(loc, explosionPower, fire, breakBlocks);
+                    // Damage only affected players
+                    for (Player p : affectedPlayers) {
+                        if (p.getLocation().distance(loc) < 8) {
+                            double dmg = 8.0 * (1.0 - p.getLocation().distance(loc) / 8.0);
+                            p.damage(dmg);
                         }
                     }
-                    p.sendActionBar("§4§l🔥 INFERNO! §cLửa địa ngục!");
                 }
-            }, () -> broadcast("§aInferno Storm đã kết thúc."));
+            }.runTaskLater(plugin, 30L);
+        }
     }
 
-    private void startSoulEruption() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("soul-eruption");
-        int duration = (dc != null ? dc.durationSeconds : 400) * 20;
-        double damage = (dc != null ? dc.damage : 2.0);
-        int witherAmplifier = (dc != null ? dc.witherAmplifier : 1);
-
-        startDisaster("💀 Soul Eruption", "Soul sand phát nổ!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (!p.getWorld().getEnvironment().equals(World.Environment.NETHER)) continue;
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    p.damage(damage);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 100, witherAmplifier));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1));
-
-                    if (random.nextInt(10) < 3) {
-                        Location sl = p.getLocation().clone().add(random.nextInt(10) - 5, 0, random.nextInt(10) - 5);
-                        p.getWorld().spawnEntity(sl, EntityType.WITHER_SKELETON);
-                    }
-
-                    // Nổ soul sand gần player
-                    if (random.nextInt(10) < 2) {
-                        int ex = p.getLocation().getBlockX() + random.nextInt(8) - 4;
-                        int ez = p.getLocation().getBlockZ() + random.nextInt(8) - 4;
-                        Location el = new Location(p.getWorld(), ex, p.getLocation().getBlockY(), ez);
-                        p.getWorld().createExplosion(el, 2.0f, false, true);
-                    }
-                    p.sendActionBar("§2§l💀 SOUL ERUPTION! §aLinh hồn đang gào thét!");
-                }
-            }, () -> broadcast("§aSoul Eruption đã kết thúc."));
+    private void broadcast(String message) {
+        Bukkit.broadcastMessage(message);
     }
 
-    private void startLavaGeyser() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("lava-geyser");
-        int duration = (dc != null ? dc.durationSeconds : 300) * 20;
-        double damage = (dc != null ? dc.damage : 3.0);
+    private void broadcastWarning(String name, int seconds) {
+        String warningTitle = config.disasterMessages.getOrDefault("warning-title", "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠");
+        String warningSubtitle = config.disasterMessages.getOrDefault("warning-subtitle", "§c{name}\n§e§lSẽ xảy ra trong {time} giây!");
+        String warningBroadcast = config.disasterMessages.getOrDefault("warning-broadcast", "§4§l⚠ {name} §r§cđang đến gần!");
 
-        startDisaster("🌋 Lava Geyser", "Lava phun trào!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (!p.getWorld().getEnvironment().equals(World.Environment.NETHER)) continue;
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-                    
-                    p.damage(damage);
-                    p.setFireTicks(60);
-
-                    // Cột lava từ dưới đất
-                    if (random.nextInt(10) < 3) {
-                        int gx = p.getLocation().getBlockX() + random.nextInt(10) - 5;
-                        int gz = p.getLocation().getBlockZ() + random.nextInt(10) - 5;
-                        int gy = p.getWorld().getHighestBlockYAt(gx, gz) - 5;
-                        for (int dy = 0; dy < 5; dy++) {
-                            Location gl = new Location(p.getWorld(), gx, gy + dy, gz);
-                            if (gl.getBlock().getType() == Material.AIR) {
-                                gl.getBlock().setType(Material.LAVA);
-                            }
-                        }
-                    }
-                    p.sendActionBar("§6§l🌋 LAVA GEYSER! §eTránh xa!");
-                }
-            }, () -> broadcast("§aLava Geyser đã kết thúc."));
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            p.showBossBar(warningBar);
+            p.sendTitle(warningTitle,
+                warningSubtitle.replace("{name}", name).replace("{time}", String.valueOf(seconds)), 10, 70, 20);
+            p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 0.5f);
+            p.sendMessage(warningBroadcast.replace("{name}", name));
+        }
+        logManager.logDisaster(name + " (WARNING - " + seconds + "s)");
     }
 
-    // ============ THE END DISASTERS ============
-
-    private void startEndSurge() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("end-surge");
-        int duration = (dc != null ? dc.durationSeconds : 400) * 20;
-        int shulkerChance = (dc != null ? dc.shulkerChance : 20);
-
-        startDisaster("👁️ End Surge", "Sinh vật End trỗi dậy!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (!p.getWorld().getEnvironment().equals(World.Environment.THE_END)) continue;
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-
-                    if (random.nextInt(10) < 4) {
-                        EntityType type = random.nextInt(100) < shulkerChance ? EntityType.SHULKER : EntityType.ENDERMITE;
-                        Location sl = p.getLocation().clone().add(random.nextInt(15) - 7, 0, random.nextInt(15) - 7);
-                        p.getWorld().spawnEntity(sl, type);
-                    }
-
-                    if (random.nextInt(10) < 3) {
-                        p.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 1));
-                    }
-                    p.sendActionBar("§5§l👁️ END SURGE! §dSinh vật trỗi dậy!");
-                }
-            }, () -> broadcast("§aEnd Surge đã kết thúc."));
+    private void broadcastCountdown(String name, int seconds) {
+        String countdownMsg = config.disasterMessages.getOrDefault("countdown-broadcast",
+            "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!");
+        broadcast(countdownMsg.replace("{name}", name).replace("{time}", String.valueOf(seconds)));
     }
 
-    private void startVoidStorm() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("void-storm");
-        int duration = (dc != null ? dc.durationSeconds : 400) * 20;
-        double damage = (dc != null ? dc.damage : 2.0);
-
-        startDisaster("🌌 Void Storm", "Bão hư vô!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (!p.getWorld().getEnvironment().equals(World.Environment.THE_END)) continue;
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-
-                    p.damage(damage);
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 60, 1));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 60, 2));
-                    p.sendActionBar("§0§l🌌 VOID STORM! §8Hư vô đang nuốt chửng!");
-                }
-            }, () -> broadcast("§aVoid Storm đã kết thúc."));
+    private void updateWarningBar() {
+        if (warningTimeLeft > 0 && currentDisaster != null) {
+            warningBar.name(Component.text("§4§l⚠ " + currentDisaster + " §7- §e§l" +
+                (warningTimeLeft / 60) + ":" + String.format("%02d", warningTimeLeft % 60)));
+            warningBar.progress((float) warningTimeLeft / 300f);
+        }
     }
 
-    private void startChorusExplosion() {
-        ConfigManager.DisasterConfig dc = config.disasterConfigs.get("chorus-explosion");
-        int duration = (dc != null ? dc.durationSeconds : 300) * 20;
-        double damage = (dc != null ? dc.damage : 1.0);
+    // ===== PARAM HELPERS =====
 
-        startDisaster("🌀 Chorus Explosion", "Chorus phát nổ!", duration,
-            () -> {
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (!p.getWorld().getEnvironment().equals(World.Environment.THE_END)) continue;
-                    // Bỏ qua player an toàn trong nhà
-                    if (isPlayerSafe(p)) continue;
-
-                    p.damage(damage);
-
-                    // Teleport ngẫu nhiên
-                    if (random.nextInt(10) < 3) {
-                        World w = p.getWorld();
-                        int tx = p.getLocation().getBlockX() + random.nextInt(30) - 15;
-                        int tz = p.getLocation().getBlockZ() + random.nextInt(30) - 15;
-                        int ty = w.getHighestBlockYAt(tx, tz) + 1;
-                        p.teleport(new Location(w, tx, ty, tz));
-                        p.sendMessage("§d🌀 Bạn bị teleport!");
-                    }
-
-                    p.sendActionBar("§d§l🌀 CHORUS EXPLOSION!");
-                }
-            }, () -> broadcast("§aChorus Explosion đã kết thúc."));
+    private int getParamInt(Map<String, Object> params, String key, int defaultValue) {
+        Object val = params.get(key);
+        if (val instanceof Number) return ((Number) val).intValue();
+        if (val instanceof String) try { return Integer.parseInt((String) val); } catch (Exception e) { return defaultValue; }
+        return defaultValue;
     }
 
-    private void broadcast(String msg) { Bukkit.broadcastMessage(msg); }
-    public boolean isDisasterActive() { return disasterActive; }
-    public String getCurrentDisaster() { return currentDisaster; }
+    private double getParamDouble(Map<String, Object> params, String key, double defaultValue) {
+        Object val = params.get(key);
+        if (val instanceof Number) return ((Number) val).doubleValue();
+        if (val instanceof String) try { return Double.parseDouble((String) val); } catch (Exception e) { return defaultValue; }
+        return defaultValue;
+    }
+
+    private boolean getParamBool(Map<String, Object> params, String key, boolean defaultValue) {
+        Object val = params.get(key);
+        if (val instanceof Boolean) return (Boolean) val;
+        if (val instanceof String) return Boolean.parseBoolean((String) val);
+        return defaultValue;
+    }
+
+    private int toInt(Object value, int defaultValue) {
+        if (value instanceof Number) return ((Number) value).intValue();
+        if (value instanceof String) try { return Integer.parseInt((String) value); } catch (Exception e) { return defaultValue; }
+        return defaultValue;
+    }
 }

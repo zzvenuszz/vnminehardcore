@@ -8,6 +8,7 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityCombustEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -205,6 +206,33 @@ public class BossEventManager implements Listener {
         }
     }
 
+    /**
+     * Ngăn boss bị cháy dưới ánh nắng nếu có immunity sunlight-burn
+     */
+    @EventHandler
+    public void onEntityCombust(EntityCombustEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity entity)) return;
+        if (currentBoss == null || !entity.equals(currentBoss)) return;
+
+        // Kiểm tra boss config của currentBoss
+        for (Map.Entry<String, ConfigManager.BossConfig> entry : config.bossConfigs.entrySet()) {
+            ConfigManager.BossConfig bc = entry.getValue();
+            if (!bc.displayName.equals(currentBossName)) continue;
+            
+            // Kiểm tra sunlight-burn immunity
+            if (bc.immunities.getOrDefault("sunlight-burn", false)) {
+                event.setCancelled(true);
+                return;
+            }
+            
+            // Kiểm tra fire immunity
+            if (bc.immunities.getOrDefault("fire", false) && event instanceof EntityCombustEvent) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+    }
+
     private void spawnBoss(ConfigManager.BossConfig bc) {
         if (bossActive) return;
         
@@ -244,6 +272,58 @@ public class BossEventManager implements Listener {
         // Remove default AI để dùng AI custom
         if (currentBoss instanceof Mob mob) {
             mob.setAI(true); // Vẫn giữ AI mặc định, nhưng chúng ta sẽ điều khiển thêm
+        }
+
+        // ===== ÁP DỤNG IMMUNITIES =====
+        // Sunlight burn immunity: thêm fire resistance effect vĩnh viễn
+        if (bc.immunities.getOrDefault("sunlight-burn", false)) {
+            currentBoss.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                org.bukkit.potion.PotionEffectType.FIRE_RESISTANCE, 
+                Integer.MAX_VALUE, 
+                0, 
+                false, 
+                false
+            ));
+        }
+        // Fire immunity
+        if (bc.immunities.getOrDefault("fire", false)) {
+            currentBoss.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                org.bukkit.potion.PotionEffectType.FIRE_RESISTANCE, 
+                Integer.MAX_VALUE, 
+                0, 
+                false, 
+                false
+            ));
+        }
+        // Fall damage immunity
+        if (bc.immunities.getOrDefault("fall-damage", false)) {
+            currentBoss.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                org.bukkit.potion.PotionEffectType.SLOW_FALLING, 
+                Integer.MAX_VALUE, 
+                0, 
+                false, 
+                false
+            ));
+        }
+        // Wither immunity
+        if (bc.immunities.getOrDefault("wither", false)) {
+            currentBoss.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                org.bukkit.potion.PotionEffectType.FIRE_RESISTANCE, 
+                Integer.MAX_VALUE, 
+                0, 
+                false, 
+                false
+            ));
+        }
+        // Poison immunity
+        if (bc.immunities.getOrDefault("poison", false)) {
+            currentBoss.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                org.bukkit.potion.PotionEffectType.FIRE_RESISTANCE, 
+                Integer.MAX_VALUE, 
+                0, 
+                false, 
+                false
+            ));
         }
 
         bossActive = true;

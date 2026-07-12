@@ -1,0 +1,27 @@
+# ============================================================
+# [BOSS SYSTEM SETTINGS] 👹 CẤU HÌNH CHUNG HỆ THỐNG BOSS
+# ============================================================
+# [VI] Cấu hình chung cho toàn bộ hệ thống boss.
+#      Các boss riêng lẻ được đặt trong cùng thư mục này.
+#      Mỗi file .yml là một boss riêng biệt.
+# [EN] Global settings for the boss system.
+#      Individual bosses are placed in this same directory.
+#      Each .yml file is a separate boss.
+
+# [VI] Bật hệ thống boss ngẫu nhiên
+# [EN] Enable random boss event system
+enabled: true
+
+# [VI] Thời gian tối thiểu giữa các lần kiểm tra boss (giây)
+#     Hỗ trợ dạng range: "500-1200" để random từ 500 đến 1200 giây
+#     Hoặc số cố định: 1200
+#     Boss chỉ có thể xuất hiện sau thời gian này kể từ lần cuối
+# [EN] Minimum seconds between boss checks
+#     Supports range format: "500-1200" to randomize between 500-1200 seconds
+#     Or fixed number: 1200
+#     Boss can only spawn after this time has passed since last spawn
+min-interval-seconds: 1200-2400
+
+# [VI] Bán kính spawn boss quanh player ngẫu nhiên (khối)
+# [EN] Boss spawn radius around random player (blocks)
+spawn-radius: 50

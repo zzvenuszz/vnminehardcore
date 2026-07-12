@@ -1,0 +1,88 @@
+# ============================================================
+# [INFERNO STORM] 🔥 BÃO LỬA ĐỊA NGỤC
+# ============================================================
+# [VI] Lửa địa ngục trút xuống, spawn Ghast/Magma Cube. Chỉ ở Nether.
+# [EN] Hellfire rains down, spawns Ghast/Magma Cube. Nether only.
+
+disaster-id: inferno-storm
+enabled: true
+chance: 3
+name: "§4§l🔥 Bão Lửa Địa Ngục"
+duration-seconds: 180
+effect-interval-seconds: 3
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["world_nether"]
+  min-players-online: 1
+
+start-title: "§4§l🔥 Bão Lửa Địa Ngục"
+start-subtitle: "Lửa địa ngục trút xuống!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: damage
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_nether"]
+    damage: 2.0
+    ignore-armor: false
+
+  - type: set_fire
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_nether"]
+    fire-ticks: 100
+
+  - type: place_block
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_nether"]
+    block-type: FIRE
+    radius: 10
+    count-per-player: 3
+
+  - type: spawn_mobs
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    count-per-player: 1
+    radius: 10
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_nether"]
+    mobs:
+      GHAST:
+        weight: 50
+      MAGMA_CUBE:
+        weight: 50
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§4§l🔥 INFERNO! Lửa địa ngục!"
+
+on-end:
+  - type: broadcast
+    message: "§a🔥 Inferno Storm đã kết thúc."

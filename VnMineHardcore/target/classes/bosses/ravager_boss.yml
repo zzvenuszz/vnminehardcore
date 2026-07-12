@@ -1,0 +1,48 @@
+# ============================================================
+# [RAVAGER BOSS] 🐗 RAVAGER BOSS
+# ============================================================
+boss-id: ravager_boss
+enabled: true
+entity-type: RAVAGER
+display-name: "§4§lRavager Boss"
+hp: 250
+damage-multiplier: 2.5
+chance: 8
+duration-seconds: 1800
+warning-seconds: 45
+
+immunities: {}
+
+drops:
+  LEATHER:
+    min-amount: 15
+    max-amount: 35
+    chance: 0.9
+  DIAMOND:
+    min-amount: 5
+    max-amount: 10
+    chance: 0.45
+  IRON_INGOT:
+    min-amount: 12
+    max-amount: 25
+    chance: 0.65
+  EMERALD:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.6
+  SADDLE:
+    min-amount: 1
+    max-amount: 2
+    chance: 0.4
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.25
+  IRON_BLOCK:
+    min-amount: 2
+    max-amount: 5
+    chance: 0.35
+  BEEF:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.5

@@ -1,0 +1,73 @@
+# ============================================================
+# [LAVA GEYSER] 🌋 HỒN KIẾP / LAVA GEYSER
+# ============================================================
+# [VI] Cột lava phun trào từ dưới đất. Chỉ ở Nether.
+# [EN] Lava columns erupt from the ground. Nether only.
+
+disaster-id: lava-geyser
+enabled: true
+chance: 2
+name: "§6§l🌋 Hồn Kiếp"
+duration-seconds: 180
+effect-interval-seconds: 5
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["world_nether"]
+  min-players-online: 1
+
+start-title: "§6§l🌋 Hồn Kiếp"
+start-subtitle: "Lava phun trào!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: damage
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_nether"]
+    damage: 3.0
+    ignore-armor: false
+
+  - type: set_fire
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_nether"]
+    fire-ticks: 60
+
+  - type: place_block
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_nether"]
+    block-type: LAVA
+    radius: 5
+    count-per-player: 3
+    place-height: 5
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§6§l🌋 LAVA GEYSER! Tránh xa!"
+
+on-end:
+  - type: broadcast
+    message: "§a🌋 Lava Geyser đã kết thúc."

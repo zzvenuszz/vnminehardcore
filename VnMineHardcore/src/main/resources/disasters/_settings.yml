@@ -1,0 +1,77 @@
+# ============================================================
+# [DISASTER SYSTEM SETTINGS] 🌋 CẤU HÌNH CHUNG HỆ THỐNG THIÊN TAI
+# ============================================================
+# [VI] Cấu hình chung cho toàn bộ hệ thống thiên tai.
+#      Các thiên tai riêng lẻ được đặt trong cùng thư mục này.
+#      Mỗi file .yml là một thiên tai riêng biệt.
+# [EN] Global settings for the disaster system.
+#      Individual disasters are placed in this same directory.
+#      Each .yml file is a separate disaster.
+
+# [VI] Bật hệ thống thiên tai tự động
+# [EN] Enable automatic disaster system
+enabled: true
+
+# [VI] Thời gian tối thiểu giữa các lần kiểm tra thiên tai (giây)
+#     Hỗ trợ dạng range: "500-1200" để random từ 500 đến 1200 giây
+#     Hoặc số cố định: 1200
+# [EN] Minimum seconds between disaster checks
+#     Supports range format: "500-1200" to randomize between 500-1200 seconds
+#     Or fixed number: 1200
+min-interval-seconds: 2400-4800
+
+# [VI] Thời gian cảnh báo trước khi thiên tai xảy ra (giây)
+# [EN] Warning time in seconds before a disaster strikes
+warning-seconds: 120
+
+# ===== SAFE ZONE / KHU VỰC AN TOÀN =====
+# [VI] Cấu hình khu vực an toàn (có mái che) giúp người chơi tránh thiên tai
+# [EN] Safe zone (shelter) configuration to protect players from disasters
+safe-zone:
+  # [VI] Bật kiểm tra khu vực an toàn
+  # [EN] Enable safe zone checking
+  enabled: true
+
+  # [VI] Bán kính kiểm tra xung quanh người chơi (khối)
+  # [EN] Check radius around the player (blocks)
+  check-radius: 2
+
+  # [VI] Chiều cao tối đa từ đầu người chơi đến trần nhà (khối)
+  # [EN] Maximum height from player's head to ceiling (blocks)
+  roof-height: 5
+
+  # [VI] Bật kiểm tra tường xung quanh
+  # [EN] Enable wall checking around the player
+  check-walls: false
+
+  # [VI] Số block rắn tối thiểu xung quanh để được coi là an toàn
+  # [EN] Minimum solid blocks around to be considered safe
+  min-walls: 2
+
+# ===== MESSAGES / THÔNG BÁO =====
+# [VI] Các thông báo chung cho thiên tai
+# [EN] Common messages for disasters
+messages:
+  # [VI] Tiêu đề khi cảnh báo thiên tai
+  # [EN] Title when warning about disaster
+  warning-title: "§4§l⚠ CẢNH BÁO THIÊN TAI ⚠"
+
+  # [VI] Phụ đề khi cảnh báo thiên tai
+  # [EN] Subtitle when warning about disaster
+  warning-subtitle: "§c{name}\n§e§lSẽ xảy ra trong {time} giây!"
+
+  # [VI] Thông báo broadcast khi bắt đầu cảnh báo
+  # [EN] Broadcast message when warning starts
+  warning-broadcast: "§4§l⚠ {name} §r§cđang đến gần!"
+
+  # [VI] Thông báo countdown khi còn ít giây
+  # [EN] Countdown broadcast message
+  countdown-broadcast: "§4§l⚠ {name} §csẽ xảy ra trong §4§l{time}§c giây!"
+
+  # [VI] Thông báo khi thiên tai đang hoạt động
+  # [EN] Active broadcast message
+  active-broadcast: "§4§l{name} - {message} (§e{duration}s§4)"
+
+  # [VI] Thông báo khi thiên tai kết thúc
+  # [EN] End broadcast message
+  end-broadcast: "§a§l✅ {name} đã kết thúc!"

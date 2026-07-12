@@ -1,0 +1,67 @@
+# ============================================================
+# [EARTHQUAKE] 🌍 ĐỘNG ĐẤT
+# ============================================================
+# [VI] Các khối trên cao rơi xuống, vùi lấp công trình.
+# [EN] Blocks fall from above, burying structures.
+
+disaster-id: earthquake
+enabled: true
+chance: 2
+name: "§6§l🌍 Động Đất"
+duration-seconds: 30
+effect-interval-seconds: 3
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["overworld"]
+  min-players-online: 1
+
+start-title: "§6§l🌍 Động Đất"
+start-subtitle: "Động đất dữ dội!"
+start-sound: ENTITY_GENERIC_EXPLODE
+start-sound-volume: 1.0
+start-sound-pitch: 0.5
+
+actions:
+  - type: potion_effect
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    effects:
+      - type: NAUSEA
+        duration-ticks: 30
+        amplifier: 0
+      - type: SLOWNESS
+        duration-ticks: 30
+        amplifier: 1
+
+  - type: falling_block
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    radius: 30
+    min-y: 30
+    block-fall-chance: 30
+    blast-resistance-factor: 0.1
+    blocks-per-player: 5
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§6§l🌍 Động đất! Đá lở!"
+
+on-end:
+  - type: broadcast
+    message: "§a🌍 Động đất đã kết thúc."

@@ -1,0 +1,62 @@
+# ============================================================
+# [VOID STORM] 🌌 BÃO HƯ KHÔNG
+# ============================================================
+# [VI] Màn hình tối, damage liên tục. Chỉ ở The End.
+# [EN] Screen darkens, continuous damage. The End only.
+
+disaster-id: void-storm
+enabled: true
+chance: 2
+name: "§8§l🌌 Bão Hư Không"
+duration-seconds: 180
+effect-interval-seconds: 4
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["world_the_end"]
+  min-players-online: 1
+
+start-title: "§8§l🌌 Bão Hư Không"
+start-subtitle: "Hư không nuốt chửng!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: damage
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_the_end"]
+    damage: 2.0
+    ignore-armor: false
+
+  - type: potion_effect
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: false
+    targets:
+      all_players:
+        weight: 100
+    effects:
+      - type: BLINDNESS
+        duration-ticks: 60
+        amplifier: 3
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§8§l🌌 Bão Hư Không! Bóng tối vạn kiếp!"
+
+on-end:
+  - type: broadcast
+    message: "§a🌌 Bão Hư Không đã kết thúc."

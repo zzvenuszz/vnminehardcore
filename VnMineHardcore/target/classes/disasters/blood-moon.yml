@@ -1,0 +1,109 @@
+# ============================================================
+# [BLOOD MOON] 🌕 TRĂNG MÁU
+# ============================================================
+# [VI] Quái vật sinh sản ồ ạt, mạnh hơn. Chỉ xảy ra vào ban đêm.
+# [EN] Mobs spawn massively, become stronger. Only occurs at night.
+
+disaster-id: blood-moon
+enabled: true
+chance: 20
+name: "§4§l🌕 Trăng Máu"
+duration-seconds: 180
+effect-interval-seconds: 5
+warning-seconds: 120
+
+# ===== CONDITIONS / ĐIỀU KIỆN XẢY RA =====
+conditions:
+  only-night: true
+  only-day: false
+  worlds: ["overworld"]
+  min-players-online: 1
+  weather:
+    require-storm: false
+    require-clear: false
+
+# ===== TITLE / SUBTITLE =====
+start-title: "§4§l🌕 Trăng Máu"
+start-subtitle: "Quái vật trở nên mạnh mẽ"
+end-title: ""
+end-subtitle: ""
+
+# ===== SOUNDS =====
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+# ===== EFFECT ACTIONS =====
+# [VI] Danh sách hành động thực thi mỗi effect-interval-seconds
+# [EN] List of actions executed every effect-interval-seconds
+actions:
+  # Action 1: Spawn quái vật cường hóa
+  - type: spawn_mobs
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    count-per-player: 3
+    radius: 10
+    targets:
+      player:
+        weight: 100
+        worlds: ["overworld"]
+    mobs:
+      ZOMBIE:
+        weight: 40
+        effects:
+          - type: STRENGTH
+            amplifier: 1
+            duration-ticks: 600
+          - type: SPEED
+            amplifier: 0
+            duration-ticks: 600
+      SKELETON:
+        weight: 30
+        effects:
+          - type: STRENGTH
+            amplifier: 1
+            duration-ticks: 600
+          - type: SPEED
+            amplifier: 0
+            duration-ticks: 600
+      SPIDER:
+        weight: 20
+        effects:
+          - type: STRENGTH
+            amplifier: 1
+            duration-ticks: 600
+      CREEPER:
+        weight: 10
+        effects:
+          - type: STRENGTH
+            amplifier: 1
+            duration-ticks: 600
+
+  # Action 2: Hiệu ứng bóng tối cho player
+  - type: potion_effect
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: false
+    targets:
+      all_players:
+        weight: 100
+    effects:
+      - type: DARKNESS
+        duration-ticks: 40
+        amplifier: 0
+
+  # Action 3: Action bar cảnh báo
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§4§l🌕 Trăng Máu đang hoành hành!"
+
+# ===== END ACTIONS / KHI KẾT THÚC =====
+on-end:
+  - type: broadcast
+    message: "§a🌕 Trăng máu đã kết thúc."

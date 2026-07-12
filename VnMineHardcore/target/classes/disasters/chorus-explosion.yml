@@ -1,0 +1,59 @@
+# ============================================================
+# [CHORUS EXPLOSION] 🌀 CHORUS EXPLOSION
+# ============================================================
+# [VI] Teleport ngẫu nhiên, damage. Chỉ ở The End.
+# [EN] Random teleport, damage. The End only.
+
+disaster-id: chorus-explosion
+enabled: true
+chance: 1
+name: "§d§l🌀 Chorus Explosion"
+duration-seconds: 120
+effect-interval-seconds: 6
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["world_the_end"]
+  min-players-online: 1
+
+start-title: "§d§l🌀 Chorus Explosion"
+start-subtitle: "Không gian vỡ vụn!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: damage
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+        worlds: ["world_the_end"]
+    damage: 1.0
+    ignore-armor: false
+
+  - type: teleport_random
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    radius: 30
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§d§l🌀 Chorus! Bạn sẽ biến mất bất cứ lúc nào!"
+
+on-end:
+  - type: broadcast
+    message: "§a🌀 Chorus Explosion đã kết thúc."

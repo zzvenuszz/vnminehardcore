@@ -1,0 +1,57 @@
+# ============================================================
+# [PLAGUE] 🦠 DỊCH BỆNH
+# ============================================================
+# [VI] Gây độc, suy yếu, đói. Xảy ra ở Overworld.
+# [EN] Causes poison, weakness, hunger. Occurs in Overworld.
+
+disaster-id: plague
+enabled: true
+chance: 2
+name: "§2§l🦠 Dịch Bệnh"
+duration-seconds: 30
+effect-interval-seconds: 10
+warning-seconds: 120
+
+conditions:
+  only-night: false
+  only-day: false
+  worlds: ["overworld"]
+  min-players-online: 1
+
+start-title: "§2§l🦠 Dịch Bệnh"
+start-subtitle: "Dịch bệnh lan rộng!"
+start-sound: ENTITY_WITHER_SPAWN
+start-sound-volume: 1.0
+start-sound-pitch: 0.8
+
+actions:
+  - type: potion_effect
+    condition:
+      require-outdoor: true
+      ignore-safe-zone: false
+    targets:
+      player:
+        weight: 100
+    effects:
+      - type: POISON
+        duration-ticks: 100
+        amplifier: 1
+      - type: WEAKNESS
+        duration-ticks: 100
+        amplifier: 2
+      - type: HUNGER
+        duration-ticks: 100
+        amplifier: 3
+
+  - type: action_bar
+    condition:
+      require-outdoor: false
+      ignore-safe-zone: true
+    targets:
+      all_players:
+        weight: 100
+    message: "§2§l🦠 Dịch bệnh! Tránh xa không khí ô nhiễm!"
+
+on-end:
+  - type: broadcast
+    message: "§a🦠 Dịch bệnh đã được kiểm soát."

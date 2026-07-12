@@ -1,0 +1,48 @@
+# ============================================================
+# [CREEPER BOSS] 💥 CREEPER BOSS
+# ============================================================
+boss-id: creeper_boss
+enabled: true
+entity-type: CREEPER
+display-name: "§a§lCreeper Boss"
+hp: 200
+damage-multiplier: 3.0
+chance: 10
+duration-seconds: 1800
+warning-seconds: 45
+
+immunities: {}
+
+drops:
+  GUNPOWDER:
+    min-amount: 20
+    max-amount: 50
+    chance: 1.0
+  DIAMOND:
+    min-amount: 4
+    max-amount: 8
+    chance: 0.4
+  IRON_INGOT:
+    min-amount: 10
+    max-amount: 20
+    chance: 0.6
+  EMERALD:
+    min-amount: 8
+    max-amount: 16
+    chance: 0.5
+  TNT:
+    min-amount: 2
+    max-amount: 6
+    chance: 0.5
+  ENCHANTED_BOOK:
+    min-amount: 1
+    max-amount: 2
+    chance: 0.25
+  FIREWORK_ROCKET:
+    min-amount: 5
+    max-amount: 15
+    chance: 0.4
+  CREEPER_HEAD:
+    min-amount: 1
+    max-amount: 1
+    chance: 0.15
