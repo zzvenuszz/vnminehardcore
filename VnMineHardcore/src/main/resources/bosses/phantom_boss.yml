@@ -84,39 +84,39 @@ drops:
   PHANTOM_MEMBRANE:
     min-amount: 5
     max-amount: 15
-    chance: 0.9
+    chance: 0.30
   DIAMOND:
     min-amount: 3
     max-amount: 6
-    chance: 0.35
+    chance: 0.30
   IRON_INGOT:
     min-amount: 8
     max-amount: 15
-    chance: 0.5
+    chance: 0.30
   EMERALD:
     min-amount: 5
     max-amount: 12
-    chance: 0.4
+    chance: 0.30
   ENCHANTED_BOOK:
     min-amount: 1
     max-amount: 1
-    chance: 0.25
+    chance: 0.30
   FEATHER:
     min-amount: 10
     max-amount: 25
-    chance: 0.6
+    chance: 0.30
   GHAST_TEAR:
     min-amount: 1
     max-amount: 3
-    chance: 0.3
+    chance: 0.30
   EXPERIENCE_BOTTLE:
     min-amount: 5
     max-amount: 15
-    chance: 0.5
+    chance: 0.30
   ELYTRA:
     min-amount: 1
     max-amount: 1
-    chance: 0.05
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -170,7 +170,7 @@ level-drops:
       story-id: phantom-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 3
     - material: ENCHANTED_BOOK
@@ -188,7 +188,7 @@ level-drops:
       story-id: phantom-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 3
         punch: 2
@@ -208,7 +208,7 @@ level-drops:
       story-id: phantom-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 4
         punch: 2
@@ -230,7 +230,7 @@ level-drops:
       story-id: phantom-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 5
         punch: 2
@@ -253,7 +253,7 @@ level-drops:
       story-id: phantom-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 6
         punch: 2
@@ -279,7 +279,7 @@ level-drops:
       story-id: phantom-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 7
         punch: 2
@@ -307,7 +307,7 @@ level-drops:
       story-id: phantom-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 7
         punch: 2
@@ -337,7 +337,7 @@ level-drops:
       story-id: phantom-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         power: 8
         punch: 2
@@ -369,7 +369,7 @@ level-drops:
       story-id: phantom-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         power: 9
         punch: 2
@@ -403,7 +403,7 @@ level-drops:
       story-id: phantom-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         power: 10
         punch: 2

@@ -54,39 +54,39 @@ drops:
   BONE:
     min-amount: 10
     max-amount: 25
-    chance: 0.9
+    chance: 0.30
   ARROW:
     min-amount: 15
     max-amount: 40
-    chance: 0.8
+    chance: 0.30
   DIAMOND:
     min-amount: 3
     max-amount: 7
-    chance: 0.35
+    chance: 0.30
   IRON_INGOT:
     min-amount: 8
     max-amount: 18
-    chance: 0.6
+    chance: 0.30
   EMERALD:
     min-amount: 8
     max-amount: 15
-    chance: 0.5
+    chance: 0.30
   BOW:
     min-amount: 1
     max-amount: 1
-    chance: 0.35
+    chance: 0.30
   ENCHANTED_BOOK:
     min-amount: 1
     max-amount: 1
-    chance: 0.25
+    chance: 0.30
   FLINT_AND_STEEL:
     min-amount: 1
     max-amount: 2
-    chance: 0.3
+    chance: 0.30
   SKELETON_SKULL:
     min-amount: 1
     max-amount: 2
-    chance: 0.2
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -142,7 +142,7 @@ level-drops:
       max-amount: 1
       # [VI] Xác suất rơi cung level 1 là 65%; hợp lệ 0-1.
       # [EN] Level-1 bow drop chance is 65%; valid range 0-1.
-      chance: 0.65
+      chance: 0.30
       # [VI] Sức mạnh III, Lửa I và Vô hạn I; Vô hạn cần mang ít nhất 1 mũi tên.
       # [EN] Power III, Flame I, and Infinity I; Infinity requires one carried arrow.
       enchantments:
@@ -164,7 +164,7 @@ level-drops:
       story-id: skeleton-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 3
         punch: 2
@@ -184,7 +184,7 @@ level-drops:
       story-id: skeleton-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 4
         punch: 2
@@ -206,7 +206,7 @@ level-drops:
       story-id: skeleton-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 5
         punch: 2
@@ -229,7 +229,7 @@ level-drops:
       story-id: skeleton-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 6
         punch: 2
@@ -255,7 +255,7 @@ level-drops:
       story-id: skeleton-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 7
         punch: 2
@@ -283,7 +283,7 @@ level-drops:
       story-id: skeleton-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         power: 7
         punch: 2
@@ -313,7 +313,7 @@ level-drops:
       story-id: skeleton-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         power: 8
         punch: 2
@@ -345,7 +345,7 @@ level-drops:
       story-id: skeleton-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         power: 9
         punch: 2
@@ -379,7 +379,7 @@ level-drops:
       story-id: skeleton-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         power: 10
         punch: 2

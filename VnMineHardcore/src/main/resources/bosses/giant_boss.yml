@@ -78,11 +78,11 @@ drops:
   ROTTEN_FLESH:
     min-amount: 20
     max-amount: 50
-    chance: 1.0
+    chance: 0.30
   DIAMOND:
     min-amount: 2
     max-amount: 6
-    chance: 0.6
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -136,7 +136,7 @@ level-drops:
       story-id: giant-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 3
     - material: ENCHANTED_BOOK
@@ -154,7 +154,7 @@ level-drops:
       story-id: giant-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 3
         smite: 3
@@ -174,7 +174,7 @@ level-drops:
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 4
         smite: 4
@@ -196,7 +196,7 @@ level-drops:
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 5
         smite: 5
@@ -219,7 +219,7 @@ level-drops:
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 6
         smite: 6
@@ -245,7 +245,7 @@ level-drops:
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 7
         smite: 7
@@ -273,7 +273,7 @@ level-drops:
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 7
         smite: 7
@@ -303,7 +303,7 @@ level-drops:
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 8
         smite: 8
@@ -335,7 +335,7 @@ level-drops:
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 9
         smite: 9
@@ -369,7 +369,7 @@ level-drops:
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 10
         smite: 10

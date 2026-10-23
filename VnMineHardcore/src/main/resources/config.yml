@@ -23,6 +23,10 @@ menus:
   # [EN] Show admin menu to players with permission; default enabled.
   admin:
     enabled: true
+    # [VI] Bật công cụ RPG cấp sách kỹ năng/EXP/level trong menu admin; mặc định bật.
+    # [EN] Enable admin RPG tools for granting skill books/experience/levels; defaults to true.
+    rpg-tools:
+      enabled: true
     # [VI] Thời gian cảnh báo trước khi gọi thiên tai/boss; mặc định 30 giây, hợp lệ 1-3600.
     # [EN] Warning time before a disaster/boss is summoned; default 30 seconds, valid range 1-3600.
     warning-seconds: 30

@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [v2.4.0] - 2026-10-23
+
+### Changed
+- Đặt tỉ lệ rơi mặc định thành 30% độc lập cho từng món loot thường, loot theo cấp, từng món giáp boss, gear lính và token boss trên toàn bộ boss.
+
+### Added
+- Chia menu admin thành các nhóm Máy chủ, Người chơi, Quản lý quyền, RPG và Quân đội; thêm GUI chọn người chơi để cấp sách kỹ năng hoặc EXP/level RPG.
+- Thêm quyền `vnmine.command.progression.admin` và cấu hình `menus.admin.rpg-tools.enabled`; cấp level trực tiếp tôn trọng level cap và cộng skill point theo số cấp thực nhận.
+
+## [v2.3.1] - 2026-10-23
+
+### Changed
+- Quick Cast chỉ hiển thị một hàng 9 slot; bấm phím số để cast luôn đóng menu, kể cả khi slot trống hoặc cast thất bại.
+
 ## [v2.3.0] - 2026-10-23
 
 ### Added

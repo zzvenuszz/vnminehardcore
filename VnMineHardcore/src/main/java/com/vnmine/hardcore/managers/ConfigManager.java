@@ -224,7 +224,7 @@ public class ConfigManager {
    public boolean bossSpawnSuccessProgressionEnabled;
    public double bossSpawnSuccessDefaultPercent = 100.0;
    public List<ConfigManager.BossSpawnSuccessThreshold> bossSpawnSuccessThresholds = new ArrayList<>();
-   public double bossArmorPieceDropChance = 0.1;
+   public double bossArmorPieceDropChance = 0.3;
    public int bossArmorNaturalLevelGap = 2;
    public double bossArmorLevelsPerEnchant = 0.8;
    public int bossArmorMaximumEnchantLevel = 5;
@@ -1286,7 +1286,7 @@ public class ConfigManager {
          this.bossExperienceLevelTen = 150;
       }
 
-      this.bossArmorPieceDropChance = this.readBoundedDouble(bs, "reward-items.armor-piece-chance", 0.1, 0.0, 1.0);
+      this.bossArmorPieceDropChance = this.readBoundedDouble(bs, "reward-items.armor-piece-chance", 0.3, 0.0, 1.0);
       int armorLevelGap = bs.getInt("reward-items.armor-natural-level-gap", 2);
       if (armorLevelGap < 0 || armorLevelGap > 5) {
          this.plugin.getLogger().warning("[Boss] reward-items.armor-natural-level-gap must be 0-5; clamping.");
@@ -2010,7 +2010,7 @@ public class ConfigManager {
       public boolean enabled = true;
       public String name = "Di Vật";
       public String storyId;
-      public double dropChance = 0.45;
+      public double dropChance = 0.30;
       public Map<Integer, String> materialTiers = new HashMap<>();
       public Map<String, String> pieceNames = new HashMap<>();
       public Map<String, List<String>> enchantmentsBySlot = new HashMap<>();
@@ -2051,8 +2051,8 @@ public class ConfigManager {
    public static class BossMercenaryGearDropConfig {
       private static final List<String> MATERIAL_ORDER = List.of("leather", "copper", "iron", "gold", "diamond", "netherite");
       public boolean enabled = true;
-      public double leatherOneStarChancePercent = 40.0;
-      public double netheriteFiveStarChancePercent = 1.0;
+      public double leatherOneStarChancePercent = 30.0;
+      public double netheriteFiveStarChancePercent = 30.0;
       public Map<Integer, ConfigManager.BossMercenaryGearTier> levelTiers = new HashMap<>();
 
       public double chanceFor(String material, int stars) {

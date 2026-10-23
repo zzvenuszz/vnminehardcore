@@ -217,6 +217,9 @@ permissions:
   vnmine.command.skillbook.admin:
     description: Cho phép cấp sách kỹ năng bằng /vnskillbook
     default: op
+  vnmine.command.progression.admin:
+    description: Cho phép cấp EXP và level RPG cho người chơi từ menu admin
+    default: op
   vnmine.command.portal.admin:
     description: Cho phép tạo và quản lý portal RPG
     default: op

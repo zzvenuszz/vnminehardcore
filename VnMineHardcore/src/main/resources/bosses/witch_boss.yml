@@ -89,43 +89,43 @@ drops:
   POTION:
     min-amount: 5
     max-amount: 15
-    chance: 0.8
+    chance: 0.30
   GLOWSTONE_DUST:
     min-amount: 10
     max-amount: 25
-    chance: 0.8
+    chance: 0.30
   DIAMOND:
     min-amount: 3
     max-amount: 6
-    chance: 0.35
+    chance: 0.30
   IRON_INGOT:
     min-amount: 8
     max-amount: 15
-    chance: 0.5
+    chance: 0.30
   EMERALD:
     min-amount: 10
     max-amount: 20
-    chance: 0.6
+    chance: 0.30
   REDSTONE:
     min-amount: 15
     max-amount: 30
-    chance: 0.7
+    chance: 0.30
   ENCHANTED_BOOK:
     min-amount: 1
     max-amount: 2
-    chance: 0.3
+    chance: 0.30
   SUGAR:
     min-amount: 5
     max-amount: 10
-    chance: 0.4
+    chance: 0.30
   SPIDER_EYE:
     min-amount: 3
     max-amount: 8
-    chance: 0.4
+    chance: 0.30
   GUNPOWDER:
     min-amount: 5
     max-amount: 10
-    chance: 0.4
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -165,7 +165,7 @@ level-drops:
       story-id: witch-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 2
     - material: ENCHANTED_BOOK
@@ -183,7 +183,7 @@ level-drops:
       story-id: witch-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 2
         sharpness: 3
@@ -203,7 +203,7 @@ level-drops:
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 3
         sharpness: 4
@@ -225,7 +225,7 @@ level-drops:
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 4
         sharpness: 5
@@ -248,7 +248,7 @@ level-drops:
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 5
         sharpness: 6
@@ -274,7 +274,7 @@ level-drops:
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 6
         sharpness: 7
@@ -302,7 +302,7 @@ level-drops:
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 6
         sharpness: 7
@@ -332,7 +332,7 @@ level-drops:
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 7
         sharpness: 8
@@ -364,7 +364,7 @@ level-drops:
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 8
         sharpness: 9
@@ -398,7 +398,7 @@ level-drops:
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 9
         sharpness: 10

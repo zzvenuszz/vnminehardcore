@@ -86,6 +86,73 @@ public class PlayerProfileDatabaseManager {
         return progressionRules;
     }
 
+    public Optional<AdminProgressionResult> awardCharacterExperience(
+            String uuid, int experienceAward, String updatedAt) throws SQLException {
+        if (experienceAward < 1 || experienceAward > 100_000) {
+            throw new IllegalArgumentException("experienceAward must be between 1 and 100000.");
+        }
+        return executeWriteTransaction(connection -> {
+            PlayerProfile profile = readActiveProfileForAdminProgression(connection, uuid);
+            if (profile == null) return Optional.empty();
+            CharacterProgression.AwardResult result =
+                awardProfileExperience(connection, uuid, experienceAward, updatedAt);
+            return Optional.of(new AdminProgressionResult(profile.level(), result.progress().level(),
+                result.progress().experience(), result.skillPointsGained()));
+        });
+    }
+
+    public Optional<AdminProgressionResult> grantCharacterLevels(
+            String uuid, int levels, String updatedAt) throws SQLException {
+        if (levels < 1 || levels > 100) {
+            throw new IllegalArgumentException("levels must be between 1 and 100.");
+        }
+        return executeWriteTransaction(connection -> {
+            PlayerProfile profile = readActiveProfileForAdminProgression(connection, uuid);
+            if (profile == null) return Optional.empty();
+            int newLevel = Math.max(profile.level(),
+                Math.min(progressionRules.maxLevel(), profile.level() + levels));
+            int grantedLevels = newLevel - profile.level();
+            int skillPointsGained;
+            int newSkillPoints;
+            try {
+                skillPointsGained = Math.multiplyExact(grantedLevels, progressionRules.skillPointsPerLevel());
+                newSkillPoints = Math.addExact(profile.unspentSkillPoints(), skillPointsGained);
+            } catch (ArithmeticException exception) {
+                throw new SQLException("Admin character level grant exceeds the supported skill-point range.", exception);
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_profiles SET level = ?, skill_points = ?, updated_at = ? " +
+                        "WHERE uuid = ? AND is_active = 1")) {
+                statement.setInt(1, newLevel);
+                statement.setInt(2, newSkillPoints);
+                statement.setString(3, updatedAt);
+                statement.setString(4, uuid);
+                if (statement.executeUpdate() != 1) {
+                    throw new SQLException("Could not save admin character level grant for " + uuid + ".");
+                }
+            }
+            return Optional.of(new AdminProgressionResult(profile.level(), newLevel, profile.exp(),
+                skillPointsGained));
+        });
+    }
+
+    private PlayerProfile readActiveProfileForAdminProgression(Connection connection, String uuid)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT uuid, player_name, selected_race, selected_class, level, exp, skill_points, home_world, " +
+                    "created_at, updated_at, is_active FROM player_profiles WHERE uuid = ? AND is_active = 1")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) return null;
+                return new PlayerProfile(resultSet.getString("uuid"), resultSet.getString("player_name"),
+                    resultSet.getString("selected_race"), resultSet.getString("selected_class"),
+                    resultSet.getInt("level"), resultSet.getInt("exp"), resultSet.getInt("skill_points"),
+                    resultSet.getString("home_world"), resultSet.getString("created_at"),
+                    resultSet.getString("updated_at"), true);
+            }
+        }
+    }
+
     public void initialize() throws SQLException {
         ensureDirectories();
         recoverDatabaseIfNeeded();
@@ -759,7 +826,7 @@ public class PlayerProfileDatabaseManager {
         });
     }
 
-    private void awardProfileExperience(
+    private CharacterProgression.AwardResult awardProfileExperience(
             Connection connection, String uuid, int experienceReward, String updatedAt) throws SQLException {
         int level;
         int experience;
@@ -795,6 +862,7 @@ public class PlayerProfileDatabaseManager {
                 throw new SQLException("Could not save character progression for profile " + uuid + ".");
             }
         }
+        return result;
     }
 
     private void validateExperienceReward(int experienceReward) {
@@ -899,6 +967,10 @@ public class PlayerProfileDatabaseManager {
     }
 
     public record ManaRestoreResult(ManaState state, int restoredAmount) {
+    }
+
+    public record AdminProgressionResult(int previousLevel, int currentLevel, int experience,
+                                         int skillPointsGained) {
     }
 
     public record PlayerProfile(String uuid, String playerName, String selectedRace, String selectedClass,

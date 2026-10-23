@@ -59,43 +59,43 @@ drops:
   DRAGON_EGG:
     min-amount: 1
     max-amount: 1
-    chance: 0.15
+    chance: 0.30
   ELYTRA:
     min-amount: 1
     max-amount: 1
-    chance: 0.35
+    chance: 0.30
   DIAMOND:
     min-amount: 8
     max-amount: 15
-    chance: 0.8
+    chance: 0.30
   EMERALD:
     min-amount: 15
     max-amount: 25
-    chance: 0.7
+    chance: 0.30
   IRON_INGOT:
     min-amount: 20
     max-amount: 40
-    chance: 0.7
+    chance: 0.30
   SHULKER_SHELL:
     min-amount: 2
     max-amount: 4
-    chance: 0.6
+    chance: 0.30
   ENCHANTED_BOOK:
     min-amount: 1
     max-amount: 3
-    chance: 0.4
+    chance: 0.30
   END_CRYSTAL:
     min-amount: 1
     max-amount: 3
-    chance: 0.3
+    chance: 0.30
   CHORUS_FRUIT:
     min-amount: 5
     max-amount: 15
-    chance: 0.5
+    chance: 0.30
   DRAGON_BREATH:
     min-amount: 1
     max-amount: 3
-    chance: 0.3
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -149,7 +149,7 @@ level-drops:
       story-id: dragon-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 3
     - material: ENCHANTED_BOOK
@@ -167,7 +167,7 @@ level-drops:
       story-id: dragon-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 3
         smite: 3
@@ -187,7 +187,7 @@ level-drops:
       story-id: dragon-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 4
         smite: 4
@@ -209,7 +209,7 @@ level-drops:
       story-id: dragon-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 5
         smite: 5
@@ -232,7 +232,7 @@ level-drops:
       story-id: dragon-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 6
         smite: 6
@@ -258,7 +258,7 @@ level-drops:
       story-id: dragon-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 7
         smite: 7
@@ -286,7 +286,7 @@ level-drops:
       story-id: dragon-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 7
         smite: 7
@@ -316,7 +316,7 @@ level-drops:
       story-id: dragon-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 8
         smite: 8
@@ -348,7 +348,7 @@ level-drops:
       story-id: dragon-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 9
         smite: 9
@@ -382,7 +382,7 @@ level-drops:
       story-id: dragon-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 10
         smite: 10

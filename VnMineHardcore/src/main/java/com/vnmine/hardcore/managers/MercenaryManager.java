@@ -6474,57 +6474,36 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
 
    private void openAdminMenu(Player player) {
       if (this.hasAdminMenuAccess(player)) {
-         MercenaryManager.ServiceMenuHolder holder = this.createServiceMenu(player, MercenaryManager.MenuType.ADMIN, null, null, null, 0, 54, "VnMine • Admin");
-            for (int slot = 0; slot < 9; slot++) {
-                holder.inventory.setItem(slot, this.menuItem(Material.GRAY_STAINED_GLASS_PANE, "§r", List.of()));
-                holder.inventory.setItem(slot + 36, this.menuItem(Material.GRAY_STAINED_GLASS_PANE, "§r", List.of()));
-            }
-            holder.inventory.setItem(4, this.menuItem(Material.COMMAND_BLOCK, "§cCông cụ quản trị", List.of(
-                "§7Các thao tác quản lý server.")));
+         ServiceMenuHolder holder = this.createServiceMenu(player, MenuType.ADMIN, null, null, null, 0, 27,
+             "VnMine • Quản trị");
+         holder.inventory.setItem(4, this.menuItem(Material.COMMAND_BLOCK, "§cCông cụ quản trị",
+             List.of("§7Chọn nhóm chức năng cần quản lý.")));
+         if (hasAnyPermission(player, "vnmine.command.disasters", "vnmine.command.bosses",
+                 "vnmine.command.reload", "vnmine.command.time.manage", "vnmine.command.day.manage",
+                 "vnmine.command.spawn.manage", "vnmine.command.scoreboard.reset")) {
+             holder.inventory.setItem(10, this.menuItem(Material.REDSTONE, "§eMáy chủ",
+                 List.of("§7Sự kiện, boss, thời gian và spawn.")));
+         }
+         if (hasAnyPermission(player, "vnmine.command.teleport.other", "vnmine.command.users.manage",
+                 "vnmine.command.fly", "vnmine.command.nodame", "vnmine.command.gamemode",
+                 "vnmine.command.death.reset", "vnmine.command.death.history")) {
+             holder.inventory.setItem(12, this.menuItem(Material.PLAYER_HEAD, "§bNgười chơi",
+                 List.of("§7Dịch chuyển, chế độ chơi và thông tin.")));
+         }
+         if (hasAnyPermission(player, "vnmine.command.groups.manage", "vnmine.command.users.manage")) {
+             holder.inventory.setItem(14, this.menuItem(Material.BOOKSHELF, "§dQuản lý quyền",
+                 List.of("§7Nhóm, permission và hồ sơ người chơi.")));
+         }
+         if (isAdminRpgToolsEnabled() && (player.hasPermission("vnmine.command.skillbook.admin")
+                 || player.hasPermission("vnmine.command.progression.admin"))) {
+             holder.inventory.setItem(16, this.menuItem(Material.ENCHANTED_BOOK, "§6RPG",
+                 List.of("§7Cấp sách kỹ năng, EXP và level.")));
+         }
          if (player.hasPermission("vnmine.command.army.admin")) {
-            holder.inventory.setItem(11, this.menuItem(Material.IRON_SWORD, "§6Quân đội", List.of("§7Chọn người chơi để cấp lính hoặc token.")));
+             holder.inventory.setItem(22, this.menuItem(Material.IRON_SWORD, "§6Quân đội",
+                 List.of("§7Cấp lính, token và trang bị.")));
          }
-
-         holder.inventory.setItem(12, this.menuItem(Material.CLOCK, "§eGọi thiên tai", List.of("§7Chọn một thiên tai để kích hoạt.")));
-         holder.inventory.setItem(13, this.menuItem(Material.BARRIER, "§cDừng thiên tai", List.of("§7Dừng cảnh báo hoặc sự kiện đang chạy.")));
-
-         holder.inventory.setItem(14, this.menuItem(Material.DRAGON_HEAD, "§cGọi boss", List.of("§7Chọn boss và level để kích hoạt.")));
-         holder.inventory.setItem(15, this.menuItem(Material.DIAMOND_SWORD, "§4Kết thúc boss", List.of("§7Kết thúc boss hiện tại.")));
-         holder.inventory.setItem(16, this.menuItem(Material.REDSTONE, "§eTải lại cấu hình", List.of("§7Tải lại cấu hình plugin.")));
-         holder.inventory.setItem(17, this.menuItem(Material.COMPASS, "§bVề spawn", List.of("§7Dịch chuyển về spawn thế giới.")));
-         holder.inventory.setItem(18, this.menuItem(Material.LODESTONE, "§bĐặt spawn world", List.of("§7Đặt spawn tại vị trí hiện tại.")));
-         holder.inventory.setItem(19, this.menuItem(Material.CLOCK, "§eThời lượng ngày/đêm", List.of("§7Chọn chu kỳ và số phút.")));
-         holder.inventory.setItem(20, this.menuItem(Material.SUNFLOWER, "§eĐặt ngày", List.of("§7Chọn ngày cho world hiện tại.")));
-         holder.inventory.setItem(21, this.menuItem(Material.SHIELD, "§6Spawn protection", List.of("§7Tạo, xem hoặc xóa vùng bảo vệ.")));
-         holder.inventory.setItem(22, this.menuItem(Material.ENDER_PEARL, "§bDịch chuyển người chơi", List.of("§7Chọn người chơi và world spawn.")));
-         holder.inventory.setItem(23, this.menuItem(Material.BOOKSHELF, "§dQuản lý nhóm/quyền", List.of("§7Xem, tạo, xóa nhóm và chỉnh permission.")));
-         holder.inventory.setItem(24, this.menuItem(Material.PLAYER_HEAD, "§dQuản lý người chơi", List.of("§7Xem thông tin hoặc đặt lại quyền.")));
-         holder.inventory.setItem(25, this.menuItem(Material.FEATHER, "§aBật/tắt bay", List.of("§7Chuyển trạng thái bay của bạn.")));
-         holder.inventory.setItem(26, this.menuItem(Material.BARRIER, "§cMiễn sát thương", List.of("§7Bật/tắt chế độ thử boss.")));
-         holder.inventory.setItem(27, this.menuItem(Material.IRON_PICKAXE, "§eSurvival", List.of("§7Đổi game mode.")));
-         holder.inventory.setItem(28, this.menuItem(Material.GRASS_BLOCK, "§aCreative", List.of("§7Đổi game mode.")));
-         holder.inventory.setItem(29, this.menuItem(Material.MAP, "§6Adventure", List.of("§7Đổi game mode.")));
-         holder.inventory.setItem(30, this.menuItem(Material.ENDER_EYE, "§7Spectator", List.of("§7Đổi game mode.")));
-         holder.inventory.setItem(31, this.menuItem(Material.REDSTONE_BLOCK, "§cReset scoreboard", List.of("§7Xóa điểm mùa và phần thưởng chờ.")));
-         holder.inventory.setItem(32, this.menuItem(Material.SKELETON_SKULL, "§cReset số lần chết", List.of("§7Chọn người chơi.")));
-         holder.inventory.setItem(33, this.menuItem(Material.MAP, "§bĐi tới spawn world", List.of("§7Chọn world đích.")));
-         if (player.hasPermission("vnmine.command.death.history")) {
-            holder.inventory.setItem(34, this.menuItem(Material.CLOCK, "§cLịch sử chết", List.of("§7Chọn người chơi online và xem inventory lúc chết.")));
-         }
-
-         if (player.hasPermission("vnmine.command.army.admin")) {
-            holder.inventory
-               .setItem(
-                  35,
-                  this.menuItem(
-                     Material.NETHERITE_CHESTPLATE,
-                     "§6Give item lính",
-                     List.of("§7Chọn người chơi, class, vật liệu, sao và set.", "§7Cấp một món hoặc cả bộ sáu món.")
-                  )
-               );
-         }
-
-         holder.inventory.setItem(49, this.menuItem(Material.ARROW, "§7Menu chính", List.of()));
+         holder.inventory.setItem(26, this.menuItem(Material.ARROW, "§7Menu chính", List.of()));
          player.openInventory(holder.inventory);
       }
    }
@@ -6534,9 +6513,146 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             "vnmine.command.reload", "vnmine.command.time.manage", "vnmine.command.day.manage",
             "vnmine.command.spawn.manage", "vnmine.command.teleport.other", "vnmine.command.groups.manage",
             "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
-            "vnmine.command.gamemode", "vnmine.command.scoreboard.reset", "vnmine.command.death.reset")
+            "vnmine.command.gamemode", "vnmine.command.scoreboard.reset", "vnmine.command.death.reset",
+            "vnmine.command.skillbook.admin", "vnmine.command.progression.admin")
             .stream().anyMatch(player::hasPermission)
             || player.hasPermission("vnmine.command.death.history");
+    }
+
+    private boolean isAdminRpgToolsEnabled() {
+        return plugin.getConfig().getBoolean("menus.admin.rpg-tools.enabled", true);
+    }
+
+    private boolean hasAnyPermission(Player player, String... permissions) {
+        for (String permission : permissions) {
+            if (player.hasPermission(permission)) return true;
+        }
+        return false;
+    }
+
+    private void setAdminCategoryItem(Player player, ServiceMenuHolder holder, int slot, String permission,
+                                      Material material, String title, List<String> lore) {
+        if (player.hasPermission(permission)) {
+            holder.inventory.setItem(slot, this.menuItem(material, title, lore));
+        }
+    }
+
+    private void openAdminCategory(Player player, String category) {
+        ServiceMenuHolder holder = createServiceMenu(player, MenuType.ADMIN_CATEGORY, null, category, null,
+            0, 54, "Quản trị • " + category);
+        switch (category) {
+            case "server" -> {
+                setAdminCategoryItem(player, holder, 10, "vnmine.command.disasters", Material.CLOCK, "§eGọi thiên tai", List.of());
+                setAdminCategoryItem(player, holder, 11, "vnmine.command.disasters", Material.BARRIER, "§cDừng thiên tai", List.of());
+                setAdminCategoryItem(player, holder, 12, "vnmine.command.bosses", Material.DRAGON_HEAD, "§cGọi boss", List.of());
+                setAdminCategoryItem(player, holder, 13, "vnmine.command.bosses", Material.DIAMOND_SWORD, "§4Kết thúc boss", List.of());
+                setAdminCategoryItem(player, holder, 14, "vnmine.command.reload", Material.REDSTONE, "§eTải lại cấu hình", List.of());
+                setAdminCategoryItem(player, holder, 15, "vnmine.command.spawn.manage", Material.COMPASS, "§bVề spawn", List.of());
+                setAdminCategoryItem(player, holder, 16, "vnmine.command.spawn.manage", Material.LODESTONE, "§bĐặt spawn world", List.of());
+                setAdminCategoryItem(player, holder, 19, "vnmine.command.time.manage", Material.CLOCK, "§eThời lượng ngày/đêm", List.of());
+                setAdminCategoryItem(player, holder, 20, "vnmine.command.day.manage", Material.SUNFLOWER, "§eĐặt ngày", List.of());
+                setAdminCategoryItem(player, holder, 21, "vnmine.command.spawn.manage", Material.SHIELD, "§6Spawn protection", List.of());
+                setAdminCategoryItem(player, holder, 22, "vnmine.command.scoreboard.reset", Material.REDSTONE_BLOCK, "§cReset scoreboard", List.of());
+                setAdminCategoryItem(player, holder, 23, "vnmine.command.spawn.manage", Material.MAP, "§bĐi tới spawn world", List.of());
+            }
+            case "players" -> {
+                setAdminCategoryItem(player, holder, 10, "vnmine.command.teleport.other", Material.ENDER_PEARL, "§bDịch chuyển người chơi", List.of());
+                setAdminCategoryItem(player, holder, 11, "vnmine.command.users.manage", Material.PLAYER_HEAD, "§dQuản lý người chơi", List.of());
+                setAdminCategoryItem(player, holder, 12, "vnmine.command.fly", Material.FEATHER, "§aBật/tắt bay", List.of());
+                setAdminCategoryItem(player, holder, 13, "vnmine.command.nodame", Material.BARRIER, "§cMiễn sát thương", List.of());
+                setAdminCategoryItem(player, holder, 14, "vnmine.command.gamemode", Material.IRON_PICKAXE, "§eSurvival", List.of());
+                setAdminCategoryItem(player, holder, 15, "vnmine.command.gamemode", Material.GRASS_BLOCK, "§aCreative", List.of());
+                setAdminCategoryItem(player, holder, 16, "vnmine.command.gamemode", Material.MAP, "§6Adventure", List.of());
+                setAdminCategoryItem(player, holder, 19, "vnmine.command.gamemode", Material.ENDER_EYE, "§7Spectator", List.of());
+                setAdminCategoryItem(player, holder, 20, "vnmine.command.death.reset", Material.SKELETON_SKULL, "§cReset số lần chết", List.of());
+                if (player.hasPermission("vnmine.command.death.history")) {
+                    holder.inventory.setItem(21, this.menuItem(Material.CLOCK, "§cLịch sử chết", List.of()));
+                }
+            }
+            case "permissions" -> {
+                setAdminCategoryItem(player, holder, 11, "vnmine.command.groups.manage",
+                    Material.BOOKSHELF, "§dQuản lý nhóm/quyền", List.of());
+                setAdminCategoryItem(player, holder, 15, "vnmine.command.users.manage",
+                    Material.PLAYER_HEAD, "§dQuản lý người chơi", List.of());
+            }
+            case "army" -> {
+                if (player.hasPermission("vnmine.command.army.admin")) {
+                    holder.inventory.setItem(11, this.menuItem(Material.IRON_SWORD, "§6Cấp lính / token", List.of()));
+                    holder.inventory.setItem(15, this.menuItem(Material.NETHERITE_CHESTPLATE, "§6Give item lính",
+                        List.of("§7Chọn người chơi, class và vật phẩm.")));
+                }
+            }
+            case "rpg" -> {
+                if (isAdminRpgToolsEnabled() && player.hasPermission("vnmine.command.skillbook.admin")) {
+                    holder.inventory.setItem(11, this.menuItem(Material.ENCHANTED_BOOK, "§dGive sách kỹ năng", List.of()));
+                }
+                if (isAdminRpgToolsEnabled() && player.hasPermission("vnmine.command.progression.admin")) {
+                    holder.inventory.setItem(15, this.menuItem(Material.EXPERIENCE_BOTTLE, "§6Quản lý EXP / level", List.of()));
+                }
+            }
+            default -> {
+                player.sendMessage("§cNhóm quản trị không hợp lệ.");
+                return;
+            }
+        }
+        holder.inventory.setItem(49, this.menuItem(Material.ARROW, "§7Quay lại", List.of()));
+        player.openInventory(holder.inventory);
+    }
+
+    private void openAdminRpgPlayers(Player player, String action, int page) {
+        List<? extends Player> online = Bukkit.getOnlinePlayers().stream()
+            .sorted(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER)).toList();
+        int pages = Math.max(1, (online.size() + 44) / 45);
+        int safePage = Math.max(0, Math.min(page, pages - 1));
+        ServiceMenuHolder holder = createServiceMenu(player, MenuType.ADMIN_RPG_PLAYERS, null, action, null,
+            safePage, 54, "RPG • Người chơi " + (safePage + 1) + "/" + pages);
+        for (int index = safePage * 45; index < Math.min((safePage + 1) * 45, online.size()); index++) {
+            Player target = online.get(index);
+            int slot = index - safePage * 45;
+            holder.choices.put(slot, target.getUniqueId().toString());
+            holder.inventory.setItem(slot, menuItem(Material.PLAYER_HEAD, "§e" + target.getName(),
+                List.of("§7Chọn người chơi này.")));
+        }
+        if (safePage > 0) holder.inventory.setItem(45, menuItem(Material.ARROW, "§eTrang trước", List.of()));
+        holder.inventory.setItem(49, menuItem(Material.ARROW, "§7Quay lại RPG", List.of()));
+        if (safePage + 1 < pages) holder.inventory.setItem(53, menuItem(Material.ARROW, "§eTrang sau", List.of()));
+        player.openInventory(holder.inventory);
+    }
+
+    private void openAdminSkillBooks(Player player, UUID target, int page) {
+        var books = plugin.getSkillManager().getSkillBooks();
+        int pages = Math.max(1, (books.size() + 44) / 45);
+        int safePage = Math.max(0, Math.min(page, pages - 1));
+        ServiceMenuHolder holder = createServiceMenu(player, MenuType.ADMIN_SKILLBOOKS, target, null, null,
+            safePage, 54, "RPG • Sách kỹ năng " + (safePage + 1) + "/" + pages);
+        for (int index = safePage * 45; index < Math.min((safePage + 1) * 45, books.size()); index++) {
+            var book = books.get(index);
+            int slot = index - safePage * 45;
+            holder.choices.put(slot, book.id());
+            holder.inventory.setItem(slot, menuItem(book.material(), "§e" + book.displayName(),
+                List.of("§7ID: §f" + book.id(), "§7Nhấn để cấp cho người chơi.")));
+        }
+        if (safePage > 0) holder.inventory.setItem(45, menuItem(Material.ARROW, "§eTrang trước", List.of()));
+        holder.inventory.setItem(49, menuItem(Material.ARROW, "§7Quay lại", List.of()));
+        if (safePage + 1 < pages) holder.inventory.setItem(53, menuItem(Material.ARROW, "§eTrang sau", List.of()));
+        player.openInventory(holder.inventory);
+    }
+
+    private void openAdminProgression(Player player, UUID target) {
+        ServiceMenuHolder holder = createServiceMenu(player, MenuType.ADMIN_PROGRESSION, target, null, null,
+            0, 27, "RPG • EXP / level");
+        holder.choices.put(10, "exp:100");
+        holder.choices.put(11, "exp:500");
+        holder.choices.put(12, "exp:1000");
+        holder.choices.put(14, "level:1");
+        holder.choices.put(15, "level:5");
+        holder.inventory.setItem(10, menuItem(Material.EXPERIENCE_BOTTLE, "§a+100 EXP", List.of()));
+        holder.inventory.setItem(11, menuItem(Material.EXPERIENCE_BOTTLE, "§a+500 EXP", List.of()));
+        holder.inventory.setItem(12, menuItem(Material.EXPERIENCE_BOTTLE, "§a+1000 EXP", List.of()));
+        holder.inventory.setItem(14, menuItem(Material.ENCHANTED_BOOK, "§6+1 level", List.of()));
+        holder.inventory.setItem(15, menuItem(Material.ENCHANTED_BOOK, "§6+5 levels", List.of()));
+        holder.inventory.setItem(22, menuItem(Material.ARROW, "§7Quay lại", List.of()));
+        player.openInventory(holder.inventory);
     }
 
     private void openAdminArmyPlayers(Player player, int page) {
@@ -8537,58 +8653,139 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                         }
                         break;
                case ADMIN:
-                  if (slot == 11 && player.hasPermission("vnmine.command.army.admin")) {
-                     this.openAdminArmyPlayers(player, 0);
+                  if (slot == 10) {
+                     this.openAdminCategory(player, "server");
                   } else if (slot == 12) {
-                     this.openDisasterMenu(player);
-                  } else if (slot == 13) {
-                     player.performCommand("vnevent stop");
+                     this.openAdminCategory(player, "players");
                   } else if (slot == 14) {
-                     this.openBossMenu(player);
-                  } else if (slot == 15) {
-                     player.performCommand("vnboss kill");
-                  } else if (slot == 16) {
-                     player.performCommand("vnreload");
-                  } else if (slot == 17) {
-                     player.performCommand("spawn");
-                  } else if (slot == 18) {
-                     player.performCommand("vnspawn set");
-                  } else if (slot == 19) {
-                     this.openTimeMenu(player);
-                  } else if (slot == 20) {
-                     this.openDayMenu(player);
-                  } else if (slot == 21) {
-                     this.openProtectionMenu(player);
-                  } else if (slot == 22) {
-                     this.openTeleportPlayers(player, 0);
-                  } else if (slot == 23) {
-                     this.openAdminGroupMenu(player);
-                  } else if (slot == 24) {
-                     this.openAdminUserPlayers(player, 0);
-                  } else if (slot == 25) {
-                     player.performCommand("fly");
+                     this.openAdminCategory(player, "permissions");
+                  } else if (slot == 16 && isAdminRpgToolsEnabled()
+                          && (player.hasPermission("vnmine.command.skillbook.admin")
+                              || player.hasPermission("vnmine.command.progression.admin"))) {
+                     this.openAdminCategory(player, "rpg");
+                  } else if (slot == 22 && player.hasPermission("vnmine.command.army.admin")) {
+                     this.openAdminCategory(player, "army");
                   } else if (slot == 26) {
-                     player.performCommand("nodame");
-                  } else if (slot == 27) {
-                     player.performCommand("gm0");
-                  } else if (slot == 28) {
-                     player.performCommand("gm1");
-                  } else if (slot == 29) {
-                     player.performCommand("gm2");
-                  } else if (slot == 30) {
-                     player.performCommand("gm3");
-                  } else if (slot == 31) {
-                     this.openAdminScoreboardConfirm(player);
-                  } else if (slot == 32) {
-                     this.openAdminDeathPlayers(player);
-                  } else if (slot == 33) {
-                     this.openAdminSpawnWorlds(player);
-                  } else if (slot == 34 && player.hasPermission("vnmine.command.death.history")) {
-                     player.performCommand("vndeathhistory");
-                  } else if (slot == 35 && player.hasPermission("vnmine.command.army.admin")) {
-                     this.openAdminItemPlayers(player, 0);
-                  } else if (slot == 49) {
                      this.openMainMenu(player);
+                  }
+                  break;
+               case ADMIN_CATEGORY:
+                  if (slot == 49) {
+                     this.openAdminMenu(player);
+                  } else if ("server".equals(holder.itemType)) {
+                     if (slot == 10 && player.hasPermission("vnmine.command.disasters")) this.openDisasterMenu(player);
+                     else if (slot == 11 && player.hasPermission("vnmine.command.disasters")) player.performCommand("vnevent stop");
+                     else if (slot == 12 && player.hasPermission("vnmine.command.bosses")) this.openBossMenu(player);
+                     else if (slot == 13 && player.hasPermission("vnmine.command.bosses")) player.performCommand("vnboss kill");
+                     else if (slot == 14 && player.hasPermission("vnmine.command.reload")) player.performCommand("vnreload");
+                     else if (slot == 15 && player.hasPermission("vnmine.command.spawn.manage")) player.performCommand("spawn");
+                     else if (slot == 16 && player.hasPermission("vnmine.command.spawn.manage")) player.performCommand("vnspawn set");
+                     else if (slot == 19 && player.hasPermission("vnmine.command.time.manage")) this.openTimeMenu(player);
+                     else if (slot == 20 && player.hasPermission("vnmine.command.day.manage")) this.openDayMenu(player);
+                     else if (slot == 21 && player.hasPermission("vnmine.command.spawn.manage")) this.openProtectionMenu(player);
+                     else if (slot == 22 && player.hasPermission("vnmine.command.scoreboard.reset")) this.openAdminScoreboardConfirm(player);
+                     else if (slot == 23 && player.hasPermission("vnmine.command.spawn.manage")) this.openAdminSpawnWorlds(player);
+                  } else if ("players".equals(holder.itemType)) {
+                     if (slot == 10 && player.hasPermission("vnmine.command.teleport.other")) this.openTeleportPlayers(player, 0);
+                     else if (slot == 11 && player.hasPermission("vnmine.command.users.manage")) this.openAdminUserPlayers(player, 0);
+                     else if (slot == 12 && player.hasPermission("vnmine.command.fly")) player.performCommand("fly");
+                     else if (slot == 13 && player.hasPermission("vnmine.command.nodame")) player.performCommand("nodame");
+                     else if (slot == 14 && player.hasPermission("vnmine.command.gamemode")) player.performCommand("gm0");
+                     else if (slot == 15 && player.hasPermission("vnmine.command.gamemode")) player.performCommand("gm1");
+                     else if (slot == 16 && player.hasPermission("vnmine.command.gamemode")) player.performCommand("gm2");
+                     else if (slot == 19 && player.hasPermission("vnmine.command.gamemode")) player.performCommand("gm3");
+                     else if (slot == 20 && player.hasPermission("vnmine.command.death.reset")) this.openAdminDeathPlayers(player);
+                     else if (slot == 21 && player.hasPermission("vnmine.command.death.history")) player.performCommand("vndeathhistory");
+                  } else if ("permissions".equals(holder.itemType)) {
+                     if (slot == 11 && player.hasPermission("vnmine.command.groups.manage")) this.openAdminGroupMenu(player);
+                     else if (slot == 15 && player.hasPermission("vnmine.command.users.manage")) this.openAdminUserPlayers(player, 0);
+                  } else if ("army".equals(holder.itemType)
+                          && player.hasPermission("vnmine.command.army.admin")) {
+                     if (slot == 11) this.openAdminArmyPlayers(player, 0);
+                     else if (slot == 15) this.openAdminItemPlayers(player, 0);
+                  } else if ("rpg".equals(holder.itemType) && isAdminRpgToolsEnabled()) {
+                     if (slot == 11 && player.hasPermission("vnmine.command.skillbook.admin")) {
+                        this.openAdminRpgPlayers(player, "skillbook", 0);
+                     } else if (slot == 15 && player.hasPermission("vnmine.command.progression.admin")) {
+                        this.openAdminRpgPlayers(player, "progression", 0);
+                     }
+                  }
+                  break;
+               case ADMIN_RPG_PLAYERS:
+                  if (slot == 45 && holder.page > 0) {
+                     this.openAdminRpgPlayers(player, holder.itemType, holder.page - 1);
+                  } else if (slot == 53) {
+                     this.openAdminRpgPlayers(player, holder.itemType, holder.page + 1);
+                  } else if (slot == 49) {
+                     this.openAdminCategory(player, "rpg");
+                  } else if (choice != null) {
+                     UUID targetId = UUID.fromString(choice);
+                     if (Bukkit.getPlayer(targetId) == null) {
+                        player.sendMessage("§cNgười chơi đã ngoại tuyến.");
+                     } else if ("skillbook".equals(holder.itemType)) {
+                        this.openAdminSkillBooks(player, targetId, 0);
+                     } else {
+                        this.openAdminProgression(player, targetId);
+                     }
+                  }
+                  break;
+               case ADMIN_SKILLBOOKS:
+                  if (slot == 45 && holder.page > 0) {
+                     this.openAdminSkillBooks(player, holder.target, holder.page - 1);
+                  } else if (slot == 53) {
+                     this.openAdminSkillBooks(player, holder.target, holder.page + 1);
+                  } else if (slot == 49) {
+                     this.openAdminRpgPlayers(player, "skillbook", 0);
+                  } else if (choice != null && isAdminRpgToolsEnabled()
+                          && player.hasPermission("vnmine.command.skillbook.admin")) {
+                     Player target = Bukkit.getPlayer(holder.target);
+                     if (target == null) {
+                        player.sendMessage("§cNgười chơi đã ngoại tuyến.");
+                     } else if (plugin.getSkillManager().giveSkillBookTo(target, choice)) {
+                        player.sendMessage("§aĐã cấp sách kỹ năng §e" + choice + "§a cho §f"
+                            + target.getName() + "§a.");
+                     } else {
+                        player.sendMessage("§cKhông cấp được sách kỹ năng. Hãy kiểm tra ID hoặc túi đồ người chơi.");
+                     }
+                  }
+                  break;
+               case ADMIN_PROGRESSION:
+                  if (slot == 22) {
+                     this.openAdminRpgPlayers(player, "progression", 0);
+                  } else if (choice != null && isAdminRpgToolsEnabled()
+                          && player.hasPermission("vnmine.command.progression.admin")) {
+                     Player target = Bukkit.getPlayer(holder.target);
+                     if (target == null) {
+                        player.sendMessage("§cNgười chơi đã ngoại tuyến.");
+                        break;
+                     }
+                     try {
+                        var database = plugin.getPlayerProfileDatabaseManager();
+                        var grant = choice.startsWith("exp:")
+                            ? database.awardCharacterExperience(target.getUniqueId().toString(),
+                                Integer.parseInt(choice.substring(4)), java.time.Instant.now().toString())
+                            : database.grantCharacterLevels(target.getUniqueId().toString(),
+                                Integer.parseInt(choice.substring(6)), java.time.Instant.now().toString());
+                        if (grant.isEmpty()) {
+                           player.sendMessage("§cNgười chơi chưa có nhân vật RPG đang hoạt động.");
+                        } else {
+                           var result = grant.get();
+                           String grantDescription = choice.startsWith("exp:")
+                               ? "+" + choice.substring(4) + " EXP"
+                               : "+" + choice.substring(6) + " level";
+                           String message = "§aĐã cấp " + grantDescription + " cho §f" + target.getName()
+                               + "§a: level " + result.previousLevel() + " → " + result.currentLevel()
+                               + ", EXP dư " + result.experience() + ", +" + result.skillPointsGained()
+                               + " điểm kỹ năng.";
+                           player.sendMessage(message);
+                           target.sendMessage("§aQuản trị viên đã cập nhật tiến trình RPG của bạn. Cấp hiện tại: §e"
+                               + result.currentLevel() + "§a.");
+                        }
+                     } catch (java.sql.SQLException | IllegalArgumentException exception) {
+                        plugin.getLogger().log(Level.SEVERE, "Could not apply admin RPG progression grant to "
+                            + target.getName() + ".", exception);
+                        player.sendMessage("§cKhông thể cập nhật tiến trình RPG. Hãy kiểm tra console.");
+                     }
                   }
                   break;
                case ADMIN_PLAYERS:
@@ -10881,6 +11078,10 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         WORLD_MAP,
         STORY,
       ADMIN,
+      ADMIN_CATEGORY,
+      ADMIN_RPG_PLAYERS,
+      ADMIN_SKILLBOOKS,
+      ADMIN_PROGRESSION,
       ADMIN_PLAYERS,
       GIVE_TYPE,
       CLASS_SELECT,

@@ -27,6 +27,15 @@ public class SkillManagerTest {
     }
 
     @Test
+    public void quickBarUsesTheSingleTopRowForSlotsOneThroughNine() {
+        for (int inventorySlot = 0; inventorySlot < 9; inventorySlot++) {
+            assertEquals(inventorySlot + 1, SkillManager.quickBarSlot(inventorySlot));
+        }
+        assertEquals(-1, SkillManager.quickBarSlot(-1));
+        assertEquals(-1, SkillManager.quickBarSlot(9));
+    }
+
+    @Test
     public void battleFocusAddsConfiguredBonusPerRank() {
         assertEquals(10.3, SkillManager.calculateBattleFocusDamage(10.0, 1, 0.03), 0.0001);
         assertEquals(11.5, SkillManager.calculateBattleFocusDamage(10.0, 5, 0.03), 0.0001);

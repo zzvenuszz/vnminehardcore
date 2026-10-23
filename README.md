@@ -326,6 +326,8 @@ Operators and the console have all plugin permissions by default.
 | `vnmine.command.groups.manage`, `.users.manage` | Manage permission groups and player assignments |
 | `vnmine.command.army` | Hire and manage a player's mercenary army (default: true) |
 | `vnmine.command.army.admin` | Grant summon tokens or mercenaries with `/vnarmy give` (default: op) |
+| `vnmine.command.skillbook.admin` | Give configured RPG skill books via command or admin GUI (default: op) |
+| `vnmine.command.progression.admin` | Grant character RPG EXP/levels from the admin GUI (default: op) |
 | `vnmine.command.npc.admin` | Create, rename, move, inspect, list, and remove RPG NPCs (default: op) |
 | `vnmine.spawnprotection.bypass` | Let a non-operator place/break blocks inside protected regions |
 
@@ -429,6 +431,19 @@ An administrator can issue a configured book to an online player:
 ```
 
 This command requires `vnmine.command.skillbook.admin` (default: operators).
+The admin GUI also provides **Quản trị → RPG → Give sách kỹ năng**. Select an
+online player, then a configured book. It uses the same book generation as the
+command and reports an error if the player is offline or their inventory is full.
+
+The **Quản trị → RPG → Quản lý EXP / level** menu provides +100/+500/+1000
+character EXP and +1/+5 level actions. EXP follows the configured progression
+curve and awards skill points for each level gained; direct level grants also
+award skill points and stop at the configured maximum level. This is character
+RPG progression, not vanilla Minecraft XP. The separate
+`vnmine.command.progression.admin` permission (default: operators) controls
+these actions. Both RPG admin tools can be hidden with
+`menus.admin.rpg-tools.enabled: false`.
+
 Players right-click the book in their main hand to learn its skill. A successful
 learn consumes one book and stores rank 1 in SQLite. Wrong-class, insufficient-
 level, already-learned, or database-failure cases do not consume the book.
@@ -448,8 +463,11 @@ the skill book unlock, and requires character level `required-level + current
 rank`. The skill-point spend and rank increase are committed in one SQLite
 transaction.
 
-Pressing Q opens the same menu by default, including while a container is open;
-using Q on an item slot cancels that drop and opens Quick Cast. Dragging an item
+Pressing Q opens Quick Cast by default, including while a container is open. Its
+menu contains one row for quick slots 1-9; Minecraft still displays the
+player's inventory below plugin inventories. Pressing a number key casts that
+slot and closes Quick Cast whether the skill succeeds or reports a failure.
+Using Q on an item slot cancels that drop and opens Quick Cast. Dragging an item
 outside a chest or container uses the normal mouse-drop behavior and does not
 open the menu. Administrators can disable either `rpg.skills.quick-cast.enabled` or
 `rpg.skills.quick-cast.intercept-drop-key` in `config.yml` to retain normal Q
@@ -1087,6 +1105,12 @@ enchant để người chơi dùng sách lên item). Boss tự nhiên tăng cấ
 trong game, đạt khoảng level 10 từ ngày 400; boss được gọi thủ công có thể
 chọn level bằng `/vnboss`. Khi boss spawn, loot ở level đó và loot thường được
 broadcast kèm xác suất riêng từng món.
+Mặc định, mỗi món loot thường và loot theo level được roll độc lập với xác
+suất 30%. Từng món trong bộ giáp boss và từng ô gear lính cũng có xác suất mặc
+định 30%; token boss có xác suất mặc định 30%. Có thể thay đổi các tỉ lệ này
+trong file boss hoặc `bosses/_settings.yml`. Các giá trị đã có trong cấu hình
+server được giữ nguyên khi cập nhật; chỉ các cấu hình mới hoặc khóa còn thiếu
+mới dùng mặc định này.
 Thời gian tồn tại mặc định của mọi boss là 20 phút. Đồng hồ chờ roll boss tự
 động tạm dừng trong lúc cảnh báo hoặc khi đang có boss hoạt động; bộ đếm chỉ
 tiếp tục sau khi sự kiện hiện tại kết thúc.

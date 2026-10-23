@@ -203,6 +203,45 @@ public class PlayerProfileDatabaseManagerTest {
     }
 
     @Test
+    public void adminExperienceGrantUsesConfiguredProgressionAndAwardsSkillPoints() throws Exception {
+        PlayerProfileDatabaseManager manager = newManager();
+        manager.initialize();
+        String uuid = "11111111-2222-3333-4444-555555666667";
+        assertTrue(manager.createPlayerProfile(uuid, "Ares", "human", "swordsman", 1, 0,
+            "human-realm", "created"));
+
+        var result = manager.awardCharacterExperience(uuid, 250, "admin-award").orElseThrow();
+        var profile = manager.getPlayerProfile(uuid).orElseThrow();
+
+        assertEquals(1, result.previousLevel());
+        assertEquals(3, result.currentLevel());
+        assertEquals(2, result.skillPointsGained());
+        assertEquals(3, profile.level());
+        assertEquals(0, profile.exp());
+        assertEquals(2, profile.unspentSkillPoints());
+    }
+
+    @Test
+    public void adminLevelGrantPreservesExperienceAndCapsAtConfiguredMaximum() throws Exception {
+        PlayerProfileDatabaseManager manager = newManager();
+        manager.initialize();
+        manager.configureCharacterProgression(5, 100, 50, 2);
+        String uuid = "11111111-2222-3333-4444-555555666668";
+        assertTrue(manager.createPlayerProfile(uuid, "Ares", "human", "swordsman", 3, 40,
+            "human-realm", "created"));
+
+        var result = manager.grantCharacterLevels(uuid, 5, "admin-level-grant").orElseThrow();
+        var profile = manager.getPlayerProfile(uuid).orElseThrow();
+
+        assertEquals(3, result.previousLevel());
+        assertEquals(5, result.currentLevel());
+        assertEquals(4, result.skillPointsGained());
+        assertEquals(5, profile.level());
+        assertEquals(40, profile.exp());
+        assertEquals(4, profile.unspentSkillPoints());
+    }
+
+    @Test
     public void skillLearningChecksProfileRequirementsAndPersistsExactlyOnce() throws Exception {
         PlayerProfileDatabaseManager manager = newManager();
         manager.initialize();

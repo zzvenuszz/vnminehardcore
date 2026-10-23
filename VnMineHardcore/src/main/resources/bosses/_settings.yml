@@ -179,9 +179,9 @@ army-token-drop:
   # [VI] Bật/tắt nguồn token từ boss; mặc định true.
   # [EN] Enable summon-token boss drops; default true.
   enabled: true
-  # [VI] Tỉ lệ rơi 1 token khi boss bị người chơi gây sát thương; mặc định 10%, hợp lệ 0-1.
-  # [EN] Chance to drop 1 token when a player damages the boss; default 10%, valid range 0-1.
-  chance: 0.1
+  # [VI] Tỉ lệ rơi 1 token khi boss bị người chơi gây sát thương; mặc định 30%, hợp lệ 0-1.
+  # [EN] Chance to drop 1 token when a player damages the boss; default 30%, valid range 0-1.
+  chance: 0.3
 
 # [VI] Tổng EXP boss được chia theo tỷ lệ sát thương; level 1 mặc định 50 EXP, level 10 mặc định 150 EXP.
 #      Hai mốc hợp lệ 1-1000000; giá trị level 1 phải nhỏ hơn hoặc bằng level 10, level giữa nội suy tuyến tính.
@@ -197,11 +197,11 @@ mercenary-gear-drops:
   # [VI] Bật/tắt loot gear lính; mặc định true.
   # [EN] Enable mercenary gear drops; default true.
   enabled: true
-  # [VI] Tỉ lệ hai đầu mút; mặc định da 1 sao 40%, netherite 5 sao 1%; mỗi giá trị hợp lệ 0-100 và da 1 sao phải >= netherite 5 sao.
-  # [EN] Chance endpoints; default leather 1-star 40%, netherite 5-star 1%; each value is 0-100 and leather 1-star must be >= netherite 5-star.
+  # [VI] Tỉ lệ rơi riêng cho mỗi ô trang bị; mặc định 30% ở mọi cấp, hợp lệ 0-100.
+  # [EN] Independent drop chance for each equipment slot; defaults to 30% at every tier, valid range 0-100.
   chance:
-    leather-1-star-percent: 40.0
-    netherite-5-star-percent: 1.0
+    leather-1-star-percent: 30.0
+    netherite-5-star-percent: 30.0
   # [VI] Bậc gear theo level boss (1-10); vật liệu hợp lệ leather/copper/iron/gold/diamond/netherite, sao hợp lệ 1-5.
   # [EN] Gear tier by boss level (1-10); materials: leather/copper/iron/gold/diamond/netherite, stars: 1-5.
   # [VI] Level thiếu hoặc sai sẽ dùng mốc hợp lệ gần nhất thấp hơn; boss-level 1 luôn bắt đầu da 1 sao.
@@ -223,9 +223,9 @@ mercenary-gear-drops:
 # [VI] Cấu hình chung cho bộ giáp boss; có thể ghi đè tỷ lệ trong armor-set của từng boss.
 # [EN] Shared boss armor reward settings; per-boss armor-set may override the drop chance.
 reward-items:
-  # [VI] Tỷ lệ rơi độc lập cho mỗi món giáp; mặc định 10%, hợp lệ 0-1.
-  # [EN] Independent drop chance for each armor piece; default 10%, valid range 0-1.
-  armor-piece-chance: 0.10
+  # [VI] Tỷ lệ rơi độc lập cho mỗi món giáp; mặc định 30%, hợp lệ 0-1.
+  # [EN] Independent drop chance for each armor piece; default 30%, valid range 0-1.
+  armor-piece-chance: 0.30
 
   # [VI] Cấp phù phép giáp level 1 thấp hơn mức tự nhiên; mặc định thấp hơn 2 cấp, hợp lệ 0-5.
   # [EN] Level-1 armor enchants start below vanilla maximum; default gap 2, valid range 0-5.

@@ -89,31 +89,31 @@ drops:
   IRON_AXE:
     min-amount: 1
     max-amount: 2
-    chance: 0.6
+    chance: 0.30
   EMERALD:
     min-amount: 10
     max-amount: 20
-    chance: 0.8
+    chance: 0.30
   DIAMOND:
     min-amount: 3
     max-amount: 7
-    chance: 0.35
+    chance: 0.30
   IRON_INGOT:
     min-amount: 8
     max-amount: 16
-    chance: 0.5
+    chance: 0.30
   GOLD_INGOT:
     min-amount: 5
     max-amount: 10
-    chance: 0.4
+    chance: 0.30
   ENCHANTED_BOOK:
     min-amount: 1
     max-amount: 1
-    chance: 0.25
+    chance: 0.30
   DIAMOND_SWORD:
     min-amount: 1
     max-amount: 1
-    chance: 0.15
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -153,7 +153,7 @@ level-drops:
       story-id: vindicator-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 3
     - material: ENCHANTED_BOOK
@@ -171,7 +171,7 @@ level-drops:
       story-id: vindicator-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 3
         smite: 3
@@ -191,7 +191,7 @@ level-drops:
       story-id: vindicator-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 4
         smite: 4
@@ -213,7 +213,7 @@ level-drops:
       story-id: vindicator-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 5
         smite: 5
@@ -236,7 +236,7 @@ level-drops:
       story-id: vindicator-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 6
         smite: 6
@@ -262,7 +262,7 @@ level-drops:
       story-id: vindicator-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 7
         smite: 7
@@ -290,7 +290,7 @@ level-drops:
       story-id: vindicator-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 7
         smite: 7
@@ -320,7 +320,7 @@ level-drops:
       story-id: vindicator-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 8
         smite: 8
@@ -352,7 +352,7 @@ level-drops:
       story-id: vindicator-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 9
         smite: 9
@@ -386,7 +386,7 @@ level-drops:
       story-id: vindicator-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 10
         smite: 10
