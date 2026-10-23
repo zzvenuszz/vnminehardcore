@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -27,7 +28,9 @@ import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -67,6 +70,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private final Map<UUID, FortifyState> fortifyStates = new HashMap<>();
     private final Map<UUID, Integer> manaFlowRanks = new HashMap<>();
     private final Map<UUID, Long> manaFlowLastCastAt = new HashMap<>();
+    private final Set<UUID> mouseDropInteractions = ConcurrentHashMap.newKeySet();
 
     public SkillManager(JavaPlugin plugin, PlayerProfileDatabaseManager database, ConfigManager config) {
         this.plugin = plugin;
@@ -82,38 +86,39 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
 
     @EventHandler(ignoreCancelled = true)
     public void onQuickCastKey(PlayerDropItemEvent event) {
-        if (!plugin.getConfig().getBoolean("rpg.skills.quick-cast.enabled", true)
-                || !plugin.getConfig().getBoolean("rpg.skills.quick-cast.intercept-drop-key", true)) {
-            return;
-        }
         Player player = event.getPlayer();
-        try {
-            Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
-                database.getPlayerProfile(player.getUniqueId().toString());
-            if (profile.isEmpty() || !profile.get().active()) return;
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not check RPG profile before opening quick cast for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải hồ sơ RPG; phím Q vẫn hoạt động bình thường.");
+        if (mouseDropInteractions.remove(player.getUniqueId()) || !isQuickCastKeyEnabled()) return;
+        Inventory topInventory = player.getOpenInventory().getTopInventory();
+        if (!(topInventory.getHolder() instanceof QuickCastHolder)
+                && player.getOpenInventory().getType() != InventoryType.CRAFTING) {
             return;
         }
+        if (!hasActiveRpgProfile(player)) return;
         event.setCancelled(true);
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            if (!player.isOnline()) return;
-            if (player.getOpenInventory().getTopInventory().getHolder() instanceof QuickCastHolder) {
-                player.closeInventory();
-            } else {
-                openQuickCast(player);
-            }
-        });
+        scheduleQuickCastToggle(player);
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onQuickCastInventoryClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)
-                || !(event.getView().getTopInventory().getHolder() instanceof QuickCastHolder holder)) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        if (event.getClickedInventory() == null
+                && (event.getAction() == InventoryAction.DROP_ALL_CURSOR
+                    || event.getAction() == InventoryAction.DROP_ONE_CURSOR)) {
+            UUID playerId = player.getUniqueId();
+            mouseDropInteractions.add(playerId);
+            Bukkit.getScheduler().runTask(plugin, () -> mouseDropInteractions.remove(playerId));
+        }
+
+        if (isQuickCastKeyClick(event.getClick())) {
+            if (!isQuickCastKeyEnabled()) return;
+            if (!hasActiveRpgProfile(player)) return;
+            event.setCancelled(true);
+            scheduleQuickCastToggle(player);
             return;
         }
+
+        if (!(event.getView().getTopInventory().getHolder() instanceof QuickCastHolder holder)) return;
         event.setCancelled(true);
         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
 
@@ -159,10 +164,12 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        cooldowns.remove(event.getPlayer().getUniqueId());
-        battleFocusRanks.remove(event.getPlayer().getUniqueId());
-        fortifyRanks.remove(event.getPlayer().getUniqueId());
-        fortifyStates.remove(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        cooldowns.remove(playerId);
+        battleFocusRanks.remove(playerId);
+        fortifyRanks.remove(playerId);
+        fortifyStates.remove(playerId);
+        mouseDropInteractions.remove(playerId);
         manaFlowRanks.remove(event.getPlayer().getUniqueId());
         manaFlowLastCastAt.remove(event.getPlayer().getUniqueId());
     }
@@ -297,6 +304,39 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     static boolean isManaFlowChain(long previousCastAt, long currentCastAt, int windowSeconds) {
         return previousCastAt > 0 && currentCastAt >= previousCastAt
             && windowSeconds > 0 && currentCastAt - previousCastAt <= windowSeconds * 1000L;
+    }
+
+    private boolean isQuickCastKeyEnabled() {
+        return plugin.getConfig().getBoolean("rpg.skills.quick-cast.enabled", true)
+            && plugin.getConfig().getBoolean("rpg.skills.quick-cast.intercept-drop-key", true);
+    }
+
+    static boolean isQuickCastKeyClick(ClickType click) {
+        return click == ClickType.DROP || click == ClickType.CONTROL_DROP;
+    }
+
+    private boolean hasActiveRpgProfile(Player player) {
+        try {
+            Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
+                database.getPlayerProfile(player.getUniqueId().toString());
+            return profile.isPresent() && profile.get().active();
+        } catch (SQLException exception) {
+            plugin.getLogger().log(Level.SEVERE, "Could not check RPG profile before opening quick cast for "
+                + player.getName() + ".", exception);
+            player.sendMessage("§cKhông thể tải hồ sơ RPG; thao tác thả vật phẩm vẫn hoạt động bình thường.");
+            return false;
+        }
+    }
+
+    private void scheduleQuickCastToggle(Player player) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof QuickCastHolder) {
+                player.closeInventory();
+            } else {
+                openQuickCast(player);
+            }
+        });
     }
 
     private void openQuickCast(Player player) {

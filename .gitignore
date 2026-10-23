@@ -1,5 +1,28 @@
 Paper/
 
-# Local Paper integration-test artifacts, server data, and test clients
-/TEST/
+# Keep credentials, world data, and ephemeral runtime files out of Git.
+/TEST/playit.log
+/TEST/playit.sock
+/TEST/server/logs/
+/TEST/server/server.properties
+/TEST/server/session.lock
+/TEST/server/.paper/console_history
+/TEST/paper-26.3-209.jar
+/TEST/server/paper.jar
+/TEST/server/cache/mojang_26.3.jar
+/TEST/server/versions/
+/TEST/server/plugins/
+/TEST/server/ops.json
+/TEST/server/usercache.json
+/TEST/server/whitelist.json
+/TEST/server/banned-players.json
+/TEST/server/banned-ips.json
+/TEST/server/world*/
+/TEST/server/plugins/VnMineHardcore/data/
+/TEST/server/plugins/VnMineHardcore/graves.yml*
+/TEST/server/plugins/VnMineHardcore/logs/stats.yml*
+/TEST/server/plugins/VnMineHardcore/mercenaries.yml
+/TEST/server/plugins/VnMineHardcore/scoreboard-data.yml
+/TEST/server/plugins/VnMineHardcore/thirst-data.yml
 /VnMineHardcore/TEST/
+/.playit.toml

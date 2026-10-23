@@ -1,0 +1,2 @@
+# Minecraft EULA accepted by the user for this isolated test server.
+eula=true

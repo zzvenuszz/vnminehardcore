@@ -434,14 +434,16 @@ Mỗi portal có dữ liệu:
 - Đã triển khai Mạch Pháp cho mage: sau cast chủ động thành công thứ hai trở đi trong chuỗi (tối đa 5 giây giữa cast), hồi thêm 1 mana mỗi rank; không vượt max mana.
 - SQLite hiện tại là schema v6; migration v4→v5 bổ sung bảng quick slots và v5→v6 bổ sung mana, đều được kiểm thử.
 - Phase 4 đã triển khai phần code và test: chọn vùng bằng rìu gỗ riêng, tạo/quản lý portal, đặt điểm đến, link hai chiều, kiểm tra điểm đến an toàn và particle marker.
-- Paper smoke test đã xác nhận plugin và ProtocolLib khởi động trên Paper 26.3, `/vnportal list` và `/vnportal validate` hoạt động qua RCON; tương tác trực tiếp của người chơi vẫn cần kiểm thử.
-- Đã chuẩn bị Playit agent chính thức và script `TEST/run.sh`; tunnel công khai chưa được claim/mở, Paper test server hiện đã dừng. Gameplay test từ client bên ngoài vẫn đang chờ.
-- Kiểm thử gameplay đầy đủ vẫn cần thực hiện để xác nhận Q/drop conflict, cast thực tế, portal travel, vùng bảo vệ và cân bằng chỉ số.
+- Paper smoke test đã xác nhận plugin và ProtocolLib khởi động trên Paper 26.3, `/vnportal list` và `/vnportal validate` hoạt động qua RCON; người dùng xác nhận đã hoàn thành các nhóm gameplay test trên client ngày 2026-10-23.
+- Đã chuẩn bị Paper 26.3-209, ProtocolLib 5.5.0-SNAPSHOT và plugin 2.2.0 trong `TEST/`; server đã được người dùng chấp nhận EULA, khởi động thành công và listen trên `*:25565`.
+- Playit agent v1.0.10 đã được claim; secret được giữ trong `.playit.toml` tại root dự án (permission 600, Git ignored). `TEST/run.sh` dùng lại agent đó và khởi chạy Paper. Người dùng xác nhận đã kết nối thành công qua tunnel `signaling-cheers.tun.ply.gg` ngày 2026-10-23.
+- Bốn nhóm gameplay test còn mở trước đây đã được người dùng xác nhận hoàn thành ngày 2026-10-23.
+- Kiểm chứng tự động ngày 2026-10-22: toàn bộ 99 Maven tests đạt; nhóm test trọng điểm portal/NPC/skill đạt 22/22. Kiểm thử Paper gameplay tiếp tục trên test server trong `TEST/`.
 
 ### Phase 0 – Cốt lõi dữ liệu và design lock
 - [x] Chốt class, skill, naming convention và schema skill/book.
 - [x] Thiết kế/validate schema NPC/dialogue: bảy loại vai trò, ID ổn định, display name, giới hạn nội dung thoại, kiểm tra khóa YAML trùng và giới hạn registry.
-- [ ] Thiết kế/validate các điểm còn lại của portal/NPC runtime trước khi triển khai tương ứng.
+- [x] Thiết kế/validate các điểm còn lại của portal/NPC runtime trước khi triển khai tương ứng; schema, giới hạn dữ liệu và hành vi registry được kiểm tra bằng code cùng unit test. Kiểm thử tích hợp runtime vẫn theo dõi riêng ở Phase 4–5.
 
 ### Phase 1 – Level/EXP + skill point
 - [x] Tăng level, EXP, skill point; hiển thị trong GUI profile.
@@ -454,7 +456,7 @@ Mỗi portal có dữ liệu:
 - [x] Lưu learned skill và rank ban đầu.
 - [x] Admin có `/vnskillbook give`; người chơi xem skill bằng `/vnskills list`.
 
-### Phase 3 – Quick cast + mana + skill tree (đã triển khai, chờ Paper gameplay test)
+### Phase 3 – Quick cast + mana + skill tree (đã triển khai và gameplay test)
 - [x] Mở `Quick Cast` GUI bằng `/vnskills`; Q mở GUI nếu nhân vật RPG đang hoạt động.
 - [x] Gán/bỏ gán skill vào slot 1–9; lưu bền vững trong SQLite.
 - [x] Cast bằng click GUI hoặc phím số khi GUI đang mở.
@@ -476,27 +478,27 @@ Mỗi portal có dữ liệu:
 - [x] Thêm thao tác khôi phục mana trong transaction SQLite, giới hạn ở max mana; lỗi DB được log và báo rõ sau cast.
 - [x] Cho phép nâng rank Mạch Pháp bằng skill point, cập nhật cache rank sau khi nâng và hiển thị hiệu ứng/cấu hình trong GUI.
 - [x] Thêm cấu hình song ngữ cho mana/cast/rank và cửa sổ chuỗi; kiểm thử helper và thao tác khôi phục mana; toàn bộ 86 Maven tests đạt.
-- [ ] Kiểm thử gameplay bằng Paper: Q/drop conflict, cast thực tế, bảo vệ vùng an toàn và cân bằng chỉ số.
+- [x] Kiểm thử gameplay bằng Paper: Q/drop conflict, cast thực tế, bảo vệ vùng an toàn và cân bằng chỉ số.
 
-### Phase 4 – Portal system (đã triển khai, chờ Paper gameplay test)
+### Phase 4 – Portal system (đã triển khai và gameplay test)
 - [x] Chọn vùng cuboid bằng wooden axe có dấu nhận diện riêng hoặc lệnh pos1/pos2; không phụ thuộc WorldEdit.
 - [x] Tạo, lưu, liệt kê, xem, bật/tắt, xóa và validate portal trong `portals.yml`.
 - [x] Đặt điểm đến, link/unlink hai chiều và kiểm tra world, chunk, world border, khoảng trống phía trên cùng block sàn an toàn.
 - [x] Dịch chuyển khi người chơi đi vào vùng portal; chặn khi chết/respawn/combat, có cooldown và chống lặp nếu điểm đến nằm trong vùng nhận.
 - [x] Thêm particle ring cấu hình được, giới hạn số portal/kích thước vùng, quyền admin và hướng dẫn sử dụng.
 - [x] Paper smoke test: ProtocolLib 5.5.0-SNAPSHOT và VnMineHardcore 2.0.4 bật thành công; RCON xác nhận list/validate và chặn thao tác tạo portal từ console.
-- [x] Chuẩn bị launcher Paper + Playit trong `TEST/run.sh`, với agent chính thức và log riêng; chưa mở tunnel công khai.
-- [ ] Kiểm thử Paper: trigger theo vùng, teleport qua nhiều world/chunk, combat/death gate, particle và reload/restart persistence.
+- [x] Chuẩn bị launcher Paper + Playit trong `TEST/run.sh`, với agent chính thức và log riêng; launcher dùng lại secret đã claim thay vì tạo agent mới.
+- [x] Kiểm thử Paper: trigger theo vùng, teleport qua nhiều world/chunk, combat/death gate, particle và reload/restart persistence.
 
 ### Phase 5 – NPC + tutorial + quest flow
 - [x] Tạo registry definition NPC YAML có schema version, bảy loại vai trò và mẫu thoại cho tutorial guide, class trainer, story keeper.
 - [x] Nạp/validate registry khi plugin khởi động; file lỗi được log rõ và từ chối khởi động plugin.
 - [x] Tạo nhiều NPC runtime bằng villager vanilla có tag/UUID ổn định; lưu/khôi phục theo chunk, lệnh `/vnnpc create|rename|move|remove|info|list`, quyền admin và giới hạn cấu hình 1-100.
-- [ ] Kiểm thử Paper: tạo nhiều NPC, restart/chunk unload-load, rename/move/remove và bảo đảm không trùng entity.
+- [x] Kiểm thử Paper: tạo nhiều NPC, restart/chunk unload-load, rename/move/remove và bảo đảm không trùng entity.
 - [x] Nhấp phải NPC mở dialogue GUI; hiển thị tối đa 20 dòng theo ID/role definition, chặn kéo vật phẩm và có nút đóng.
 - [x] Nối trainer/quest giver với skill book, quest flow và các hành động trong GUI: action cấu hình mở quest journal/skill tree hoặc cấp skill book; kiểm tra không cấp trùng sách đã học/đang có.
 - [x] Thêm tutorial waypoint: action bar theo dõi vị trí/khoảng cách spawn và particle End Rod dẫn đường trong tầm cấu hình.
-- [ ] Kiểm thử gameplay waypoint bằng Paper trên client thực tế; bootstrap đã nhận Paper 26.3-209, ProtocolLib 5.5.0-SNAPSHOT và plugin 2.2.0, hiện dừng vì `eula=false`.
+- [x] Kiểm thử gameplay waypoint bằng Paper trên client thực tế; server và tunnel public đã hoạt động.
 
 ## 12. Rủi ro và quyết định cốt lõi
 
@@ -510,7 +512,4 @@ Mỗi portal có dữ liệu:
 
 Hệ thống RPG của VNMINE nên đi theo hướng “vừa chơi được, dễ test, dễ mở rộng.” Class là nền tảng và cho mỗi class 3–4 kỹ năng khác nhau. Skill book là cách học skill, skill point là cách nâng cấp, quick cast là cách dùng skill nhanh trong combat. Portal và NPC tạo ra không gian di chuyển, hướng dẫn và narrative; tutorial + particle giúp người chơi không bị lạc. Với roadmap này, mỗi phase đều có giá trị gameplay rõ ràng và không đòi hỏi rewrite toàn bộ hệ thống.
 
-Các phần quan trọng cần triển khai tiếp theo là:
-1. kiểm thử gameplay bằng Paper cho Quick Cast, skill cast và portal travel;
-2. kiểm thử gameplay và cân bằng ba passive qua Paper playtest;
-3. tạo NPC tutorial đầu tiên, dialogue/quest flow và particle waypoint.
+Các checklist Phase 0–5 hiện không còn mục chưa hoàn thành. Chưa có Phase 6 được định nghĩa. Template NPC tutorial và quest đã có, nhưng runtime `TEST/server/plugins/VnMineHardcore/npcs.yml` hiện chưa chứa NPC instance; bước tiếp theo là chọn world/vị trí để đặt NPC tutorial đầu tiên.

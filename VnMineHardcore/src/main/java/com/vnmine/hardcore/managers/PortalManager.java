@@ -164,7 +164,8 @@ public final class PortalManager implements Listener, CommandExecutor, TabComple
             }
             sourceLocation.getWorld().spawnParticle(Particle.PORTAL, sourceLocation, 24, 0.4, 0.6, 0.4, 0.05);
             destination.getWorld().spawnParticle(Particle.PORTAL, destination, 24, 0.4, 0.6, 0.4, 0.05);
-            player.sendMessage("§aPortal: §f" + source.name() + " §7→ §f" + target.name());
+            player.sendMessage("§aBạn đã dịch chuyển từ §f" + source.name() + " §ađến §f"
+                + target.name() + "§a.");
         } else {
             player.sendMessage("§cDịch chuyển thất bại; hãy thử lại.");
         }
@@ -213,7 +214,11 @@ public final class PortalManager implements Listener, CommandExecutor, TabComple
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        plugin.getLogger().info("[Portal] Command from " + sender.getName() + ": /"
+            + command.getName() + (args.length == 0 ? "" : " " + String.join(" ", args)));
         if (!plugin.getPermissionManager().hasPermission(sender, ADMIN_PERMISSION)) {
+            plugin.getLogger().warning("[Portal] Command denied for " + sender.getName()
+                + ": missing permission " + ADMIN_PERMISSION + ".");
             sender.sendMessage("§cBạn không có quyền quản lý portal.");
             return true;
         }
@@ -510,9 +515,13 @@ public final class PortalManager implements Listener, CommandExecutor, TabComple
                 issues++;
                 sender.sendMessage("§c" + portal.id() + ": §7" + String.join(", ", problems));
             }
+            plugin.getLogger().info("[Portal] Validate " + describePortal(portal)
+                + (problems.isEmpty() ? " status=valid" : " issues=" + String.join(", ", problems)));
         }
         if (issues == 0) sender.sendMessage("§aTất cả " + portals.size() + " portal đều hợp lệ.");
         else sender.sendMessage("§eKiểm tra hoàn tất: " + issues + " portal cần xử lý.");
+        plugin.getLogger().info("[Portal] Validation complete: " + portals.size()
+            + " portal(s), " + issues + " with issues.");
     }
 
     private void updatePortal(CommandSender sender, PortalDefinition definition, String successMessage) {
@@ -564,6 +573,13 @@ public final class PortalManager implements Listener, CommandExecutor, TabComple
             } catch (AtomicMoveNotSupportedException exception) {
                 Files.move(temporaryFile.toPath(), storageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
+            StringBuilder state = new StringBuilder();
+            for (PortalDefinition portal : definitions.values()) {
+                if (!state.isEmpty()) state.append("; ");
+                state.append(describePortal(portal));
+            }
+            plugin.getLogger().info("[Portal] Saved " + definitions.size() + " portal(s) to "
+                + storageFile.getAbsolutePath() + ": " + state);
             return true;
         } catch (IOException exception) {
             try {
@@ -672,6 +688,15 @@ public final class PortalManager implements Listener, CommandExecutor, TabComple
     private String formatBlock(Location location) {
         return location.getWorld().getName() + " " + location.getBlockX() + ","
             + location.getBlockY() + "," + location.getBlockZ();
+    }
+
+    private String describePortal(PortalDefinition portal) {
+        PortalDefinition.Destination destination = portal.destination();
+        String destinationDescription = destination == null ? "unset"
+            : destination.worldName() + " " + destination.x() + "," + destination.y() + "," + destination.z();
+        return portal.id() + "{enabled=" + portal.enabled()
+            + ", link=" + (portal.linkedPortalId() == null ? "none" : portal.linkedPortalId())
+            + ", destination=" + destinationDescription + "}";
     }
 
     private void sendUsage(CommandSender sender) {

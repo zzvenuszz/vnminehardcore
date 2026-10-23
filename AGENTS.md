@@ -25,8 +25,8 @@
 - Nếu người dùng từ chối, không commit, push hoặc tạo pull request.
 
 ## Kiểm thử Paper cục bộ
-- Khi người dùng yêu cầu chạy integration test bằng Paper, dùng thư mục `TEST/`; không commit server JAR, ProtocolLib, world, log hay dữ liệu server sinh ra.
-- Nếu thiếu Paper server JAR, tải `paper-26.3-209.jar` từ `https://fill-data.papermc.io/v1/objects/0a056c7648cfa0ca8d9b8c833a2bd2e1313ed4f1393a5125dd3444a4ee257e22/paper-26.3-209.jar` vào `TEST/paper-26.3-209.jar`; xác minh SHA-256 là `0a056c7648cfa0ca8d9b8c833a2bd2e1313ed4f1393a5125dd3444a4ee257e22`.
+- Khi người dùng yêu cầu chạy integration test bằng Paper, dùng thư mục `TEST/`; mặc định không commit server JAR, ProtocolLib, world, log hay dữ liệu server sinh ra. Nếu người dùng yêu cầu publish `TEST/`, có thể đưa các artifact khác lên repo nhưng phải loại server JAR/cache/version JAR, toàn bộ `TEST/server/plugins/`, credential (ví dụ `.playit.toml`, `server.properties` chứa management secret, `playit.log` chứa claim token), world data, log có IP/username, dữ liệu người chơi/account (profile DB/backups, UUID cache, ops/whitelist/ban lists) và file runtime như socket/session lock.
+- Nếu thiếu Paper server JAR, tải `paper.jar` từ `https://fill-data.papermc.io/v1/objects/0a056c7648cfa0ca8d9b8c833a2bd2e1313ed4f1393a5125dd3444a4ee257e22/paper-26.3-209.jar` vào `TEST/server/paper.jar`; xác minh SHA-256 là `0a056c7648cfa0ca8d9b8c833a2bd2e1313ed4f1393a5125dd3444a4ee257e22`.
 - Nếu thiếu ProtocolLib, tải dev-build chính thức từ `https://github.com/dmulloy2/ProtocolLib/releases/download/dev-build/ProtocolLib.jar` vào `TEST/server/plugins/ProtocolLib.jar`; kiểm tra `paper-plugin.yml` bên trong và xác nhận phiên bản tương thích với yêu cầu của plugin.
 - Chỉ tải khi cần chạy test và file chưa có; sau khi tải phải kiểm tra archive hợp lệ. Không tải bản phụ thuộc thay thế từ nguồn không chính thức.
 
@@ -44,6 +44,7 @@
 Khi người dùng yêu cầu build file jar,chạy build, báo cáo bằng tiếng Việt, ngắn gọn và đủ thông tin:
 - Trạng thái build: SUCCESS hoặc FAILED.
 - Luôn tăng số hiệu phiên bản khi build chứa tính năng mới theo dạng X.Y.Z: X là phiên bản lớn nhất, Y là khi có thêm chức năng mới, Z là khi sửa lỗi các tính năng có sẵn; nếu không có tính năng mới thì chỉ cập nhật Z khi cần sửa lỗi.
+- JAR plugin chỉ nhắm tới Paper trên Linux x86_64. Khi đóng gói `sqlite-jdbc`, chỉ giữ native binary `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so`; loại các native binary cho hệ điều hành và kiến trúc khác, nhưng giữ lớp Java và service metadata cần cho SQLite hoạt động.
 - Thời điểm build thành công; đường dẫn và dung lượng file JAR; SHA256.
 - Các file đã sửa và tóm tắt thay đổi.
 - không build file jar khi người dùng chưa yêu cầu

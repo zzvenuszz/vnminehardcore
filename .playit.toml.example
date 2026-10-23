@@ -1,0 +1,3 @@
+# Copy this template to .playit.toml and replace the placeholder with the secret_key
+# provisioned by Playit. Never commit the real .playit.toml file.
+secret_key = "REPLACE_WITH_PLAYIT_SECRET_KEY"

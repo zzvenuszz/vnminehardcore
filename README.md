@@ -443,9 +443,10 @@ the skill book unlock, and requires character level `required-level + current
 rank`. The skill-point spend and rank increase are committed in one SQLite
 transaction.
 
-Pressing Q opens the same menu by default. Since Bukkit exposes Q through the
-drop-item event, this setting prevents dropping the held item while enabled.
-Administrators can disable either `rpg.skills.quick-cast.enabled` or
+Pressing Q opens the same menu by default, including while a container is open;
+using Q on an item slot cancels that drop and opens Quick Cast. Dragging an item
+outside a chest or container uses the normal mouse-drop behavior and does not
+open the menu. Administrators can disable either `rpg.skills.quick-cast.enabled` or
 `rpg.skills.quick-cast.intercept-drop-key` in `config.yml` to retain normal Q
 behavior. Skill definitions specify `cast-type` (`active` or `passive`) and
 `cooldown-seconds` (active: 1-120; passive: 0). Cooldowns reset when a player

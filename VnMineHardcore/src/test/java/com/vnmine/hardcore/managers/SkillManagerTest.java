@@ -1,10 +1,21 @@
 package com.vnmine.hardcore.managers;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+import org.bukkit.event.inventory.ClickType;
 import org.junit.Test;
 
 public class SkillManagerTest {
+    @Test
+    public void quickCastOnlyTreatsQDropClickTypesAsKeyInput() {
+        assertTrue(SkillManager.isQuickCastKeyClick(ClickType.DROP));
+        assertTrue(SkillManager.isQuickCastKeyClick(ClickType.CONTROL_DROP));
+        assertFalse(SkillManager.isQuickCastKeyClick(ClickType.LEFT));
+        assertFalse(SkillManager.isQuickCastKeyClick(ClickType.RIGHT));
+    }
+
     @Test
     public void battleFocusAddsConfiguredBonusPerRank() {
         assertEquals(10.3, SkillManager.calculateBattleFocusDamage(10.0, 1, 0.03), 0.0001);
