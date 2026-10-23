@@ -1,5 +1,6 @@
 package com.vnmine.hardcore.managers;
 
+import com.vnmine.hardcore.VnMineHardcore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -127,6 +128,14 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             int hotbarButton = event.getHotbarButton();
             if (hotbarButton >= 0 && hotbarButton < 9) {
                 castQuickSlot(player, hotbarButton + 1);
+            }
+            return;
+        }
+
+        if (holder.screen == QuickCastScreen.SKILL_TREE && event.getSlot() == 53) {
+            VnMineHardcore instance = VnMineHardcore.getInstance();
+            if (instance != null && instance.getMercenaryManager() != null) {
+                instance.getMercenaryManager().openMainMenu(player);
             }
             return;
         }
@@ -436,6 +445,8 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             "§7Skill chưa học cần sách tương ứng."));
         points.setItemMeta(pointsMeta);
         inventory.setItem(49, points);
+        inventory.setItem(53, createSkillIcon(Material.ARROW, "§eQuay lại menu chính",
+            List.of("§7Trở về menu chính VnMineHardcore.")));
         for (int index = 0; index < classSkills.size() && index < 45; index++) {
             SkillDefinitionLoader.SkillDefinition skill = classSkills.get(index);
             int rank = ranks.getOrDefault(skill.id(), 0);
@@ -470,6 +481,10 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     }
 
     public void openSkillTreeFromNpc(Player player) {
+        openSkillTree(player);
+    }
+
+    public void openSkillTreeFromMainMenu(Player player) {
         openSkillTree(player);
     }
 
@@ -584,7 +599,8 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         }
         upgrade.setItemMeta(upgradeMeta);
         inventory.setItem(13, upgrade);
-        inventory.setItem(22, new ItemStack(Material.ARROW));
+        inventory.setItem(22, createSkillIcon(Material.ARROW, "§eQuay lại cây kỹ năng",
+            List.of("§7Trở về danh sách kỹ năng của class.")));
         player.openInventory(inventory);
     }
 
@@ -667,6 +683,14 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private ItemStack createSkillIcon(SkillDefinitionLoader.SkillDefinition skill, String title,
                                       List<String> details) {
         ItemStack icon = new ItemStack(skill.icon());
+        return createSkillIcon(icon, title, details);
+    }
+
+    private ItemStack createSkillIcon(Material material, String title, List<String> details) {
+        return createSkillIcon(new ItemStack(material), title, details);
+    }
+
+    private ItemStack createSkillIcon(ItemStack icon, String title, List<String> details) {
         ItemMeta meta = icon.getItemMeta();
         meta.setDisplayName(title);
         meta.setLore(details);
@@ -1010,12 +1034,9 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onSkillBookUse(PlayerInteractEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND
-                || (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK)) {
-            return;
-        }
+        if (!isSkillBookUseAction(event.getHand(), event.getAction())) return;
         ItemStack item = event.getItem();
         String bookId = getBookId(item);
         if (bookId == null) return;
@@ -1080,6 +1101,11 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                 + " for " + player.getName() + ".", exception);
             player.sendMessage("§cKhông thể lưu kỹ năng. Sách chưa bị tiêu thụ; hãy thử lại sau.");
         }
+    }
+
+    static boolean isSkillBookUseAction(EquipmentSlot hand, Action action) {
+        return hand == EquipmentSlot.HAND
+            && (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK);
     }
 
     private String getBookId(ItemStack item) {

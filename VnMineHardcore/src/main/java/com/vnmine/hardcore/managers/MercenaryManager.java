@@ -156,6 +156,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
     private static final int MAIN_MENU_ARMY_SLOT = 14;
     private static final int MAIN_MENU_REWARD_SLOT = 16;
     private static final int MAIN_MENU_CHARACTER_SLOT = 28;
+    private static final int MAIN_MENU_SKILLS_SLOT = 29;
     private static final int MAIN_MENU_WORLD_MAP_SLOT = 30;
     private static final int MAIN_MENU_QUEST_JOURNAL_SLOT = 32;
     private static final int MAIN_MENU_STORY_SLOT = 34;
@@ -6220,6 +6221,13 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             inventory.setItem(MAIN_MENU_CHARACTER_SLOT, menuItem(Material.ENDER_EYE, "§dNhân vật RPG", List.of(
                 "§7Chọn chủng tộc và class của bạn.", "§7Hệ thống lưu tiến trình trên SQLite.")));
         }
+        if (player.hasPermission("vnmine.command.skills")
+                && VnMineHardcore.getInstance() != null
+                && VnMineHardcore.getInstance().getSkillManager() != null) {
+            inventory.setItem(MAIN_MENU_SKILLS_SLOT, menuItem(Material.ENCHANTED_BOOK, "§eQuản lý kỹ năng", List.of(
+                "§7Xem skill tree, skill point và nâng cấp.",
+                "§7Nhấp để mở cây kỹ năng RPG.")));
+        }
         if (plugin.getConfig().getBoolean("rpg.world-map.enabled", true)) {
             inventory.setItem(MAIN_MENU_WORLD_MAP_SLOT, menuItem(Material.MAP, "§bBản đồ đại lục", List.of(
                 "§7Xem đại lục khởi đầu và trạng thái world.")));
@@ -8488,6 +8496,10 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                       && plugin.getConfig().getBoolean("rpg.character-creation.enabled", true)
                       && VnMineHardcore.getInstance().getCharacterSelectionManager() != null) {
                             VnMineHardcore.getInstance().getCharacterSelectionManager().openCharacterMenu(player);
+                        } else if (slot == MAIN_MENU_SKILLS_SLOT && VnMineHardcore.getInstance() != null
+                      && VnMineHardcore.getInstance().getSkillManager() != null
+                      && player.hasPermission("vnmine.command.skills")) {
+                            VnMineHardcore.getInstance().getSkillManager().openSkillTreeFromMainMenu(player);
                         } else if (slot == MAIN_MENU_WORLD_MAP_SLOT && plugin.getConfig().getBoolean("rpg.world-map.enabled", true)) {
                             this.openWorldMap(player, 0);
                         } else if (slot == MAIN_MENU_QUEST_JOURNAL_SLOT && VnMineHardcore.getInstance() != null

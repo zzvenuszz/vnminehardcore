@@ -432,13 +432,18 @@ This command requires `vnmine.command.skillbook.admin` (default: operators).
 Players right-click the book in their main hand to learn its skill. A successful
 learn consumes one book and stores rank 1 in SQLite. Wrong-class, insufficient-
 level, already-learned, or database-failure cases do not consume the book.
-Players open the Quick Cast GUI with `/vnskills` (permission
+Each character level gained grants one unspent skill point. Open `/vnskills tree`
+to see class skills and current ranks; click a skill for details, then click the
+upgrade button to spend one point when its next-rank level requirement is met.
+The “Quản lý kỹ năng” button in the main menu opens the same tree; the tree has
+a button to return to the main menu, and skill details has a button to return
+to the tree. Players can also use `/vnskills tree`. Players open the Quick Cast
+GUI with `/vnskills` (permission
 `vnmine.command.skills`, default: everyone). Click an empty slot to choose a
 learned active skill; left-click an assigned skill to cast it and right-click
 to unassign it. While the GUI is open, the number keys 1-9 cast the matching
-quick slot. `/vnskills list` prints the learned skill list; `/vnskills tree`
-opens the class skill tree. Click a skill to see its requirements, rank and
-upgrade option. Raising an active skill rank costs one skill point, requires
+quick slot. `/vnskills list` prints the learned skill list. Raising an active
+skill rank costs one skill point, requires
 the skill book unlock, and requires character level `required-level + current
 rank`. The skill-point spend and rank increase are committed in one SQLite
 transaction.

@@ -4,10 +4,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.inventory.EquipmentSlot;
 import org.junit.Test;
 
 public class SkillManagerTest {
+    @Test
+    public void skillBooksAreUsedOnlyOnMainHandRightClick() {
+        assertTrue(SkillManager.isSkillBookUseAction(EquipmentSlot.HAND, Action.RIGHT_CLICK_AIR));
+        assertTrue(SkillManager.isSkillBookUseAction(EquipmentSlot.HAND, Action.RIGHT_CLICK_BLOCK));
+        assertFalse(SkillManager.isSkillBookUseAction(EquipmentSlot.OFF_HAND, Action.RIGHT_CLICK_AIR));
+        assertFalse(SkillManager.isSkillBookUseAction(EquipmentSlot.HAND, Action.LEFT_CLICK_AIR));
+    }
+
     @Test
     public void quickCastOnlyTreatsQDropClickTypesAsKeyInput() {
         assertTrue(SkillManager.isQuickCastKeyClick(ClickType.DROP));

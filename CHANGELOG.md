@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v2.3.0] - 2026-10-23
+
+### Added
+- Thêm nút “Quản lý kỹ năng” trong menu chính, mở cây skill và có nút quay lại menu chính.
+
+### Fixed
+- Nhận thao tác học skill book ngay cả khi plugin khác đã hủy `PlayerInteractEvent`; vẫn chỉ xử lý nhấp phải bằng tay chính.
+
 ## [v2.2.2] - 2026-10-23
 
 ### Changed
