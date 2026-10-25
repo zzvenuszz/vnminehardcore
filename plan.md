@@ -85,8 +85,10 @@
 
 ### Trạng thái xử lý sau rà soát
 
-- Đã sửa trong working tree, chưa kiểm thử runtime: cast thất bại sẽ thử hoàn mana, không đặt cooldown và không báo cast thành công; class tạo nhân vật được lọc theo skill có handler; sách skill chưa hỗ trợ bị ẩn/chặn cấp; command trùng đã được dọn.
-- Còn mở: chuyển JDBC khỏi main thread trên các luồng gameplay/UI, kiểm tra ma trận Paper/Java/ProtocolLib trên staging, và chạy unit/gameplay test cho các thay đổi mới.
+- Ngày 2026-10-25, commit 6399586 đã build bằng Java 25 với lệnh Maven clean package thành công; 104 unit test đạt, không lỗi/skip.
+- Smoke test staging cô lập thành công trên Paper 26.3-214 và ProtocolLib 5.5.0-SNAPSHOT-6720a70: plugin bật, lệnh /vnhardcore phản hồi, log không có lỗi khởi động; class chưa có skill runtime được log là ẩn.
+- Chưa có Minecraft client trong lượt staging này nên chưa xác nhận tương tác GUI tạo nhân vật, cast skill thành công/thất bại hoặc hoàn mana trong gameplay.
+- Còn mở: chuyển JDBC khỏi main thread trên các luồng gameplay/UI; chạy gameplay test cho cast/refund và GUI; mở rộng ma trận tương thích ngoài bộ Java 25/Paper 26.3-214/ProtocolLib 5.5.0-SNAPSHOT đã smoke test.
 
 ## 4. Thiết kế VNCOIN
 
