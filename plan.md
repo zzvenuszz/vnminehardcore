@@ -279,7 +279,7 @@ Menu lọc item theo người chơi cũng đã package bằng Java 25 và chép 
 
 ### Phase C — Economy sink
 
-- [ ] Merchant NPC với giá cấu hình, transaction nguyên tử và chống double click/disconnect.
+- [ ] Merchant NPC với giá cấu hình, transaction nguyên tử và chống double click/disconnect (đã có code và compile; chờ test server).
 - [ ] Thêm sink không bắt buộc như sửa gear/nguyên liệu tiện ích; xác nhận giá trước khi mua.
 - [ ] Thêm encounter/source ID idempotent cho VNCOIN boss payout và reward quest; không trả trùng khi event callback lặp hoặc server restart sát thời điểm boss chết.
 - [x] `/vncoin history` và audit admin cơ bản đã có trong Phase B; leaderboard số dư vẫn là tùy chọn.
@@ -287,7 +287,7 @@ Menu lọc item theo người chơi cũng đã package bằng Java 25 và chép 
 
 **Chấp nhận:** mua bán không tạo/mất tiền khi lỗi; mọi giao dịch có ledger; người chơi hiểu cách kiếm/tiêu.
 
-**Cập nhật triển khai 2026-10-25:** đã thêm merchant hệ thống bán danh mục chung có phân trang và merchant tùy chỉnh theo NPC. Admin có thể tạo `merchant`, mở `/vnnpc edit <id>` hoặc Shift-click NPC, chuyển item có PDC plugin vào bản nháp, chỉnh giá bằng nút ±1/10/100, gỡ món và lưu item/giá nguyên bản trong `npcs.yml`; cấu hình giới hạn số món/giá/mức bước. Boss drop được đánh dấu PDC RPG để có thể đưa vào shop; coin boss dùng ID drop xác định từ UUID encounter và vị trí drop để ledger từ chối claim trùng khi callback thưởng cùng encounter chạy lặp. Hạng mục vẫn để mở: chưa build/gameplay test; giao dịch debit và phát ItemStack vẫn là hai thao tác SQLite/Bukkit riêng biệt nên cần hộp thư giao vật phẩm bền vững trước khi chấp nhận tiêu chí nguyên tử. Thưởng VNCOIN quest và thống kê lạm phát chưa triển khai.
+**Cập nhật triển khai 2026-10-25:** đã thêm merchant hệ thống bán danh mục chung có phân trang và merchant tùy chỉnh theo NPC. Admin có thể tạo `merchant`, mở `/vnnpc edit <id>` hoặc Shift-click NPC, chuyển item có PDC plugin vào bản nháp, chỉnh giá bằng nút ±1/10/100, gỡ món và lưu item/giá nguyên bản trong `npcs.yml`; cấu hình giới hạn số món/giá/mức bước. Boss drop được đánh dấu PDC RPG để có thể đưa vào shop; coin boss dùng ID drop xác định từ UUID encounter và vị trí drop để ledger từ chối claim trùng khi callback thưởng cùng encounter chạy lặp. Tiếp tục Phase C đã thêm bảng outbox giao vật phẩm (schema 8), trừ VNCOIN và ghi item chờ giao trong cùng transaction SQLite, đối soát lúc đăng nhập hoặc mở `/vncoin`, gắn transaction ID vào item để tránh nhân đôi, khóa item cho tới khi SQLite xác nhận, và lưu player data trước khi acknowledge. Nếu túi đầy, delivery vẫn chờ thay vì hoàn tiền không chắc chắn. `mvn -DskipTests compile` bằng Java 25 thành công; chưa build JAR hoặc test trên server/gameplay, nên tiêu chí merchant còn mở để xác minh disconnect/crash, túi đầy, migration DB và khôi phục. Thưởng VNCOIN quest và thống kê lạm phát chưa triển khai.
 
 ### Phase D — Class và trải nghiệm người chơi
 

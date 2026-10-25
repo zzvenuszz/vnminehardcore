@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public class PlayerProfileDatabaseManager {
-    public static final int SCHEMA_VERSION = 7;
+    public static final int SCHEMA_VERSION = 8;
     public static final long MAX_WALLET_BALANCE = 2_147_483_647L;
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
         .withZone(ZoneOffset.UTC);
@@ -390,6 +390,10 @@ public class PlayerProfileDatabaseManager {
                     } else if (version == 6) {
                         migrateV6ToV7(connection);
                         version = 7;
+                        setSchemaVersion(connection, version);
+                    } else if (version == 7) {
+                        migrateV7ToV8(connection);
+                        version = 8;
                         setSchemaVersion(connection, version);
                     } else {
                         throw new SQLException("No player profile database migration exists from version "
@@ -1154,6 +1158,20 @@ public class PlayerProfileDatabaseManager {
     public record WalletTransactionResult(WalletTransactionStatus status, long balance, long appliedDelta) {
     }
 
+    public record MerchantDelivery(String transactionId, byte[] itemData) {
+        public MerchantDelivery {
+            if (transactionId == null || transactionId.isBlank() || itemData == null || itemData.length == 0) {
+                throw new IllegalArgumentException("Merchant delivery data is invalid.");
+            }
+            itemData = itemData.clone();
+        }
+
+        @Override
+        public byte[] itemData() {
+            return itemData.clone();
+        }
+    }
+
     public record WalletLedgerEntry(long id, String transactionId, long delta, long balanceAfter,
                                     String source, String actorUuid, String reason, String createdAt) {
     }
@@ -1250,6 +1268,7 @@ public class PlayerProfileDatabaseManager {
                 "PRIMARY KEY (uuid, slot), UNIQUE (uuid, skill_id), " +
                 "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
             createWalletTables(statement);
+            createMerchantDeliveryTables(statement);
         }
     }
 
@@ -1302,6 +1321,12 @@ public class PlayerProfileDatabaseManager {
         }
     }
 
+    private void migrateV7ToV8(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            createMerchantDeliveryTables(statement);
+        }
+    }
+
     private static void createWalletTables(Statement statement) throws SQLException {
         statement.execute("CREATE TABLE IF NOT EXISTS player_wallets (" +
             "uuid TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0 " +
@@ -1313,6 +1338,14 @@ public class PlayerProfileDatabaseManager {
             "source TEXT NOT NULL, actor_uuid TEXT, reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)");
         statement.execute("CREATE INDEX IF NOT EXISTS idx_player_wallet_ledger_uuid_id " +
             "ON player_wallet_ledger(uuid, id DESC)");
+    }
+
+    private static void createMerchantDeliveryTables(Statement statement) throws SQLException {
+        statement.execute("CREATE TABLE IF NOT EXISTS player_merchant_deliveries (" +
+            "transaction_id TEXT PRIMARY KEY, uuid TEXT NOT NULL, item_data BLOB NOT NULL, " +
+            "created_at TEXT NOT NULL, delivered_at TEXT)");
+        statement.execute("CREATE INDEX IF NOT EXISTS idx_player_merchant_deliveries_uuid_pending " +
+            "ON player_merchant_deliveries(uuid, delivered_at)");
     }
 
     public long getWalletBalance(String uuid) throws SQLException {
@@ -1328,6 +1361,40 @@ public class PlayerProfileDatabaseManager {
 
     public WalletTransactionResult applyWalletTransaction(String uuid, long delta, String transactionId,
             String source, String actorUuid, String reason, String createdAt) throws SQLException {
+        validateWalletTransaction(uuid, delta, transactionId, source, reason, createdAt);
+        return executeWriteTransaction(connection -> applyWalletTransaction(connection, uuid, delta,
+            transactionId, source, actorUuid, reason, createdAt));
+    }
+
+    public WalletTransactionResult purchaseWalletItem(String uuid, long price, String transactionId,
+            String source, String actorUuid, String reason, String createdAt, byte[] itemData) throws SQLException {
+        if (price < 1 || price > MAX_WALLET_BALANCE) {
+            throw new IllegalArgumentException("Merchant item price is outside supported bounds.");
+        }
+        validateWalletTransaction(uuid, -price, transactionId, source, reason, createdAt);
+        if (itemData == null || itemData.length == 0 || itemData.length > 1_048_576) {
+            throw new IllegalArgumentException("Merchant delivery item data is missing or exceeds 1 MiB.");
+        }
+        return executeWriteTransaction(connection -> {
+            WalletTransactionResult result = applyWalletTransaction(connection, uuid, -price, transactionId,
+                source, actorUuid, reason, createdAt);
+            if (result.status() == WalletTransactionStatus.APPLIED) {
+                try (PreparedStatement delivery = connection.prepareStatement(
+                        "INSERT INTO player_merchant_deliveries(transaction_id, uuid, item_data, created_at) " +
+                        "VALUES (?, ?, ?, ?)")) {
+                    delivery.setString(1, transactionId);
+                    delivery.setString(2, uuid);
+                    delivery.setBytes(3, itemData);
+                    delivery.setString(4, createdAt);
+                    delivery.executeUpdate();
+                }
+            }
+            return result;
+        });
+    }
+
+    private void validateWalletTransaction(String uuid, long delta, String transactionId,
+            String source, String reason, String createdAt) {
         if (uuid == null || uuid.isBlank() || transactionId == null || transactionId.isBlank()
                 || transactionId.length() > 160 || source == null || source.isBlank()
                 || source.length() > 64 || reason == null || reason.length() > 240
@@ -1335,50 +1402,95 @@ public class PlayerProfileDatabaseManager {
                 || delta < -MAX_WALLET_BALANCE || delta > MAX_WALLET_BALANCE) {
             throw new IllegalArgumentException("Wallet transaction fields are invalid or outside supported bounds.");
         }
-        return executeWriteTransaction(connection -> {
-            try (PreparedStatement duplicate = connection.prepareStatement(
-                    "SELECT uuid FROM player_wallet_ledger WHERE transaction_id = ?")) {
-                duplicate.setString(1, transactionId);
-                try (ResultSet resultSet = duplicate.executeQuery()) {
-                    if (resultSet.next()) {
-                        return new WalletTransactionResult(WalletTransactionStatus.DUPLICATE,
-                            readWalletBalance(connection, uuid), 0L);
-                    }
+    }
+
+    private WalletTransactionResult applyWalletTransaction(Connection connection, String uuid, long delta,
+            String transactionId, String source, String actorUuid, String reason, String createdAt)
+            throws SQLException {
+        try (PreparedStatement duplicate = connection.prepareStatement(
+                "SELECT uuid FROM player_wallet_ledger WHERE transaction_id = ?")) {
+            duplicate.setString(1, transactionId);
+            try (ResultSet resultSet = duplicate.executeQuery()) {
+                if (resultSet.next()) {
+                    return new WalletTransactionResult(WalletTransactionStatus.DUPLICATE,
+                        readWalletBalance(connection, uuid), 0L);
                 }
             }
-            long currentBalance = readWalletBalance(connection, uuid);
-            if (delta < 0 && currentBalance < -delta) {
-                return new WalletTransactionResult(WalletTransactionStatus.INSUFFICIENT_FUNDS,
-                    currentBalance, 0L);
+        }
+        long currentBalance = readWalletBalance(connection, uuid);
+        if (delta < 0 && currentBalance < -delta) {
+            return new WalletTransactionResult(WalletTransactionStatus.INSUFFICIENT_FUNDS, currentBalance, 0L);
+        }
+        if (delta > 0 && currentBalance > MAX_WALLET_BALANCE - delta) {
+            return new WalletTransactionResult(WalletTransactionStatus.BALANCE_LIMIT, currentBalance, 0L);
+        }
+        long newBalance = currentBalance + delta;
+        try (PreparedStatement wallet = connection.prepareStatement(
+                "INSERT INTO player_wallets(uuid, balance, updated_at) VALUES (?, ?, ?) " +
+                "ON CONFLICT(uuid) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at")) {
+            wallet.setString(1, uuid);
+            wallet.setLong(2, newBalance);
+            wallet.setString(3, createdAt);
+            wallet.executeUpdate();
+        }
+        try (PreparedStatement ledger = connection.prepareStatement(
+                "INSERT INTO player_wallet_ledger(transaction_id, uuid, delta, balance_after, " +
+                "source, actor_uuid, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+            ledger.setString(1, transactionId);
+            ledger.setString(2, uuid);
+            ledger.setLong(3, delta);
+            ledger.setLong(4, newBalance);
+            ledger.setString(5, source);
+            if (actorUuid == null || actorUuid.isBlank()) ledger.setNull(6, java.sql.Types.VARCHAR);
+            else ledger.setString(6, actorUuid);
+            ledger.setString(7, reason);
+            ledger.setString(8, createdAt);
+            ledger.executeUpdate();
+        }
+        return new WalletTransactionResult(WalletTransactionStatus.APPLIED, newBalance, delta);
+    }
+
+    public List<MerchantDelivery> getPendingMerchantDeliveries(String uuid) throws SQLException {
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT transaction_id, item_data FROM player_merchant_deliveries " +
+                 "WHERE uuid = ? AND delivered_at IS NULL ORDER BY created_at, transaction_id")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                List<MerchantDelivery> deliveries = new ArrayList<>();
+                while (resultSet.next()) {
+                    deliveries.add(new MerchantDelivery(resultSet.getString("transaction_id"),
+                        resultSet.getBytes("item_data")));
+                }
+                return List.copyOf(deliveries);
             }
-            if (delta > 0 && currentBalance > MAX_WALLET_BALANCE - delta) {
-                return new WalletTransactionResult(WalletTransactionStatus.BALANCE_LIMIT,
-                    currentBalance, 0L);
+        }
+    }
+
+    public boolean markMerchantDeliveryDelivered(String uuid, String transactionId, String deliveredAt)
+            throws SQLException {
+        if (uuid == null || uuid.isBlank() || transactionId == null || transactionId.isBlank()
+                || deliveredAt == null || deliveredAt.isBlank()) {
+            throw new IllegalArgumentException("Merchant delivery acknowledgement fields are invalid.");
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_merchant_deliveries SET delivered_at = ? " +
+                    "WHERE transaction_id = ? AND uuid = ? AND delivered_at IS NULL")) {
+                statement.setString(1, deliveredAt);
+                statement.setString(2, transactionId);
+                statement.setString(3, uuid);
+                if (statement.executeUpdate() == 1) return true;
             }
-            long newBalance = currentBalance + delta;
-            try (PreparedStatement wallet = connection.prepareStatement(
-                    "INSERT INTO player_wallets(uuid, balance, updated_at) VALUES (?, ?, ?) " +
-                    "ON CONFLICT(uuid) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at")) {
-                wallet.setString(1, uuid);
-                wallet.setLong(2, newBalance);
-                wallet.setString(3, createdAt);
-                wallet.executeUpdate();
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT 1 FROM player_merchant_deliveries WHERE transaction_id = ? AND uuid = ? " +
+                    "AND delivered_at IS NOT NULL")) {
+                statement.setString(1, transactionId);
+                statement.setString(2, uuid);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    return resultSet.next();
+                }
             }
-            try (PreparedStatement ledger = connection.prepareStatement(
-                    "INSERT INTO player_wallet_ledger(transaction_id, uuid, delta, balance_after, " +
-                    "source, actor_uuid, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
-                ledger.setString(1, transactionId);
-                ledger.setString(2, uuid);
-                ledger.setLong(3, delta);
-                ledger.setLong(4, newBalance);
-                ledger.setString(5, source);
-                if (actorUuid == null || actorUuid.isBlank()) ledger.setNull(6, java.sql.Types.VARCHAR);
-                else ledger.setString(6, actorUuid);
-                ledger.setString(7, reason);
-                ledger.setString(8, createdAt);
-                ledger.executeUpdate();
-            }
-            return new WalletTransactionResult(WalletTransactionStatus.APPLIED, newBalance, delta);
         });
     }
 

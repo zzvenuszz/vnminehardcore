@@ -666,6 +666,22 @@ The command requires `vnmine.command.npc.admin` (default: operators). Admin GUI,
 quest acceptance/reward actions, waypoint particles, and custom skins remain
 future work.
 
+Custom `merchant` NPCs can have an individual shop. Use `/vnnpc edit <id>` or
+Shift-right-click the NPC to open its editor. Shift-click a system-created RPG
+item in the player's inventory to add it; left-click a listed item to edit its
+price, right-click to remove it, and click **Lưu cửa hàng** to save the draft to
+`npcs.yml`. The price screen has configurable small, medium, and large `-`/`+`
+buttons (defaults `1`, `10`, and `100` VNCOIN). Only system-created RPG items
+can be listed. Prices and offer counts are bounded by
+`economy.merchant.custom.max-price` and `max-offers` in `config.yml`.
+
+Merchant purchases debit VNCOIN and create a persistent pending item delivery in
+the same database transaction. If the player disconnects during a purchase, the
+item is reconciled on next join. If the inventory is full, free a slot and run
+`/vncoin` or rejoin to retry delivery; keep a delivery item in place until the
+server confirms it. `system-merchant` NPCs use the shared catalog under
+`economy.merchant.offers`, while custom merchants use their saved per-NPC list.
+
 ### Death Section
 ```yaml
 death:

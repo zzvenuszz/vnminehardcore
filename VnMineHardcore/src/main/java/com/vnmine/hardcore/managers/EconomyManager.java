@@ -46,11 +46,13 @@ import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.ItemDespawnEvent;
 import org.bukkit.event.entity.ItemMergeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.player.PlayerAttemptPickupItemEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
@@ -80,12 +82,15 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private final NamespacedKey armyUnitKey;
     private final NamespacedKey armySummonKey;
     private final NamespacedKey merchantOfferKey;
+    private final NamespacedKey merchantDeliveryIdKey;
     private final ConcurrentMap<UUID, ItemNameMode> itemNameModes = new ConcurrentHashMap<>();
     private final ConcurrentMap<Integer, ItemNameCategory> itemNameCategories = new ConcurrentHashMap<>();
     private final Set<UUID> pendingClaims = new HashSet<>();
     private final Map<UUID, Long> nextBossDropClaimAt = new HashMap<>();
     private final Set<CreatureSpawnEvent.SpawnReason> allowedSpawnReasons = new HashSet<>();
     private final Set<UUID> pendingMerchantPurchases = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> reconcilingMerchantDeliveries = ConcurrentHashMap.newKeySet();
+    private final Set<String> lockedMerchantDeliveries = ConcurrentHashMap.newKeySet();
     private final Map<String, MobTier> tiersByEntity = new HashMap<>();
     private final PacketAdapter itemNamePacketListener;
     private boolean economyEnabled;
@@ -111,6 +116,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         armyUnitKey = new NamespacedKey(plugin, "army_unit");
         armySummonKey = new NamespacedKey(plugin, "army_summoned_minion");
         merchantOfferKey = new NamespacedKey(plugin, "merchant_offer_id");
+        merchantDeliveryIdKey = new NamespacedKey(plugin, "merchant_delivery_id");
         itemNamePacketListener = new PacketAdapter(plugin, ListenerPriority.NORMAL,
                 PacketType.Play.Server.ENTITY_METADATA) {
             @Override
@@ -291,6 +297,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         loadItemNameMode(event.getPlayer());
+        reconcileMerchantDeliveries(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -585,9 +592,32 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onTaggedCoinDrop(PlayerDropItemEvent event) {
         if (hasCoinTag(event.getItemDrop().getItemStack())) event.setCancelled(true);
+        if (isLockedMerchantDelivery(event.getItemDrop().getItemStack())) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLockedMerchantDeliveryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player) || !containsLockedMerchantDelivery(player)) return;
+        event.setCancelled(true);
+        player.sendMessage("§7Vật phẩm mua đang được xác nhận an toàn, vui lòng chờ.");
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLockedMerchantDeliveryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player) || !containsLockedMerchantDelivery(player)) return;
+        event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLockedMerchantDeliveryInteract(PlayerInteractEvent event) {
+        if (isLockedMerchantDelivery(event.getItem())
+                || isLockedMerchantDelivery(event.getPlayer().getInventory().getItemInOffHand())) {
+            event.setCancelled(true);
+        }
     }
 
     public void openWalletMenu(Player player) {
+        reconcileMerchantDeliveries(player);
         String uuid = player.getUniqueId().toString();
         String playerName = player.getName();
         player.sendMessage("§7Đang tải ví VNCOIN...");
@@ -778,23 +808,24 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             player.sendMessage("§eĐang xử lý giao dịch trước đó, vui lòng chờ.");
             return;
         }
-        if (player.getInventory().firstEmpty() < 0) {
-            player.sendMessage("§cHãy chừa ít nhất một ô trống trong túi trước khi mua.");
-            return;
-        }
         if (!pendingMerchantPurchases.add(playerId)) return;
         String transactionId = "merchant:" + UUID.randomUUID();
+        byte[] purchaseItemData = offer.item().serializeAsBytes();
         player.sendMessage("§7Đang xử lý giao dịch VNCOIN...");
         database.executeGameplayDatabaseTask("wallet.merchant-buy player=" + player.getName()
                 + " offer=" + offer.id(),
-            () -> database.applyWalletTransaction(playerId.toString(), -offer.price(), transactionId,
-                "merchant:" + offer.id(), playerId.toString(), "Mua " + offer.name(), Instant.now().toString()))
+            () -> database.purchaseWalletItem(playerId.toString(), offer.price(), transactionId,
+                "merchant:" + offer.id(), playerId.toString(), "Mua " + offer.name(), Instant.now().toString(),
+                purchaseItemData))
             .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (failure != null) {
                     pendingMerchantPurchases.remove(playerId);
                     plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Purchase failed: player="
                         + player.getName() + ", offer=" + offer.id(), failure);
-                    if (player.isOnline()) player.sendMessage("§cGiao dịch thất bại; VNCOIN chưa bị trừ.");
+                    if (player.isOnline()) {
+                        player.sendMessage("§eĐang đối soát giao dịch và vật phẩm mua; vui lòng chờ.");
+                        reconcileMerchantDeliveries(player);
+                    }
                     return;
                 }
                 if (result.status() != PlayerProfileDatabaseManager.WalletTransactionStatus.APPLIED) {
@@ -805,52 +836,173 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                         : "§cKhông thể hoàn tất giao dịch VNCOIN.");
                     return;
                 }
-                if (!player.isOnline() || player.getInventory().firstEmpty() < 0) {
-                    refundMerchantPurchase(playerId, player.getName(), offer, transactionId);
-                    return;
-                }
-                Map<Integer, ItemStack> overflow = player.getInventory().addItem(
-                    offer.item().clone());
-                if (!overflow.isEmpty()) {
-                    refundMerchantPurchase(playerId, player.getName(), offer, transactionId);
-                    if (player.isOnline()) player.sendMessage("§cKhông thể giao vật phẩm; VNCOIN sẽ được hoàn lại.");
-                    return;
-                }
                 pendingMerchantPurchases.remove(playerId);
-                player.sendMessage("§aĐã mua §f" + offer.name() + " §avới giá §6" + offer.price()
-                    + " VNCOIN§a. Số dư: §e" + result.balance());
                 debug("[RPG-DEBUG][VNCOIN][Merchant] purchase player=" + player.getName()
                     + ", offer=" + offer.id() + ", amount=" + offer.item().getAmount() + ", price=" + offer.price()
                     + ", balance=" + result.balance() + ", transaction=" + transactionId);
+                if (player.isOnline()) {
+                    player.sendMessage("§aĐã thanh toán §6" + offer.price()
+                        + " VNCOIN§a. Vật phẩm sẽ được giao an toàn vào túi khi còn chỗ.");
+                    reconcileMerchantDeliveries(player);
+                }
             }));
     }
 
-    private void refundMerchantPurchase(UUID playerId, String playerName, MerchantOffer offer,
-                                        String purchaseTransactionId) {
-        database.executeGameplayDatabaseTask("wallet.merchant-refund player=" + playerName
-                + " offer=" + offer.id(),
-            () -> database.applyWalletTransaction(playerId.toString(), offer.price(),
-                "refund:" + purchaseTransactionId, "merchant-refund:" + offer.id(), null,
-                "Hoàn tiền mua " + offer.name(), Instant.now().toString()))
-            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
-                pendingMerchantPurchases.remove(playerId);
-                Player online = Bukkit.getPlayer(playerId);
+    private void reconcileMerchantDeliveries(Player player) {
+        UUID playerId = player.getUniqueId();
+        if (!reconcilingMerchantDeliveries.add(playerId)) return;
+        Set<String> taggedDeliveries = lockExistingMerchantDeliveryItems(player);
+        database.executeGameplayDatabaseTask("wallet.merchant-reconcile player=" + player.getName(),
+                () -> database.getPendingMerchantDeliveries(playerId.toString()))
+            .whenComplete((deliveries, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (failure != null) {
-                    plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Refund failed: player="
-                        + playerName + ", offer=" + offer.id() + ", purchase=" + purchaseTransactionId, failure);
-                    if (online != null) online.sendMessage("§cHoàn tiền đang gặp lỗi; hãy báo quản trị viên.");
+                    reconcilingMerchantDeliveries.remove(playerId);
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Could not load pending deliveries for "
+                        + player.getName() + ".", failure);
+                    if (player.isOnline()) player.sendMessage("§cKhông tải được vật phẩm đang chờ giao. Hãy thử vào lại.");
                     return;
                 }
-                if (result.status() != PlayerProfileDatabaseManager.WalletTransactionStatus.APPLIED
-                        && result.status() != PlayerProfileDatabaseManager.WalletTransactionStatus.DUPLICATE) {
-                    plugin.getLogger().severe("[Economy][Merchant] Refund transaction was not applied: player="
-                        + playerName + ", offer=" + offer.id() + ", status=" + result.status()
-                        + ", purchase=" + purchaseTransactionId);
-                    if (online != null) online.sendMessage("§cKhông thể hoàn VNCOIN tự động; hãy báo quản trị viên.");
-                    return;
+                Set<String> pendingIds = new HashSet<>();
+                for (PlayerProfileDatabaseManager.MerchantDelivery delivery : deliveries) {
+                    pendingIds.add(delivery.transactionId());
                 }
-                if (online != null) online.sendMessage("§eĐã hoàn lại " + offer.price() + " VNCOIN.");
+                for (String taggedId : taggedDeliveries) {
+                    if (!pendingIds.contains(taggedId)) lockedMerchantDeliveries.remove(taggedId);
+                }
+                processMerchantDeliveries(player, deliveries, 0);
             }));
+    }
+
+    private void processMerchantDeliveries(Player player,
+            List<PlayerProfileDatabaseManager.MerchantDelivery> deliveries, int index) {
+        UUID playerId = player.getUniqueId();
+        if (index >= deliveries.size()) {
+            reconcilingMerchantDeliveries.remove(playerId);
+            return;
+        }
+        PlayerProfileDatabaseManager.MerchantDelivery delivery = deliveries.get(index);
+        if (containsMerchantDelivery(player, delivery.transactionId())) {
+            acknowledgeMerchantDelivery(player, delivery.transactionId(),
+                () -> processMerchantDeliveries(player, deliveries, index + 1));
+            return;
+        }
+        if (!player.isOnline() || player.getInventory().firstEmpty() < 0) {
+            reconcilingMerchantDeliveries.remove(playerId);
+            if (player.isOnline()) player.sendMessage("§eCó vật phẩm mua đang chờ giao. Hãy chừa ô trống rồi dùng /vncoin.");
+            return;
+        }
+        final ItemStack item;
+        try {
+            item = ItemStack.deserializeBytes(delivery.itemData());
+        } catch (RuntimeException failure) {
+            reconcilingMerchantDeliveries.remove(playerId);
+            plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Could not decode delivery transaction="
+                + delivery.transactionId() + ", player=" + player.getName(), failure);
+            player.sendMessage("§cKhông đọc được vật phẩm mua; dữ liệu được giữ để quản trị viên kiểm tra.");
+            return;
+        }
+        if (item.getType().isAir() || !tagMerchantDelivery(item, delivery.transactionId())) {
+            reconcilingMerchantDeliveries.remove(playerId);
+            plugin.getLogger().severe("[Economy][Merchant] Invalid serialized item for transaction="
+                + delivery.transactionId() + ", player=" + player.getName());
+            return;
+        }
+        Map<Integer, ItemStack> overflow = player.getInventory().addItem(item);
+        if (!overflow.isEmpty()) {
+            reconcilingMerchantDeliveries.remove(playerId);
+            plugin.getLogger().severe("[Economy][Merchant] Inventory changed during delivery; transaction="
+                + delivery.transactionId() + ", player=" + player.getName());
+            return;
+        }
+        lockedMerchantDeliveries.add(delivery.transactionId());
+        try {
+            player.saveData();
+        } catch (RuntimeException failure) {
+            reconcilingMerchantDeliveries.remove(playerId);
+            plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Could not persist player inventory before "
+                + "delivery acknowledgement: transaction=" + delivery.transactionId()
+                + ", player=" + player.getName(), failure);
+            player.sendMessage("§eVật phẩm đã vào túi nhưng xác nhận đang chờ. Không di chuyển vật phẩm này.");
+            return;
+        }
+        player.sendMessage("§aĐã giao vật phẩm mua. Đang xác nhận giao dịch...");
+        acknowledgeMerchantDelivery(player, delivery.transactionId(),
+            () -> processMerchantDeliveries(player, deliveries, index + 1));
+    }
+
+    private void acknowledgeMerchantDelivery(Player player, String transactionId, Runnable onSuccess) {
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("wallet.merchant-ack transaction=" + transactionId,
+                () -> database.markMerchantDeliveryDelivered(playerId.toString(), transactionId, Instant.now().toString()))
+            .whenComplete((acknowledged, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null || !Boolean.TRUE.equals(acknowledged)) {
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Could not acknowledge item delivery: "
+                        + "transaction=" + transactionId + ", player=" + player.getName(), failure);
+                    reconcilingMerchantDeliveries.remove(playerId);
+                    if (player.isOnline()) player.sendMessage("§eVật phẩm đã được giao nhưng xác nhận còn chờ; không di chuyển vật phẩm này.");
+                    return;
+                }
+                lockedMerchantDeliveries.remove(transactionId);
+                debug("[RPG-DEBUG][VNCOIN][Merchant] delivery-confirmed player=" + player.getName()
+                    + ", transaction=" + transactionId);
+                onSuccess.run();
+            }));
+    }
+
+    private boolean tagMerchantDelivery(ItemStack item, String transactionId) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return false;
+        meta.getPersistentDataContainer().set(merchantDeliveryIdKey, PersistentDataType.STRING, transactionId);
+        item.setItemMeta(meta);
+        return true;
+    }
+
+    private boolean isLockedMerchantDelivery(ItemStack item) {
+        if (item == null || item.getType().isAir() || item.getItemMeta() == null) return false;
+        String id = item.getItemMeta().getPersistentDataContainer()
+            .get(merchantDeliveryIdKey, PersistentDataType.STRING);
+        return id != null && lockedMerchantDeliveries.contains(id);
+    }
+
+    private boolean containsLockedMerchantDelivery(Player player) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (isLockedMerchantDelivery(item)) return true;
+        }
+        for (ItemStack item : player.getEnderChest().getContents()) {
+            if (isLockedMerchantDelivery(item)) return true;
+        }
+        return isLockedMerchantDelivery(player.getItemOnCursor());
+    }
+
+    private boolean containsMerchantDelivery(Player player, String transactionId) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (hasMerchantDeliveryId(item, transactionId)) return true;
+        }
+        for (ItemStack item : player.getEnderChest().getContents()) {
+            if (hasMerchantDeliveryId(item, transactionId)) return true;
+        }
+        return false;
+    }
+
+    private Set<String> lockExistingMerchantDeliveryItems(Player player) {
+        Set<String> ids = new HashSet<>();
+        for (ItemStack item : player.getInventory().getContents()) addMerchantDeliveryId(item, ids);
+        for (ItemStack item : player.getEnderChest().getContents()) addMerchantDeliveryId(item, ids);
+        lockedMerchantDeliveries.addAll(ids);
+        return ids;
+    }
+
+    private void addMerchantDeliveryId(ItemStack item, Set<String> ids) {
+        if (item == null || item.getType().isAir() || item.getItemMeta() == null) return;
+        String id = item.getItemMeta().getPersistentDataContainer()
+            .get(merchantDeliveryIdKey, PersistentDataType.STRING);
+        if (id != null && !id.isBlank()) ids.add(id);
+    }
+
+    private boolean hasMerchantDeliveryId(ItemStack item, String transactionId) {
+        if (item == null || item.getType().isAir() || item.getItemMeta() == null) return false;
+        return transactionId.equals(item.getItemMeta().getPersistentDataContainer()
+            .get(merchantDeliveryIdKey, PersistentDataType.STRING));
     }
 
     private ItemStack createCoinDrop(int amount, boolean critical, boolean bossDrop) {

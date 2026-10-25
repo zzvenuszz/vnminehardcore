@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v2.6.0] - 2026-10-25
+
+### Fixed
+- Làm giao dịch mua merchant bền vững qua disconnect/crash: trừ tiền và lưu item chờ giao trong cùng transaction SQLite; khôi phục giao dịch khi vào lại hoặc mở `/vncoin`, ngăn sử dụng/chuyển vật phẩm trong khi xác nhận và lưu dữ liệu người chơi trước khi đánh dấu đã giao.
+- Không còn hoàn tiền theo phỏng đoán khi phát item lỗi; item tiếp tục nằm trong hàng chờ cho tới khi giao được xác nhận.
+
 ## [v2.5.0] - 2026-10-25
 
 ### Added
