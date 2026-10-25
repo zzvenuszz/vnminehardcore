@@ -102,6 +102,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.skillManager = new SkillManager(this, playerProfileDatabaseManager, configManager);
         try {
             skillManager.initialize(characterSelectionManager.getClassIds());
+            characterSelectionManager.setPlayableClassIds(skillManager.getPlayableClassIds());
         } catch (java.io.IOException exception) {
             getLogger().log(java.util.logging.Level.SEVERE, "Failed to initialize RPG skill definitions.", exception);
             Bukkit.getPluginManager().disablePlugin(this);
@@ -197,8 +198,7 @@ public final class VnMineHardcore extends JavaPlugin {
 
         // Register commands
         for (String commandName : List.of("vnstats", "vnhardcore", "vnreload", "vnhelp",
-                "vnevent", "vnboss", "vn", "vnmenu", "reward", "vnrespawn", "vnleave", "fly",
-                                "vnevent", "vnboss", "vn", "reward", "vnrespawn", "vnleave", "fly",
+                "vnevent", "vnboss", "vn", "reward", "vnrespawn", "vnleave", "fly",
                 "nodame", "spawn", "gm0", "gm1", "gm2", "gm3", "scoreboard",
                 "vntime", "vnday", "vnspawn", "tp")) {
             registerCommand(commandName, this, this);

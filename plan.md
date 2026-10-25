@@ -83,6 +83,11 @@
 - Death/grave: khôi phục inventory không làm mất hoặc sinh đôi item; người chết luôn có đường tiếp tục chơi.
 - Cân bằng: damage multiplier, boss/skill, death penalty stacking và recovery không được làm nhân vật suy yếu đến mức không thể chơi.
 
+### Trạng thái xử lý sau rà soát
+
+- Đã sửa trong working tree, chưa kiểm thử runtime: cast thất bại sẽ thử hoàn mana, không đặt cooldown và không báo cast thành công; class tạo nhân vật được lọc theo skill có handler; sách skill chưa hỗ trợ bị ẩn/chặn cấp; command trùng đã được dọn.
+- Còn mở: chuyển JDBC khỏi main thread trên các luồng gameplay/UI, kiểm tra ma trận Paper/Java/ProtocolLib trên staging, và chạy unit/gameplay test cho các thay đổi mới.
+
 ## 4. Thiết kế VNCOIN
 
 ### 4.1 Drop từ mob cơ bản

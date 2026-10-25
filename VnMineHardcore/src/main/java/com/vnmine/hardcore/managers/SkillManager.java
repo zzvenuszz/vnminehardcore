@@ -415,6 +415,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         learned.forEach(skill -> ranks.put(skill.skillId(), skill.rank()));
         List<SkillDefinitionLoader.SkillDefinition> classSkills = registry.skills().values().stream()
             .filter(skill -> skill.classId().equals(profile.selectedClass()))
+            .filter(this::isSkillSupported)
             .sorted(Comparator.comparingInt(SkillDefinitionLoader.SkillDefinition::requiredLevel)
                 .thenComparing(SkillDefinitionLoader.SkillDefinition::id))
             .toList();
@@ -507,12 +508,26 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
 
     public List<SkillDefinitionLoader.SkillBookDefinition> getSkillBooks() {
         return registry.books().values().stream()
+            .filter(book -> isSkillSupported(registry.skills().get(book.skillId())))
             .sorted(Comparator.comparing(SkillDefinitionLoader.SkillBookDefinition::id)).toList();
+    }
+
+    public Set<String> getPlayableClassIds() {
+        return registry.skills().values().stream()
+            .filter(this::isSkillSupported)
+            .map(SkillDefinitionLoader.SkillDefinition::classId)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    private boolean isSkillSupported(SkillDefinitionLoader.SkillDefinition skill) {
+        return skill != null && (skill.passive()
+            ? IMPLEMENTED_PASSIVES.contains(skill.id())
+            : CAST_HANDLERS.contains(skill.id()));
     }
 
     public boolean giveSkillBookTo(Player target, String bookId) {
         SkillDefinitionLoader.SkillBookDefinition book = registry.books().get(bookId);
-        if (book == null) return false;
+        if (book == null || !isSkillSupported(registry.skills().get(book.skillId()))) return false;
         if (!target.getInventory().addItem(createSkillBook(book)).isEmpty()) return false;
         target.sendMessage("§aBạn nhận được sách kỹ năng §e" + book.displayName() + "§a.");
         return true;
@@ -520,7 +535,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
 
     private void openSkillDetails(Player player, String skillId) {
         SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(skillId);
-        if (skill == null) return;
+        if (!isSkillSupported(skill)) return;
         PlayerProfileDatabaseManager.PlayerProfile profile;
         int rank;
         try {
@@ -774,7 +789,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
 
     private void castSkill(Player player, String skillId) {
         SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(skillId);
-        if (skill == null || skill.passive() || !CAST_HANDLERS.contains(skillId)) {
+        if (!isSkillSupported(skill) || skill.passive()) {
             player.sendMessage("§cKỹ năng này không thể cast.");
             return;
         }
@@ -832,14 +847,32 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             return;
         }
         boolean castSucceeded = applySkillEffect(player, skill, rank);
+        if (!castSucceeded) {
+            try {
+                Optional<PlayerProfileDatabaseManager.ManaRestoreResult> refund = database.restoreMana(
+                    player.getUniqueId().toString(), skill.manaCost(), config.rpgMaxMana,
+                    config.rpgManaRegenerationPerSecond, System.currentTimeMillis());
+                if (refund.isEmpty()) {
+                    plugin.getLogger().severe("Could not refund mana after failed skill cast " + skillId
+                        + " for " + player.getName() + ": active profile was not found.");
+                    player.sendMessage("§cKỹ năng không kích hoạt được và chưa thể hoàn mana. Hãy báo quản trị viên.");
+                    return;
+                }
+            } catch (SQLException exception) {
+                plugin.getLogger().log(Level.SEVERE, "Could not refund mana after failed skill cast " + skillId
+                    + " for " + player.getName() + ".", exception);
+                player.sendMessage("§cKỹ năng không kích hoạt được; lỗi hoàn mana đã được ghi nhận. Hãy báo quản trị viên.");
+                return;
+            }
+            player.sendMessage("§eKỹ năng không kích hoạt được. Mana đã được hoàn lại; hồi chiêu không bắt đầu.");
+            return;
+        }
         long castAt = System.currentTimeMillis();
         int manaFlowRank = manaFlowRanks.getOrDefault(player.getUniqueId(), 0);
         long previousManaFlowCast = manaFlowLastCastAt.getOrDefault(player.getUniqueId(), 0L);
-        boolean manaFlowChain = castSucceeded && manaFlowRank > 0
+        boolean manaFlowChain = manaFlowRank > 0
             && isManaFlowChain(previousManaFlowCast, castAt, config.rpgManaFlowChainWindowSeconds);
-        if (castSucceeded) {
-            manaFlowLastCastAt.put(player.getUniqueId(), castAt);
-        }
+        manaFlowLastCastAt.put(player.getUniqueId(), castAt);
         if (manaFlowChain) {
             restoreManaFlow(player, manaFlowRank);
         }
@@ -1015,6 +1048,10 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             throw new IOException("Skill definitions or skill books are invalid; see the log for details.");
         }
         registry = loaded.get();
+        registry.skills().values().stream()
+            .filter(skill -> !isSkillSupported(skill))
+            .forEach(skill -> plugin.getLogger().warning("[Skills] Skill '" + skill.id()
+                + "' has no runtime handler and will not be available to players."));
         Bukkit.getOnlinePlayers().forEach(this::refreshPassiveRanks);
     }
 
@@ -1044,6 +1081,10 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             return;
         }
         SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(book.skillId());
+        if (!isSkillSupported(skill)) {
+            player.sendMessage("§cKỹ năng trong sách hiện chưa được triển khai; sách chưa bị tiêu thụ.");
+            return;
+        }
         Optional<PlayerProfileDatabaseManager.PlayerProfile> profile;
         try {
             profile = database.getPlayerProfile(player.getUniqueId().toString());
@@ -1193,6 +1234,10 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             sender.sendMessage("§cKhông tìm thấy book-id: " + args[2]);
             return true;
         }
+        if (!isSkillSupported(registry.skills().get(book.skillId()))) {
+            sender.sendMessage("§cSkill này chưa được triển khai nên chưa thể cấp sách.");
+            return true;
+        }
         if (!giveSkillBookTo(target, book.id())) {
             sender.sendMessage("§cTúi đồ người chơi đã đầy; không có sách nào được cấp.");
             return true;
@@ -1235,7 +1280,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
             String prefix = args[2].toLowerCase(java.util.Locale.ROOT);
-            return registry.books().keySet().stream()
+            return getSkillBooks().stream().map(SkillDefinitionLoader.SkillBookDefinition::id)
                 .filter(id -> id.startsWith(prefix)).sorted(Comparator.naturalOrder()).toList();
         }
         return List.of();

@@ -45,6 +45,7 @@ public final class CharacterSelectionManager implements Listener {
     private final Map<String, RaceDefinition> races = new LinkedHashMap<>();
     private final Map<String, List<ClassDefinition>> classesByRace = new HashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
+    private Set<String> playableClassIds = Set.of();
     private boolean definitionsAvailable;
 
     public CharacterSelectionManager(VnMineHardcore plugin) {
@@ -69,6 +70,10 @@ public final class CharacterSelectionManager implements Listener {
         holder.inventory = inventory;
         int index = 0;
         for (RaceDefinition race : races.values()) {
+            if (classesByRace.getOrDefault(race.id(), Collections.emptyList()).stream()
+                    .noneMatch(klass -> playableClassIds.contains(klass.id()))) {
+                continue;
+            }
             if (index >= MENU_SLOTS.length) break;
             int slot = MENU_SLOTS[index++];
             holder.choices.put(slot, race.id());
@@ -85,6 +90,16 @@ public final class CharacterSelectionManager implements Listener {
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
+    public void setPlayableClassIds(Set<String> classIds) {
+        playableClassIds = Set.copyOf(classIds);
+        for (String classId : getClassIds()) {
+            if (!playableClassIds.contains(classId)) {
+                plugin.getLogger().warning("[Character] Class '" + classId
+                    + "' is hidden from character creation because it has no implemented RPG skill.");
+            }
+        }
+    }
+
     public void openClassMenu(Player player, String raceId) {
         if (!isCreationAvailable(player)) return;
         if (hasExistingProfile(player)) return;
@@ -98,7 +113,13 @@ public final class CharacterSelectionManager implements Listener {
             player.getUniqueId(), "class", raceId, null, new HashMap<>());
         Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Chọn class cho " + race.name());
         holder.inventory = inventory;
-        List<ClassDefinition> classList = classesByRace.getOrDefault(raceId, Collections.emptyList());
+        List<ClassDefinition> classList = classesByRace.getOrDefault(raceId, Collections.emptyList()).stream()
+            .filter(klass -> playableClassIds.contains(klass.id()))
+            .toList();
+        if (classList.isEmpty()) {
+            player.sendMessage("§eChủng tộc này chưa có class RPG khả dụng. Hãy chọn chủng tộc khác.");
+            return;
+        }
         for (int index = 0; index < classList.size() && index < MENU_SLOTS.length; index++) {
             ClassDefinition klass = classList.get(index);
             int slot = MENU_SLOTS[index];
@@ -114,7 +135,7 @@ public final class CharacterSelectionManager implements Listener {
         if (!isCreationAvailable(player)) return;
         RaceDefinition race = races.get(raceId);
         ClassDefinition selectedClass = findClass(raceId, classId);
-        if (race == null || selectedClass == null) {
+        if (race == null || selectedClass == null || !playableClassIds.contains(classId)) {
             player.sendMessage("§cKhông tìm thấy lựa chọn race/class hợp lệ.");
             return;
         }
@@ -314,8 +335,8 @@ public final class CharacterSelectionManager implements Listener {
         if (!isCreationAvailable(player)) return;
         RaceDefinition race = races.get(raceId);
         ClassDefinition selectedClass = findClass(raceId, classId);
-        if (race == null || selectedClass == null) {
-            player.sendMessage("§cBạn chưa chọn đầy đủ chủng tộc và class hợp lệ.");
+        if (race == null || selectedClass == null || !playableClassIds.contains(classId)) {
+            player.sendMessage("§cClass này chưa khả dụng để tạo nhân vật.");
             return;
         }
         if (plugin.getPlayerProfileDatabaseManager() == null) {
