@@ -520,6 +520,10 @@ public final class BossLeaderboardManager implements Listener {
         for (Player player : Bukkit.getOnlinePlayers()) refreshBoard(player);
     }
 
+    public void refreshPlayerBoard(Player player) {
+        refreshBoard(player);
+    }
+
     private void refreshBoard(Player player) {
         if (!scoreboardEnabled) {
             restorePreviousBoard(player);
@@ -546,7 +550,7 @@ public final class BossLeaderboardManager implements Listener {
             lines.add("§e§lSát thương boss");
             List<Map.Entry<UUID, Double>> ranking = bossDamage.entrySet().stream()
                 .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
-                .limit(MAX_DAMAGE_DISPLAY).toList();
+                .limit(Math.min(MAX_DAMAGE_DISPLAY, maxRankingLines(player))).toList();
             if (ranking.isEmpty()) lines.add("§7Chưa có sát thương");
             else {
                 for (int index = 0; index < ranking.size(); index++) {
@@ -560,19 +564,33 @@ public final class BossLeaderboardManager implements Listener {
             List<Map.Entry<UUID, Double>> ranking = orderedScores();
             if (ranking.isEmpty()) lines.add("§7Chưa có điểm");
             else {
-                for (int index = 0; index < Math.min(MAX_RANKED_PLAYERS, ranking.size()); index++) {
+                for (int index = 0; index < Math.min(maxRankingLines(player), ranking.size()); index++) {
                     Map.Entry<UUID, Double> entry = ranking.get(index);
                     lines.add("§f" + (index + 1) + ". " + shortName(nameOf(entry.getKey())) +
                         " §6" + format(entry.getValue()));
                 }
             }
         }
+        TutorialQuestManager quests = plugin.getTutorialQuestManager();
+        if (quests != null) lines.addAll(quests.getQuestSidebarLines(player));
+        QuestCatalogManager questCatalog = plugin.getQuestCatalogManager();
+        if (questCatalog != null) lines.addAll(questCatalog.getQuestSidebarLines(player));
         lines.add("§8Ngày " + currentGameDay() + " • /reward");
         for (int index = 0; index < lines.size(); index++) {
             String entry = uniqueLine(lines.get(index), index);
             objective.getScore(entry).setScore(lines.size() - index);
         }
         player.setScoreboard(board);
+    }
+
+    private int maxRankingLines(Player player) {
+        int questLines = 0;
+        TutorialQuestManager tutorial = plugin.getTutorialQuestManager();
+        if (tutorial != null) questLines += tutorial.getQuestSidebarLines(player).size();
+        QuestCatalogManager catalog = plugin.getQuestCatalogManager();
+        if (catalog != null) questLines += catalog.getQuestSidebarLines(player).size();
+        // Reserve a header, quest lines, the date footer, and one status/ranking line.
+        return Math.max(1, 15 - 3 - questLines);
     }
 
     private String uniqueLine(String line, int index) {

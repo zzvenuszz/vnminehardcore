@@ -33,6 +33,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private CharacterSelectionManager characterSelectionManager;
     private RpgWorldManager rpgWorldManager;
     private TutorialQuestManager tutorialQuestManager;
+    private QuestCatalogManager questCatalogManager;
     private Map<String, NpcDefinitionLoader.NpcDefinition> npcDefinitions = Map.of();
     private NpcManager npcManager;
     private SkillManager skillManager;
@@ -122,6 +123,13 @@ public final class VnMineHardcore extends JavaPlugin {
         this.rpgWorldManager = new RpgWorldManager(this);
         this.tutorialQuestManager = new TutorialQuestManager(this);
         try {
+            this.questCatalogManager = new QuestCatalogManager(this);
+        } catch (java.io.IOException exception) {
+            getLogger().log(Level.SEVERE, "Failed to initialize quest catalog.", exception);
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+        try {
             java.io.File npcDirectory = new java.io.File(getDataFolder(), "npcs");
             if (!npcDirectory.isDirectory() && !npcDirectory.mkdirs()) {
                 throw new java.io.IOException("Could not create NPC data directory.");
@@ -171,6 +179,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(characterSelectionManager, this);
         Bukkit.getPluginManager().registerEvents(rpgWorldManager, this);
         Bukkit.getPluginManager().registerEvents(tutorialQuestManager, this);
+        Bukkit.getPluginManager().registerEvents(questCatalogManager, this);
         Bukkit.getPluginManager().registerEvents(skillManager, this);
         Bukkit.getPluginManager().registerEvents(economyManager, this);
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
@@ -218,6 +227,7 @@ public final class VnMineHardcore extends JavaPlugin {
         registerCommand("vnskills", skillManager, skillManager);
         registerCommand("vnskillbook", skillManager, skillManager);
         registerCommand("vnnpc", npcManager, npcManager);
+        registerCommand("vnquest", questCatalogManager, questCatalogManager);
         registerCommand("vngroup", permissionManager, permissionManager);
         registerCommand("vnuser", permissionManager, permissionManager);
         registerCommand("vnarmy", mercenaryManager, mercenaryManager);
@@ -1186,6 +1196,8 @@ public final class VnMineHardcore extends JavaPlugin {
     public CharacterSelectionManager getCharacterSelectionManager() { return characterSelectionManager; }
     public RpgWorldManager getRpgWorldManager() { return rpgWorldManager; }
     public TutorialQuestManager getTutorialQuestManager() { return tutorialQuestManager; }
+
+    public QuestCatalogManager getQuestCatalogManager() { return questCatalogManager; }
     public LogManager getLogManager() { return logManager; }
     public ThirstManager getThirstManager() { return thirstManager; }
     public DisasterManager getDisasterManager() { return disasterManager; }

@@ -29,13 +29,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class PlayerProfileDatabaseManager {
-    public static final int SCHEMA_VERSION = 9;
+    public static final int SCHEMA_VERSION = 10;
     public static final long MAX_WALLET_BALANCE = 2_147_483_647L;
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
         .withZone(ZoneOffset.UTC);
@@ -400,6 +402,10 @@ public class PlayerProfileDatabaseManager {
                     } else if (version == 8) {
                         migrateV8ToV9(connection);
                         version = 9;
+                        setSchemaVersion(connection, version);
+                    } else if (version == 9) {
+                        migrateV9ToV10(connection);
+                        version = 10;
                         setSchemaVersion(connection, version);
                     } else {
                         throw new SQLException("No player profile database migration exists from version "
@@ -936,6 +942,138 @@ public class PlayerProfileDatabaseManager {
         });
     }
 
+    public boolean setQuestTracked(String uuid, String questId) throws SQLException {
+        if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank()) {
+            throw new IllegalArgumentException("Quest tracking identifiers are required.");
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement check = connection.prepareStatement(
+                    "SELECT 1 FROM player_quest_progress WHERE uuid = ? AND quest_id = ? AND status = 'active'")) {
+                check.setString(1, uuid);
+                check.setString(2, questId);
+                try (ResultSet resultSet = check.executeQuery()) {
+                    if (!resultSet.next()) return false;
+                }
+            }
+            try (PreparedStatement clear = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET tracked = 0 WHERE uuid = ?")) {
+                clear.setString(1, uuid);
+                clear.executeUpdate();
+            }
+            try (PreparedStatement track = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET tracked = 1 WHERE uuid = ? AND quest_id = ? " +
+                    "AND status = 'active'")) {
+                track.setString(1, uuid);
+                track.setString(2, questId);
+                return track.executeUpdate() == 1;
+            }
+        });
+    }
+
+    public Optional<String> getTrackedQuestId(String uuid) throws SQLException {
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT quest_id FROM player_quest_progress WHERE uuid = ? AND status = 'active' " +
+                 "AND tracked = 1 LIMIT 1")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? Optional.ofNullable(resultSet.getString("quest_id")) : Optional.empty();
+            }
+        }
+    }
+
+    public QuestObjectiveProgressResult incrementQuestObjectiveProgress(
+            String uuid, String questId, String expectedStep, int increment, int target, String updatedAt)
+            throws SQLException {
+        if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank()
+                || expectedStep == null || expectedStep.isBlank()
+                || increment < 1 || increment > 1000 || target < 1 || target > 100_000
+                || updatedAt == null || updatedAt.isBlank()) {
+            throw new IllegalArgumentException("Quest objective progress fields are invalid.");
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement update = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET objective_progress = MIN(objective_progress + ?, ?), " +
+                    "started_at = COALESCE(started_at, ?) " +
+                    "WHERE uuid = ? AND quest_id = ? AND status = 'active' AND current_step = ?")) {
+                update.setInt(1, increment);
+                update.setInt(2, target);
+                update.setString(3, updatedAt);
+                update.setString(4, uuid);
+                update.setString(5, questId);
+                update.setString(6, expectedStep);
+                if (update.executeUpdate() != 1) {
+                    return new QuestObjectiveProgressResult(false, null, 0, false);
+                }
+            }
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT current_step, objective_progress, tracked FROM player_quest_progress " +
+                    "WHERE uuid = ? AND quest_id = ? AND status = 'active'")) {
+                select.setString(1, uuid);
+                select.setString(2, questId);
+                try (ResultSet resultSet = select.executeQuery()) {
+                    if (!resultSet.next()) return new QuestObjectiveProgressResult(false, null, 0, false);
+                    return new QuestObjectiveProgressResult(true, resultSet.getString("current_step"),
+                        resultSet.getInt("objective_progress"), resultSet.getInt("tracked") == 1);
+                }
+            }
+        });
+    }
+
+    public Map<String, QuestProgress> getActiveQuestProgress(String uuid) throws SQLException {
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT quest_id, status, current_step, started_at, completed_at, reward_claimed, " +
+                 "objective_progress, tracked FROM player_quest_progress WHERE uuid = ? AND status = 'active' " +
+                 "ORDER BY started_at, quest_id")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                Map<String, QuestProgress> progress = new LinkedHashMap<>();
+                while (resultSet.next()) {
+                    progress.put(resultSet.getString("quest_id"), new QuestProgress(
+                        resultSet.getString("status"), resultSet.getString("current_step"),
+                        resultSet.getString("started_at"), resultSet.getString("completed_at"),
+                        resultSet.getInt("reward_claimed") == 1,
+                        resultSet.getInt("objective_progress"), resultSet.getInt("tracked") == 1));
+                }
+                return Map.copyOf(progress);
+            }
+        }
+    }
+
+    public boolean advanceQuestObjective(String uuid, String questId, String expectedStep,
+            String nextStep, String updatedAt) throws SQLException {
+        if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank()
+                || expectedStep == null || expectedStep.isBlank() || nextStep == null || nextStep.isBlank()
+                || updatedAt == null || updatedAt.isBlank()) {
+            throw new IllegalArgumentException("Quest objective step fields are invalid.");
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET current_step = ?, objective_progress = 0 " +
+                    "WHERE uuid = ? AND quest_id = ? AND status = 'active' AND current_step = ?")) {
+                statement.setString(1, nextStep);
+                statement.setString(2, uuid);
+                statement.setString(3, questId);
+                statement.setString(4, expectedStep);
+                return statement.executeUpdate() == 1;
+            }
+        });
+    }
+
+    public Set<String> getCompletedQuestIds(String uuid) throws SQLException {
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT quest_id FROM player_quest_progress WHERE uuid = ? AND status = 'completed'")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                Set<String> completed = new LinkedHashSet<>();
+                while (resultSet.next()) completed.add(resultSet.getString("quest_id"));
+                return Set.copyOf(completed);
+            }
+        }
+    }
+
     public boolean updateQuestStep(String uuid, String questId, String currentStep) throws SQLException {
         String sql = "UPDATE player_quest_progress SET current_step = ? " +
             "WHERE uuid = ? AND quest_id = ? AND status = 'active'";
@@ -951,7 +1089,8 @@ public class PlayerProfileDatabaseManager {
 
     public boolean completeQuest(String uuid, String questId, String currentStep, String completedAt)
         throws SQLException {
-        String sql = "UPDATE player_quest_progress SET status = 'completed', current_step = ?, completed_at = ? " +
+        String sql = "UPDATE player_quest_progress SET status = 'completed', current_step = ?, " +
+            "completed_at = ?, tracked = 0 " +
             "WHERE uuid = ? AND quest_id = ? AND status = 'active'";
         return executeWriteTransaction(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -969,7 +1108,7 @@ public class PlayerProfileDatabaseManager {
             throws SQLException {
         validateExperienceReward(experienceReward);
         String sql = "UPDATE player_quest_progress SET status = 'completed', current_step = ?, " +
-            "completed_at = ?, reward_claimed = 1 " +
+            "completed_at = ?, reward_claimed = 1, tracked = 0 " +
             "WHERE uuid = ? AND quest_id = ? AND status = 'active' AND reward_claimed = 0";
         return executeWriteTransaction(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1006,7 +1145,7 @@ public class PlayerProfileDatabaseManager {
         return executeWriteTransaction(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
                     "UPDATE player_quest_progress SET status = 'completed', current_step = ?, " +
-                    "completed_at = ?, reward_claimed = 1 " +
+                    "completed_at = ?, reward_claimed = 1, tracked = 0 " +
                     "WHERE uuid = ? AND quest_id = ? AND status = 'active' AND reward_claimed = 0")) {
                 statement.setString(1, currentStep);
                 statement.setString(2, completedAt);
@@ -1015,6 +1154,49 @@ public class PlayerProfileDatabaseManager {
                 if (statement.executeUpdate() != 1) return false;
             }
             applyQuestWalletReward(connection, uuid, questId, coinReward, completedAt);
+            return true;
+        });
+    }
+
+    public boolean completeQuestAndAwardRewards(String uuid, String questId, String currentStep,
+            int experienceReward, long coinReward, List<byte[]> itemRewards, String completedAt)
+            throws SQLException {
+        if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank() || questId.length() > 64
+                || experienceReward < 0 || experienceReward > 100_000 || coinReward < 0
+                || coinReward > MAX_WALLET_BALANCE || itemRewards == null || itemRewards.size() > 45
+                || completedAt == null || completedAt.isBlank()) {
+            throw new IllegalArgumentException("Quest reward fields are invalid or outside supported bounds.");
+        }
+        for (byte[] itemData : itemRewards) {
+            if (itemData == null || itemData.length == 0 || itemData.length > 1_048_576) {
+                throw new IllegalArgumentException("Quest reward item is missing or larger than 1 MiB.");
+            }
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET status = 'completed', current_step = ?, " +
+                    "completed_at = ?, reward_claimed = 1, tracked = 0 " +
+                    "WHERE uuid = ? AND quest_id = ? AND status = 'active' AND reward_claimed = 0")) {
+                statement.setString(1, currentStep);
+                statement.setString(2, completedAt);
+                statement.setString(3, uuid);
+                statement.setString(4, questId);
+                if (statement.executeUpdate() != 1) return false;
+            }
+            if (experienceReward > 0) awardProfileExperience(connection, uuid, experienceReward, completedAt);
+            if (coinReward > 0) applyQuestWalletReward(connection, uuid, questId, coinReward, completedAt);
+            for (int index = 0; index < itemRewards.size(); index++) {
+                String transactionId = "quest-item:" + uuid + ":" + questId + ":" + index;
+                try (PreparedStatement delivery = connection.prepareStatement(
+                        "INSERT INTO player_merchant_deliveries(transaction_id, uuid, item_data, created_at) " +
+                        "VALUES (?, ?, ?, ?)")) {
+                    delivery.setString(1, transactionId);
+                    delivery.setString(2, uuid);
+                    delivery.setBytes(3, itemRewards.get(index));
+                    delivery.setString(4, completedAt);
+                    delivery.executeUpdate();
+                }
+            }
             return true;
         });
     }
@@ -1103,7 +1285,8 @@ public class PlayerProfileDatabaseManager {
     public Optional<QuestProgress> getQuestProgress(String uuid, String questId) throws SQLException {
         try (Connection connection = openConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT status, current_step, started_at, completed_at, reward_claimed " +
+                 "SELECT status, current_step, started_at, completed_at, reward_claimed, " +
+                     "objective_progress, tracked " +
                      "FROM player_quest_progress WHERE uuid = ? AND quest_id = ?")) {
             statement.setString(1, uuid);
             statement.setString(2, questId);
@@ -1116,7 +1299,9 @@ public class PlayerProfileDatabaseManager {
                     resultSet.getString("current_step"),
                     resultSet.getString("started_at"),
                     resultSet.getString("completed_at"),
-                    resultSet.getInt("reward_claimed") == 1
+                    resultSet.getInt("reward_claimed") == 1,
+                    resultSet.getInt("objective_progress"),
+                    resultSet.getInt("tracked") == 1
                 ));
             }
         }
@@ -1156,7 +1341,14 @@ public class PlayerProfileDatabaseManager {
     }
 
     public record QuestProgress(String status, String currentStep, String startedAt, String completedAt,
-                                boolean rewardClaimed) {
+                                boolean rewardClaimed, int objectiveProgress, boolean tracked) {
+        public QuestProgress(String status, String currentStep, String startedAt, String completedAt,
+                             boolean rewardClaimed) {
+            this(status, currentStep, startedAt, completedAt, rewardClaimed, 0, false);
+        }
+    }
+
+    public record QuestObjectiveProgressResult(boolean active, String currentStep, int progress, boolean tracked) {
     }
 
     public enum SkillLearnResult {
@@ -1330,6 +1522,8 @@ public class PlayerProfileDatabaseManager {
             statement.execute("CREATE TABLE IF NOT EXISTS player_quest_progress (" +
                 "uuid TEXT NOT NULL, quest_id TEXT NOT NULL, status TEXT NOT NULL, current_step TEXT, " +
                 "started_at TEXT, completed_at TEXT, reward_claimed INTEGER NOT NULL DEFAULT 0, " +
+                "objective_progress INTEGER NOT NULL DEFAULT 0 CHECK (objective_progress >= 0), " +
+                "tracked INTEGER NOT NULL DEFAULT 0 CHECK (tracked IN (0, 1)), " +
                 "PRIMARY KEY (uuid, quest_id), " +
                 "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
             statement.execute("CREATE TABLE IF NOT EXISTS player_world_progress (" +
@@ -1412,6 +1606,19 @@ public class PlayerProfileDatabaseManager {
     private void migrateV8ToV9(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             createDailyQuestRunTables(statement);
+        }
+    }
+
+    private void migrateV9ToV10(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            if (!columnExists(connection, "player_quest_progress", "objective_progress")) {
+                statement.execute("ALTER TABLE player_quest_progress ADD COLUMN " +
+                    "objective_progress INTEGER NOT NULL DEFAULT 0 CHECK (objective_progress >= 0)");
+            }
+            if (!columnExists(connection, "player_quest_progress", "tracked")) {
+                statement.execute("ALTER TABLE player_quest_progress ADD COLUMN " +
+                    "tracked INTEGER NOT NULL DEFAULT 0 CHECK (tracked IN (0, 1))");
+            }
         }
     }
 

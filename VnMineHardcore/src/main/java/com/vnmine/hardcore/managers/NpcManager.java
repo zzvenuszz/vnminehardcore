@@ -203,6 +203,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             case "open-story" -> plugin.getMercenaryManager().openStoryJournal(player);
             case "open-merchant" -> plugin.getEconomyManager().openMerchantMenu(player);
             case "give-skill-book" -> plugin.getSkillManager().giveSkillBookFromNpc(player, action.bookId());
+            case "accept-quest" -> plugin.getQuestCatalogManager().acceptQuest(player, holder.npcId, action.questId());
             default -> plugin.getLogger().warning("[NPC] Unsupported runtime action '" + action.type() + "'.");
         }
     }
@@ -478,7 +479,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     }
 
     private void openDialogue(Player player, NpcRecord npc, NpcDefinitionLoader.NpcDefinition definition) {
-        DialogueHolder holder = new DialogueHolder(player.getUniqueId());
+        DialogueHolder holder = new DialogueHolder(player.getUniqueId(), npc.id());
         Inventory inventory = Bukkit.createInventory(holder, 54, dialogueTitle(npc.displayName()));
         holder.inventory = inventory;
 
@@ -500,12 +501,20 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 Material.PAPER, "§eLời thoại " + (index + 1),
                 List.of(formatDisplayName(line), "§8" + (index + 1) + "/" + definition.dialogue().size())));
         }
-        int[] actionSlots = {39, 41, 43, 45};
-        for (int index = 0; index < definition.actions().size(); index++) {
-            NpcDefinitionLoader.NpcAction action = definition.actions().get(index);
+        List<NpcDefinitionLoader.NpcAction> dialogueActions = new ArrayList<>(definition.actions());
+        java.util.Set<String> configuredQuestIds = definition.actions().stream()
+            .map(NpcDefinitionLoader.NpcAction::questId).filter(java.util.Objects::nonNull)
+            .collect(java.util.stream.Collectors.toSet());
+        for (NpcDefinitionLoader.NpcAction action : plugin.getQuestCatalogManager().getNpcQuestActions(player, npc.id())) {
+            if (!configuredQuestIds.contains(action.questId())) dialogueActions.add(action);
+        }
+        int[] actionSlots = {37, 38, 39, 40, 41, 42, 43, 44, 45};
+        for (int index = 0; index < Math.min(actionSlots.length, dialogueActions.size()); index++) {
+            NpcDefinitionLoader.NpcAction action = dialogueActions.get(index);
             int slot = actionSlots[index];
             Material material = switch (action.type()) {
                 case "give-skill-book" -> Material.ENCHANTED_BOOK;
+                case "accept-quest" -> Material.FILLED_MAP;
                 case "open-skill-tree" -> Material.IRON_SWORD;
                 case "open-merchant" -> Material.EMERALD;
                 default -> Material.WRITABLE_BOOK;
@@ -1097,11 +1106,13 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
 
     private static final class DialogueHolder implements InventoryHolder {
         private final UUID viewer;
+        private final String npcId;
         private final Map<Integer, NpcDefinitionLoader.NpcAction> actions = new LinkedHashMap<>();
         private Inventory inventory;
 
-        private DialogueHolder(UUID viewer) {
+        private DialogueHolder(UUID viewer, String npcId) {
             this.viewer = viewer;
+            this.npcId = npcId;
         }
 
         @Override

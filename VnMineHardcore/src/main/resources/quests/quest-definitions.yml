@@ -1,0 +1,104 @@
+# [VI] Phiên bản schema nhiệm vụ; giá trị mặc định 1, chỉ hỗ trợ phiên bản 1.
+# [EN] Quest schema version; default 1, only version 1 is supported.
+schema-version: 1
+
+quests:
+  hunter-zombie-patrol:
+    # [VI] ID NPC nhận nhiệm vụ; phải trùng ID tạo bằng /vnnpc create.
+    # [EN] Quest giver NPC ID; must match the ID created with /vnnpc create.
+    giver-npc-id: hunter
+    # [VI] Tiêu đề nhiệm vụ; bắt buộc, tối đa 64 ký tự.
+    # [EN] Quest title; required, maximum 64 characters.
+    title: "Tuần tra bìa rừng"
+    objective:
+      # [VI] Loại mục tiêu hiện được hỗ trợ: kill-mob.
+      # [EN] Currently supported objective type: kill-mob.
+      type: kill-mob
+      # [VI] Bukkit EntityType cần hạ; ví dụ ZOMBIE, SKELETON, SPIDER.
+      # [EN] Bukkit EntityType to kill; for example ZOMBIE, SKELETON, SPIDER.
+      entity: ZOMBIE
+      # [VI] Số lượng mục tiêu; hợp lệ 1-100000.
+      # [EN] Objective count; valid range 1-100000.
+      amount: 8
+    reward:
+      # [VI] VNCOIN thưởng một lần; hợp lệ 1-1000000.
+      # [EN] One-time VNCOIN reward; valid range 1-1000000.
+      vncoin: 25
+
+  hunter-skeleton-watch:
+    # [VI] ID NPC nhận nhiệm vụ; phải trùng ID tạo bằng /vnnpc create.
+    # [EN] Quest giver NPC ID; must match the ID created with /vnnpc create.
+    giver-npc-id: hunter
+    # [VI] Tiêu đề nhiệm vụ; bắt buộc, tối đa 64 ký tự.
+    # [EN] Quest title; required, maximum 64 characters.
+    title: "Dẹp ổ cung thủ"
+    objective:
+      # [VI] Loại mục tiêu được hỗ trợ: kill-mob.
+      # [EN] Supported objective type: kill-mob.
+      type: kill-mob
+      # [VI] Bukkit EntityType cần hạ.
+      # [EN] Bukkit EntityType to kill.
+      entity: SKELETON
+      # [VI] Số lượng mục tiêu; hợp lệ 1-100000.
+      # [EN] Objective count; valid range 1-100000.
+      amount: 5
+    reward:
+      # [VI] VNCOIN thưởng một lần; hợp lệ 1-1000000.
+      # [EN] One-time VNCOIN reward; valid range 1-1000000.
+      vncoin: 30
+
+  village-watch-spiders:
+    # [VI] ID NPC nhận nhiệm vụ; phải trùng ID tạo bằng /vnnpc create.
+    # [EN] Quest giver NPC ID; must match the ID created with /vnnpc create.
+    giver-npc-id: village-watch
+    # [VI] Tiêu đề nhiệm vụ; bắt buộc, tối đa 64 ký tự.
+    # [EN] Quest title; required, maximum 64 characters.
+    title: "Mạng nhện quanh làng"
+    objective:
+      # [VI] Loại mục tiêu được hỗ trợ: kill-mob.
+      # [EN] Supported objective type: kill-mob.
+      type: kill-mob
+      # [VI] Bukkit EntityType cần hạ.
+      # [EN] Bukkit EntityType to kill.
+      entity: SPIDER
+      # [VI] Số lượng mục tiêu; hợp lệ 1-100000.
+      # [EN] Objective count; valid range 1-100000.
+      amount: 6
+    reward:
+      # [VI] VNCOIN thưởng một lần; hợp lệ 1-1000000.
+      # [EN] One-time VNCOIN reward; valid range 1-1000000.
+      vncoin: 20
+
+  blacksmith-iron-shards:
+    # [VI] ID NPC nhận nhiệm vụ; phải trùng ID tạo bằng /vnnpc create.
+    # [EN] Quest giver NPC ID; must match the ID created with /vnnpc create.
+    giver-npc-id: blacksmith
+    # [VI] Tiêu đề nhiệm vụ; bắt buộc, tối đa 64 ký tự.
+    # [EN] Quest title; required, maximum 64 characters.
+    title: "Mảnh sắt cổ đại"
+    objective:
+      # [VI] Thu thập item có PDC RPG do plugin tạo, không tính vật phẩm thường cùng Material.
+      # [EN] Collect a plugin-created RPG PDC item; ordinary items of the same Material do not count.
+      type: collect-rpg-item
+      # [VI] EntityType tạo nguyên liệu khi chết; chỉ rơi khi có người chơi đang làm nhiệm vụ.
+      # [EN] EntityType that can drop the material on death; only drops while a player has this quest active.
+      entity: IRON_GOLEM
+      # [VI] Số lượng vật phẩm cần nhặt; hợp lệ 1-100000.
+      # [EN] Number of items to pick up; valid range 1-100000.
+      amount: 3
+      # [VI] ID PDC duy nhất của nguyên liệu RPG; chữ thường, số và dấu gạch nối.
+      # [EN] Unique PDC ID for the RPG material; lowercase letters, numbers, and hyphens.
+      item-id: ancient-iron-shard
+      # [VI] Material Minecraft hiển thị cho item nhiệm vụ.
+      # [EN] Minecraft Material used to display the quest item.
+      item-material: RAW_IRON
+      # [VI] Tên item rơi; tối đa 64 ký tự.
+      # [EN] Dropped item name; maximum 64 characters.
+      item-name: "Mảnh Sắt Cổ Đại"
+      # [VI] Tỉ lệ rơi mỗi lần quái phù hợp chết; hợp lệ 1-100 phần trăm.
+      # [EN] Drop chance per matching mob death; valid range 1-100 percent.
+      drop-chance-percent: 30
+    reward:
+      # [VI] VNCOIN thưởng một lần; hợp lệ 1-1000000.
+      # [EN] One-time VNCOIN reward; valid range 1-1000000.
+      vncoin: 45

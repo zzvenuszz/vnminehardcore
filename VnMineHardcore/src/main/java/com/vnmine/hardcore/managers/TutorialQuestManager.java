@@ -89,6 +89,17 @@ public final class TutorialQuestManager implements Listener {
         lastWaypointAtMillis.remove(playerId);
     }
 
+    public List<String> getQuestSidebarLines(Player player) {
+        if (definition == null || !definition.enabled()
+                || !activeQuestSessions.containsKey(player.getUniqueId())) return List.of();
+        return List.of("§d§lNHIỆM VỤ", "§fTới: Nhân giới", "§7Mục tiêu: Đi tới spawn");
+    }
+
+    private void refreshQuestSidebar(Player player) {
+        BossLeaderboardManager leaderboard = plugin.getBossLeaderboardManager();
+        if (leaderboard != null) leaderboard.refreshPlayerBoard(player);
+    }
+
     @EventHandler
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
@@ -174,6 +185,17 @@ public final class TutorialQuestManager implements Listener {
                 initializePlayer(player);
                 openJournal(player);
             }
+            case 17 -> {
+                if (holder.progress.isPresent()
+                        && "active".equals(holder.progress.get().status())) {
+                    player.getPersistentDataContainer().set(trackingEnabledKey,
+                        PersistentDataType.BYTE, (byte) 1);
+                    lastWaypointAtMillis.remove(player.getUniqueId());
+                    showWaypoint(player, player.getLocation(), true);
+                    player.sendMessage("§aĐã bật tracking tới mục tiêu nhiệm vụ.");
+                    openJournalInventory(player, true, holder.progress);
+                }
+            }
             case 22 -> {
                 if (plugin.getMercenaryManager() != null) {
                     plugin.getMercenaryManager().openMainMenu(player);
@@ -244,6 +266,7 @@ public final class TutorialQuestManager implements Listener {
             UUID playerId = player.getUniqueId();
             activeQuestSessions.remove(playerId);
             lastWaypointAtMillis.remove(playerId);
+            refreshQuestSidebar(player);
             return;
         }
         UUID playerId = player.getUniqueId();
@@ -251,6 +274,7 @@ public final class TutorialQuestManager implements Listener {
             + ", reminder=" + showReminder);
         activeQuestSessions.remove(playerId);
         lastWaypointAtMillis.remove(playerId);
+        refreshQuestSidebar(player);
         PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
         if (database == null) {
             plugin.getLogger().severe("[Quest] Cannot initialize tutorial progress because the profile database is unavailable.");
@@ -337,6 +361,7 @@ public final class TutorialQuestManager implements Listener {
 
             boolean alreadyAtTarget = isAtObjective(player.getLocation());
             activeQuestSessions.put(playerId, alreadyAtTarget);
+            refreshQuestSidebar(player);
             if (alreadyAtTarget) {
                 completeObjective(player);
             } else {
@@ -418,6 +443,11 @@ public final class TutorialQuestManager implements Listener {
                     : "§7Chỉ bật tracking khi có nhiệm vụ đang thực hiện.")));
             inventory.setItem(13, createJournalItem(Material.WRITABLE_BOOK, "§6" + definition.title(),
                 buildJournalLore(definition, progress)));
+            if (activeQuest) {
+                inventory.setItem(17, createJournalItem(Material.COMPASS, "§bĐiểm đến: Nhân giới",
+                    List.of("§7Mục tiêu: Đi tới spawn của Nhân giới.",
+                        "§eBấm để bật particle tracking tới điểm này.")));
+            }
             boolean rewardClaimed = progress.isPresent()
                 && "completed".equals(progress.get().status())
                 && progress.get().rewardClaimed();
@@ -563,6 +593,7 @@ public final class TutorialQuestManager implements Listener {
                     + ", rewardAmount=" + quest.reward().amount());
                 activeQuestSessions.remove(playerId);
                 lastWaypointAtMillis.remove(playerId);
+                refreshQuestSidebar(player);
                 CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
                 if (characters != null && result.updatedProfile() != null) {
                     characters.updateLoadedProfile(result.updatedProfile());

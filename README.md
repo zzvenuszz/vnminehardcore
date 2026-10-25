@@ -215,6 +215,7 @@ enabled: false  # in plugins/VnMineHardcore/disasters/chorus-explosion.yml
 | `/vnuser ...` | Inspect users, assign groups, manage personal permission grants | `vnmine.command.users.manage` |
 | `/vnarmy ...` | Hire/manage mercenaries; rename with `/vnarmy rename <ID> <Tên mới>` | `vnmine.command.army` |
 | `/vnnpc ...` | Create, rename, move, inspect, list, or remove RPG NPCs | `vnmine.command.npc.admin` |
+| `/vnquest admin` | Open the quest definition manager GUI | `vnmine.command.quest.admin` |
 | `/quatanthu` | Nhận túi quà tân thủ và chọn 1 token triệu hồi lính đánh thuê bậc 1 | — |
 
 ### `/vnevent` Usage
@@ -329,6 +330,7 @@ Operators and the console have all plugin permissions by default.
 | `vnmine.command.skillbook.admin` | Give configured RPG skill books via command or admin GUI (default: op) |
 | `vnmine.command.progression.admin` | Grant character RPG EXP/levels from the admin GUI (default: op) |
 | `vnmine.command.npc.admin` | Create, rename, move, inspect, list, and remove RPG NPCs (default: op) |
+| `vnmine.command.quest.admin` | Manage quest definitions through `/vnquest admin` (default: op) |
 | `vnmine.spawnprotection.bypass` | Let a non-operator place/break blocks inside protected regions |
 
 The old `vnmine.hardcore.admin` and `vnmine.hardcore.stats` nodes remain
@@ -585,7 +587,9 @@ While the objective is active, a shared ticker recalculates the path from the
 player's current location to the target. End Rod particles mark the path, while
 a bright green ring and vertical beam mark the destination. Open the quest
 journal from slot 20 in the main menu and click the tracking toggle in slot 11 to
-enable or disable tracking; that choice is saved on the player. Administrators
+enable or disable tracking; that choice is saved on the player. While the
+tutorial is active, the sidebar also shows its current objective. The compass in
+slot 17 shows a hover description and enables tracking when clicked. Administrators
 can use `waypoint-enabled` as a global switch, `tracking-enabled-by-default`
 (default `true`), `target-marker-enabled` (default `true`),
 `waypoint-update-interval-ticks` (default `10`, range `5-200`), and
@@ -625,12 +629,14 @@ player-facing setup are complete.
 
 NPC dialogue templates are defined in
 `plugins/VnMineHardcore/npcs/npc-definitions.yml` and validated at startup.
-The schema supports eight roles: `tutorial`, `quest-giver`, `trainer`,
-`merchant`, `system-merchant`, `story`, `gatekeeper`, and `healer`. Each definition has a stable
+The schema supports eleven roles: `tutorial`, `quest-giver`, `hunter`,
+`blacksmith`, `alchemist`, `trainer`, `merchant`, `system-merchant`, `story`,
+`gatekeeper`, and `healer`. Each definition has a stable
 lowercase ID, display name (up to 64 characters), and 1-20 dialogue lines
 (up to 256 characters each). Optional `actions` add up to four clickable GUI
 buttons: `open-quest-journal`, `open-skill-tree`, `open-story`, `open-merchant`,
-or `give-skill-book` with a configured `book-id`. For example:
+`give-skill-book` with a configured `book-id`, or `accept-quest` with a
+configured `quest-id`. For example:
 
 ```yaml
 actions:
@@ -648,8 +654,10 @@ plugin from starting so the invalid data is not silently ignored. Runtime NPCs
 are stored separately in `plugins/VnMineHardcore/npcs.yml`; their entity UUID,
 role, display name, world, and location are saved and reconciled as chunks load.
 
-The bundled file currently provides tutorial-guide, class-trainer, coin-merchant,
-and story-keeper dialogue templates. The story keeper opens the chapter list.
+The bundled file provides tutorial-guide, class-trainer, coin-merchant,
+story-keeper, hunter, village-watch, and blacksmith dialogue templates. The story keeper
+opens the chapter list. The hunter, village-watch, and blacksmith offer configured
+kill/collection quests; create runtime NPCs with matching IDs and roles to use them.
 Create a runtime NPC where you are standing:
 
 ```text
@@ -661,25 +669,70 @@ Create a runtime NPC where you are standing:
 /vnnpc remove <id>
 ```
 
-IDs use lowercase letters, numbers, and single hyphens. The eight supported
-types are `tutorial`, `quest-giver`, `trainer`, `merchant`, `system-merchant`,
-`story`, `gatekeeper`, and `healer`; omitted names use the matching template name or a
+IDs use lowercase letters, numbers, and single hyphens. The supported
+types are `tutorial`, `quest-giver`, `hunter`, `blacksmith`, `alchemist`, `trainer`,
+`merchant`, `system-merchant`, `story`, `gatekeeper`, and `healer`; omitted names use the matching template name or a
 title-cased role. Names are limited to 64 characters and support `&` color
 codes. Create and move require a player location; other commands may be run
 from console. Runtime NPCs are stationary, silent, invulnerable vanilla
 villagers and are protected from the custom villager-trade system. Right-click
 opens a 54-slot dialogue GUI showing up to 20 configured lines and configured
 action buttons. Quest journal and skill tree buttons open their existing RPG
-interfaces; a skill-book button grants the configured book for learning.
+interfaces; a skill-book button grants the configured book for learning. An
+`accept-quest` action accepts a quest only from its configured giver NPC ID.
+Quest definitions live in `quests/quest-definitions.yml`; the initial objective
+type is `kill-mob`, progress persists in SQLite, and VNCOIN rewards are paid
+once on completion. Create the sample quest NPCs at your chosen locations:
+
+```text
+/vnnpc create hunter hunter Thợ săn
+/vnnpc create village-watch quest-giver Đội trưởng tuần tra
+/vnnpc create blacksmith blacksmith Thợ rèn
+```
+
+Current sample quests ask players to kill zombies, skeletons, or spiders, or
+collect special iron shards dropped by iron golems while a player has the
+blacksmith quest active. Quest materials carry a plugin PDC ID; ordinary raw
+iron does not count. The scoreboard shows the selected active quest and
+progress. System-boss objectives, quest-list/reward-preview GUI, particle
+tracking to arbitrary quest NPCs, and repeatable daily quests are still planned.
 Dialogue lookup first tries a definition
 whose ID matches the runtime NPC ID and role, then uses the first definition of
 the same role. Add role-specific definition entries to provide distinct
 dialogue. NPC roles without a matching definition show a setup message instead
 of silently using unrelated dialogue.
 `rpg.npc.max-runtime-npcs` sets the runtime limit (default `100`, range `1-100`).
-The command requires `vnmine.command.npc.admin` (default: operators). Admin GUI,
-quest acceptance/reward actions, waypoint particles, and custom skins remain
-future work.
+The command requires `vnmine.command.npc.admin` (default: operators). An NPC
+dialogue editor, objective-specific reward actions, waypoint particles, and
+custom skins remain future work.
+
+### Quest administration
+
+`/vnquest admin` opens a paginated list of configured quests. Admins can create
+a quest by entering a unique lowercase ID in chat, edit its display title and
+NPC giver ID, enable or disable it, and delete it after a confirmation screen.
+Chat input is intercepted for the pending edit and the editor is reopened after
+the response. Enabled quests are added to the matching runtime NPC dialogue by
+giver ID; create the NPC with `/vnnpc create <id> <type> [name...]`.
+The editor also supports AND requirements for minimum RPG level, completion of
+another quest, and an exact held item (including RPG metadata). Requirements
+are checked both when listing an NPC's quests and when accepting one. The
+objective screen can edit the first kill-mob objective and add/remove up to 44
+sequential objectives for killing mobs or collecting an exact item selected by
+the admin. Exact item matching preserves the selected item's metadata/PDC,
+including RPG item data. Legacy `collect-rpg-item` objectives remain supported
+as the first step. Progress is stored per step in SQLite and advances only
+after its target count is reached. Objective changes/deletion are blocked while
+players have that quest active, preventing progress indexes from shifting. The reward editor accepts up to 45 item
+stacks and saves them to the quest definition; reward delivery uses the
+persistent delivery queue. EXP and VNCOIN rewards have +/-1, +/-10, and +/-100
+controls. Chat prompts accept `!cancel` and reopen the relevant editor.
+
+Quest definitions continue to be stored in `quests/quest-definitions.yml`.
+The current GUI does not yet configure objectives by typed Minecraft/RPG ID,
+item delivery/consumption, boss or NPC objectives, completed-quest objectives
+within a sequence, player quest journal/reward preview, or daily repeatable
+quest settings.
 
 Custom `merchant` NPCs can have an individual shop. Use `/vnnpc edit <id>` or
 Shift-right-click the NPC to open its editor. Shift-click a system-created RPG

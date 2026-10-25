@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v2.13.0] - 2026-10-25
+- Hiển thị mục tiêu tutorial đang theo dõi trong scoreboard và thêm nút compass có hover mô tả để bật tracking trực tiếp từ journal.
+- Thêm quest NPC săn zombie/skeleton/spider và thu thập nguyên liệu RPG có PDC, lưu tiến độ SQLite schema 10, trả VNCOIN một lần khi hoàn thành, log debug theo cờ console và hiện tiến độ quest đang chọn trên scoreboard.
+- Mở rộng `/vnquest admin`: quản lý danh sách, tên/NPC giao, bật/tắt/xóa, điều kiện nhận AND, mục tiêu hạ mob/thu thập item tuần tự, rương item thưởng và nút chỉnh EXP/VNCOIN; NPC chỉ hiện quest phù hợp với NPC và điều kiện người chơi.
+
 ## [v2.12.0] - 2026-10-25
 
 ### Added

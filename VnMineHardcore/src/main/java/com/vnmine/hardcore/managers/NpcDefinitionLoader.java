@@ -22,7 +22,8 @@ public final class NpcDefinitionLoader {
     private static final int MAX_DIALOGUE_LINES = 20;
     private static final int MAX_ACTIONS = 4;
     private static final Set<String> SUPPORTED_TYPES = Set.of(
-        "tutorial", "quest-giver", "trainer", "merchant", "system-merchant", "story", "gatekeeper", "healer");
+        "tutorial", "quest-giver", "hunter", "blacksmith", "alchemist", "trainer", "merchant",
+        "system-merchant", "story", "gatekeeper", "healer");
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
 
     private NpcDefinitionLoader() {
@@ -156,6 +157,7 @@ public final class NpcDefinitionLoader {
             Object rawType = action.get("type");
             Object rawLabel = action.get("label");
             Object rawBookId = action.get("book-id");
+            Object rawQuestId = action.get("quest-id");
             if (!(rawType instanceof String type)
                     || !(rawLabel instanceof String label)
                     || label.isBlank() || label.length() > 32) {
@@ -164,6 +166,7 @@ public final class NpcDefinitionLoader {
                 return null;
             }
             String bookId = null;
+            String questId = null;
             if (type.equals("give-skill-book")) {
                 if (!(rawBookId instanceof String configuredBookId)
                         || !ID_PATTERN.matcher(configuredBookId).matches()) {
@@ -172,18 +175,29 @@ public final class NpcDefinitionLoader {
                     return null;
                 }
                 bookId = configuredBookId;
+            } else if (type.equals("accept-quest")) {
+                if (!(rawQuestId instanceof String configuredQuestId)
+                        || !ID_PATTERN.matcher(configuredQuestId).matches()) {
+                    logger.warning("[NPC] accept-quest action " + (index + 1) + " at " + path
+                        + " requires a valid quest-id.");
+                    return null;
+                }
+                questId = configuredQuestId;
             } else if (!type.equals("open-skill-tree") && !type.equals("open-quest-journal")
                     && !type.equals("open-story")
                     && !type.equals("open-merchant")) {
                 logger.warning("[NPC] Unsupported action type '" + type + "' at " + path + ".");
                 return null;
             }
-            parsedActions.add(new NpcAction(type, label.trim(), bookId));
+            parsedActions.add(new NpcAction(type, label.trim(), bookId, questId));
         }
         return List.copyOf(parsedActions);
     }
 
-    public record NpcAction(String type, String label, String bookId) {
+    public record NpcAction(String type, String label, String bookId, String questId) {
+        public NpcAction(String type, String label, String bookId) {
+            this(type, label, bookId, null);
+        }
     }
 
     public record NpcDefinition(String id, String type, String displayName, List<String> dialogue,

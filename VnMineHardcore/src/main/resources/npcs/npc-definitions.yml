@@ -3,9 +3,42 @@
 schema-version: 1
 
 npc-definitions:
+  hunter:
+    # [VI] Vai trò NPC; hunter là người giao nhiệm vụ săn quái.
+    # [EN] NPC role; hunter gives monster-hunting quests.
+    type: hunter
+    # [VI] Tên hiển thị NPC; tối đa 64 ký tự.
+    # [EN] NPC display name; maximum 64 characters.
+    display-name: "Thợ săn"
+    # [VI] Đối thoại gồm 1-20 dòng, mỗi dòng tối đa 256 ký tự.
+    # [EN] Dialogue contains 1-20 lines, each at most 256 characters.
+    dialogue:
+      - "Quái vật đang áp sát khu định cư. Hãy giúp ta dọn đường."
+  village-watch:
+    # [VI] Vai trò NPC; quest-giver giao nhiệm vụ chung.
+    # [EN] NPC role; quest-giver gives general quests.
+    type: quest-giver
+    # [VI] Tên hiển thị NPC; tối đa 64 ký tự.
+    # [EN] NPC display name; maximum 64 characters.
+    display-name: "Đội trưởng tuần tra"
+    # [VI] Đối thoại gồm 1-20 dòng.
+    # [EN] Dialogue contains 1-20 lines.
+    dialogue:
+      - "Đám nhện giăng tơ quanh lối vào làng. Hãy xử lý chúng."
+  blacksmith:
+    # [VI] Vai trò NPC; blacksmith giao nhiệm vụ thu thập vật liệu RPG.
+    # [EN] NPC role; blacksmith gives RPG material collection quests.
+    type: blacksmith
+    # [VI] Tên hiển thị NPC; tối đa 64 ký tự.
+    # [EN] NPC display name; maximum 64 characters.
+    display-name: "Thợ rèn"
+    # [VI] Đối thoại gồm 1-20 dòng.
+    # [EN] Dialogue contains 1-20 lines.
+    dialogue:
+      - "Ta cần mảnh sắt cổ đại từ những golem lang thang. Hãy mang chúng về đây."
   tutorial-guide:
-    # [VI] Loại NPC; một trong tutorial, quest-giver, trainer, merchant, system-merchant, story, gatekeeper, healer.
-    # [EN] NPC role; one of tutorial, quest-giver, trainer, merchant, system-merchant, story, gatekeeper, healer.
+    # [VI] Loại NPC; một trong tutorial, quest-giver, hunter, blacksmith, alchemist, trainer, merchant, system-merchant, story, gatekeeper, healer.
+    # [EN] NPC role; one of tutorial, quest-giver, hunter, blacksmith, alchemist, trainer, merchant, system-merchant, story, gatekeeper, healer.
     type: tutorial
     # [VI] Tên hiển thị; bắt buộc, không rỗng, tối đa 64 ký tự.
     # [EN] Display name; required, non-empty, maximum 64 characters.
@@ -18,8 +51,8 @@ npc-definitions:
     # [VI] Các nút GUI tùy chọn; mặc định không có, tối đa 4 hành động thuộc danh sách hỗ trợ.
     # [EN] Optional GUI buttons; defaults to none, maximum 4 supported actions.
     actions:
-      # [VI] Loại hành động: open-quest-journal, open-skill-tree, open-merchant hoặc give-skill-book.
-      # [EN] Action type: open-quest-journal, open-skill-tree, open-merchant, or give-skill-book.
+      # [VI] Hành động: open-quest-journal, open-skill-tree, open-story, open-merchant, give-skill-book hoặc accept-quest.
+      # [EN] Action: open-quest-journal, open-skill-tree, open-story, open-merchant, give-skill-book, or accept-quest.
       - type: open-quest-journal
         # [VI] Nhãn nút; bắt buộc, từ 1 đến 32 ký tự.
         # [EN] Button label; required, 1-32 characters.

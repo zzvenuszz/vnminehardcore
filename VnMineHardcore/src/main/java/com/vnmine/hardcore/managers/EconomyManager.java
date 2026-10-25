@@ -899,7 +899,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             }));
     }
 
-    private void reconcileMerchantDeliveries(Player player) {
+    public void reconcileMerchantDeliveries(Player player) {
         UUID playerId = player.getUniqueId();
         if (!reconcilingMerchantDeliveries.add(playerId)) return;
         Set<String> taggedDeliveries = lockExistingMerchantDeliveryItems(player);
