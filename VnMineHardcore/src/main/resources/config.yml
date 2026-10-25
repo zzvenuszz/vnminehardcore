@@ -963,6 +963,10 @@ rename:
 # [EN] VNCOIN wallet and basic-mob rewards.
 economy:
   enabled: true
+  inflation:
+    # [VI] Cửa sổ thời gian dùng bởi /vncoin stats; hợp lệ từ 1 đến 365 ngày.
+    # [EN] Time window used by /vncoin stats; valid range is 1 to 365 days.
+    window-days: 30
   mob-drops:
     enabled: true
     # [VI] Tỉ lệ thử một lần cho mỗi quái cơ bản hợp lệ bị hạ bởi người chơi.

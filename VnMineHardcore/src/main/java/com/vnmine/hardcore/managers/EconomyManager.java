@@ -103,6 +103,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private int bossTotalCoins;
     private int bossCoinsPerDrop;
     private double bossScatterRadius;
+    private int inflationWindowDays;
 
     public EconomyManager(VnMineHardcore plugin, PlayerProfileDatabaseManager database) {
         this.plugin = plugin;
@@ -157,10 +158,14 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         int newBossTotalCoins = config.getInt("economy.boss-drops.total-coins", 100);
         int newBossCoinsPerDrop = config.getInt("economy.boss-drops.coins-per-drop", 5);
         double newBossScatterRadius = config.getDouble("economy.boss-drops.scatter-radius", 5.0);
+        int newInflationWindowDays = config.getInt("economy.inflation.window-days", 30);
         if (newBossTotalCoins < 1 || newBossTotalCoins > 10_000 || newBossCoinsPerDrop < 1
                 || newBossCoinsPerDrop > 10 || !Double.isFinite(newBossScatterRadius)
                 || newBossScatterRadius < 0.0 || newBossScatterRadius > 16.0) {
             throw new IllegalArgumentException("Boss VNCOIN drop settings are outside supported bounds.");
+        }
+        if (newInflationWindowDays < 1 || newInflationWindowDays > 365) {
+            throw new IllegalArgumentException("economy.inflation.window-days must be between 1 and 365.");
         }
 
         Set<CreatureSpawnEvent.SpawnReason> newAllowedSpawnReasons = new HashSet<>();
@@ -218,6 +223,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         bossTotalCoins = newBossTotalCoins;
         bossCoinsPerDrop = newBossCoinsPerDrop;
         bossScatterRadius = newBossScatterRadius;
+        inflationWindowDays = newInflationWindowDays;
         allowedSpawnReasons.clear();
         allowedSpawnReasons.addAll(newAllowedSpawnReasons);
         tiersByEntity.clear();
@@ -1148,6 +1154,10 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             handleHistory(sender, args);
             return true;
         }
+        if (args[0].equalsIgnoreCase("stats")) {
+            handleEconomyStats(sender, args);
+            return true;
+        }
         if ((args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("take"))
                 && args.length >= 3) {
             handleAdminTransaction(sender, args);
@@ -1171,6 +1181,44 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 debug("[RPG-DEBUG][VNCOIN] balance-view requester=" + sender.getName()
                     + ", target=" + targetName + ", balance=" + balance);
             }));
+    }
+
+    private void handleEconomyStats(CommandSender sender, String[] args) {
+        if (!sender.hasPermission(ADMIN_PERMISSION)) {
+            sender.sendMessage("§cBạn không có quyền xem thống kê VNCOIN.");
+            return;
+        }
+        if (args.length != 1) {
+            sender.sendMessage("§eDùng: /vncoin stats");
+            return;
+        }
+        Instant since = Instant.now().minus(inflationWindowDays, java.time.temporal.ChronoUnit.DAYS);
+        sender.sendMessage("§7Đang tổng hợp ledger VNCOIN trong " + inflationWindowDays + " ngày...");
+        database.executeGameplayDatabaseTask("wallet.economy-stats days=" + inflationWindowDays,
+                () -> database.getWalletEconomyReport(since.toString()))
+            .whenComplete((report, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Economy] Could not load VNCOIN economy report.", failure);
+                    sender.sendMessage("§cKhông thể tải thống kê VNCOIN lúc này.");
+                    return;
+                }
+                sender.sendMessage("§6§lVNCOIN · " + inflationWindowDays + " ngày gần nhất");
+                sender.sendMessage("§aPhát hành: " + formatCoinAmount(report.issued())
+                    + " §8| §cĐã tiêu/thu hồi: " + formatCoinAmount(report.spent())
+                    + " §8| §eChênh lệch: " + formatCoinAmount(report.issued() - report.spent()));
+                sender.sendMessage("§7Giao dịch: " + formatCoinAmount(report.transactionCount())
+                    + " §8| §7Nguồn lớn nhất (tối đa 20):");
+                if (report.sources().isEmpty()) sender.sendMessage("§8Chưa có giao dịch trong khoảng thời gian này.");
+                for (PlayerProfileDatabaseManager.WalletSourceStats source : report.sources()) {
+                    sender.sendMessage("§8• §f" + source.source() + " §8(§7" + source.transactions()
+                        + " giao dịch§8) §a+" + formatCoinAmount(source.issued())
+                        + " §c-" + formatCoinAmount(source.spent()));
+                }
+            }));
+    }
+
+    private String formatCoinAmount(long amount) {
+        return String.format(Locale.ROOT, "%,d", amount);
     }
 
     private void handleHistory(CommandSender sender, String[] args) {
@@ -1301,6 +1349,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             List<String> choices = new ArrayList<>(List.of("balance", "history"));
+            if (sender.hasPermission(ADMIN_PERMISSION)) choices.add("stats");
             if (sender.hasPermission(ADMIN_PERMISSION)) choices.addAll(List.of("give", "take"));
             return matching(args[0], choices);
         }

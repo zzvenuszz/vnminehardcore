@@ -1176,6 +1176,16 @@ public class PlayerProfileDatabaseManager {
                                     String source, String actorUuid, String reason, String createdAt) {
     }
 
+    public record WalletSourceStats(String source, long transactions, long issued, long spent) {
+    }
+
+    public record WalletEconomyReport(long issued, long spent, long transactionCount,
+                                      List<WalletSourceStats> sources) {
+        public WalletEconomyReport {
+            sources = List.copyOf(sources);
+        }
+    }
+
     public record AdminProgressionResult(int previousLevel, int currentLevel, int experience,
                                          int skillPointsGained) {
     }
@@ -1492,6 +1502,44 @@ public class PlayerProfileDatabaseManager {
                 }
             }
         });
+    }
+
+    public WalletEconomyReport getWalletEconomyReport(String since) throws SQLException {
+        if (since == null || since.isBlank()) throw new IllegalArgumentException("Report start time is required.");
+        try (Connection connection = openConnection()) {
+            long issued;
+            long spent;
+            long transactions;
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT COALESCE(SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END), 0) AS issued, " +
+                    "COALESCE(SUM(CASE WHEN delta < 0 THEN -delta ELSE 0 END), 0) AS spent, " +
+                    "COUNT(*) AS transactions FROM player_wallet_ledger WHERE created_at >= ?")) {
+                statement.setString(1, since);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    if (!resultSet.next()) throw new SQLException("Could not calculate VNCOIN economy report.");
+                    issued = resultSet.getLong("issued");
+                    spent = resultSet.getLong("spent");
+                    transactions = resultSet.getLong("transactions");
+                }
+            }
+            List<WalletSourceStats> sources = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT source, COUNT(*) AS transactions, " +
+                    "COALESCE(SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END), 0) AS issued, " +
+                    "COALESCE(SUM(CASE WHEN delta < 0 THEN -delta ELSE 0 END), 0) AS spent " +
+                    "FROM player_wallet_ledger WHERE created_at >= ? GROUP BY source " +
+                    "ORDER BY SUM(ABS(delta)) DESC, source ASC LIMIT 20")) {
+                statement.setString(1, since);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    while (resultSet.next()) {
+                        sources.add(new WalletSourceStats(resultSet.getString("source"),
+                            resultSet.getLong("transactions"), resultSet.getLong("issued"),
+                            resultSet.getLong("spent")));
+                    }
+                }
+            }
+            return new WalletEconomyReport(issued, spent, transactions, sources);
+        }
     }
 
     public List<WalletLedgerEntry> getWalletHistory(String uuid, int limit) throws SQLException {

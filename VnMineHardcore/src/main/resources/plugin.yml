@@ -133,7 +133,7 @@ commands:
     usage: /vnmenu
   vncoin:
     description: Xem ví, lịch sử hoặc quản trị tiền tệ VNCOIN
-    usage: /vncoin [balance|history [người_chơi]|give|take <người_chơi> <số> [lý_do]]
+    usage: /vncoin [balance|history [người_chơi]|stats|give|take <người_chơi> <số> [lý_do]]
   quatanthu:
     description: Nhận túi quà tân thủ và chọn token triệu hồi bậc 1
     usage: /quatanthu

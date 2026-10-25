@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v2.7.0] - 2026-10-25
+
+### Added
+- Thêm `/vncoin stats` cho admin: tổng hợp lượng VNCOIN phát hành, đã tiêu và biến động theo nguồn trong cửa sổ thời gian cấu hình.
+
 ## [v2.6.0] - 2026-10-25
 
 ### Fixed

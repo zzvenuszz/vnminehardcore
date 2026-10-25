@@ -682,6 +682,12 @@ item is reconciled on next join. If the inventory is full, free a slot and run
 server confirms it. `system-merchant` NPCs use the shared catalog under
 `economy.merchant.offers`, while custom merchants use their saved per-NPC list.
 
+Admins can run `/vncoin stats` to see the total VNCOIN issued, spent, net change,
+and the busiest ledger sources for the configured reporting window. Set
+`economy.inflation.window-days` in `config.yml` (default `30`, valid `1-365`)
+to change that window. The command uses the existing
+`vnmine.command.vncoin.admin` permission.
+
 ### Death Section
 ```yaml
 death:
