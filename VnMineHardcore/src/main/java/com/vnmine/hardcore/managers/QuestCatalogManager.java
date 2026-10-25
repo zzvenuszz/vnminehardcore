@@ -78,6 +78,14 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         loadDefinitions();
     }
 
+    public void openAdmin(Player player) {
+        if (!player.hasPermission(ADMIN_PERMISSION)) {
+            player.sendMessage("§cBạn không có quyền quản lý quest.");
+            return;
+        }
+        openAdminList(player, 0);
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -534,8 +542,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     private void prompt(Player player, PendingTextInput input) {
         pendingTextInputs.put(player.getUniqueId(), input);
-        player.sendMessage("§eNhập nội dung vào chat. Gõ §f!cancel §eđể hủy và quay lại giao diện.");
-        player.sendMessage("§7Giao diện quản lý quest sẽ được mở lại sau khi nhập.");
+        String instruction = switch (input.field()) {
+            case CREATE_ID -> "§eHãy nhập §fID quest§e (chữ thường, số, dấu gạch nối), ví dụ: §fquest-test";
+            case RENAME -> "§eHãy nhập §ftên quest§e (1-64 ký tự), ví dụ: §fTuần tra bìa rừng";
+            case GIVER -> "§eHãy nhập §fID NPC giao quest§e (chữ thường, số, dấu gạch nối), ví dụ: §fhunter";
+            case ADD_LEVEL_REQUIREMENT -> "§eHãy nhập §flevel RPG tối thiểu§e, số nguyên 1-1000, ví dụ: §f10";
+            case ADD_ITEM_AMOUNT -> "§eHãy nhập §fsố lượng item yêu cầu§e, số nguyên 1-1000, ví dụ: §f3";
+            case ADD_KILL_ENTITY, EDIT_KILL_ENTITY -> "§eHãy nhập §fEntityType cần hạ§e, ví dụ: §fZOMBIE";
+            case ADD_KILL_AMOUNT, EDIT_KILL_AMOUNT -> "§eHãy nhập §fsố mob cần hạ§e, số nguyên 1-100000, ví dụ: §f5";
+            case ADD_OBJECTIVE_ITEM_AMOUNT -> "§eHãy nhập §fsố item cần thu thập§e, số nguyên 1-100000, ví dụ: §f3";
+        };
+        player.closeInventory();
+        player.sendMessage("§6[Quản lý quest] " + instruction);
+        player.sendMessage("§7Gõ §c!cancel §7để hủy và quay lại giao diện quest.");
     }
 
     private void handleTextInput(Player player, PendingTextInput input, String text) {

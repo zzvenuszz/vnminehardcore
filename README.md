@@ -696,23 +696,28 @@ blacksmith quest active. Quest materials carry a plugin PDC ID; ordinary raw
 iron does not count. The scoreboard shows the selected active quest and
 progress. System-boss objectives, quest-list/reward-preview GUI, particle
 tracking to arbitrary quest NPCs, and repeatable daily quests are still planned.
-Dialogue lookup first tries a definition
-whose ID matches the runtime NPC ID and role, then uses the first definition of
-the same role. Add role-specific definition entries to provide distinct
-dialogue. NPC roles without a matching definition show a setup message instead
-of silently using unrelated dialogue.
+Dialogue lookup first tries a definition whose ID matches the runtime NPC ID,
+then uses the first definition of the same role. If neither exists, the NPC
+still opens a short Vietnamese fallback dialogue; quest actions matching its
+runtime ID are still shown. Add a matching entry in `npc-definitions.yml` when
+you want custom dialogue and role-specific actions.
 `rpg.npc.max-runtime-npcs` sets the runtime limit (default `100`, range `1-100`).
 The command requires `vnmine.command.npc.admin` (default: operators). An NPC
-dialogue editor, objective-specific reward actions, waypoint particles, and
-custom skins remain future work.
+can also be managed from **Menu chính → Admin → Quản lý NPC**. The GUI supports
+creating an NPC at the admin's current location, editing its display name and
+role, moving it to the current location, and deleting it after confirmation.
+Creation asks for ID, role, and display name in chat; each prompt shows valid
+formats and examples, and `!cancel` returns to the GUI. Custom dialogue editor,
+objective-specific reward actions, waypoint particles, and custom skins remain
+future work.
 
 ### Quest administration
 
-`/vnquest admin` opens a paginated list of configured quests. Admins can create
+`/vnquest admin` or **Menu chính → Admin → Quản lý nhiệm vụ** opens a paginated list of configured quests. Admins can create
 a quest by entering a unique lowercase ID in chat, edit its display title and
 NPC giver ID, enable or disable it, and delete it after a confirmation screen.
-Chat input is intercepted for the pending edit and the editor is reopened after
-the response. Enabled quests are added to the matching runtime NPC dialogue by
+Chat input shows a valid example in color, supports `!cancel`, and reopens the
+relevant editor after the response. Enabled quests are added to the matching runtime NPC dialogue by
 giver ID; create the NPC with `/vnnpc create <id> <type> [name...]`.
 The editor also supports AND requirements for minimum RPG level, completion of
 another quest, and an exact held item (including RPG metadata). Requirements

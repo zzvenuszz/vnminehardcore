@@ -6587,7 +6587,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       }
    }
 
-   private void openAdminMenu(Player player) {
+   public void openAdminMenu(Player player) {
       if (this.hasAdminMenuAccess(player)) {
          ServiceMenuHolder holder = this.createServiceMenu(player, MenuType.ADMIN, null, null, null, 0, 27,
              "VnMine • Quản trị");
@@ -6618,6 +6618,14 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
              holder.inventory.setItem(22, this.menuItem(Material.IRON_SWORD, "§6Quân đội",
                  List.of("§7Cấp lính, token và trang bị.")));
          }
+         if (player.hasPermission("vnmine.command.quest.admin")) {
+             holder.inventory.setItem(18, this.menuItem(Material.FILLED_MAP, "§bQuản lý nhiệm vụ",
+                 List.of("§7Tạo, sửa, bật/tắt và xóa quest.")));
+         }
+         if (player.hasPermission("vnmine.command.npc.admin")) {
+             holder.inventory.setItem(20, this.menuItem(Material.VILLAGER_SPAWN_EGG, "§eQuản lý NPC",
+                 List.of("§7Tạo, sửa, di chuyển và xóa NPC.")));
+         }
          holder.inventory.setItem(26, this.menuItem(Material.ARROW, "§7Menu chính", List.of()));
          player.openInventory(holder.inventory);
       }
@@ -6629,7 +6637,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             "vnmine.command.spawn.manage", "vnmine.command.teleport.other", "vnmine.command.groups.manage",
             "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
             "vnmine.command.gamemode", "vnmine.command.scoreboard.reset", "vnmine.command.death.reset",
-            "vnmine.command.skillbook.admin", "vnmine.command.progression.admin")
+            "vnmine.command.skillbook.admin", "vnmine.command.progression.admin",
+            "vnmine.command.quest.admin", "vnmine.command.npc.admin")
             .stream().anyMatch(player::hasPermission)
             || player.hasPermission("vnmine.command.death.history");
     }
@@ -8790,6 +8799,10 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      this.openAdminCategory(player, "rpg");
                   } else if (slot == 22 && player.hasPermission("vnmine.command.army.admin")) {
                      this.openAdminCategory(player, "army");
+                  } else if (slot == 18 && player.hasPermission("vnmine.command.quest.admin")) {
+                     if (plugin.getQuestCatalogManager() != null) plugin.getQuestCatalogManager().openAdmin(player);
+                  } else if (slot == 20 && player.hasPermission("vnmine.command.npc.admin")) {
+                     if (plugin.getNpcManager() != null) plugin.getNpcManager().openAdminMenu(player);
                   } else if (slot == 26) {
                      this.openMainMenu(player);
                   }

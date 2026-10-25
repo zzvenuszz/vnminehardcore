@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
@@ -42,6 +43,8 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.Inventory;
@@ -65,6 +68,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     private final Map<String, NpcDefinitionLoader.NpcDefinition> definitions;
     private final Map<String, NpcRecord> npcs = new LinkedHashMap<>();
     private final Map<String, LinkedHashMap<Integer, MerchantListing>> merchantListings = new LinkedHashMap<>();
+    private final Map<UUID, PendingNpcInput> pendingNpcInputs = new ConcurrentHashMap<>();
     private final int maxNpcs;
 
     public NpcManager(VnMineHardcore plugin,
@@ -82,6 +86,14 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
 
     public boolean isManagedNpc(Entity entity) {
         return entity.getPersistentDataContainer().has(npcIdKey, PersistentDataType.STRING);
+    }
+
+    public void openAdminMenu(Player player) {
+        if (!player.hasPermission(ADMIN_PERMISSION)) {
+            player.sendMessage("§cBạn không có quyền quản lý NPC.");
+            return;
+        }
+        openNpcList(player, 0);
     }
 
     @Override
@@ -128,6 +140,254 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return List.of();
     }
 
+    private void openNpcList(Player player, int page) {
+        List<NpcRecord> records = npcs.values().stream().sorted(Comparator.comparing(NpcRecord::id)).toList();
+        int safePage = Math.max(0, Math.min(page, Math.max(0, (records.size() - 1) / 45)));
+        NpcMenuHolder holder = new NpcMenuHolder(player.getUniqueId(), NpcMenu.LIST, null, safePage);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Quản lý NPC • " + (safePage + 1));
+        holder.inventory = menu;
+        for (int index = 0; index < 45; index++) {
+            int recordIndex = safePage * 45 + index;
+            if (recordIndex >= records.size()) break;
+            NpcRecord npc = records.get(recordIndex);
+            menu.setItem(index, createDialogueItem(Material.VILLAGER_SPAWN_EGG, "§e" + npc.displayName(), List.of(
+                "§7ID: §f" + npc.id(), "§7Loại: §b" + npc.type(),
+                "§7Vị trí: §f" + npc.world() + " " + formatCoordinate(npc.x()) + ", "
+                    + formatCoordinate(npc.y()) + ", " + formatCoordinate(npc.z()),
+                "§aNhấn để chỉnh sửa")));
+            holder.npcSlots.put(index, npc.id());
+        }
+        menu.setItem(45, createDialogueItem(Material.LIME_DYE, "§aTạo NPC", List.of(
+            "§7Tạo tại vị trí hiện tại của bạn.", "§eNhấn để nhập ID, loại và tên.")));
+        if (safePage > 0) menu.setItem(48, createDialogueItem(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(49, createDialogueItem(Material.BARRIER, "§cVề menu admin", List.of()));
+        if ((safePage + 1) * 45 < records.size())
+            menu.setItem(50, createDialogueItem(Material.ARROW, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openNpcEditor(Player player, String npcId, int page) {
+        NpcRecord npc = npcs.get(npcId);
+        if (npc == null) {
+            openNpcList(player, page);
+            return;
+        }
+        NpcMenuHolder holder = new NpcMenuHolder(player.getUniqueId(), NpcMenu.EDIT, npcId, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Sửa NPC • " + npc.id());
+        holder.inventory = menu;
+        menu.setItem(4, createDialogueItem(Material.VILLAGER_SPAWN_EGG, "§e" + npc.displayName(), List.of(
+            "§7ID cố định: §f" + npc.id(), "§7Loại: §b" + npc.type())));
+        menu.setItem(10, createDialogueItem(Material.NAME_TAG, "§eĐổi tên hiển thị", List.of(
+            "§7Hiện tại: §f" + npc.displayName(), "§7Tối đa 64 ký tự; hỗ trợ mã màu &.")));
+        menu.setItem(12, createDialogueItem(Material.WRITABLE_BOOK, "§eĐổi loại NPC", List.of(
+            "§7Hiện tại: §f" + npc.type(), "§7Nhập một loại được liệt kê trong prompt chat.")));
+        menu.setItem(14, createDialogueItem(Material.COMPASS, "§bDi chuyển tới vị trí hiện tại", List.of(
+            "§7Thế giới: §f" + npc.world(), "§7" + formatCoordinate(npc.x()) + ", "
+                + formatCoordinate(npc.y()) + ", " + formatCoordinate(npc.z()), "§eNhấn để di chuyển NPC.")));
+        menu.setItem(16, createDialogueItem(Material.REDSTONE, "§cXóa NPC", List.of(
+            "§7Sẽ xóa thực thể NPC và dữ liệu shop liên quan.", "§eNhấn để xác nhận.")));
+        menu.setItem(49, createDialogueItem(Material.ARROW, "§eQuay lại danh sách", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openNpcDeleteConfirmation(Player player, String npcId, int page) {
+        NpcMenuHolder holder = new NpcMenuHolder(player.getUniqueId(), NpcMenu.CONFIRM_DELETE, npcId, page);
+        Inventory menu = Bukkit.createInventory(holder, 27, "Xác nhận xóa NPC");
+        holder.inventory = menu;
+        menu.setItem(4, createDialogueItem(Material.VILLAGER_SPAWN_EGG, "§cXóa NPC §f" + npcId,
+            List.of("§7Hành động này không thể hoàn tác.")));
+        menu.setItem(11, createDialogueItem(Material.LIME_DYE, "§aXác nhận xóa", List.of()));
+        menu.setItem(15, createDialogueItem(Material.RED_DYE, "§eHủy", List.of()));
+        player.openInventory(menu);
+    }
+
+    @EventHandler
+    public void onNpcAdminClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof NpcMenuHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        if (!player.hasPermission(ADMIN_PERMISSION)) {
+            player.closeInventory();
+            player.sendMessage("§cBạn không còn quyền quản lý NPC.");
+            return;
+        }
+        int slot = event.getRawSlot();
+        if (holder.menu == NpcMenu.LIST) {
+            if (slot == 45) promptNpc(player, new PendingNpcInput(NpcTextField.CREATE_ID, null, holder.page, ""));
+            else if (slot == 48) openNpcList(player, holder.page - 1);
+            else if (slot == 50) openNpcList(player, holder.page + 1);
+            else if (slot == 49) plugin.getMercenaryManager().openAdminMenu(player);
+            else if (holder.npcSlots.containsKey(slot)) openNpcEditor(player, holder.npcSlots.get(slot), holder.page);
+            return;
+        }
+        if (holder.menu == NpcMenu.CONFIRM_DELETE) {
+            if (slot == 11) {
+                try {
+                    removeNpc(player, new String[]{"remove", holder.npcId});
+                } catch (IOException exception) {
+                    reportNpcGuiError(player, exception);
+                }
+                openNpcList(player, holder.page);
+            } else if (slot == 15) openNpcEditor(player, holder.npcId, holder.page);
+            return;
+        }
+        if (slot == 49) openNpcList(player, holder.page);
+        else if (slot == 10) promptNpc(player, new PendingNpcInput(NpcTextField.RENAME, holder.npcId, holder.page, ""));
+        else if (slot == 12) promptNpc(player, new PendingNpcInput(NpcTextField.CHANGE_TYPE, holder.npcId, holder.page, ""));
+        else if (slot == 14) {
+            try {
+                moveNpc(player, new String[]{"move", holder.npcId});
+            } catch (IOException exception) {
+                reportNpcGuiError(player, exception);
+            }
+            openNpcEditor(player, holder.npcId, holder.page);
+        } else if (slot == 16) openNpcDeleteConfirmation(player, holder.npcId, holder.page);
+    }
+
+    @EventHandler
+    public void onNpcAdminDrag(InventoryDragEvent event) {
+        if (event.getView().getTopInventory().getHolder() instanceof NpcMenuHolder) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onNpcAdminChat(AsyncPlayerChatEvent event) {
+        PendingNpcInput pending = pendingNpcInputs.remove(event.getPlayer().getUniqueId());
+        if (pending == null) return;
+        event.setCancelled(true);
+        String text = event.getMessage().trim();
+        Player player = event.getPlayer();
+        Bukkit.getScheduler().runTask(plugin, () -> handleNpcTextInput(player, pending, text));
+    }
+
+    @EventHandler
+    public void onNpcAdminQuit(PlayerQuitEvent event) {
+        pendingNpcInputs.remove(event.getPlayer().getUniqueId());
+    }
+
+    private void promptNpc(Player player, PendingNpcInput input) {
+        pendingNpcInputs.put(player.getUniqueId(), input);
+        String instruction = switch (input.field()) {
+            case CREATE_ID -> "§eHãy nhập §fID của NPC§e (chữ thường, số, dấu gạch nối), ví dụ: §fnpc-test";
+            case CREATE_TYPE, CHANGE_TYPE -> "§eHãy nhập §floại NPC§e. Ví dụ: §fquest-giver§e. Hợp lệ: §f"
+                + String.join(", ", NpcDefinitionLoader.supportedTypes().stream().sorted().toList());
+            case CREATE_NAME, RENAME -> "§eHãy nhập §ftên NPC§e (1-64 ký tự, hỗ trợ màu &), ví dụ: §fThợ săn &6Cổ đại";
+        };
+        player.closeInventory();
+        player.sendMessage("§6[Quản lý NPC] " + instruction);
+        player.sendMessage("§7Gõ §c!cancel §7để hủy và quay lại giao diện NPC.");
+    }
+
+    private void handleNpcTextInput(Player player, PendingNpcInput input, String text) {
+        if (!player.isOnline()) return;
+        if (!player.hasPermission(ADMIN_PERMISSION)) {
+            player.sendMessage("§cBạn không còn quyền quản lý NPC.");
+            return;
+        }
+        if (text.equalsIgnoreCase("!cancel")) {
+            reopenNpcEditor(player, input);
+            return;
+        }
+        try {
+            switch (input.field()) {
+                case CREATE_ID -> {
+                    String id = text.toLowerCase(Locale.ROOT);
+                    if (!isValidId(id) || npcs.containsKey(id)) {
+                        player.sendMessage("§cID NPC không hợp lệ hoặc đã tồn tại; ví dụ hợp lệ: §fnpc-test");
+                        promptNpc(player, input);
+                        return;
+                    }
+                    promptNpc(player, new PendingNpcInput(NpcTextField.CREATE_TYPE, id, input.page(), ""));
+                }
+                case CREATE_TYPE -> {
+                    String type = text.toLowerCase(Locale.ROOT);
+                    if (!NpcDefinitionLoader.supportedTypes().contains(type)) {
+                        player.sendMessage("§cLoại NPC không hợp lệ. Ví dụ: §fquest-giver§c.");
+                        promptNpc(player, input);
+                        return;
+                    }
+                    promptNpc(player, new PendingNpcInput(NpcTextField.CREATE_NAME, input.npcId(),
+                        input.page(), type));
+                }
+                case CREATE_NAME -> {
+                    if (!isValidDisplayName(text)) {
+                        player.sendMessage("§cTên cần 1-64 ký tự. Ví dụ: §fThợ săn &6Cổ đại");
+                        promptNpc(player, input);
+                        return;
+                    }
+                    if (npcs.size() >= maxNpcs) {
+                        player.sendMessage("§cĐã đạt giới hạn " + maxNpcs + " NPC.");
+                        openNpcList(player, input.page());
+                        return;
+                    }
+                    createNpc(player, new String[]{"create", input.npcId(), input.value(), text});
+                    if (npcs.containsKey(input.npcId())) openNpcEditor(player, input.npcId(), input.page());
+                    else openNpcList(player, input.page());
+                }
+                case RENAME -> {
+                    if (!isValidDisplayName(text)) {
+                        player.sendMessage("§cTên cần 1-64 ký tự. Ví dụ: §fThợ săn &6Cổ đại");
+                        promptNpc(player, input);
+                        return;
+                    }
+                    renameNpc(player, new String[]{"rename", input.npcId(), text});
+                    openNpcEditor(player, input.npcId(), input.page());
+                }
+                case CHANGE_TYPE -> {
+                    String type = text.toLowerCase(Locale.ROOT);
+                    if (!NpcDefinitionLoader.supportedTypes().contains(type)) {
+                        player.sendMessage("§cLoại NPC không hợp lệ. Ví dụ: §fquest-giver§c.");
+                        promptNpc(player, input);
+                        return;
+                    }
+                    NpcRecord old = npcs.get(input.npcId());
+                    if (old == null) {
+                        openNpcList(player, input.page());
+                        return;
+                    }
+                    if (!old.type().equals("merchant") && type.equals("merchant")
+                            && !plugin.getConfig().getBoolean("economy.merchant.custom.enabled", true)) {
+                        player.sendMessage("§cCửa hàng NPC tùy chỉnh đang bị tắt.");
+                        openNpcEditor(player, input.npcId(), input.page());
+                        return;
+                    }
+                    if (!type.equals("merchant") && !merchantListings.getOrDefault(old.id(), new LinkedHashMap<>()).isEmpty()) {
+                        player.sendMessage("§cHãy xóa hết mặt hàng merchant trước khi đổi sang loại khác.");
+                        openNpcEditor(player, input.npcId(), input.page());
+                        return;
+                    }
+                    npcs.put(old.id(), old.withType(type));
+                    try {
+                        saveNpcs();
+                        player.sendMessage("§aĐã đổi loại NPC §f" + old.id() + " §asang §f" + type + "§a.");
+                    } catch (IOException exception) {
+                        npcs.put(old.id(), old);
+                        throw exception;
+                    }
+                    openNpcEditor(player, input.npcId(), input.page());
+                }
+            }
+        } catch (IOException | RuntimeException exception) {
+            reportNpcGuiError(player, exception);
+            reopenNpcEditor(player, input);
+        }
+    }
+
+    private void reopenNpcEditor(Player player, PendingNpcInput input) {
+        if (input.field() == NpcTextField.CREATE_ID || input.field() == NpcTextField.CREATE_TYPE
+                || input.field() == NpcTextField.CREATE_NAME) openNpcList(player, input.page());
+        else openNpcEditor(player, input.npcId(), input.page());
+    }
+
+    private void reportNpcGuiError(Player player, Exception exception) {
+        plugin.getLogger().log(Level.SEVERE, "[NPC] GUI operation failed for " + player.getName(), exception);
+        player.sendMessage("§cKhông thể cập nhật NPC. Xem console để biết chi tiết.");
+    }
+
+    private static String formatCoordinate(double coordinate) {
+        return String.format(Locale.ROOT, "%.1f", coordinate);
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkLoad(ChunkLoadEvent event) {
         reconcileChunk(event.getChunk());
@@ -155,7 +415,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         if (npc == null) {
             plugin.getLogger().warning("[NPC] Managed entity " + event.getRightClicked().getUniqueId()
                 + " has no matching runtime record.");
-            event.getPlayer().sendMessage("§cDeze NPC-gegevens zijn niet beschikbaar.");
+            event.getPlayer().sendMessage("§cKhông tìm thấy dữ liệu của NPC này.");
             return;
         }
         if ("system-merchant".equals(npc.type())) {
@@ -177,8 +437,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
         NpcDefinitionLoader.NpcDefinition definition = findDialogueDefinition(id, npc.type(), definitions);
         if (definition == null) {
-            event.getPlayer().sendMessage("§7Deze NPC heeft nog geen dialoog in npc-definitions.yml.");
-            return;
+            definition = createFallbackDialogueDefinition(npc);
         }
         openDialogue(event.getPlayer(), npc, definition);
     }
@@ -471,11 +730,27 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     static NpcDefinitionLoader.NpcDefinition findDialogueDefinition(
             String npcId, String type, Map<String, NpcDefinitionLoader.NpcDefinition> definitions) {
         NpcDefinitionLoader.NpcDefinition exact = definitions.get(npcId);
-        if (exact != null && exact.type().equals(type)) return exact;
+        // An ID-specific definition is authoritative even when its configured role differs.
+        if (exact != null) return exact;
         return definitions.values().stream()
             .filter(definition -> definition.type().equals(type))
             .findFirst()
             .orElse(null);
+    }
+
+    private static NpcDefinitionLoader.NpcDefinition createFallbackDialogueDefinition(NpcRecord npc) {
+        String line = switch (npc.type()) {
+            case "quest-giver", "hunter" -> "Ta có một vài nhiệm vụ cần người giúp sức. Hãy xem danh sách bên dưới.";
+            case "blacksmith" -> "Ta đang cần người tìm nguyên liệu cho lò rèn.";
+            case "alchemist" -> "Ta đang nghiên cứu những nguyên liệu quý hiếm.";
+            case "trainer" -> "Hãy chuẩn bị kỹ năng trước khi bước vào vùng nguy hiểm.";
+            case "story" -> "Những ký ức của thế giới này vẫn đang chờ được khám phá.";
+            case "gatekeeper" -> "Hãy kiểm tra điều kiện trước khi bước qua cánh cổng.";
+            case "healer" -> "Hãy nghỉ ngơi và hồi phục trước chuyến đi tiếp theo.";
+            default -> "Xin chào. Hãy xem các chức năng khả dụng bên dưới.";
+        };
+        return new NpcDefinitionLoader.NpcDefinition(npc.id(), npc.type(), npc.displayName(),
+            List.of(line), List.of());
     }
 
     private void openDialogue(Player player, NpcRecord npc, NpcDefinitionLoader.NpcDefinition definition) {
@@ -1089,6 +1364,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             return new NpcRecord(id, type, name, location, entityId, world);
         }
 
+        private NpcRecord withType(String value) {
+            return new NpcRecord(id, value, displayName, location, entityId, world);
+        }
+
         private NpcRecord withLocation(Location newLocation, UUID newEntityId) {
             return new NpcRecord(id, type, displayName, newLocation, newEntityId);
         }
@@ -1102,6 +1381,28 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         private MerchantListing {
             item = item.clone();
         }
+    }
+
+    private enum NpcMenu { LIST, EDIT, CONFIRM_DELETE }
+    private enum NpcTextField { CREATE_ID, CREATE_TYPE, CREATE_NAME, RENAME, CHANGE_TYPE }
+    private record PendingNpcInput(NpcTextField field, String npcId, int page, String value) { }
+
+    private static final class NpcMenuHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final NpcMenu menu;
+        private final String npcId;
+        private final int page;
+        private final Map<Integer, String> npcSlots = new LinkedHashMap<>();
+        private Inventory inventory;
+
+        private NpcMenuHolder(UUID viewer, NpcMenu menu, String npcId, int page) {
+            this.viewer = viewer;
+            this.menu = menu;
+            this.npcId = npcId;
+            this.page = page;
+        }
+
+        @Override public Inventory getInventory() { return inventory; }
     }
 
     private static final class DialogueHolder implements InventoryHolder {

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [v2.14.0] - 2026-10-25
+- Thêm lối vào quản lý quest/NPC trong menu Admin; bổ sung GUI CRUD NPC và prompt chat có ví dụ, màu phân biệt, hỗ trợ `!cancel`.
+- Sửa lỗi NPC thiếu dialogue definition làm ngăn hiển thị quest theo NPC; dùng hội thoại mặc định tiếng Việt và ưu tiên definition khớp ID NPC.
+
 ## [v2.13.0] - 2026-10-25
 - Hiển thị mục tiêu tutorial đang theo dõi trong scoreboard và thêm nút compass có hover mô tả để bật tracking trực tiếp từ journal.
 - Thêm quest NPC săn zombie/skeleton/spider và thu thập nguyên liệu RPG có PDC, lưu tiến độ SQLite schema 10, trả VNCOIN một lần khi hoàn thành, log debug theo cờ console và hiện tiến độ quest đang chọn trên scoreboard.
