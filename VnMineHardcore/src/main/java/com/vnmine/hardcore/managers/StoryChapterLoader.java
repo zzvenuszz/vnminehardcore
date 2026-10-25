@@ -3,7 +3,9 @@ package com.vnmine.hardcore.managers;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
@@ -69,11 +71,12 @@ public final class StoryChapterLoader {
 
             String title = readRequiredText(chapter, "title", path, logger);
             String summary = readRequiredText(chapter, "summary", path, logger);
-            if (title == null || summary == null) valid = false;
+            List<String> pages = summary == null ? null : readPages(chapter, summary, path, logger);
+            if (title == null || summary == null || pages == null) valid = false;
             if (!valid) continue;
 
             StoryChapter previous = chaptersByOrder.putIfAbsent(
-                order, new StoryChapter(chapterId, order, title, summary));
+                order, new StoryChapter(chapterId, order, title, summary, pages));
             if (previous != null) {
                 logger.warning("[Story] Duplicate chapter order " + order + " at " + path +
                     "; already used by chapter '" + previous.id() + "'.");
@@ -96,6 +99,32 @@ public final class StoryChapterLoader {
         return text;
     }
 
-    public record StoryChapter(String id, int order, String title, String summary) {
+    private static List<String> readPages(ConfigurationSection section, String summary,
+                                          String path, Logger logger) {
+        Object value = section.get("pages");
+        if (value == null) {
+            return List.of(summary.length() <= 256 ? summary : summary.substring(0, 256));
+        }
+        if (!(value instanceof List<?> rawPages) || rawPages.isEmpty() || rawPages.size() > 12) {
+            logger.warning("[Story] pages at " + path + " must contain 1 to 12 book pages.");
+            return null;
+        }
+        List<String> pages = new ArrayList<>(rawPages.size());
+        for (int index = 0; index < rawPages.size(); index++) {
+            Object rawPage = rawPages.get(index);
+            if (!(rawPage instanceof String text) || text.isBlank() || text.length() > 256) {
+                logger.warning("[Story] Invalid page " + (index + 1) + " at " + path
+                    + "; each page must contain 1 to 256 characters.");
+                return null;
+            }
+            pages.add(text.trim());
+        }
+        return List.copyOf(pages);
+    }
+
+    public record StoryChapter(String id, int order, String title, String summary, List<String> pages) {
+        public StoryChapter {
+            pages = List.copyOf(pages);
+        }
     }
 }

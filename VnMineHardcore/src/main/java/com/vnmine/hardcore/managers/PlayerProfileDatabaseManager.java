@@ -23,6 +23,8 @@ import java.util.logging.Logger;
 import java.time.format.DateTimeFormatter;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -33,7 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public class PlayerProfileDatabaseManager {
-    public static final int SCHEMA_VERSION = 8;
+    public static final int SCHEMA_VERSION = 9;
     public static final long MAX_WALLET_BALANCE = 2_147_483_647L;
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
         .withZone(ZoneOffset.UTC);
@@ -394,6 +396,10 @@ public class PlayerProfileDatabaseManager {
                     } else if (version == 7) {
                         migrateV7ToV8(connection);
                         version = 8;
+                        setSchemaVersion(connection, version);
+                    } else if (version == 8) {
+                        migrateV8ToV9(connection);
+                        version = 9;
                         setSchemaVersion(connection, version);
                     } else {
                         throw new SQLException("No player profile database migration exists from version "
@@ -1213,6 +1219,16 @@ public class PlayerProfileDatabaseManager {
     public record WalletTransactionResult(WalletTransactionStatus status, long balance, long appliedDelta) {
     }
 
+    public enum DailyQuestRewardStatus {
+        APPLIED,
+        DUPLICATE,
+        DAILY_LIMIT,
+        BALANCE_LIMIT
+    }
+
+    public record DailyQuestRewardResult(DailyQuestRewardStatus status, int completedRuns, long balance) {
+    }
+
     public record MerchantDelivery(String transactionId, byte[] itemData) {
         public MerchantDelivery {
             if (transactionId == null || transactionId.isBlank() || itemData == null || itemData.length == 0) {
@@ -1334,6 +1350,7 @@ public class PlayerProfileDatabaseManager {
                 "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
             createWalletTables(statement);
             createMerchantDeliveryTables(statement);
+            createDailyQuestRunTables(statement);
         }
     }
 
@@ -1392,6 +1409,12 @@ public class PlayerProfileDatabaseManager {
         }
     }
 
+    private void migrateV8ToV9(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            createDailyQuestRunTables(statement);
+        }
+    }
+
     private static void createWalletTables(Statement statement) throws SQLException {
         statement.execute("CREATE TABLE IF NOT EXISTS player_wallets (" +
             "uuid TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0 " +
@@ -1411,6 +1434,131 @@ public class PlayerProfileDatabaseManager {
             "created_at TEXT NOT NULL, delivered_at TEXT)");
         statement.execute("CREATE INDEX IF NOT EXISTS idx_player_merchant_deliveries_uuid_pending " +
             "ON player_merchant_deliveries(uuid, delivered_at)");
+    }
+
+    private static void createDailyQuestRunTables(Statement statement) throws SQLException {
+        statement.execute("CREATE TABLE IF NOT EXISTS player_daily_quest_runs (" +
+            "uuid TEXT NOT NULL, quest_id TEXT NOT NULL, reset_date TEXT NOT NULL, " +
+            "run_number INTEGER NOT NULL CHECK (run_number BETWEEN 1 AND 10), " +
+            "source_id TEXT NOT NULL, completed_at TEXT NOT NULL, " +
+            "PRIMARY KEY (uuid, quest_id, reset_date, run_number), " +
+            "UNIQUE (uuid, quest_id, source_id), " +
+            "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
+        statement.execute("CREATE INDEX IF NOT EXISTS idx_daily_quest_runs_player_date " +
+            "ON player_daily_quest_runs(uuid, reset_date, quest_id)");
+    }
+
+    /**
+     * Atomically awards one repeatable VNCOIN quest run, bounded by the per-player daily limit.
+     * The source ID makes the completion callback idempotent across retries and reloads.
+     */
+    public DailyQuestRewardResult awardDailyRepeatableQuestWalletReward(
+            String uuid, String questId, String resetDate, String sourceId,
+            int dailyLimit, long rewardAmount, String completedAt) throws SQLException {
+        validateDailyQuestReward(uuid, questId, resetDate, sourceId, dailyLimit, rewardAmount, completedAt);
+        return executeWriteTransaction(connection -> {
+            int completedRuns;
+            try (PreparedStatement duplicate = connection.prepareStatement(
+                    "SELECT run_number, reset_date FROM player_daily_quest_runs " +
+                    "WHERE uuid = ? AND quest_id = ? AND source_id = ?")) {
+                duplicate.setString(1, uuid);
+                duplicate.setString(2, questId);
+                duplicate.setString(3, sourceId);
+                try (ResultSet resultSet = duplicate.executeQuery()) {
+                    if (resultSet.next()) {
+                        int currentRuns = countDailyQuestRuns(connection, uuid, questId,
+                            resultSet.getString("reset_date"));
+                        return new DailyQuestRewardResult(DailyQuestRewardStatus.DUPLICATE,
+                            currentRuns, readWalletBalance(connection, uuid));
+                    }
+                }
+            }
+            completedRuns = countDailyQuestRuns(connection, uuid, questId, resetDate);
+            if (completedRuns >= dailyLimit) {
+                return new DailyQuestRewardResult(DailyQuestRewardStatus.DAILY_LIMIT,
+                    completedRuns, readWalletBalance(connection, uuid));
+            }
+
+            int runNumber = completedRuns + 1;
+            String transactionId = "daily-quest-reward:" + uuid + ":" + questId + ":" + sourceId;
+            WalletTransactionResult walletResult = applyWalletTransaction(connection, uuid, rewardAmount,
+                transactionId, "quest", null, "Thưởng nhiệm vụ lặp lại " + questId, completedAt);
+            if (walletResult.status() == WalletTransactionStatus.BALANCE_LIMIT) {
+                return new DailyQuestRewardResult(DailyQuestRewardStatus.BALANCE_LIMIT,
+                    completedRuns, walletResult.balance());
+            }
+            if (walletResult.status() != WalletTransactionStatus.APPLIED) {
+                throw new SQLException("Repeatable quest reward transaction was not applied: "
+                    + walletResult.status());
+            }
+
+            try (PreparedStatement insert = connection.prepareStatement(
+                    "INSERT INTO player_daily_quest_runs " +
+                    "(uuid, quest_id, reset_date, run_number, source_id, completed_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?)")) {
+                insert.setString(1, uuid);
+                insert.setString(2, questId);
+                insert.setString(3, resetDate);
+                insert.setInt(4, runNumber);
+                insert.setString(5, sourceId);
+                insert.setString(6, completedAt);
+                if (insert.executeUpdate() != 1) {
+                    throw new SQLException("Could not record repeatable quest run " + questId + ".");
+                }
+            }
+            return new DailyQuestRewardResult(DailyQuestRewardStatus.APPLIED,
+                runNumber, walletResult.balance());
+        });
+    }
+
+    public int getDailyQuestRunCount(String uuid, String questId, String resetDate) throws SQLException {
+        if (uuid == null || uuid.isBlank() || !isQuestIdValid(questId) || !isDateValid(resetDate)) {
+            throw new IllegalArgumentException("Daily quest lookup fields are invalid.");
+        }
+        try (Connection connection = openConnection()) {
+            return countDailyQuestRuns(connection, uuid, questId, resetDate);
+        }
+    }
+
+    private int countDailyQuestRuns(Connection connection, String uuid, String questId, String resetDate)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT COUNT(*) FROM player_daily_quest_runs " +
+                "WHERE uuid = ? AND quest_id = ? AND reset_date = ?")) {
+            statement.setString(1, uuid);
+            statement.setString(2, questId);
+            statement.setString(3, resetDate);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) throw new SQLException("Could not count daily quest runs.");
+                return resultSet.getInt(1);
+            }
+        }
+    }
+
+    private void validateDailyQuestReward(String uuid, String questId, String resetDate, String sourceId,
+            int dailyLimit, long rewardAmount, String completedAt) {
+        if (uuid == null || !uuid.matches("(?i)[0-9a-f-]{36}")
+                || !isQuestIdValid(questId) || !isDateValid(resetDate)
+                || sourceId == null || !sourceId.matches("[a-zA-Z0-9_-]{1,40}")
+                || dailyLimit < 1 || dailyLimit > 10 || rewardAmount < 1
+                || rewardAmount > MAX_WALLET_BALANCE || completedAt == null || completedAt.isBlank()) {
+            throw new IllegalArgumentException("Repeatable daily quest reward fields are invalid.");
+        }
+    }
+
+    private boolean isQuestIdValid(String questId) {
+        return questId != null && questId.matches("[a-z0-9]+(?:-[a-z0-9]+){0,7}")
+            && questId.length() <= 48;
+    }
+
+    private boolean isDateValid(String date) {
+        if (date == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) return false;
+        try {
+            LocalDate.parse(date);
+            return true;
+        } catch (DateTimeParseException exception) {
+            return false;
+        }
     }
 
     public long getWalletBalance(String uuid) throws SQLException {

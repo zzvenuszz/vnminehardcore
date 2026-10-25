@@ -78,3 +78,10 @@ npc-definitions:
     dialogue:
       - "Mỗi cánh cổng đều dẫn tới một câu chuyện chưa kể."
       - "Hãy ghi nhớ những gì đã xảy ra; lịch sử của đại lục nằm trong tay các ngươi."
+    # [VI] Nút mở danh mục chapter; nhấp chapter sẽ mở sách chứa toàn bộ nội dung.
+    # [EN] Button opens the chapter list; clicking a chapter opens its full book text.
+    actions:
+      - type: open-story
+        # [VI] Nhãn nút; từ 1 đến 32 ký tự.
+        # [EN] Button label; 1-32 characters.
+        label: "Đọc sổ truyện"

@@ -617,7 +617,8 @@ Mỗi item dùng `story-id` để liên kết tới `artifacts.<story-id>.lore`;
 thêm chương mới bằng cách thêm ID duy nhất và danh sách lore vào file này.
 Định nghĩa chapter có ID ổn định được nạp riêng từ
 `plugins/VnMineHardcore/story/chapters.yml`; mỗi mục cần `order` dương duy nhất,
-`title` và `summary` không rỗng. Danh sách câu truyện cũ trong `story.yml` được
+`title` và `summary` không rỗng. `pages` chứa 1-12 trang sách, mỗi trang tối đa
+256 ký tự; nếu bỏ trống, sách dùng `summary` làm trang mặc định. Danh sách câu truyện cũ trong `story.yml` được
 giữ lại để tương thích; artifact và `story-id` không cần di chuyển khi thêm chapter.
 Khi cập nhật plugin, các giá trị server hiện có được giữ nguyên; chỉ khóa mặc định
 còn thiếu mới được thêm. Không có migration tự động hoặc xóa dữ liệu khỏi `story.yml`.
@@ -635,8 +636,8 @@ tác tạo lặp sẽ bị từ chối, không ghi đè race/class hay tiến tr
 
 Mục **Sổ truyện** trong menu chính hiển thị chapter từ
 `plugins/VnMineHardcore/story/chapters.yml` theo thứ tự cấu hình, có phân trang
-và đường quay lại hub. Đây là danh sách nội dung đọc-only; trạng thái chapter mở
-khóa theo người chơi chưa được triển khai.
+và đường quay lại hub. Bấm chapter để mở cuốn sách chứa nội dung đầy đủ; NPC
+Người giữ ký ức cũng mở danh mục này. Chapter hiện chưa có điều kiện mở khóa riêng.
 
 Có thể tắt tính năng bằng `rpg.character-creation.enabled: false` trong
 `plugins/VnMineHardcore/config.yml`.

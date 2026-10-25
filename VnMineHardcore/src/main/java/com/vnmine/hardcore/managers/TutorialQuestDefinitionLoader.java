@@ -111,7 +111,11 @@ public final class TutorialQuestDefinitionLoader {
         }
         Boolean waypointEnabled = readOptionalBoolean(objective, "waypoint-enabled", true,
             file, "quest.objective", logger);
-        Integer waypointUpdateIntervalTicks = readOptionalInteger(objective, "waypoint-update-interval-ticks", 20,
+        Boolean trackingEnabledByDefault = readOptionalBoolean(objective, "tracking-enabled-by-default", true,
+            file, "quest.objective", logger);
+        Boolean targetMarkerEnabled = readOptionalBoolean(objective, "target-marker-enabled", true,
+            file, "quest.objective", logger);
+        Integer waypointUpdateIntervalTicks = readOptionalInteger(objective, "waypoint-update-interval-ticks", 10,
             file, "quest.objective", logger);
         if (waypointUpdateIntervalTicks != null
                 && (waypointUpdateIntervalTicks < 5 || waypointUpdateIntervalTicks > 200)) {
@@ -133,7 +137,8 @@ public final class TutorialQuestDefinitionLoader {
         if (enabled == null || id == null || title == null || description == null
                 || rewardType == null || rewardAmount == null || objectiveId == null
                 || objectiveType == null || realmId == null || radiusBlocks == null
-                || waypointEnabled == null || waypointUpdateIntervalTicks == null
+                || waypointEnabled == null || trackingEnabledByDefault == null || targetMarkerEnabled == null
+                || waypointUpdateIntervalTicks == null
                 || waypointParticleRangeBlocks == null
                 || startMessage == null || completeMessage == null) {
             valid = false;
@@ -143,7 +148,8 @@ public final class TutorialQuestDefinitionLoader {
         return Optional.of(new TutorialQuestDefinition(
             enabled, id, title, description, new Reward(rewardType, rewardAmount),
             new Objective(objectiveId, objectiveType, realmId, radiusBlocks, waypointEnabled,
-                waypointUpdateIntervalTicks, waypointParticleRangeBlocks, startMessage, completeMessage)
+                trackingEnabledByDefault, targetMarkerEnabled, waypointUpdateIntervalTicks,
+                waypointParticleRangeBlocks, startMessage, completeMessage)
         ));
     }
 
@@ -200,6 +206,8 @@ public final class TutorialQuestDefinitionLoader {
         String realmId,
         int radiusBlocks,
         boolean waypointEnabled,
+        boolean trackingEnabledByDefault,
+        boolean targetMarkerEnabled,
         int waypointUpdateIntervalTicks,
         int waypointParticleRangeBlocks,
         String startMessage,

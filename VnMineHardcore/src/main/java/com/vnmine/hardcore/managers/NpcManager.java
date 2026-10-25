@@ -200,6 +200,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         switch (action.type()) {
             case "open-skill-tree" -> plugin.getSkillManager().openSkillTreeFromNpc(player);
             case "open-quest-journal" -> plugin.getTutorialQuestManager().openJournal(player);
+            case "open-story" -> plugin.getMercenaryManager().openStoryJournal(player);
             case "open-merchant" -> plugin.getEconomyManager().openMerchantMenu(player);
             case "give-skill-book" -> plugin.getSkillManager().giveSkillBookFromNpc(player, action.bookId());
             default -> plugin.getLogger().warning("[NPC] Unsupported runtime action '" + action.type() + "'.");

@@ -13,6 +13,7 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -28,17 +29,22 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitTask;
 
 public final class TutorialQuestManager implements Listener {
     private final VnMineHardcore plugin;
     private final File definitionFile;
+    private final NamespacedKey trackingEnabledKey;
     private final Map<UUID, Boolean> activeQuestSessions = new HashMap<>();
     private final Map<UUID, Long> lastWaypointAtMillis = new HashMap<>();
     private final java.util.Set<UUID> pendingQuestCompletions = new java.util.HashSet<>();
     private TutorialQuestDefinitionLoader.TutorialQuestDefinition definition;
+    private BukkitTask waypointTicker;
 
     public TutorialQuestManager(VnMineHardcore plugin) {
         this.plugin = plugin;
+        this.trackingEnabledKey = new NamespacedKey(plugin, "quest_tracking_enabled");
         File questsFolder = new File(plugin.getDataFolder(), "quests/tutorial");
         if (!questsFolder.isDirectory() && !questsFolder.mkdirs()) {
             plugin.getLogger().severe("[Quest] Could not create the tutorial quest configuration directory.");
@@ -64,6 +70,7 @@ public final class TutorialQuestManager implements Listener {
         if (loaded.isEmpty()) return false;
 
         definition = loaded.get();
+        startWaypointTicker();
         for (Player player : Bukkit.getOnlinePlayers()) {
             initializePlayer(player, false);
         }
@@ -150,6 +157,17 @@ public final class TutorialQuestManager implements Listener {
             case 11 -> {
                 if (!holder.hasActiveProfile && plugin.getCharacterSelectionManager() != null) {
                     plugin.getCharacterSelectionManager().openRaceMenu(player);
+                } else if (holder.progress.isPresent()
+                        && "active".equals(holder.progress.get().status())) {
+                    boolean enabled = !isTrackingEnabled(player);
+                    player.getPersistentDataContainer().set(trackingEnabledKey,
+                        PersistentDataType.BYTE, enabled ? (byte) 1 : (byte) 0);
+                    lastWaypointAtMillis.remove(player.getUniqueId());
+                    if (!enabled) player.sendActionBar(" ");
+                    player.sendMessage(enabled
+                        ? "§aĐã bật particle dẫn đường nhiệm vụ."
+                        : "§eĐã tắt particle dẫn đường nhiệm vụ.");
+                    openJournalInventory(player, true, holder.progress);
                 }
             }
             case 15 -> {
@@ -187,9 +205,32 @@ public final class TutorialQuestManager implements Listener {
         activeQuestSessions.put(playerId, isInside);
         if (isInside && !wasInside) {
             completeObjective(event.getPlayer());
-        } else if (!isInside) {
-            showWaypoint(event.getPlayer(), to, false);
         }
+    }
+
+    private void startWaypointTicker() {
+        if (waypointTicker != null) {
+            waypointTicker.cancel();
+            waypointTicker = null;
+        }
+        if (definition == null || !definition.enabled() || !definition.objective().waypointEnabled()) return;
+        long interval = definition.objective().waypointUpdateIntervalTicks();
+        waypointTicker = Bukkit.getScheduler().runTaskTimer(plugin, this::updateTrackedWaypoints, 1L, interval);
+    }
+
+    private void updateTrackedWaypoints() {
+        if (definition == null || !definition.enabled() || !definition.objective().waypointEnabled()) return;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Boolean insideObjective = activeQuestSessions.get(player.getUniqueId());
+            if (insideObjective != null && !insideObjective && isTrackingEnabled(player)) {
+                showWaypoint(player, player.getLocation(), false);
+            }
+        }
+    }
+
+    private boolean isTrackingEnabled(Player player) {
+        Byte stored = player.getPersistentDataContainer().get(trackingEnabledKey, PersistentDataType.BYTE);
+        return stored == null ? definition.objective().trackingEnabledByDefault() : stored != 0;
     }
 
     public void initializePlayer(Player player) {
@@ -354,7 +395,7 @@ public final class TutorialQuestManager implements Listener {
             Player player,
             boolean hasActiveProfile,
             Optional<PlayerProfileDatabaseManager.QuestProgress> progress) {
-        QuestJournalHolder holder = new QuestJournalHolder(player.getUniqueId(), hasActiveProfile);
+        QuestJournalHolder holder = new QuestJournalHolder(player.getUniqueId(), hasActiveProfile, progress);
         Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Nhật ký nhiệm vụ");
         holder.inventory = inventory;
 
@@ -367,6 +408,14 @@ public final class TutorialQuestManager implements Listener {
             inventory.setItem(13, createJournalItem(Material.BARRIER, "§cQuest tutorial đang tắt", List.of(
                 "§7Quản trị viên có thể bật lại trong first-steps.yml.")));
         } else {
+            boolean activeQuest = progress.isPresent() && "active".equals(progress.get().status());
+            boolean trackingEnabled = isTrackingEnabled(player);
+            inventory.setItem(11, createJournalItem(activeQuest && trackingEnabled
+                    ? Material.LIME_DYE : Material.GRAY_DYE,
+                activeQuest && trackingEnabled ? "§aTracking: Đang bật" : "§7Tracking: Đang tắt",
+                List.of(activeQuest
+                    ? "§eNhấn để " + (trackingEnabled ? "tắt" : "bật") + " particle dẫn đường."
+                    : "§7Chỉ bật tracking khi có nhiệm vụ đang thực hiện.")));
             inventory.setItem(13, createJournalItem(Material.WRITABLE_BOOK, "§6" + definition.title(),
                 buildJournalLore(definition, progress)));
             boolean rewardClaimed = progress.isPresent()
@@ -414,7 +463,7 @@ public final class TutorialQuestManager implements Listener {
     }
 
     private void showWaypoint(Player player, Location playerLocation, boolean force) {
-        if (definition == null || !definition.objective().waypointEnabled()) return;
+        if (definition == null || !definition.objective().waypointEnabled() || !isTrackingEnabled(player)) return;
         long now = System.currentTimeMillis();
         long updateIntervalMillis = definition.objective().waypointUpdateIntervalTicks() * 50L;
         Long lastUpdate = lastWaypointAtMillis.get(player.getUniqueId());
@@ -440,7 +489,9 @@ public final class TutorialQuestManager implements Listener {
             + Math.round(Math.sqrt(dx * dx + dz * dz)) + " block");
         if (distance > definition.objective().waypointParticleRangeBlocks()) return;
 
-        int steps = Math.max(1, (int) Math.ceil(distance / 2.5));
+        if (definition.objective().targetMarkerEnabled()) showTargetMarker(player, target);
+
+        int steps = Math.max(1, (int) Math.ceil(distance / 3.0));
         Location start = playerLocation.clone().add(0, 1.0, 0);
         Location end = target.clone().add(0, 1.0, 0);
         for (int step = 1; step <= steps; step++) {
@@ -450,6 +501,20 @@ public final class TutorialQuestManager implements Listener {
                 start.getY() + (end.getY() - start.getY()) * progress,
                 start.getZ() + (end.getZ() - start.getZ()) * progress);
             player.spawnParticle(Particle.END_ROD, point, 1, 0, 0, 0, 0);
+        }
+    }
+
+    private void showTargetMarker(Player player, Location target) {
+        double markerY = target.getY() + 0.15;
+        for (int step = 0; step < 12; step++) {
+            double angle = Math.PI * 2.0 * step / 12.0;
+            Location point = new Location(target.getWorld(),
+                target.getX() + Math.cos(angle) * 1.1, markerY,
+                target.getZ() + Math.sin(angle) * 1.1);
+            player.spawnParticle(Particle.HAPPY_VILLAGER, point, 1, 0, 0, 0, 0);
+        }
+        for (double height = 0.5; height <= 2.5; height += 0.5) {
+            player.spawnParticle(Particle.END_ROD, target.clone().add(0, height, 0), 1, 0, 0, 0, 0);
         }
     }
 
@@ -567,11 +632,14 @@ public final class TutorialQuestManager implements Listener {
     private static final class QuestJournalHolder implements InventoryHolder {
         private final UUID viewer;
         private final boolean hasActiveProfile;
+        private final Optional<PlayerProfileDatabaseManager.QuestProgress> progress;
         private Inventory inventory;
 
-        private QuestJournalHolder(UUID viewer, boolean hasActiveProfile) {
+        private QuestJournalHolder(UUID viewer, boolean hasActiveProfile,
+                                   Optional<PlayerProfileDatabaseManager.QuestProgress> progress) {
             this.viewer = viewer;
             this.hasActiveProfile = hasActiveProfile;
+            this.progress = progress;
         }
 
         @Override

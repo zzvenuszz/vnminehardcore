@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [v2.12.0] - 2026-10-25
+
+### Added
+- Thêm tracking particle cho tutorial quest, bật/tắt theo người chơi và đánh dấu đích.
+- Thêm schema SQLite 9 và API nền ghi lượt quest VNCOIN lặp lại tối đa 10 lần/ngày, chống callback trùng bằng source ID; chưa nối vào quest gameplay/UI.
+- Thêm nội dung cho 9 chapter, bấm chapter mở sách Minecraft; NPC Người giữ ký ức mở được danh mục truyện.
+
+## [v2.11.0] - 2026-10-25
+
+### Added
+- Thêm công tắc tracking nhiệm vụ theo người chơi trong journal; dùng một ticker chung để cập nhật đường particle và đánh dấu đích.
+- Bổ sung cấu hình tracking mặc định, marker đích và chu kỳ cập nhật đường; giữ tương thích với `first-steps.yml` cũ.
+- Mở rộng hướng phát triển quest đa mục tiêu, lặp lại theo ngày, preview reward, nhánh class/race buff và cốt truyện vào `plan.md`.
+
 ## [v2.10.0] - 2026-10-25
 
 ### Changed

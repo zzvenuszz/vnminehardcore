@@ -581,12 +581,16 @@ spawn. The only supported objective type in this slice is
 `visit-realm-spawn`; its horizontal radius defaults to 8 blocks and can be
 configured from 1 to 64. The quest ID and objective ID are persisted in SQLite,
 so reconnecting does not restart or duplicate progress.
-While the objective is active, an action bar shows the resolved spawn location
-and distance; an End Rod particle trail is shown when the player is in the same
-world and within 48 blocks. Configure `quest.objective.waypoint-enabled`
-(default `true`), `waypoint-update-interval-ticks` (default `20`, range `5-200`),
-and `waypoint-particle-range-blocks` (default `48`, range `8-64`) in the quest
-definition. Older definitions that omit these fields use the defaults.
+While the objective is active, a shared ticker recalculates the path from the
+player's current location to the target. End Rod particles mark the path, while
+a bright green ring and vertical beam mark the destination. Open the quest
+journal from slot 20 in the main menu and click the tracking toggle in slot 11 to
+enable or disable tracking; that choice is saved on the player. Administrators
+can use `waypoint-enabled` as a global switch, `tracking-enabled-by-default`
+(default `true`), `target-marker-enabled` (default `true`),
+`waypoint-update-interval-ticks` (default `10`, range `5-200`), and
+`waypoint-particle-range-blocks` (default `48`, range `8-64`) in the quest
+definition. Tracking currently applies to the single tutorial quest.
 
 The quest reward supports `quest.reward.type: character-exp` (amount `0-100000`)
 or `vncoin` (amount `1-1000000`); the default remains `character-exp` with `25`.
@@ -621,12 +625,12 @@ player-facing setup are complete.
 
 NPC dialogue templates are defined in
 `plugins/VnMineHardcore/npcs/npc-definitions.yml` and validated at startup.
-The schema supports seven roles: `tutorial`, `quest-giver`, `trainer`,
-`merchant`, `story`, `gatekeeper`, and `healer`. Each definition has a stable
+The schema supports eight roles: `tutorial`, `quest-giver`, `trainer`,
+`merchant`, `system-merchant`, `story`, `gatekeeper`, and `healer`. Each definition has a stable
 lowercase ID, display name (up to 64 characters), and 1-20 dialogue lines
 (up to 256 characters each). Optional `actions` add up to four clickable GUI
-buttons: `open-quest-journal`, `open-skill-tree`, or `give-skill-book` with a
-configured `book-id`. For example:
+buttons: `open-quest-journal`, `open-skill-tree`, `open-story`, `open-merchant`,
+or `give-skill-book` with a configured `book-id`. For example:
 
 ```yaml
 actions:
@@ -644,8 +648,9 @@ plugin from starting so the invalid data is not silently ignored. Runtime NPCs
 are stored separately in `plugins/VnMineHardcore/npcs.yml`; their entity UUID,
 role, display name, world, and location are saved and reconciled as chunks load.
 
-The bundled file currently provides tutorial-guide, class-trainer, and
-story-keeper dialogue templates. Create a runtime NPC where you are standing:
+The bundled file currently provides tutorial-guide, class-trainer, coin-merchant,
+and story-keeper dialogue templates. The story keeper opens the chapter list.
+Create a runtime NPC where you are standing:
 
 ```text
 /vnnpc create <id> <type> [display name...]
@@ -656,9 +661,9 @@ story-keeper dialogue templates. Create a runtime NPC where you are standing:
 /vnnpc remove <id>
 ```
 
-IDs use lowercase letters, numbers, and single hyphens. The seven supported
-types are `tutorial`, `quest-giver`, `trainer`, `merchant`, `story`,
-`gatekeeper`, and `healer`; omitted names use the matching template name or a
+IDs use lowercase letters, numbers, and single hyphens. The eight supported
+types are `tutorial`, `quest-giver`, `trainer`, `merchant`, `system-merchant`,
+`story`, `gatekeeper`, and `healer`; omitted names use the matching template name or a
 title-cased role. Names are limited to 64 characters and support `&` color
 codes. Create and move require a player location; other commands may be run
 from console. Runtime NPCs are stationary, silent, invulnerable vanilla

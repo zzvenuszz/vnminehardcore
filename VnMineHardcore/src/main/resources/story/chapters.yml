@@ -21,6 +21,11 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Creeper đánh thức Cổng Vạn Giới bằng Lôi Tâm."
+    # [VI] Nội dung từng trang sách; cần 1..12 trang, mỗi trang 1..256 ký tự.
+    # [EN] Text for each written-book page; requires 1..12 pages, each 1..256 characters.
+    pages:
+      - "Đêm ấy, tiếng sấm vang lên dưới lòng đất dù bầu trời không một gợn mây. Một Creeper mang vết nứt đỏ trên thân bước ra từ tàn tích, để lại một mảnh tinh thể đang đập như trái tim."
+      - "Người giữ ký ức gọi tinh thể ấy là Lôi Tâm. Khi nó thức tỉnh, Cổng Vạn Giới sáng lên lần đầu sau nhiều thế kỷ. Nhưng phía bên kia cánh cổng, có thứ gì đó vừa nhận ra Nhân giới vẫn còn người sống."
   chapter-02:
     # [VI] Thứ tự hiển thị; số nguyên dương duy nhất trong file.
     # [EN] Display order; a unique positive integer in this file.
@@ -31,6 +36,11 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Địa Mạch Cự Nhân làm rung đường tơ Hoàng Hôn."
+    # [VI] Nội dung trang sách chương này; cần 1..12 trang, mỗi trang tối đa 256 ký tự.
+    # [EN] This chapter's book pages; requires 1..12 pages, up to 256 characters each.
+    pages:
+      - "Mỗi bước chân của Địa Mạch Cự Nhân làm núi đá rạn ra. Dưới lớp đất mới nứt, đoàn thám hiểm tìm thấy những sợi tơ bạc chạy về phía chân trời hoàng hôn."
+      - "Người thợ rèn nhận ra chúng không phải rễ cây mà là mạch dẫn năng lượng của cánh cổng. Ông xin người lữ khách mang về quặng phát sáng để rèn một la bàn, trước khi địa mạch sụp xuống."
   chapter-03:
     # [VI] Thứ tự hiển thị; số nguyên dương duy nhất trong file.
     # [EN] Display order; a unique positive integer in this file.
@@ -41,6 +51,11 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Nhện dẫn người đọc tới Trăng Máu và Mật Lục."
+    # [VI] Nội dung trang sách chương này; cần 1..12 trang, mỗi trang tối đa 256 ký tự.
+    # [EN] This chapter's book pages; requires 1..12 pages, up to 256 characters each.
+    pages:
+      - "Đêm Trăng Máu, nhện rừng giăng tơ quanh những phiến đá cổ. Trên mỗi nút tơ có một ký hiệu giống hệt vết nứt trên Lôi Tâm."
+      - "Mật Lục tìm được trong ổ nhện kể về một đoàn kỵ binh đã biến mất. Trang cuối bị xé mất, chỉ còn câu cảnh báo: đừng để Rìu Đỏ được gọi tên lần thứ hai."
   chapter-04:
     # [VI] Thứ tự hiển thị; số nguyên dương duy nhất trong file.
     # [EN] Display order; a unique positive integer in this file.
@@ -51,6 +66,11 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Cung Vạn Cốt hé lộ cuộc chiến của Kỵ Binh."
+    # [VI] Nội dung trang sách chương này; cần 1..12 trang, mỗi trang tối đa 256 ký tự.
+    # [EN] This chapter's book pages; requires 1..12 pages, up to 256 characters each.
+    pages:
+      - "Trong Cung Vạn Cốt, những bộ xương vẫn đứng thành hàng như đang chờ lệnh. Một Kỵ Binh không đầu canh giữ bức tranh về cuộc chiến đã chôn vùi cả vương quốc."
+      - "Khi Kỵ Binh ngã xuống, huy hiệu của hắn chỉ về Mộ Sâu. Người giữ ký ức hiểu rằng Rìu Đỏ không phải một chiến binh, mà là danh hiệu của kẻ đã mở cánh cổng đầu tiên."
   chapter-05:
     # [VI] Thứ tự hiển thị; số nguyên dương duy nhất trong file.
     # [EN] Display order; a unique positive integer in this file.
@@ -61,6 +81,11 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Rìu Đỏ chôn lời phán trong Mộ Sâu."
+    # [VI] Nội dung trang sách chương này; cần 1..12 trang, mỗi trang tối đa 256 ký tự.
+    # [EN] This chapter's book pages; requires 1..12 pages, up to 256 characters each.
+    pages:
+      - "Mộ Sâu chứa lời phán được khắc lên đá: cánh cổng không mở để xâm lăng, mà để chạy trốn. Những người cổ đại từng thấy một bóng đen nuốt mất ánh sao của quê hương họ."
+      - "Bản khắc kết thúc giữa chừng. Phần còn lại bị nung chảy bởi một luồng nhiệt không thuộc về lửa thường. Dấu tích dẫn xuống Nether, nơi tiếng khóc của Ghast vọng qua khe đá."
   chapter-06:
     # [VI] Thứ tự hiển thị; số nguyên dương duy nhất trong file.
     # [EN] Display order; a unique positive integer in this file.
@@ -71,6 +96,11 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Ghast Than Khóc mở màn Vĩnh Dạ."
+    # [VI] Nội dung trang sách chương này; cần 1..12 trang, mỗi trang tối đa 256 ký tự.
+    # [EN] This chapter's book pages; requires 1..12 pages, up to 256 characters each.
+    pages:
+      - "Ghast Than Khóc bay trên biển dung nham, mang theo mảnh bản đồ cháy dở. Hắn không tấn công đoàn thám hiểm; mỗi tiếng khóc lại làm lộ ra một chòm sao đã tắt."
+      - "Bản đồ chỉ đến Mắt Tận Cùng. Người thợ rèn tin rằng các chòm sao bị lấy đi để che giấu vị trí của một cánh cổng sâu hơn mọi cánh cổng đã biết."
   chapter-07:
     # [VI] Thứ tự hiển thị; số nguyên dương duy nhất trong file.
     # [EN] Display order; a unique positive integer in this file.
@@ -81,6 +111,11 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Phantom chỉ đường tới Mắt Tận Cùng."
+    # [VI] Nội dung trang sách chương này; cần 1..12 trang, mỗi trang tối đa 256 ký tự.
+    # [EN] This chapter's book pages; requires 1..12 pages, up to 256 characters each.
+    pages:
+      - "Phantom lượn trên tầng mây, dẫn người lữ khách tới một tháp quan sát bỏ hoang. Qua Mắt Tận Cùng, họ thấy một thanh Long Kiếm đóng xuyên qua lớp màn giữa các thế giới."
+      - "Bên dưới thanh kiếm, một Wither canh giữ những mảnh ấn cổ. Không ai biết nó bảo vệ cánh cổng hay đang cố ngăn thứ bên kia bước qua."
   chapter-08:
     # [VI] Thứ tự hiển thị; số nguyên dương duy nhất trong file.
     # [EN] Display order; a unique positive integer in this file.
@@ -91,6 +126,11 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Long Kiếm gom di vật, đối đầu Wither."
+    # [VI] Nội dung trang sách chương này; cần 1..12 trang, mỗi trang tối đa 256 ký tự.
+    # [EN] This chapter's book pages; requires 1..12 pages, up to 256 characters each.
+    pages:
+      - "Các di vật hợp thành chuôi Long Kiếm, nhưng lưỡi kiếm vẫn thiếu một mảnh. Trận chiến với Wither làm rung chuyển tháp; mỗi chiếc đầu lâu của nó phát ra một giọng nói khác nhau."
+      - "Khi bóng tối tan đi, Wither cuối cùng thì thầm rằng nó từng là người gác cổng. Nó trao tọa độ của cánh cổng sau cùng, rồi biến mất trước khi kịp nói điều gì đang chờ ở đó."
   chapter-09:
     # [VI] Thứ tự hiển thị; số nguyên dương duy nhất trong file.
     # [EN] Display order; a unique positive integer in this file.
@@ -101,3 +141,8 @@ chapters:
     # [VI] Tóm tắt chương; chuỗi không được để trống.
     # [EN] Chapter summary; must be a non-empty string.
     summary: "Cổng còn thức, mở lối cho chương tiếp theo."
+    # [VI] Nội dung trang sách chương này; cần 1..12 trang, mỗi trang tối đa 256 ký tự.
+    # [EN] This chapter's book pages; requires 1..12 pages, up to 256 characters each.
+    pages:
+      - "Cánh cổng sau cùng vẫn còn thức. Trên vòm đá không có tọa độ, chỉ có một cái tên đã bị cạo khỏi mọi bản khắc. Lôi Tâm đáp lại bằng nhịp đập yếu ớt."
+      - "Từ bên kia vang lên lời thì thầm: Đấng DIỆT THẾ. Cánh cổng khép lại trước khi bóng hình hiện ra. Người giữ ký ức đóng cuốn sách, nhưng trang giấy cuối vẫn tự viết thêm một dòng: cuộc săn tìm chỉ mới bắt đầu."

@@ -133,6 +133,7 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.permissions.Permission;
@@ -6402,9 +6403,10 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         for (int index = firstChapter; index < lastChapter; index++) {
             StoryChapterLoader.StoryChapter chapter = chapters.get(index);
             int slot = 10 + (index - firstChapter) % 7 + (index - firstChapter) / 7 * 9;
-            inventory.setItem(slot, menuItem(Material.WRITABLE_BOOK,
+            inventory.setItem(slot, menuItem(Material.WRITTEN_BOOK,
                 "§6" + chapter.order() + ". " + chapter.title(), List.of(
                     "§8ID: " + chapter.id(), "§7" + chapter.summary())));
+            holder.choices.put(slot, chapter.id());
         }
         inventory.setItem(4, menuItem(Material.BOOK, "§dTrang " + (page + 1) + " / " + pageCount,
             List.of("§7Chapter được sắp xếp theo thứ tự cấu hình.")));
@@ -6420,6 +6422,33 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                 "§7Quản trị viên chưa cấu hình chapter truyện.")));
         }
         player.openInventory(inventory);
+    }
+
+    public void openStoryJournal(Player player) {
+        openStoryMenu(player, 0);
+    }
+
+    private void openStoryChapter(Player player, String chapterId) {
+        StoryChapterLoader.StoryChapter chapter = plugin.getConfigManager().getStoryChapters().get(chapterId);
+        if (chapter == null) {
+            player.sendMessage("§cKhông tìm thấy nội dung chương truyện này.");
+            return;
+        }
+        ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
+        ItemMeta rawMeta = book.getItemMeta();
+        if (!(rawMeta instanceof BookMeta bookMeta)) {
+            player.sendMessage("§cKhông thể mở sách truyện trên máy chủ này.");
+            return;
+        }
+        bookMeta.setTitle(chapter.title().length() <= 32
+            ? chapter.title() : chapter.title().substring(0, 32));
+        bookMeta.setAuthor("VnMineHardcore");
+        bookMeta.setPages(chapter.pages());
+        book.setItemMeta(bookMeta);
+        player.closeInventory();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline()) player.openBook(book);
+        }, 1L);
     }
 
     private void travelToRealm(Player player, HumanRealmDefinitionLoader.HumanRealmDefinition realm) {
@@ -8744,6 +8773,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                             this.openMainMenu(player);
                         } else if (slot == 53) {
                             this.openStoryMenu(player, holder.page + 1);
+                        } else if (choice != null) {
+                            this.openStoryChapter(player, choice);
                         }
                         break;
                case ADMIN:

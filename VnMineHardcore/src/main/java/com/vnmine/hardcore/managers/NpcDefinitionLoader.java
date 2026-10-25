@@ -173,6 +173,7 @@ public final class NpcDefinitionLoader {
                 }
                 bookId = configuredBookId;
             } else if (!type.equals("open-skill-tree") && !type.equals("open-quest-journal")
+                    && !type.equals("open-story")
                     && !type.equals("open-merchant")) {
                 logger.warning("[NPC] Unsupported action type '" + type + "' at " + path + ".");
                 return null;
