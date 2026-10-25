@@ -301,7 +301,7 @@ Menu lọc item theo người chơi cũng đã package bằng Java 25 và chép 
 - [ ] Quest journal lưu progress, claim một lần và waypoint.
 - [ ] Party cơ bản định nghĩa rõ chia EXP/loot; không nhân đôi VNCOIN.
 
-**Tiến độ Phase D:** `player-classes.yml` hiện phân loại 3 class `available` (Lính kiếm, Vệ binh, Pháp sư) và 12 class `planned`; GUI chỉ hiện class có trạng thái available cùng skill đang được hỗ trợ. Cấu hình server cũ thiếu khóa availability dùng auto-detect để không làm hỏng character creation. Compile Java 25 thành công; cần restart và kiểm tra GUI trên server. Các class còn lại chưa được làm skill/UI/tutorial/balance.
+**Tiến độ Phase D:** `player-classes.yml` hiện phân loại 3 class `available` (Lính kiếm, Vệ binh, Pháp sư) và 12 class `planned`; GUI chỉ hiện class có trạng thái available cùng skill đang được hỗ trợ. Cấu hình server cũ thiếu khóa availability dùng auto-detect để không làm hỏng character creation. JAR 2.10.0 build lúc 2026-10-25 04:57 UTC, dung lượng 1,900,771 bytes, SHA-256 `d4ac9f0916a66f396b7660f2f70a1b350d540600c709cd3bee131a83e67b8cc0`, đã cài vào `VNMINE/plugins`; SQLite native chỉ có Linux x86_64. Cần restart và kiểm tra GUI trên server. Các class còn lại chưa được làm skill/UI/tutorial/balance.
 - [ ] Trang bị/crafting theo tier sau khi economy sink ổn định.
 
 **Chấp nhận:** người mới tự tạo nhân vật, hiểu class, hoàn thành tutorial, kiếm/tiêu coin và tới boss đầu mà không cần admin.
