@@ -46,6 +46,7 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vnuser ...` | Xem/gán nhóm, cấp/thu hồi quyền cá nhân, reset người chơi | `vnmine.command.users.manage` |
 | `/vnarmy ...` | Thuê/quản lý lính, đổi chế độ AI và trang bị | `vnmine.command.army` |
 | `/vnarmy item give ...` | Admin cấp một món hoặc trọn set gear cho lính | `vnmine.command.army.admin` |
+| `/vncoin [balance\|history [player]\|give\|take ...]` | Xem ví/lịch sử; quản trị viên có thể cộng hoặc trừ VNCOIN | `vnmine.command.vncoin.admin` cho give/take; xem lịch sử người khác cần `vnmine.command.vncoin.history.others` |
 
 Ví dụ gọi boss Wither level 3, cảnh báo 30 giây, tồn tại 120 giây:
 `/vnboss wither 3 30 120`.
@@ -53,6 +54,33 @@ Các lệnh có tham số hỗ trợ nhấn Tab để gợi ý ID, tên người
 bảo vệ và các giá trị phổ biến cho từng vị trí tham số. `/vnspawn protect X`
 dùng bán kính ngang X/Z tính từ block hiện tại và bảo vệ ở mọi độ cao; dữ liệu
 được lưu trong `plugins/VnMineHardcore/spawns-protection.yml`.
+
+### VNCOIN và cửa hàng NPC
+
+Người chơi xem số dư bằng `/vncoin` hoặc mở ví từ menu. Có hai loại NPC bán hàng:
+
+- Merchant hệ thống tạo bằng `/vnnpc create <id> system-merchant`; bán toàn bộ
+  mặt hàng trong danh mục chung `economy.merchant.offers` của `config.yml`
+  (tối đa 1.000 món, phân trang 44 món).
+- Merchant tùy chỉnh tạo bằng `/vnnpc create <id> merchant`. Admin dùng
+  `/vnnpc edit <id>` hoặc Shift + chuột phải vào NPC để mở GUI chỉnh shop.
+  Shift-click vật phẩm RPG có PDC của plugin từ túi để thêm; chuột trái vào món
+  trong shop để mở bảng chỉnh giá; chuột phải để gỡ món; nút **Lưu cửa hàng** ghi
+  item và giá vào `npcs.yml`. Khi thêm, stack vật phẩm được chuyển khỏi túi admin
+  vào bản nháp của shop; chỉ bấm lưu mới ghi thay đổi xuống file.
+
+GUI chỉnh giá có các nút `-1/+1`, `-10/+10`, `-100/+100` VNCOIN; mức bước và giá
+tối đa tùy chỉnh tại `economy.merchant.custom.price-steps` và `max-price` trong
+`config.yml`. Giới hạn số món mỗi shop ở `max-offers` (mặc định 45). Tắt shop
+chung bằng `economy.merchant.enabled: false`; chỉ tắt merchant tùy chỉnh bằng
+`economy.merchant.custom.enabled: false`. Người chơi không cần permission riêng
+để mua; quản trị merchant cần `vnmine.command.npc.admin`.
+
+Mua hàng yêu cầu một ô trống trong túi; mỗi người chỉ có một giao dịch đang xử lý.
+Giao dịch ghi vào wallet ledger và nếu plugin phát hiện không thể giao item thì
+thực hiện giao dịch hoàn tiền riêng. Crash ngay giữa lúc trừ tiền và giao item
+vẫn cần kiểm chứng và sẽ được xử lý bằng hộp thư giao vật phẩm bền vững ở bước
+hoàn thiện Phase C.
 
 ### Nhóm và quyền (`permission.yml`)
 

@@ -79,11 +79,13 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private final NamespacedKey spawnEligibleKey;
     private final NamespacedKey armyUnitKey;
     private final NamespacedKey armySummonKey;
+    private final NamespacedKey merchantOfferKey;
     private final ConcurrentMap<UUID, ItemNameMode> itemNameModes = new ConcurrentHashMap<>();
     private final ConcurrentMap<Integer, ItemNameCategory> itemNameCategories = new ConcurrentHashMap<>();
     private final Set<UUID> pendingClaims = new HashSet<>();
     private final Map<UUID, Long> nextBossDropClaimAt = new HashMap<>();
     private final Set<CreatureSpawnEvent.SpawnReason> allowedSpawnReasons = new HashSet<>();
+    private final Set<UUID> pendingMerchantPurchases = ConcurrentHashMap.newKeySet();
     private final Map<String, MobTier> tiersByEntity = new HashMap<>();
     private final PacketAdapter itemNamePacketListener;
     private boolean economyEnabled;
@@ -108,6 +110,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         spawnEligibleKey = new NamespacedKey(plugin, "vncoin_spawn_eligible");
         armyUnitKey = new NamespacedKey(plugin, "army_unit");
         armySummonKey = new NamespacedKey(plugin, "army_summoned_minion");
+        merchantOfferKey = new NamespacedKey(plugin, "merchant_offer_id");
         itemNamePacketListener = new PacketAdapter(plugin, ListenerPriority.NORMAL,
                 PacketType.Play.Server.ENTITY_METADATA) {
             @Override
@@ -446,8 +449,9 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             .replaceAll("(?i)<#000000>", "<dark_gray>");
     }
 
-    public void dropBossCoins(org.bukkit.Location bossLocation, String bossName) {
+    public void dropBossCoins(org.bukkit.Location bossLocation, String bossName, UUID encounterId) {
         if (!economyEnabled || !bossDropsEnabled || bossLocation == null || bossLocation.getWorld() == null) return;
+        if (encounterId == null) throw new IllegalArgumentException("Boss encounter id cannot be null.");
         int remaining = bossTotalCoins;
         int drops = 0;
         ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -458,7 +462,9 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 : random.nextDouble(0.5, bossScatterRadius + 0.5);
             org.bukkit.Location spawn = bossLocation.clone().add(
                 Math.cos(angle) * distance, 0.4 + random.nextDouble(0.5), Math.sin(angle) * distance);
-            Item drop = bossLocation.getWorld().dropItem(spawn, createCoinDrop(amount, false, true));
+            UUID dropId = UUID.nameUUIDFromBytes((encounterId + ":vncoin:" + drops)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            Item drop = bossLocation.getWorld().dropItem(spawn, createCoinDrop(amount, false, true, dropId));
             double speed = random.nextDouble(0.28, 0.62);
             drop.setVelocity(new org.bukkit.util.Vector(Math.cos(angle) * speed,
                 random.nextDouble(0.28, 0.55), Math.sin(angle) * speed));
@@ -629,14 +635,236 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         }
     }
 
+    public void openMerchantMenu(Player player) {
+        if (!economyEnabled || !plugin.getConfig().getBoolean("economy.merchant.enabled", true)) {
+            player.sendMessage("§cCửa hàng VNCOIN hiện đang đóng.");
+            return;
+        }
+        openMerchantInventory(player, "VnMine • Thương nhân", loadMerchantOffers());
+    }
+
+    public void openCustomMerchantMenu(Player player, String merchantId, String title,
+                                       List<CustomMerchantOffer> customOffers) {
+        if (!economyEnabled || !plugin.getConfig().getBoolean("economy.merchant.enabled", true)) {
+            player.sendMessage("§cCửa hàng VNCOIN hiện đang đóng.");
+            return;
+        }
+        if (!plugin.getConfig().getBoolean("economy.merchant.custom.enabled", true)) {
+            player.sendMessage("§cCửa hàng NPC tùy chỉnh hiện đang tắt.");
+            return;
+        }
+        List<MerchantOffer> offers = new ArrayList<>();
+        for (int index = 0; index < customOffers.size() && index < 45; index++) {
+            CustomMerchantOffer offer = customOffers.get(index);
+            ItemStack item = offer.item().clone();
+            ItemMeta meta = item.getItemMeta();
+            String name = meta != null && meta.hasDisplayName() ? meta.getDisplayName()
+                : item.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
+            offers.add(new MerchantOffer(merchantId + "-" + index, item, offer.price(), name));
+        }
+        openMerchantInventory(player, title, offers);
+    }
+
+    private void openMerchantInventory(Player player, String title, List<MerchantOffer> offers) {
+        if (offers.isEmpty()) {
+            player.sendMessage("§cCửa hàng hiện chưa có mặt hàng nào.");
+            return;
+        }
+        MerchantMenuHolder holder = new MerchantMenuHolder(player.getUniqueId(), List.copyOf(offers));
+        Inventory inventory = Bukkit.createInventory(holder, 54, title);
+        holder.inventory = inventory;
+        renderMerchantPage(inventory, holder);
+        player.openInventory(inventory);
+    }
+
+    private void renderMerchantPage(Inventory inventory, MerchantMenuHolder holder) {
+        holder.offers.clear();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, menuItem(Material.GRAY_STAINED_GLASS_PANE, "§r", List.of()));
+        }
+        int startIndex = holder.page * 44;
+        for (int slot = 0; slot < 44 && startIndex + slot < holder.allOffers.size(); slot++) {
+            MerchantOffer offer = holder.allOffers.get(startIndex + slot);
+            ItemStack display = offer.item().clone();
+            ItemMeta meta = display.getItemMeta();
+            if (meta != null) {
+                if (!meta.hasDisplayName()) meta.setDisplayName("§f" + offer.name());
+                List<String> lore = meta.hasLore() && meta.getLore() != null
+                    ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                lore.add("§7Giá: §6" + offer.price() + " VNCOIN");
+                lore.add("§eNhấn để mua.");
+                meta.setLore(lore);
+                meta.getPersistentDataContainer().set(merchantOfferKey, PersistentDataType.STRING, offer.id());
+                display.setItemMeta(meta);
+            }
+            inventory.setItem(slot, display);
+            holder.offers.put(slot, offer);
+        }
+        int pages = Math.max(1, (holder.allOffers.size() + 43) / 44);
+        inventory.setItem(44, menuItem(Material.GOLD_INGOT, "§6Trang " + (holder.page + 1) + "/" + pages,
+            List.of("§7Danh mục hàng hóa VNCOIN.")));
+        if (holder.page > 0) inventory.setItem(45,
+            menuItem(Material.ARROW, "§eTrang trước", List.of("§7Quay lại trang " + holder.page + ".")));
+        inventory.setItem(49, menuItem(Material.BARRIER, "§cĐóng cửa hàng", List.of()));
+        if (holder.page + 1 < pages) inventory.setItem(53,
+            menuItem(Material.ARROW, "§eTrang sau", List.of("§7Mở trang " + (holder.page + 2) + ".")));
+    }
+
+    @EventHandler
+    public void onMerchantMenuClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof MerchantMenuHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)
+                || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        if (event.getRawSlot() == 49) {
+            player.closeInventory();
+            return;
+        }
+        if (event.getRawSlot() == 45 && holder.page > 0) {
+            holder.page--;
+            renderMerchantPage(event.getView().getTopInventory(), holder);
+            return;
+        }
+        if (event.getRawSlot() == 53 && (holder.page + 1) * 44 < holder.allOffers.size()) {
+            holder.page++;
+            renderMerchantPage(event.getView().getTopInventory(), holder);
+            return;
+        }
+        MerchantOffer offer = holder.offers.get(event.getRawSlot());
+        if (offer == null) return;
+        purchaseMerchantOffer(player, offer);
+    }
+
+    private List<MerchantOffer> loadMerchantOffers() {
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection("economy.merchant.offers");
+        if (section == null) return List.of();
+        List<MerchantOffer> offers = new ArrayList<>();
+        for (String id : section.getKeys(false)) {
+            ConfigurationSection entry = section.getConfigurationSection(id);
+            if (entry == null || !id.matches("[a-z0-9_-]{1,48}")) {
+                plugin.getLogger().warning("[Economy][Merchant] Invalid offer id/configuration: " + id);
+                continue;
+            }
+            Material material = Material.matchMaterial(entry.getString("material", ""));
+            int amount = entry.getInt("amount", 1);
+            long price = entry.getLong("price", 0L);
+            String name = entry.getString("name", id);
+            if (material == null || !material.isItem() || amount < 1 || amount > material.getMaxStackSize()
+                    || price < 1 || price > MAX_ADMIN_TRANSACTION || name == null || name.isBlank()
+                    || name.length() > 48) {
+                plugin.getLogger().warning("[Economy][Merchant] Ignoring invalid offer '" + id
+                    + "': material/item, amount, price or name is outside supported bounds.");
+                continue;
+            }
+            ItemStack item = new ItemStack(material, amount);
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName("§f" + sanitizeVisibleName(name));
+                item.setItemMeta(meta);
+            }
+            offers.add(new MerchantOffer(id, item, price, sanitizeVisibleName(name)));
+        }
+        if (offers.size() > 1_000) {
+            plugin.getLogger().warning("[Economy][Merchant] Config has " + offers.size()
+                + " valid offers; only the first 1000 are loaded.");
+        }
+        return List.copyOf(offers.subList(0, Math.min(offers.size(), 1_000)));
+    }
+
+    private void purchaseMerchantOffer(Player player, MerchantOffer offer) {
+        UUID playerId = player.getUniqueId();
+        if (pendingMerchantPurchases.contains(playerId)) {
+            player.sendMessage("§eĐang xử lý giao dịch trước đó, vui lòng chờ.");
+            return;
+        }
+        if (player.getInventory().firstEmpty() < 0) {
+            player.sendMessage("§cHãy chừa ít nhất một ô trống trong túi trước khi mua.");
+            return;
+        }
+        if (!pendingMerchantPurchases.add(playerId)) return;
+        String transactionId = "merchant:" + UUID.randomUUID();
+        player.sendMessage("§7Đang xử lý giao dịch VNCOIN...");
+        database.executeGameplayDatabaseTask("wallet.merchant-buy player=" + player.getName()
+                + " offer=" + offer.id(),
+            () -> database.applyWalletTransaction(playerId.toString(), -offer.price(), transactionId,
+                "merchant:" + offer.id(), playerId.toString(), "Mua " + offer.name(), Instant.now().toString()))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    pendingMerchantPurchases.remove(playerId);
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Purchase failed: player="
+                        + player.getName() + ", offer=" + offer.id(), failure);
+                    if (player.isOnline()) player.sendMessage("§cGiao dịch thất bại; VNCOIN chưa bị trừ.");
+                    return;
+                }
+                if (result.status() != PlayerProfileDatabaseManager.WalletTransactionStatus.APPLIED) {
+                    pendingMerchantPurchases.remove(playerId);
+                    if (player.isOnline()) player.sendMessage(result.status()
+                        == PlayerProfileDatabaseManager.WalletTransactionStatus.INSUFFICIENT_FUNDS
+                        ? "§cBạn không đủ VNCOIN để mua vật phẩm này."
+                        : "§cKhông thể hoàn tất giao dịch VNCOIN.");
+                    return;
+                }
+                if (!player.isOnline() || player.getInventory().firstEmpty() < 0) {
+                    refundMerchantPurchase(playerId, player.getName(), offer, transactionId);
+                    return;
+                }
+                Map<Integer, ItemStack> overflow = player.getInventory().addItem(
+                    offer.item().clone());
+                if (!overflow.isEmpty()) {
+                    refundMerchantPurchase(playerId, player.getName(), offer, transactionId);
+                    if (player.isOnline()) player.sendMessage("§cKhông thể giao vật phẩm; VNCOIN sẽ được hoàn lại.");
+                    return;
+                }
+                pendingMerchantPurchases.remove(playerId);
+                player.sendMessage("§aĐã mua §f" + offer.name() + " §avới giá §6" + offer.price()
+                    + " VNCOIN§a. Số dư: §e" + result.balance());
+                debug("[RPG-DEBUG][VNCOIN][Merchant] purchase player=" + player.getName()
+                    + ", offer=" + offer.id() + ", amount=" + offer.item().getAmount() + ", price=" + offer.price()
+                    + ", balance=" + result.balance() + ", transaction=" + transactionId);
+            }));
+    }
+
+    private void refundMerchantPurchase(UUID playerId, String playerName, MerchantOffer offer,
+                                        String purchaseTransactionId) {
+        database.executeGameplayDatabaseTask("wallet.merchant-refund player=" + playerName
+                + " offer=" + offer.id(),
+            () -> database.applyWalletTransaction(playerId.toString(), offer.price(),
+                "refund:" + purchaseTransactionId, "merchant-refund:" + offer.id(), null,
+                "Hoàn tiền mua " + offer.name(), Instant.now().toString()))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                pendingMerchantPurchases.remove(playerId);
+                Player online = Bukkit.getPlayer(playerId);
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Refund failed: player="
+                        + playerName + ", offer=" + offer.id() + ", purchase=" + purchaseTransactionId, failure);
+                    if (online != null) online.sendMessage("§cHoàn tiền đang gặp lỗi; hãy báo quản trị viên.");
+                    return;
+                }
+                if (result.status() != PlayerProfileDatabaseManager.WalletTransactionStatus.APPLIED
+                        && result.status() != PlayerProfileDatabaseManager.WalletTransactionStatus.DUPLICATE) {
+                    plugin.getLogger().severe("[Economy][Merchant] Refund transaction was not applied: player="
+                        + playerName + ", offer=" + offer.id() + ", status=" + result.status()
+                        + ", purchase=" + purchaseTransactionId);
+                    if (online != null) online.sendMessage("§cKhông thể hoàn VNCOIN tự động; hãy báo quản trị viên.");
+                    return;
+                }
+                if (online != null) online.sendMessage("§eĐã hoàn lại " + offer.price() + " VNCOIN.");
+            }));
+    }
+
     private ItemStack createCoinDrop(int amount, boolean critical, boolean bossDrop) {
+        return createCoinDrop(amount, critical, bossDrop, UUID.randomUUID());
+    }
+
+    private ItemStack createCoinDrop(int amount, boolean critical, boolean bossDrop, UUID dropId) {
         ItemStack item = new ItemStack(Material.SUNFLOWER, amount);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(critical ? "§6§l✦ VNCOIN HIẾM §7x" + amount
             : bossDrop ? "§6§lVNCOIN BOSS §7x" + amount : "§6VNCOIN §7x" + amount);
         meta.setLore(List.of("§eNhặt để tự động cộng vào ví.",
             critical ? "§cCritical drop hiếm." : bossDrop ? "§dPhần thưởng boss." : "§7Tiền tệ của VnMine."));
-        meta.getPersistentDataContainer().set(coinDropIdKey, PersistentDataType.STRING, UUID.randomUUID().toString());
+        meta.getPersistentDataContainer().set(coinDropIdKey, PersistentDataType.STRING, dropId.toString());
         meta.getPersistentDataContainer().set(coinAmountKey, PersistentDataType.INTEGER, amount);
         if (bossDrop) meta.getPersistentDataContainer().set(coinBossDropKey, PersistentDataType.BYTE, (byte) 1);
         if (critical) meta.getPersistentDataContainer().set(coinCriticalKey, PersistentDataType.BYTE, (byte) 1);
@@ -962,6 +1190,15 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private record WalletView(long balance, List<PlayerProfileDatabaseManager.WalletLedgerEntry> history) {
     }
 
+    public record CustomMerchantOffer(ItemStack item, long price) {
+        public CustomMerchantOffer {
+            item = item.clone();
+        }
+    }
+
+    private record MerchantOffer(String id, ItemStack item, long price, String name) {
+    }
+
     private static final class ItemNameMenuHolder implements InventoryHolder {
         private final UUID viewer;
         private Inventory inventory;
@@ -985,6 +1222,24 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
 
         private WalletMenuHolder(UUID viewer) {
             this.viewer = viewer;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return inventory;
+        }
+    }
+
+    private static final class MerchantMenuHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final List<MerchantOffer> allOffers;
+        private final Map<Integer, MerchantOffer> offers = new HashMap<>();
+        private int page;
+        private Inventory inventory;
+
+        private MerchantMenuHolder(UUID viewer, List<MerchantOffer> allOffers) {
+            this.viewer = viewer;
+            this.allOffers = allOffers;
         }
 
         @Override

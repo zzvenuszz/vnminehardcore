@@ -22,7 +22,7 @@ public final class NpcDefinitionLoader {
     private static final int MAX_DIALOGUE_LINES = 20;
     private static final int MAX_ACTIONS = 4;
     private static final Set<String> SUPPORTED_TYPES = Set.of(
-        "tutorial", "quest-giver", "trainer", "merchant", "story", "gatekeeper", "healer");
+        "tutorial", "quest-giver", "trainer", "merchant", "system-merchant", "story", "gatekeeper", "healer");
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
 
     private NpcDefinitionLoader() {
@@ -172,7 +172,8 @@ public final class NpcDefinitionLoader {
                     return null;
                 }
                 bookId = configuredBookId;
-            } else if (!type.equals("open-skill-tree") && !type.equals("open-quest-journal")) {
+            } else if (!type.equals("open-skill-tree") && !type.equals("open-quest-journal")
+                    && !type.equals("open-merchant")) {
                 logger.warning("[NPC] Unsupported action type '" + type + "' at " + path + ".");
                 return null;
             }

@@ -4,8 +4,8 @@ schema-version: 1
 
 npc-definitions:
   tutorial-guide:
-    # [VI] Loại NPC; một trong tutorial, quest-giver, trainer, merchant, story, gatekeeper, healer.
-    # [EN] NPC role; one of tutorial, quest-giver, trainer, merchant, story, gatekeeper, healer.
+    # [VI] Loại NPC; một trong tutorial, quest-giver, trainer, merchant, system-merchant, story, gatekeeper, healer.
+    # [EN] NPC role; one of tutorial, quest-giver, trainer, merchant, system-merchant, story, gatekeeper, healer.
     type: tutorial
     # [VI] Tên hiển thị; bắt buộc, không rỗng, tối đa 64 ký tự.
     # [EN] Display name; required, non-empty, maximum 64 characters.
@@ -18,8 +18,8 @@ npc-definitions:
     # [VI] Các nút GUI tùy chọn; mặc định không có, tối đa 4 hành động thuộc danh sách hỗ trợ.
     # [EN] Optional GUI buttons; defaults to none, maximum 4 supported actions.
     actions:
-      # [VI] Loại hành động: open-quest-journal, open-skill-tree hoặc give-skill-book.
-      # [EN] Action type: open-quest-journal, open-skill-tree, or give-skill-book.
+      # [VI] Loại hành động: open-quest-journal, open-skill-tree, open-merchant hoặc give-skill-book.
+      # [EN] Action type: open-quest-journal, open-skill-tree, open-merchant, or give-skill-book.
       - type: open-quest-journal
         # [VI] Nhãn nút; bắt buộc, từ 1 đến 32 ký tự.
         # [EN] Button label; required, 1-32 characters.
@@ -40,12 +40,31 @@ npc-definitions:
     # [VI] Các nút GUI tùy chọn; mặc định không có, tối đa 4 hành động thuộc danh sách hỗ trợ.
     # [EN] Optional GUI buttons; defaults to none, maximum 4 supported actions.
     actions:
-      # [VI] Loại hành động: open-quest-journal, open-skill-tree hoặc give-skill-book.
-      # [EN] Action type: open-quest-journal, open-skill-tree, or give-skill-book.
+      # [VI] Loại hành động: open-quest-journal, open-skill-tree, open-merchant hoặc give-skill-book.
+      # [EN] Action type: open-quest-journal, open-skill-tree, open-merchant, or give-skill-book.
       - type: open-skill-tree
         # [VI] Nhãn nút; bắt buộc, từ 1 đến 32 ký tự.
         # [EN] Button label; required, 1-32 characters.
         label: "Xem skill tree"
+
+  coin-merchant:
+    # [VI] Merchant hệ thống bán danh sách vật phẩm chung trong economy.merchant.offers.
+    # [EN] System merchant sells the shared item list configured in economy.merchant.offers.
+    type: system-merchant
+    # [VI] Tên hiển thị; tối đa 64 ký tự.
+    # [EN] Display name; maximum 64 characters.
+    display-name: "Thương nhân lữ hành"
+    # [VI] Thoại trước khi giao dịch; từ 1 đến 20 dòng, mỗi dòng tối đa 256 ký tự.
+    # [EN] Dialogue before trading; 1-20 lines, each at most 256 characters.
+    dialogue:
+      - "Ta có vài vật dụng cần thiết cho chuyến đi."
+    # [VI] Nút mẫu mở cửa hàng hệ thống; NPC loại system-merchant cũng mở thẳng cửa hàng khi tương tác.
+    # [EN] Sample system-shop button; system-merchant NPCs also open the shop directly on interaction.
+    actions:
+      - type: open-merchant
+        # [VI] Nhãn nút; từ 1 đến 32 ký tự.
+        # [EN] Button label; 1-32 characters.
+        label: "Xem hàng hóa"
 
   story-keeper:
     # [VI] Loại vai trò NPC; giá trị hợp lệ được liệt kê trong phần hướng dẫn.

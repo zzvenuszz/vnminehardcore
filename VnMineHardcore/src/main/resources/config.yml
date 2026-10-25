@@ -1009,6 +1009,39 @@ economy:
     # [EN] Split into separate items; 100 coins / 5 coins = 20 drops.
     coins-per-drop: 5
     scatter-radius: 5.0
+  merchant:
+    # [VI] Bật/tắt cửa hàng VNCOIN mở từ NPC; mặc định bật.
+    # [EN] Enable the VNCOIN shop opened by an NPC; defaults to true.
+    enabled: true
+    # [VI] Danh mục chung bán bởi NPC system-merchant. Mỗi giá từ 1 đến 1,000,000; số lượng không vượt kích thước stack.
+    # [EN] Shared catalog sold by system-merchant NPCs. Each price is 1-1,000,000; amount cannot exceed the stack size.
+    offers:
+      bread:
+        # [VI] Vật phẩm Minecraft cần giao; phải là Material dạng item hợp lệ.
+        # [EN] Minecraft item to deliver; must be a valid item Material.
+        material: BREAD
+        # [VI] Số vật phẩm giao cho mỗi lần mua; mặc định 4.
+        # [EN] Number of items delivered per purchase; defaults to 4.
+        amount: 4
+        # [VI] Giá tính bằng VNCOIN; giá phải lớn hơn 0 và tối đa 1,000,000.
+        # [EN] Price in VNCOIN; must be greater than 0 and at most 1,000,000.
+        price: 2
+        # [VI] Tên hiển thị trong cửa hàng; từ 1 đến 48 ký tự.
+        # [EN] Name shown in the shop; 1-48 characters.
+        name: "Bánh mì"
+    custom:
+      # [VI] Bật/tắt cửa hàng gắn riêng trên từng NPC merchant tùy chỉnh; mặc định bật.
+      # [EN] Enable item shops stored on each custom merchant NPC; defaults to true.
+      enabled: true
+      # [VI] Số mặt hàng tối đa trên mỗi shop; mặc định 45, hợp lệ 1-45.
+      # [EN] Maximum offers per custom shop; defaults to 45, valid range 1-45.
+      max-offers: 45
+      # [VI] Giá cao nhất cho mỗi món; mặc định 1,000,000 VNCOIN, hợp lệ 1-2,147,483,647.
+      # [EN] Maximum price per offer; defaults to 1,000,000 VNCOIN, valid range 1-2,147,483,647.
+      max-price: 1000000
+      # [VI] Ba mức nút giảm/tăng giá theo thứ tự nhỏ/vừa/lớn; mặc định 1, 10, 100; mỗi mức 1-1,000,000.
+      # [EN] Three decrement/increment button steps in small/medium/large order; defaults to 1, 10, 100; each 1-1,000,000.
+      price-steps: [1, 10, 100]
 
 # ============================================================
 # [LOGGING] 📝 NHẬT KÝ / LOGGING

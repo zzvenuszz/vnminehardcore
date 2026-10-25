@@ -126,7 +126,7 @@ commands:
     permission: vnmine.command.portal.admin
   vnnpc:
     description: Tạo và quản lý các NPC RPG
-    usage: /vnnpc <create|rename|move|remove|info|list>
+    usage: /vnnpc <create|edit|rename|move|remove|info|list>
     permission: vnmine.command.npc.admin
   vnmenu:
     description: Mở menu chức năng của VnMineHardcore

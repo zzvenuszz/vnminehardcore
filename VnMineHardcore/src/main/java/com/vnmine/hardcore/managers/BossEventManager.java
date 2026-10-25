@@ -116,6 +116,7 @@ public class BossEventManager implements Listener {
    private final VnMineHardcore plugin;
    private final NamespacedKey armyOwnerKey;
    private final NamespacedKey bossArmorSetKey;
+   private final NamespacedKey rpgSystemItemKey;
    private final ConfigManager config;
    private final LogManager logManager;
    private final BossLeaderboardManager leaderboardManager;
@@ -183,6 +184,7 @@ public class BossEventManager implements Listener {
       this.plugin = plugin;
       this.armyOwnerKey = new NamespacedKey(plugin, "army_owner");
       this.bossArmorSetKey = new NamespacedKey(plugin, "boss_armor_set");
+      this.rpgSystemItemKey = new NamespacedKey(plugin, "rpg_system_item");
       this.config = config;
       this.logManager = plugin.getLogManager();
       this.leaderboardManager = plugin.getBossLeaderboardManager();
@@ -3459,7 +3461,8 @@ public class BossEventManager implements Listener {
 
       if (playerEarnedRewards) {
          if (this.currentBoss != null && this.plugin.getEconomyManager() != null) {
-            this.plugin.getEconomyManager().dropBossCoins(this.currentBoss.getLocation(), bc.displayName);
+            this.plugin.getEconomyManager().dropBossCoins(this.currentBoss.getLocation(), bc.displayName,
+               this.currentBoss.getUniqueId());
          }
          for (Entry<String, ConfigManager.DropConfig> dropEntry : bc.drops.entrySet()) {
             ConfigManager.DropConfig dc = dropEntry.getValue();
@@ -3902,6 +3905,11 @@ public class BossEventManager implements Listener {
    }
 
    private void dropItemsNaturally(Location location, ItemStack template, int amount) {
+      ItemMeta itemMeta = template.getItemMeta();
+      if (itemMeta != null) {
+         itemMeta.getPersistentDataContainer().set(this.rpgSystemItemKey, PersistentDataType.BYTE, (byte) 1);
+         template.setItemMeta(itemMeta);
+      }
       int remaining = amount;
       int stackLimit = Math.max(1, template.getMaxStackSize());
 

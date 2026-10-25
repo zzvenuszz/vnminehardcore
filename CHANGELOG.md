@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [v2.5.0] - 2026-10-25
+
+### Added
+- Phân biệt NPC `system-merchant` bán danh mục chung có phân trang với NPC `merchant` có shop riêng; thêm GUI admin để đưa item RPG vào shop, chỉnh giá bằng nút +/-1/10/100, gỡ món và lưu item/giá theo NPC.
+- Cửa hàng VNCOIN chặn mua lặp đồng thời, yêu cầu chỗ trống, ghi giao dịch vào ledger và thêm luồng hoàn tiền khi plugin phát hiện giao item thất bại.
+- Tạo ID ổn định cho từng drop VNCOIN của cùng một boss encounter để ledger từ chối cộng trùng khi callback thưởng bị gọi lại.
+
 ## [v2.4.0] - 2026-10-23
 
 ### Changed
