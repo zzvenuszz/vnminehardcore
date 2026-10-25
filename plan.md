@@ -1,515 +1,316 @@
-# Kế hoạch RPG mở rộng – Class, Skill, Quick Cast, Portal, NPC, Tutorial
+# Kế hoạch hoàn thiện VnMineHardcore: RPG, VNCOIN và vận hành server
 
-> Bản kế hoạch này thay thế kế hoạch cũ để làm mốc phát triển tiếp theo. Mục tiêu là thiết kế một hệ thống RPG rõ ràng, dễ triển khai từng phase, không phụ thuộc vào kỹ thuật nguy hiểm hoặc chưa được kiểm chứng như packet keybind toàn cục hay skin NPC tùy biến phức tạp.
+> Tài liệu này ghi nhận các vấn đề và đề xuất từ đợt rà soát mã nguồn, đồng thời xác định lộ trình hoàn thiện plugin cho server Minecraft RPG hardcore. Đây là kế hoạch triển khai; các hạng mục dưới đây không được coi là đã có trong mã hiện tại nếu chưa được triển khai và kiểm chứng.
 
-## 1. Mục tiêu tổng thể
+## 1. Quyết định thiết kế đã chốt
 
-1. Người chơi chọn class và học skill theo class đó.
-2. Skill được học từ skill book, NPC trainer và quest milestone.
-3. Quick cast cho phép cast skill nhanh bằng Q + slot 1–9, hoặc click trên GUI.
-4. Player lên cấp, nhận skill point và phân bổ trong giao diện skill tree.
-5. Admin tạo portal, đặt tên, ID, link cổng và validate qua lệnh.
-6. NPC đóng vai trò tutorial, trainer, story, quest, merchant và gatekeeper.
-7. Tutorial có particle, đường dẫn, waypoint và hướng dẫn rõ ràng.
+### 1.1 Luật tử vong
 
-## 2. Nguyên tắc thiết kế
+- Người chơi **không bị ban khi chết**. Đây là luật cố định của server; không đổi thành permadeath, ban tạm thời hoặc xóa tài khoản.
+- Chết vẫn có hậu quả gameplay: ghi lịch sử tử vong, xử lý mộ/vật phẩm, thời gian hồi sinh và death penalty theo cấu hình hiện có.
+- MVP không xóa hoặc trừ VNCOIN khi chết. Nếu sau này thiết kế phí cứu hộ hoặc mất tiền thì phải là tùy chọn cấu hình riêng, công bố trước và mặc định tắt.
+- Combat tag là trạng thái cảnh báo/chặn một số dịch chuyển. Thoát game trong combat không tự động ban người chơi.
+- README, config, GUI, command và thông báo phải nói nhất quán rằng chết không bị ban và giải thích rõ hậu quả hiện hành.
 
-- Dùng profile SQLite hiện có làm dữ liệu gốc cho `level`, `exp`, `skill points`, `learned skills`, `quick slots`.
-- Không trộn `character EXP` với Minecraft XP vanilla hoặc EXP mercenary.
-- Tất cả skill cần có định danh dạng `snake-case`/`kebab-case`: `fire-bolt`, `shield-wall`, `piercing-arrow`.
-- Tách riêng 3 khái niệm: `skill unlock`, `skill rank`, `quick slot`.
-- Quick cast ưu tiên GUI + click + phím số; không ép packet keybind chung nếu chưa xác thực rõ ràng.
-- Portal không phụ thuộc WorldEdit; dùng tool `wooden axe` local của plugin.
-- NPC sẽ triển khai theo kiểu stable vanilla entity, không giả định skin custom là có thể làm dễ dàng.
-- Mỗi hệ thống phải có validation, fallback và log rõ ràng khi dữ liệu không hợp lệ.
+### 1.2 Tiền tệ
 
-## 3. Mô hình cấp độ và skill point
+- Đơn vị tiền xuyên suốt là **VNCOIN**; số dư là số nguyên không âm.
+- Số dư VNCOIN lưu phía server trong SQLite. Không dùng scoreboard, lore vật phẩm hoặc dữ liệu client làm nguồn gốc.
+- Mob cơ bản đủ điều kiện có **30% xác suất** rơi VNCOIN; lượng rơi từ **1 đến 10**, tùy bậc sức mạnh mob.
+- Boss, thiên tai, quest và nguồn khác có reward definition riêng, không cộng chồng với bảng rơi mob cơ bản.
+- Mọi nguồn phát hành và nơi tiêu VNCOIN cần được ghi ledger để kiểm toán và chống nhân đôi.
 
-### 3.1 Cấp độ
-- Level bắt đầu từ 1.
-- Cap MVP: 30 level.
-- EXP cần để lên level kế tiếp: `requiredExp(level) = 100 + 50 * (level - 1)`.
-- Nếu nhận EXP lớn, hệ thống xử lý lên nhiều cấp trong một lần.
-- Mỗi lần lên cấp nhận +1 skill point chưa dùng.
-- Skill point không dùng cho race, class, mercenary, inventory hoặc server pvp.
+## 2. Phạm vi hiện tại và cách đọc trạng thái
 
-### 3.2 Skill point đặt ở đâu
-- Có 3 nơi tiếp cận chính:
-  - Từ hub F: menu `Profile RPG`.
-  - Từ lệnh `/vnskills`.
-  - Từ NPC trainer hoặc portal station.
-- GUI chính gồm:
-  - `Overview`: level, exp, skill point còn lại, class đang sử dụng.
-  - `Skill Tree`: danh sách skill đã học/chưa học/khóa.
-  - `Quick Slots`: 1–9, mỗi slot gán 1 skill.
-  - `Skill Details`: mô tả cooldown, mana, target, range, lore, điều kiện học.
+- Plugin hiện đã có nền tảng như profile SQLite, level/EXP/skill point, một số skill, race/class, NPC, tutorial quest, portal, boss, thiên tai, mộ/lịch sử chết, lính đánh thuê, phân quyền và luật sinh tồn.
+- player-classes.yml khai báo nhiều class chọn được, trong khi skill registry và cast handler hiện tập trung vào một tập nhỏ: swordsman, guardian, mage; sáu skill chủ động cùng các passive được triển khai. Cần phân biệt class khai báo, class chọn được và class hoàn chỉnh gameplay.
+- plan.md trước đây ghi nhiều phase là hoàn tất và chứa số liệu test lịch sử. Cần đối chiếu lại với mã nguồn, server Paper/ProtocolLib hiện tại và lần kiểm chứng mới trước khi phát hành.
+- Đợt rà soát vừa rồi là đọc mã tĩnh; không chạy build, unit test hoặc gameplay test trong phiên đó.
 
-### 3.3 Quy tắc phân bổ
-- Mỗi skill có `rank` từ 0 đến 5.
-- Rank 0 = chưa học.
-- Rank 1 trở lên = đã học và có thể nâng cấp.
-- Nâng rank phải tiêu tốn 1 skill point, không được phép âm.
-- Skill point chỉ trừ khi DB cập nhật thành công.
-- Nếu có lỗi DB, không trừ điểm và không coi như học thành công.
+## 3. Vấn đề và rủi ro đã phát hiện
 
-## 4. Class chính và skill đề xuất
+### 3.1 Cast skill có thể mất tài nguyên dù hiệu ứng thất bại — P1
 
-Dưới đây là danh sách class phù hợp với thế giới VNMINE. 3 class đầu tiên sẽ là vertical slice đầu tiên để triển khai nhanh và có thể test kỹ. Các class còn lại dùng sau khi hệ thống core ổn định.
+- SkillManager lưu kết quả applySkillEffect vào castSucceeded nhưng vẫn đặt cooldown và báo cast thành công dù hiệu ứng trả về false.
+- Đường đi có thể thất bại nếu mục tiêu mất tính hợp lệ sau lần kiểm tra đầu, hoặc AoE không còn mục tiêu lúc áp dụng.
+- Hậu quả: người chơi mất mana và cooldown nhưng không nhận hiệu ứng; thông báo cũng sai.
+- Hướng sửa: chỉ xác nhận cast, đặt cooldown, xử lý passive và báo thành công khi hiệu ứng được áp dụng. Dùng cùng một snapshot mục tiêu cho validation và execution nếu phù hợp. Nếu lỗi sau khi đã trừ mana thì phải hoàn mana qua thao tác an toàn.
+- Bổ sung kiểm thử cho target biến mất, AoE rỗng, mục tiêu bị plugin khác hủy và lỗi DB. Log giới hạn tần suất để tránh spam.
 
-### 4.1 Swordsman – Kiếm sư
-- Chức năng: cận chiến mạnh, áp sát, phản công.
-- Skill 1: `blade-flare`
-  - Mô tả: chém theo hướng nhìn trong một vùng cone ngắn.
-  - Hiệu ứng: sát thương vật lý cao, 2–3 mục tiêu gần nhất trong cone.
-  - Cooldown: 6s
-  - Mana: 12
-  - Required level: 2
-  - Lore: “Đường kiếm chém ra như tia lửa, đủ để chặn cả đợt công kích.”
-- Skill 2: `guard-break`
-  - Mô tả: lùi một bước, khóa mục tiêu trong thời gian ngắn và phản đánh.
-  - Hiệu ứng: giảm giáp mục tiêu, tạo stun cực ngắn.
-  - Cooldown: 8s
-  - Mana: 14
-  - Required level: 4
-- Skill 3 (passive): `battle-focus`
-  - Mô tả: sau mỗi 3 đòn đánh trúng, tăng tốc độ đánh và sát thương trong 3s.
-  - Required level: 1
-  - Lore: “Một kiếm sư không chỉ giỏi đánh, mà còn biết chờ thời điểm thích hợp.”
+### 3.2 JDBC/SQLite chạy đồng bộ trong nhiều thao tác gameplay — P1/P2
 
-### 4.2 Guardian – Hộ vệ
-- Chức năng: bền, ngăn đòn, giữ tuyến.
-- Skill 1: `shield-wall`
-  - Mô tả: tạo lớp khiên chắn quanh người trong 4s.
-  - Hiệu ứng: giảm sát thương nhận, chặn vài hit.
-  - Cooldown: 10s
-  - Mana: 15
-  - Required level: 2
-- Skill 2: `taunt`
-  - Mô tả: gây thu hút kẻ địch trong vùng quanh mình.
-  - Hiệu ứng: mục tiêu mất hướng, giảm tốc độ tấn công.
-  - Cooldown: 12s
-  - Mana: 10
-  - Required level: 4
-- Skill 3 (passive): `fortify`
-  - Mô tả: mỗi lần nhận sát thương, tăng giáp tạm thời lên 3 stack.
-  - Required level: 1
-  - Lore: “Lớp chắn không cho ai tiến lên trước người giữ cổng.”
+- Mở GUI skill, xác nhận profile, học sách, nâng rank, cast skill và tiêu/hồi mana có truy vấn SQLite trực tiếp từ event hoặc command Bukkit.
+- Một thao tác có thể thực hiện nhiều truy vấn liên tiếp. Ổ đĩa chậm, database lock, backup hoặc nhiều người thao tác có thể làm chậm main thread và tụt TPS.
+- Gom truy vấn liên quan thành transaction hoặc một lần đọc/ghi; dùng DB queue/executor có giới hạn cho JDBC; chỉ đưa thao tác Bukkit cần thiết về main thread.
+- Không gọi Bukkit API từ async; đảm bảo thứ tự thao tác cùng người chơi, không để task cũ ghi đè dữ liệu mới, và không thao tác Player đã offline.
+- Đo thời gian truy vấn, giới hạn retry/backoff và cảnh báo khi vượt ngưỡng. Không tạo thread tùy ý cho từng thao tác.
 
-### 4.3 Archer – Cung thủ
-- Chức năng: tầm xa, bắn xuyên, cắt đường trốn.
-- Skill 1: `piercing-arrow`
-  - Mô tả: bắn mũi tên xuyên 1 mục tiêu đầu tiên.
-  - Hiệu ứng: sát thương cao, giảm tốc độ mục tiêu còn lại.
-  - Cooldown: 7s
-  - Mana: 13
-  - Required level: 2
-- Skill 2: `dash-shot`
-  - Mô tả: bay lùi và bắn 2 viên đạn theo hướng nhìn.
-  - Hiệu ứng: khoảng cách rút lui + shot + tăng tốc độ.
-  - Cooldown: 9s
-  - Mana: 14
-  - Required level: 4
-- Skill 3 (passive): `eagle-eye`
-  - Mô tả: tăng tầm bắn, giảm độ lệch và tăng crit nhẹ.
-  - Required level: 1
-  - Lore: “Mắt chim có thể đọc gió, và từ đó đánh trúng kẻ thù.”
+### 3.3 Class chọn được nhưng có thể thiếu nội dung skill — P1
 
-### 4.4 Mage – Pháp sư
-- Chức năng: sát thương diện rộng, burn, control.
-- Skill 1: `fire-bolt`
-  - Mô tả: phóng tia lửa vào mục tiêu.
-  - Hiệu ứng: burn và sát thương trực tiếp.
-  - Cooldown: 5s
-  - Mana: 12
-  - Required level: 2
-- Skill 2: `arcane-field`
-  - Mô tả: tạo vùng lửa sóng trong 5s.
-  - Hiệu ứng: giảm tốc và gây damage theo thời gian.
-  - Cooldown: 11s
-  - Mana: 18
-  - Required level: 4
-- Skill 3 (passive): `mana-flow`
-  - Mô tả: hồi mana nhanh hơn khi cast liên tục.
-  - Required level: 1
-  - Lore: “Một pháp sư bình tĩnh luôn biết khi nào nên đốt cháy bầu trời.”
+- Có class trong player-classes.yml không có nghĩa là class đó có cây skill, sách, passive, cân bằng damage và tutorial hoàn chỉnh.
+- Active skill có trong YAML nhưng không có cast handler sẽ không dùng được. Passive chưa triển khai nâng rank cũng tạo cảm giác tính năng có nhưng thiếu.
+- Registry phải kiểm tra mọi active skill có handler và mọi passive có implementation hoặc trạng thái planned rõ ràng. YAML không hợp lệ phải báo ID cụ thể và từ chối nạp.
+- Class chưa sẵn sàng phải ẩn/khóa ở GUI hoặc có nhãn đang phát triển; không cho người chơi tạo nhân vật rồi nhận cây skill trống.
+- Hoàn thiện theo vertical slice: bộ skill, sách, chỉ số, UI, quest giới thiệu, cân bằng PvE/PvP và kiểm chứng trước khi mở class tiếp theo.
 
-### 4.5 Sage – Tiên tri / Hỗ trợ
-- Chức năng: hồi máu, buff, sustain.
-- Skill 1: `heal-pulse`
-  - Mô tả: hồi máu cho đồng minh gần nhất.
-  - Hiệu ứng: hồi máu + xóa trạng thái hạ độc.
-  - Cooldown: 9s
-  - Mana: 15
-  - Required level: 2
-- Skill 2: `ward-bloom`
-  - Mô tả: tạo vòng lá bảo hộ quanh đồng minh.
-  - Hiệu ứng: giảm damage + hồi máu theo thời gian.
-  - Cooldown: 12s
-  - Mana: 18
-  - Required level: 4
-- Skill 3 (passive): `ethereal-focus`
-  - Mô tả: tăng mana max và giảm mana cost cho skill hỗ trợ.
-  - Required level: 1
-  - Lore: “Một bông hoa có thể làm lành cả chiến trường.”
+### 3.4 ProtocolLib/Paper chưa được khóa thành ma trận phát hành — P1
 
-### 4.6 Rogue – Đạo chích
-- Chức năng: crit, lén, bỏ chạy.
-- Skill 1: `shadow-step`
-  - Mô tả: dịch chuyển ngắn theo hướng nhìn.
-  - Hiệu ứng: gây damage khi có kẻ địch ở cuối đường.
-  - Cooldown: 6s
-  - Mana: 10
-  - Required level: 2
-- Skill 2: `venom-slip`
-  - Mô tả: đâm độc và giảm tốc độ mục tiêu.
-  - Hiệu ứng: poison + giảm tầm nhìn/đi lại.
-  - Cooldown: 8s
-  - Mana: 12
-  - Required level: 4
-- Skill 3 (passive): `backstab-rhythm`
-  - Mô tả: tăng crit khi đánh từ phía sau.
-  - Required level: 1
-  - Lore: “Bóng tối không phải để trốn mà để gõ cửa đúng lúc.”
+- plugin.yml khai báo ProtocolLib là dependency cứng; code từ chối bật plugin nếu version không bắt đầu bằng 5.5.0-SNAPSHOT.
+- Maven compile với ProtocolLib 5.4.0; ghi chú POM nói server phải dùng dev build 5.5.0-SNAPSHOT. Có thể đây là workaround có chủ ý nhưng API compile/runtime khác nhau.
+- Ghi rõ Java, Paper build và ProtocolLib build đã xác nhận tương thích. Smoke test JAR phát hành trên chính ma trận server đích.
+- Rà lại API/packet runtime; nếu có artifact chính thức phù hợp thì chuyển sang artifact đó. Không đóng gói ProtocolLib vào plugin.
+- Lỗi khởi động cần nêu version cần có và version đang phát hiện.
 
-### 4.7 Brawler – Đấm thủ
-- Chức năng: tấn công gần, áp sát, đánh xung kích.
-- Skill 1: `ground-pound`
-  - Mô tả: đập xuống đất làm rung cả vùng.
-  - Hiệu ứng: damage AOE + knockback nhẹ.
-  - Cooldown: 7s
-  - Mana: 13
-  - Required level: 2
-- Skill 2: `rush-upheaval`
-  - Mô tả: lao nhanh đến mục tiêu và va bật mạnh.
-  - Hiệu ứng: burst damage + stun cực ngắn.
-  - Cooldown: 10s
-  - Mana: 14
-  - Required level: 4
-- Skill 3 (passive): `iron-rhythm`
-  - Mô tả: giảm cooldown khi đánh trúng liên tục.
-  - Required level: 1
-  - Lore: “Đấm thủ không cần vẫy tay, họ chỉ cần lao tới.”
+### 3.5 Đăng ký command bị lặp — P3
 
-## 5. Skill book thiết kế
+- VnMineHardcore.onEnable có tên command lặp trong danh sách; vnmenu được gán executor trước rồi gán lại cho MercenaryManager.
+- Việc gán cuối có thể có chủ ý, nhưng khai báo trùng làm khó xác định executor thực tế.
+- Mỗi command chỉ nên đăng ký một lần từ bảng khai báo rõ ràng. Kiểm tra mọi lệnh trong plugin.yml đều có executor, permission, usage và tab completion mong muốn.
 
-### 5.1 Mục tiêu
-- Skill book là vật phẩm dùng để học kỹ năng.
-- Skill book có thể nhận qua quest, NPC trainer, loot, merchant, event world.
-- Skill book không phải là phần nâng cấp rank; skill point mới dùng cho nâng rank.
+### 3.6 Cấu hình/tài liệu có thể lệch runtime — P2
 
-### 5.2 Cấu trúc item
-- item type: `BOOK`, `ENCHANTED_BOOK`, `WRITTEN_BOOK`
-- metadata chứa:
-  - `book_id`
-  - `skill_id`
-  - `class_id`
-  - `required_level`
-  - `rarity`
-  - `requires_quest`
-- lore mẫu:
-  - “Skill Book: Blade Flare”
-  - “Class: Swordsman”
-  - “Required Level: 2”
-  - “Use to learn the skill”
-  - “Ancient inscription from the Old Forge”
+- Nhiều YAML và hệ thống reload riêng; cấu hình sai không được để runtime ở trạng thái nạp một phần.
+- Validation phải diễn ra trước khi thay thế cấu hình đang chạy. Reload lỗi giữ nguyên trạng thái cũ và trả lỗi cụ thể.
+- Đồng bộ README, command, permission, config key, GUI, changelog và trạng thái plan.
+- Phân biệt rõ: đã code, unit tested, Paper smoke tested, gameplay tested và đã phát hành. Trạng thái hoàn tất cần có phiên bản/ngày kiểm chứng.
 
-### 5.3 Cơ chế học skill
-Khi dùng sách:
-- kiểm tra class phù hợp
-- kiểm tra player đủ level
-- kiểm tra chưa học trước đó
-- kiểm tra inventory có đủ điều kiện
-- nếu hợp lệ: lưu `learned_skill` và item bị tiêu thụ/biến thành giấy rách
-- nếu không hợp lệ: item không bị consume, hiển thị message rõ ràng
+### 3.7 Rủi ro cần kiểm tra thêm
 
-### 5.4 Lore và nội dung
-- Mỗi skill book nên có lore gắn với class và thế giới: sư, linh hồn, forge, shrine, temple, moon, dark wood...
-- Ví dụ:
-  - `swordsman` books themed around forge, oath, old battlefield.
-  - `guardian` books themed around keep, wall, shield, watchtower.
-  - `mage` books themed around spell rune, mana pillar, eclipse.
-  - `sage` books themed around herb, moonwell, recovery, sacred memory.
+- SQLite: backup/restore trong lúc server chạy, transaction migration, phục hồi ghi lỗi, retention và tính toàn vẹn ledger.
+- Task lifecycle: hủy khi disable/reload; không truy cập world/entity/player từ async; không để task tồn tại sau reload.
+- Exploit reward: spawner/grinder, mob bị giết bởi môi trường, lính đánh thuê/pet, nhiều người cùng đánh, coin item nhân đôi, DB lỗi, rollback chunk và reconnect.
+- PvP: MVP không phát VNCOIN từ player kill để tránh farm phối hợp.
+- Death/grave: khôi phục inventory không làm mất hoặc sinh đôi item; người chết luôn có đường tiếp tục chơi.
+- Cân bằng: damage multiplier, boss/skill, death penalty stacking và recovery không được làm nhân vật suy yếu đến mức không thể chơi.
 
-## 6. Quick cast hoạt động thế nào?
+## 4. Thiết kế VNCOIN
 
-### 6.1 Design ưu tiên
-- Khi nhấn `Q`, mở GUI `Quick Cast`.
-- GUI có tối đa 9 ô, mỗi ô gắn 1 skill đã được assign.
-- Người chơi có thể click skill trong GUI để cast ngay.
-- Không bắt toàn bộ phím máy tính nằm ngoài GUI nếu plugin không có nền tảng rõ ràng.
+### 4.1 Drop từ mob cơ bản
 
-### 6.2 Phím bấm hợp lý
-- `Q`: mở quick cast menu.
-- `1`–`9`: cast skill gắn vào slot tương ứng khi GUI đang mở hoặc đang ở trạng thái skill-ready.
-- `F`: đang dùng cho hub map/world switch, không nên cướp.
-- `Shift + Q` hoặc `Ctrl + Q`: có thể dùng cho “toggle quick cast UI” nếu cần, nhưng nên đặt ở cấp config và không bắt cứng.
-- `LMB`/`RMB`: dùng khi skill có target hoặc khi click trên GUI.
+- Xác suất cố định là **30% mỗi lần hạ mob đủ điều kiện**. Trong MVP, tỉ lệ không tăng theo level, class, Fortune, số người trong party hoặc bonus khác.
+- Lượng rơi chọn ngẫu nhiên trong khoảng bậc mob:
 
-### 6.3 Không nên làm gì
-- Không nên dùng packet keybind toàn cục để bắt phím trong giai đoạn đầu nếu chưa có kiểm chứng thực tế.
-- Không nên xung đột với drop item, inventory mở, phiên bản game/GUI đang có.
-- Không nên gắn `Q` cứng cho skill nếu server đã sử dụng `Q` làm drop item hoặc hành vi khác.
+| Bậc | Mức sức mạnh tham khảo | Lượng VNCOIN | Ví dụ tham khảo |
+|---|---|---:|---|
+| I — yếu | Quái thường, ít máu/sát thương | 1–3 | zombie, skeleton, spider, silverfish |
+| II — thường | Biến thể hoặc áp lực cao hơn | 2–5 | husk, stray, drowned, cave spider |
+| III — mạnh | Quái có kỹ năng/khả năng gây áp lực | 4–7 | witch, enderman, pillager, magma cube lớn |
+| IV — tinh nhuệ | Quái nguy hiểm/hiếm theo luật server | 6–10 | ravager, evoker, guardian theo phân loại server |
 
-### 6.4 Fallback
-- Nếu GUI quick cast bị lỗi, player vẫn có thể dùng `/vnskills` và `/vnskill bind <slot> <skill>`.
-- Slot lưu vào SQLite profile, reload/logout không mất dữ liệu.
-- Tại mỗi lần cast, plugin kiểm tra cooldown, mana, range, target validity và casting state.
+- Đây là bảng khởi điểm. Danh sách mob và tier phải cấu hình được; không suy đoán sức mạnh từ tên entity hay level người chơi.
+- Boss vanilla/boss plugin, mob do boss/event triệu hồi, mob thân thiện và mob do người chơi triệu hồi không dùng bảng cơ bản. Boss/event có reward riêng.
+- Mỗi mob chỉ cấp tối đa một lần. Mob không có killer hợp lệ không rơi coin trong MVP.
+- Định nghĩa rõ credit: killer, projectile, lính/pet và assist theo cửa sổ sát thương. Đề xuất một người nhận reward cho mỗi mob, không nhân tiền theo số người đánh.
+- Kiểm tra chống farm spawner/AFK; có thể giảm/tắt reward cho mob từ spawner hoặc khu vực bị đánh dấu farm. Quy tắc phải hiển thị trong config.
 
-### 6.5 UI quick cast
-- Layout dạng 3x3 hoặc 2x5 tùy kích thước màn hình.
-- Mỗi ô hiển thị:
-  - tên skill
-  - cooldown còn lại
-  - mana cost
-  - class
-  - icon và màu trạng thái
-- Trạng thái slot:
-  - xanh: sẵn dùng
-  - vàng: cooldown
-  - xám: slot trống
-  - đỏ: không đủ mana hoặc không thể cast
+### 4.2 Hình thức rơi và ghi có
 
-## 7. Skill point, rank và giao diện UI
+- Mob đủ điều kiện tạo item VNCOIN trên mặt đất; item có PDC/NamespacedKey riêng, không xác thực bằng display name/lore.
+- Khi nhặt, ghi có vào ví bằng transaction SQLite. Chỉ xóa item sau khi DB xác nhận; DB lỗi thì coin còn trên đất và lỗi được log có giới hạn.
+- Mỗi drop có UUID duy nhất. Ledger đánh dấu drop đã claim để item/entity bị nhân bản hoặc chunk rollback không nạp tiền lần hai.
+- Nếu coin despawn, rơi vào lava hoặc bị xóa thì chưa nhặt không tự cộng vào ví.
+- Đặt thời gian tồn tại và chính sách hopper rõ ràng; mặc định không cho hopper hút coin.
+- Hiển thị VNCOIN, lượng và nguồn rơi. Có actionbar/âm thanh tùy chọn, không broadcast toàn server.
+- Giai đoạn sau có thể thêm auto-deposit khi đứng gần; MVP dùng item rơi vật lý để người chơi thấy loot.
 
-### 7.1 Mục tiêu UI
-- Giao diện phải rõ, ít chữ và dễ đọc trong gameplay.
-- Mỗi skill hiển thị:
-  - `Name`
-  - `Class`
-  - `Rank` / `Max Rank`
-  - `Required Level`
-  - `Mana Cost`
-  - `Cooldown`
-  - `Description`
-- Format item GUI rõ ràng bằng màu:
-  - xanh = đã học
-  - vàng = có thể nâng cấp
-  - đỏ = khóa
-  - xám = không đủ điều kiện
+### 4.3 Ví, ledger và migration
 
-### 7.2 Luồng nâng cấp
-- Người chơi click skill trong `Skill Tree`.
-- Nếu skill chưa học: chọn `Learn`.
-- Nếu đã học và còn điểm: chọn `Upgrade`.
-- Nếu skill không đủ điều kiện: hiển thị cảnh báo `level too low, missing class, insufficient skill point`.
-- Hệ thống chỉ trừ skill point khi nâng cấp thực sự thành công.
+- Đọc schema thật trong code trước khi chọn version migration mới; tài liệu cũ ghi nhận schema v6 nhưng phải xác minh lại.
+- Thêm wallet balance hoặc bảng ví riêng. Mọi thay đổi phải đi qua EconomyService/API duy nhất.
+- Ledger bất biến tối thiểu gồm transaction ID, UUID người chơi, delta, loại nguồn/đích, source ID duy nhất, timestamp, actor admin và metadata an toàn.
+- Transaction nguyên tử, idempotency key duy nhất, số dư không âm, giới hạn amount/overflow và không cấp coin trước khi DB commit.
+- Admin give/take yêu cầu permission riêng, lý do, log và audit; ưu tiên give/take thay vì set để giữ lịch sử.
+- Backup/restore gồm cả ví và ledger; có quy trình kiểm tra integrity sau restore.
 
-## 8. Cổng dịch chuyển (portal)
+### 4.4 Nguồn kiếm và nơi tiêu
 
-### 8.1 Mục tiêu
-Người chơi tạo cổng dịch chuyển bằng tay, đặt tên, ID, link tới cổng khác và có thể dùng trong thế giới RPG.
+- MVP: mob drop 30% theo bảng; admin grant có audit.
+- Mở rộng: quest một lần, boss/event, bounty, achievement. Mỗi reward cần source ID idempotent, cooldown/giới hạn khi cần.
+- Thêm sink cùng lúc hoặc ngay sau nguồn kiếm:
+  - NPC merchant bán vật tư, đồ tiêu hao và recipe với giá cấu hình.
+  - Sửa trang bị, dịch vụ hub/portal hoặc đổi nguyên liệu; không thu phí cho mọi hành động thiết yếu.
+  - Player trade/auction chỉ sau khi có escrow, log, timeout và chống disconnect.
+- Không bán sức mạnh vượt progression. Merchant phải tôn trọng tier thế giới và quest/boss gate.
+- Theo dõi coin phát hành, coin tiêu, số dư trung vị và nguồn phát hành lớn nhất để phát hiện lạm phát.
+- Không phạt VNCOIN khi chết trong MVP.
 
-### 8.2 Thiết kế portal
-Mỗi portal có dữ liệu:
-- `id` (dạng slug, duy nhất)
-- `name` (tên hiển thị)
-- `world`
-- `position`
-- `bounds`
-- `spawn_location`
-- `link_id`
-- `enabled`
-- `required_level`
-- `required_quest`
-- `allowed_classes`
+### 4.5 Command và giao diện
 
-### 8.3 Cách xây portal
-- Dùng item `WOODEN_AXE` làm `selection tool`.
-- Người chơi click block A và B để chọn vùng cổng.
-- `/vnportal create <id> "<name>"`: tạo portal từ vùng đã chọn.
-- `/vnportal setspawn <id>`: đặt vị trí xuất hiện.
-- `/vnportal link <portalA> <portalB>`: nối cổng A đến cổng B.
-- `/vnportal unlink <portal>`: bỏ liên kết.
-- `/vnportal validate`: kiểm tra ID trùng, world lỗi, link mất, target không hợp lệ.
+- /vncoin hoặc /balance: xem số dư; aliases thống nhất plugin.yml.
+- /vncoin history [player]: xem lịch sử; người chơi chỉ xem ví của mình, admin có quyền mới xem người khác.
+- /vncoin give|take <player> <amount> [reason]: admin với permission granular, audit, giới hạn số tiền và xác nhận thao tác lớn.
+- Leaderboard số dư là tùy chọn và nên tắt mặc định nếu gây khuyến khích farm.
+- Placeholder/scoreboard/actionbar chỉ dùng cache có invalidation; SQLite vẫn là dữ liệu gốc.
+- Mọi thông báo cần dùng đúng một tên VNCOIN, định dạng số và ngôn ngữ tiếng Việt.
 
-### 8.4 Các lệnh đề xuất
-```text
-/vnportal wand
-/vnportal pos1
-/vnportal pos2
-/vnportal create <id> "<name>"
-/vnportal setspawn <id>
-/vnportal link <idA> <idB>
-/vnportal unlink <id>
-/vnportal info <id>
-/vnportal list
-/vnportal enable <id>
-/vnportal disable <id>
-/vnportal remove <id>
-/vnportal validate
-```
+## 5. Hoàn thiện vòng lặp RPG
 
-### 8.5 Có dùng rìu gỗ như WorldEdit không?
-- Có, nhưng chỉ là tool selection cục bộ của plugin, không dựa vào WorldEdit.
-- Mục tiêu là hiệu quả và dễ test, không clone nguyên một plugin worldedit.
-- Selection có thể lưu tạm theo UUID; nếu player mất kết nối, dữ liệu tạm được xoá hoặc reload.
+### 5.1 Class và build
 
-### 8.6 UX portal
-- Khi ở gần cổng, hiển thị particle ring.
-- Khi active, có message dạng “Portal: Moon Gate -> Sun Gate”.
-- Cổng có thể yêu cầu level hoặc quest để qua;
-- Không cho teleport khi đang chết hoặc combat.
+- Chia class thành available, locked và planned; chỉ available mới chọn được.
+- Hoàn thiện class theo vai trò rõ: chỉ số, active/passive, mana/cooldown, sách, feedback, counterplay, quest giới thiệu và cân bằng.
+- Ưu tiên hoàn thiện swordsman, guardian, mage theo skill registry hiện có; tiếp theo chọn archer/ranger, healer/support, rogue theo thiết kế thế giới.
+- Tách SkillDefinition, skill handler/execution và persistence; thêm skill mới không cần mở rộng switch tập trung.
+- UI giải thích chỉ số cuối và nguồn cộng/trừ; không dùng attribute/potion effect ẩn khó hiểu.
+- Skill book mở khóa, skill point nâng rank. Respec có thể thu VNCOIN tại hub ở phase sau, có cooldown/giới hạn và audit.
 
-## 9. NPC hệ thống RPG
+### 5.2 Quest, story và tutorial
 
-### 9.1 Số lượng NPC
-- Có thể có hàng trăm NPC theo cấu hình, nhưng nên có giới hạn runtime `max-npcs-per-world` mặc định khoảng 100.
-- Mỗi NPC có `id`, `type`, `name`, `world`, `location`, `interaction`, `dialogue`, `skin` nếu có.
+- Tutorial có mục tiêu tương tác: tạo nhân vật, xem profile, hạ mob, nhặt VNCOIN, mua đồ, học/slot skill, qua portal và đánh miniboss.
+- Objective hỗ trợ nói chuyện NPC, thu item PDC, hạ mob theo loại, tới vùng, dùng portal, hạ boss, chế tạo và nộp vật phẩm.
+- Lưu tiến độ bền vững, idempotent qua restart/reload; reward coin/EXP/item không claim lặp.
+- Quest journal thể hiện active/complete/claimable, waypoint và reward rõ ràng.
+- Story theo chapter/vùng/level; portal/world unlock theo tiến độ; người chơi có thể tiếp tục nếu bỏ qua dialogue.
+- NPC definition có schema version, ID liên kết hợp lệ và persistence không tạo entity trùng khi restart/chunk unload.
 
-### 9.2 Các loại NPC đề xuất
-1. Tutorial NPC
-   - Dẫn dắt người chơi mới.
-2. Quest Giver
-   - Nhận quest và check hoàn thành.
-3. Trainer NPC
-   - Học skill, mua skill book, luyện kỹ năng.
-4. Merchant NPC
-   - Bán vật phẩm, sách kỹ năng, vật liệu.
-5. Story NPC
-   - Cung cấp thoại, lore, nền truyện.
-6. Gatekeeper NPC
-   - Dẫn vào realm/area mới.
-7. Healer NPC
-   - Hồi phục, buff nhẹ, reset trạng thái.
+### 5.3 Thế giới, portal và dungeon
 
-### 9.3 GUI và quản lý NPC
-- Có GUI admin để list + edit NPC.
-- Có lệnh:
-```text
-/vnnpc create <id> <type>
-/vnnpc rename <id> "<new name>"
-/vnnpc move <id>
-/vnnpc dialogue <id> <dialogue-id>
-/vnnpc skin <id> <player-name|uuid>
-/vnnpc info <id>
-/vnnpc list
-/vnnpc remove <id>
-/vnnpc despawn <id>
-```
-- Có thể đổi tên của NPC hiển thị mà không đổi ID.
-- GUI player: tùy loại NPC mở dialogue hoặc menu đa lựa chọn.
+- Mỗi realm/region định nghĩa level, mob pool, tài nguyên, boss, thời tiết/sự kiện và bảng VNCOIN.
+- Portal hỗ trợ điều kiện quest/level/party, cooldown, combat tag và điểm đến an toàn; thông báo lý do bị chặn.
+- Dungeon/instance theo phase: party, timer, checkpoint, boss encounter, loot attribution, reset và cleanup entity/block tạm.
+- Thiên tai không phá vĩnh viễn hub, nhà người chơi hoặc vùng bảo vệ; mọi thay đổi địa hình có rollback/phạm vi.
+- Endgame có nội dung lặp lại giới hạn như dungeon rotation, boss tuần, bounty; không chỉ tăng HP/damage.
 
-### 9.4 Skin NPC
-- Skin thật/player skin là tính năng có thể làm được nhưng không nên ưu tiên ở vertical slice đầu.
-- Không giả định NPC vanilla có thể set skin user theo ý muốn một cách đơn giản.
-- Có thể dùng NPC template dạng villager, armor stand hoặc clickable entity để giữ ổn định.
-- Skin custom nên đặt ở phase sau khi đã kiểm chứng kỹ thuật và không gây conflict với server.
+### 5.4 Trang bị, crafting và sinh tồn
 
-## 10. Tutorial và waypoint
+- Item RPG dùng ID/PDC ổn định, rarity, tier, stat roll có cap, nguồn nhận, binding/trade rule và version migration.
+- Thêm profession/crafting theo phase: khai khoáng, săn bắt, giả kim, rèn; nguyên liệu phải có nguồn và sink rõ.
+- Stat gear đi qua một pipeline thống nhất, có cap và hiển thị tương tác với armor/enchantment/skill/mercenary/boss.
+- Hunger, thirst, weather và environment cân bằng theo world/biome/level; cảnh báo trước damage và cách khắc phục.
+- Hub có PvP rule, bảo vệ block, spawn, merchant an toàn và chống mob farm/portal camp.
 
-### 10.1 Mục tiêu tutorial
-- Người chơi mới vào server được dẫn theo 5–7 bước ngắn:
-  1. Chọn class.
-  2. Nhận skill book.
-  3. Học skill đầu tiên.
-  4. Gán vào quick slot 1–3.
-  5. Lên level 2 bằng quest.
-  6. Đi qua portal đầu tiên.
-  7. Nói chuyện với NPC trainer tiếp theo.
+### 5.5 Party, PvP và xã hội
 
-### 10.2 Waypoint và particle
-- Dùng particle trail từ NPC đến điểm cần đến.
-- Dấu liền ở đúng đường đi: `dust`, `portal`, `endrod`, `glow`, `trail`.
-- Tại điểm chiến đấu/quest, hiện beacon/marker.
-- Khi đi lệch hướng, hiển thị action bar: “Đi theo dải ánh sáng tới NPC huấn luyện”.
-- Nếu có minimap hoặc map hiện có, thêm waypoint đó vào panel.
+- Party tối thiểu: invite/accept/leave/disband, leader, chia EXP, loot attribution, quest sharing chống claim trùng và hiển thị đồng đội.
+- Chốt PvP theo vùng/realm hoặc opt-in; protection người mới; không dùng mercenary/trade để grief.
+- MVP không cấp VNCOIN từ player kill.
+- Guild, claim và territory để sau party, khi đã có luật chống grief/chiếm giữ.
 
-### 10.3 Cấu trúc quest tutorial mẫu
-- `tutorial-01`: chào mừng và nhận class.
-- `tutorial-02`: nhận skill book.
-- `tutorial-03`: học 1 skill.
-- `tutorial-04`: assign quick slot 1.
-- `tutorial-05`: lên level 2.
-- `tutorial-06`: mở portal và đi qua.
-- `tutorial-07`: nói chuyện với NPC story.
+## 6. Kiến trúc và vận hành
 
-## 11. Giai đoạn triển khai đề xuất
+### 6.1 Database/concurrency
 
-### Trạng thái hiện tại
-- Phase 1 đã hoàn thành: character EXP, level-up, skill point và hiển thị thông tin progression.
-- Phase 2 đã hoàn thành: registry skill/book YAML, học sách theo class/level và lưu learned skill trong SQLite.
-- Phase 3 đã triển khai phần code và test: quick-cast GUI, slot 1–9, sáu skill chủ động, cooldown, mana hồi theo thời gian và skill tree nâng rank bằng skill point.
-- Đã triển khai Tâm Kiếm cho swordsman: cộng sát thương đánh thường/đánh quét lên quái theo rank, mặc định +3% mỗi rank; học ở rank 1 và có thể nâng bằng skill point khi đạt cấp yêu cầu.
-- Đã triển khai Thành Đồng cho guardian: bị quái thù địch đánh cộng stack, tối đa 3; mỗi stack giảm 2% sát thương mỗi rank và hết hạn sau 5 giây không bị quái đánh.
-- Đã triển khai Mạch Pháp cho mage: sau cast chủ động thành công thứ hai trở đi trong chuỗi (tối đa 5 giây giữa cast), hồi thêm 1 mana mỗi rank; không vượt max mana.
-- SQLite hiện tại là schema v6; migration v4→v5 bổ sung bảng quick slots và v5→v6 bổ sung mana, đều được kiểm thử.
-- Phase 4 đã triển khai phần code và test: chọn vùng bằng rìu gỗ riêng, tạo/quản lý portal, đặt điểm đến, link hai chiều, kiểm tra điểm đến an toàn và particle marker.
-- Paper smoke test đã xác nhận plugin và ProtocolLib khởi động trên Paper 26.3, `/vnportal list` và `/vnportal validate` hoạt động qua RCON; người dùng xác nhận đã hoàn thành các nhóm gameplay test trên client ngày 2026-10-23.
-- Đã chuẩn bị Paper 26.3-209, ProtocolLib 5.5.0-SNAPSHOT và plugin 2.2.0 trong `TEST/`; server đã được người dùng chấp nhận EULA, khởi động thành công và listen trên `*:25565`.
-- Playit agent v1.0.10 đã được claim; secret được giữ trong `.playit.toml` tại root dự án (permission 600, Git ignored). `TEST/run.sh` dùng lại agent đó và khởi chạy Paper. Người dùng xác nhận đã kết nối thành công qua tunnel `signaling-cheers.tun.ply.gg` ngày 2026-10-23.
-- Bốn nhóm gameplay test còn mở trước đây đã được người dùng xác nhận hoàn thành ngày 2026-10-23.
-- Kiểm chứng tự động ngày 2026-10-22: toàn bộ 99 Maven tests đạt; nhóm test trọng điểm portal/NPC/skill đạt 22/22. Kiểm thử Paper gameplay tiếp tục trên test server trong `TEST/`.
+- Migration tăng schema version; transaction, backup trước, rollback plan và test upgrade từ schema còn hỗ trợ.
+- Tách repository/service cho profile, progression, wallet/ledger, quest và world progress; không để listener tự viết SQL.
+- Async API có thứ tự/idempotency; lỗi DB không cập nhật GUI, không consume item/điểm/coin.
+- Backup không chặn main thread; thiết lập busy timeout, retry/backoff, shutdown an toàn.
+- Có diagnostics integrity và restore có xác nhận.
 
-### Phase 0 – Cốt lõi dữ liệu và design lock
-- [x] Chốt class, skill, naming convention và schema skill/book.
-- [x] Thiết kế/validate schema NPC/dialogue: bảy loại vai trò, ID ổn định, display name, giới hạn nội dung thoại, kiểm tra khóa YAML trùng và giới hạn registry.
-- [x] Thiết kế/validate các điểm còn lại của portal/NPC runtime trước khi triển khai tương ứng; schema, giới hạn dữ liệu và hành vi registry được kiểm tra bằng code cùng unit test. Kiểm thử tích hợp runtime vẫn theo dõi riêng ở Phase 4–5.
+### 6.2 Config, permission và command
 
-### Phase 1 – Level/EXP + skill point
-- [x] Tăng level, EXP, skill point; hiển thị trong GUI profile.
-- [x] Lưu trong SQLite và migration an toàn.
-- [x] Cho phép lên cấp và nhận điểm chưa dùng.
+- Config economy đề xuất: economy.enabled, mob-drops.enabled, mob-drops.chance = 0.30, amount-by-tier, mob tier allowlist, spawn-origin eligibility, despawn, hopper và giới hạn reward.
+- Validation số hữu hạn, min/max, enum, ID duy nhất; reload lỗi giữ config runtime cũ.
+- Permission riêng cho xem tiền, lịch sử, quản trị ví, merchant và economy.
+- Mỗi command đăng ký một lần; aliases tương thích nếu đã phát hành; usage/tab completion chính xác.
+- Không cấp quyền admin bằng wildcard ngoài ý muốn; mọi thay đổi ví có audit.
 
-### Phase 2 – Skill book + learning system
-- [x] Tạo skill book item và lore.
-- [x] Học skill theo class, level và điều kiện.
-- [x] Lưu learned skill và rank ban đầu.
-- [x] Admin có `/vnskillbook give`; người chơi xem skill bằng `/vnskills list`.
+### 6.3 Hiệu năng và bảo vệ
 
-### Phase 3 – Quick cast + mana + skill tree (đã triển khai và gameplay test)
-- [x] Mở `Quick Cast` GUI bằng `/vnskills`; Q mở GUI nếu nhân vật RPG đang hoạt động.
-- [x] Gán/bỏ gán skill vào slot 1–9; lưu bền vững trong SQLite.
-- [x] Cast bằng click GUI hoặc phím số khi GUI đang mở.
-- [x] Thêm cast handler cho `blade-flare`, `guard-break`, `shield-wall`, `taunt`, `fire-bolt`, `arcane-field`; passive không thể gán.
-- [x] Thêm cooldown cấu hình trong `skill-definitions.yml`; cooldown runtime reset khi logout/restart.
-- [x] Kiểm tra class, learned skill, cooldown, phạm vi tia và vật cản; damage áp dụng qua event Bukkit và skill chỉ nhắm quái thù địch.
-- [x] Thêm mana lưu bền vững, hồi theo thời gian có giới hạn max mana; không dùng vanilla XP/thanh đói thay thế.
-- [x] Thêm GUI skill tree/chi tiết skill, hiển thị rank/điều kiện/điểm và nâng rank bằng skill point trong transaction nguyên tử.
-- [x] Triển khai hiệu ứng passive `battle-focus` cho swordsman đã học sách: tăng sát thương đánh thường và sweep attack lên quái theo cấu hình mỗi rank; không ảnh hưởng PvP, projectile hoặc skill damage.
-- [x] Nạp rank passive vào cache khi người chơi vào server/plugin khởi động, cập nhật sau khi học sách và xóa cache khi thoát; lỗi tải hồ sơ được log/báo rõ.
-- [x] Hiển thị hiệu ứng Tâm Kiếm trong skill tree/chi tiết, cấu hình mức cộng ở `rpg.skills.passives.battle-focus.damage-bonus-per-rank` (mặc định 3%, giới hạn 0–10%).
-- [x] Thêm unit test cho công thức Tâm Kiếm/Thành Đồng/Mạch Pháp, điều kiện chuỗi và giới hạn mana restore; toàn bộ 86 Maven tests đạt.
-- [x] Cho phép nâng rank passive đã triển khai bằng skill point trong GUI theo điều kiện cấp tiếp theo; cập nhật cache rank sau transaction thành công.
-- [x] Kiểm thử điều kiện cấp và trừ đúng 1 skill point khi nâng Tâm Kiếm; focused suite 31 test đạt, toàn bộ suite 80 test đạt.
-- [x] Triển khai Thành Đồng cho guardian: chỉ nhận stack từ đòn của quái thù địch (kể cả projectile do quái bắn); stack hiện có giảm đòn tiếp theo, reset sau thời gian cấu hình; hỗ trợ nâng rank/cache.
-- [x] Thêm cấu hình song ngữ cho mức giảm sát thương, stack cap và thời gian hết hạn; giảm tối đa 90% để không vô hiệu hóa sát thương hoàn toàn.
-- [x] Thêm kiểm thử công thức giảm sát thương theo rank/stack và giới hạn an toàn; toàn bộ 83 Maven tests đạt.
-- [x] Triển khai Mạch Pháp cho mage đã học sách: hồi mana thêm theo rank sau các cast active thành công tiếp diễn trong cửa sổ combo; chuỗi không lưu khi logout/restart.
-- [x] Thêm thao tác khôi phục mana trong transaction SQLite, giới hạn ở max mana; lỗi DB được log và báo rõ sau cast.
-- [x] Cho phép nâng rank Mạch Pháp bằng skill point, cập nhật cache rank sau khi nâng và hiển thị hiệu ứng/cấu hình trong GUI.
-- [x] Thêm cấu hình song ngữ cho mana/cast/rank và cửa sổ chuỗi; kiểm thử helper và thao tác khôi phục mana; toàn bộ 86 Maven tests đạt.
-- [x] Kiểm thử gameplay bằng Paper: Q/drop conflict, cast thực tế, bảo vệ vùng an toàn và cân bằng chỉ số.
+- Task lặp có interval/budget và dừng khi disable/reload; tránh scan toàn world hoặc quá nhiều entity/particle.
+- Theo dõi thời gian DB, số giao dịch, coin tạo/tiêu, validation error, entity plugin và task đang chạy.
+- Rate limit command/GUI ghi DB; cache có TTL/invalidation, không thay persistence.
+- Log không ghi secret hoặc dump inventory/profile không cần thiết.
+- Xác thực item plugin bằng PDC/version, không bằng tên/lore.
 
-### Phase 4 – Portal system (đã triển khai và gameplay test)
-- [x] Chọn vùng cuboid bằng wooden axe có dấu nhận diện riêng hoặc lệnh pos1/pos2; không phụ thuộc WorldEdit.
-- [x] Tạo, lưu, liệt kê, xem, bật/tắt, xóa và validate portal trong `portals.yml`.
-- [x] Đặt điểm đến, link/unlink hai chiều và kiểm tra world, chunk, world border, khoảng trống phía trên cùng block sàn an toàn.
-- [x] Dịch chuyển khi người chơi đi vào vùng portal; chặn khi chết/respawn/combat, có cooldown và chống lặp nếu điểm đến nằm trong vùng nhận.
-- [x] Thêm particle ring cấu hình được, giới hạn số portal/kích thước vùng, quyền admin và hướng dẫn sử dụng.
-- [x] Paper smoke test: ProtocolLib 5.5.0-SNAPSHOT và VnMineHardcore 2.0.4 bật thành công; RCON xác nhận list/validate và chặn thao tác tạo portal từ console.
-- [x] Chuẩn bị launcher Paper + Playit trong `TEST/run.sh`, với agent chính thức và log riêng; launcher dùng lại secret đã claim thay vì tạo agent mới.
-- [x] Kiểm thử Paper: trigger theo vùng, teleport qua nhiều world/chunk, combat/death gate, particle và reload/restart persistence.
+### 6.4 Phát hành và tài liệu
 
-### Phase 5 – NPC + tutorial + quest flow
-- [x] Tạo registry definition NPC YAML có schema version, bảy loại vai trò và mẫu thoại cho tutorial guide, class trainer, story keeper.
-- [x] Nạp/validate registry khi plugin khởi động; file lỗi được log rõ và từ chối khởi động plugin.
-- [x] Tạo nhiều NPC runtime bằng villager vanilla có tag/UUID ổn định; lưu/khôi phục theo chunk, lệnh `/vnnpc create|rename|move|remove|info|list`, quyền admin và giới hạn cấu hình 1-100.
-- [x] Kiểm thử Paper: tạo nhiều NPC, restart/chunk unload-load, rename/move/remove và bảo đảm không trùng entity.
-- [x] Nhấp phải NPC mở dialogue GUI; hiển thị tối đa 20 dòng theo ID/role definition, chặn kéo vật phẩm và có nút đóng.
-- [x] Nối trainer/quest giver với skill book, quest flow và các hành động trong GUI: action cấu hình mở quest journal/skill tree hoặc cấp skill book; kiểm tra không cấp trùng sách đã học/đang có.
-- [x] Thêm tutorial waypoint: action bar theo dõi vị trí/khoảng cách spawn và particle End Rod dẫn đường trong tầm cấu hình.
-- [x] Kiểm thử gameplay waypoint bằng Paper trên client thực tế; server và tunnel public đã hoạt động.
+- Khóa Java/Paper/ProtocolLib và kiểm tra JAR phát hành trên ma trận phiên bản staging.
+- Kiểm tra plugin.yml, command/permission, resource filtering, SQLite native library và khởi động từ data folder trống.
+- Release checklist: backup, staging, log startup/reload, migration, người mới/cũ, restart/disable, permission và rollback.
+- README ghi luật không ban khi chết, death penalty, grave, VNCOIN, lệnh, quyền và giới hạn bản phát hành.
+- Trạng thái plan phân biệt planned/in progress/merged/automated test/gameplay test/released và ghi phiên bản/ngày kiểm chứng.
 
-## 12. Rủi ro và quyết định cốt lõi
+## 7. Lộ trình và tiêu chí chấp nhận
 
-- Không ép `packet keybind` nếu không có bằng chứng kỹ thuật tốt.
-- Không giả định NPC custom skin hoạt động ổn định trên mọi môi trường.
-- Không để logic cast bị nhồi vào listener quá lớn; cần tách `SkillEngine`, `SkillManager`, `PortalManager`, `NpcManager`.
-- Mọi UI phải có fallback khi GUI không hoạt động hoặc item bị thiếu.
-- Tất cả data config cần có comment tiếng Việt + tiếng Anh, schema rõ ràng.
+### Phase A — Sửa lỗi và giảm rủi ro
 
-## 13. Kết luận
+- [ ] Cast thất bại không mất mana/cooldown và không báo thành công; kiểm thử target mất hợp lệ/AoE rỗng.
+- [ ] Rà mọi JDBC từ event/command; giảm truy vấn và chuyển luồng phù hợp sang DB executor an toàn.
+- [ ] Registry từ chối active skill không handler và báo passive chưa hỗ trợ rõ ràng.
+- [ ] Mỗi command đăng ký một lần; kiểm tra handler/permission/usage/tab completion.
+- [ ] Chốt Java/Paper/ProtocolLib, hướng dẫn triển khai và smoke test JAR phát hành.
+- [ ] Đối chiếu README/config/plan; giữ rõ luật chết không ban.
 
-Hệ thống RPG của VNMINE nên đi theo hướng “vừa chơi được, dễ test, dễ mở rộng.” Class là nền tảng và cho mỗi class 3–4 kỹ năng khác nhau. Skill book là cách học skill, skill point là cách nâng cấp, quick cast là cách dùng skill nhanh trong combat. Portal và NPC tạo ra không gian di chuyển, hướng dẫn và narrative; tutorial + particle giúp người chơi không bị lạc. Với roadmap này, mỗi phase đều có giá trị gameplay rõ ràng và không đòi hỏi rewrite toàn bộ hệ thống.
+**Chấp nhận:** không có cast báo thành công sai; DB error không tiêu item/điểm/tiền; staging bật/reload/disable sạch; command và permission đúng.
 
-Các checklist Phase 0–5 hiện không còn mục chưa hoàn thành. Chưa có Phase 6 được định nghĩa. Template NPC tutorial và quest đã có, nhưng runtime `TEST/server/plugins/VnMineHardcore/npcs.yml` hiện chưa chứa NPC instance; bước tiếp theo là chọn world/vị trí để đặt NPC tutorial đầu tiên.
+### Phase B — VNCOIN core và mob drop
+
+- [ ] Xác minh schema hiện tại; thêm migration ví/ledger, backup và rollback.
+- [ ] EconomyService có transaction nguyên tử/idempotent; chặn balance âm, overflow và duplicate.
+- [ ] Drop 30% cho mob allowlist; amount 1–10 theo tier; loại boss/PvP/summon khỏi bảng cơ bản.
+- [ ] Item VNCOIN PDC có UUID; pickup ghi có một lần; lỗi DB không xóa item.
+- [ ] Thêm /vncoin balance và admin give/take có quyền/audit.
+- [ ] Config song ngữ, log và thông báo không spam.
+- [ ] Đo drop trên staging, thu nhập/giờ và exploit mob farm.
+
+**Chấp nhận:** tỷ lệ thực nghiệm quanh 30% trên mẫu đủ lớn; drop claim một lần; restart/backup/restore giữ đúng balance/ledger.
+
+### Phase C — Economy sink
+
+- [ ] Merchant NPC với giá cấu hình, transaction nguyên tử và chống double click/disconnect.
+- [ ] Thêm sink không bắt buộc như sửa gear/nguyên liệu tiện ích; xác nhận giá trước khi mua.
+- [ ] Quest/boss reward có idempotent source ID; không trả trùng encounter.
+- [ ] Thêm history/admin audit; leaderboard là tùy chọn.
+- [ ] Theo dõi lạm phát và ghi thay đổi giá/drop vào changelog.
+
+**Chấp nhận:** mua bán không tạo/mất tiền khi lỗi; mọi giao dịch có ledger; người chơi hiểu cách kiếm/tiêu.
+
+### Phase D — Class và trải nghiệm người chơi
+
+- [ ] Phân loại class available/locked/planned; ẩn class chưa playable.
+- [ ] Hoàn thành từng class gồm skill, book, passive, UI, tutorial, balance và test.
+- [ ] Tutorial hướng dẫn nhặt/dùng VNCOIN, merchant, portal và boss.
+- [ ] Quest journal lưu progress, claim một lần và waypoint.
+- [ ] Party cơ bản định nghĩa rõ chia EXP/loot; không nhân đôi VNCOIN.
+- [ ] Trang bị/crafting theo tier sau khi economy sink ổn định.
+
+**Chấp nhận:** người mới tự tạo nhân vật, hiểu class, hoàn thành tutorial, kiếm/tiêu coin và tới boss đầu mà không cần admin.
+
+### Phase E — Endgame và phát hành
+
+- [ ] Region theo tier/quest, portal gate và thông báo.
+- [ ] Dungeon/instance có cleanup, checkpoint, attribution, party và giới hạn farm.
+- [ ] Cân bằng boss, disaster, mercenary, gear và death penalty qua nhiều class.
+- [ ] Kiểm thử tải, DB contention, backup/restore, reload, restart, chunk unload và offline player.
+- [ ] Phát hành staging, lấy feedback, cập nhật hướng dẫn và kế hoạch rollback.
+
+**Chấp nhận:** không mất dữ liệu theo kịch bản lỗi định nghĩa; không còn exploit nhân đôi coin/loot đã biết; TPS đạt mục tiêu tải dự kiến.
+
+## 8. Ma trận kiểm thử trước server chính
+
+### Economy
+
+- Mob hợp lệ chết do player/projectile/lính/pet/môi trường.
+- Mob passive, summon, spawner/farm, boss/event, không killer và PvP.
+- Pickup thường, inventory đầy, hopper, lava, despawn, logout, chunk unload/load.
+- Pickup đồng thời, clone item/entity, DB busy/readonly/disk full, crash giữa claim.
+- Admin sai quyền, số âm/quá lớn, offline target và audit.
+- Merchant spam click, disconnect, stack item, inventory full, DB failure.
+
+### RPG/death/runtime
+
+- Cast thành công/thất bại, thiếu mana, target mất, cooldown, class sai, PvP/đồng minh và vật cản.
+- Class thiếu handler, YAML sai schema/duplicate key, sách cũ sau update.
+- Chết trong/ngoài combat, respawn protection, grave, inventory history, death penalty recovery, quit.
+- Không ban người chơi trên mọi đường death/quit; thông báo rõ mất đồ/penalty.
+- Quest reward one-time, restart, portal gate, NPC persistence và task cleanup.
+
+## 9. Đề xuất sâu hơn cho server
+
+- Theo dõi ngân sách kinh tế: coin mới tạo, coin tiêu, số dư trung vị/top balance; cân bằng theo mùa thay vì chỉnh drop theo cảm giác.
+- Bounty board theo mob/boss/region có giới hạn ngày, xoay vòng và chống farm mob trong khu kín.
+- Achievement/mốc tiến trình một lần (boss đầu, realm mới, chapter) làm nguồn coin không farm vô hạn.
+- Làm reward attribution trước khi mở party: sát thương/assist theo cửa sổ; một encounter không thể trả nhiều reward do đổi chủ/summon.
+- Merchant theo tier và giá mua lại thấp hơn giá bán để không tạo vòng tiền vô hạn.
+- Dashboard admin tối giản: ví/ledger, coin tạo/tiêu, drop rate, farm đáng ngờ, quest claim lỗi, transaction errors.
+- Chính sách mùa công bố trước: ví được giữ hay reset, ngày reset, snapshot và phần thưởng chuyển tiếp.
+- Thử thách đến từ gameplay, thời gian, đồ và penalty được giải thích trước; **chết không ban**, luôn có đường hồi phục để tiếp tục.
+
+## 10. Nguyên tắc triển khai
+
+- Mỗi phase có scope, tiêu chí chấp nhận và kiểm thử trước khi chuyển phase.
+- YAML mới chưa phải tính năng hoàn chỉnh nếu thiếu validation, permission, UI/lệnh, persistence, logging và lỗi fallback.
+- Không consume item/cấp điểm/cập nhật balance trước khi transaction thành công.
+- Async không gọi Bukkit API; cache không thay dữ liệu bền vững.
+- Không ban người chơi khi chết hoặc thoát game. Mọi death penalty phải giữ nguyên nguyên tắc này.
+- 30% và 1–10 VNCOIN là baseline yêu cầu; mọi điều chỉnh phải ghi config và changelog.
