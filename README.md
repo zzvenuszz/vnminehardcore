@@ -588,21 +588,21 @@ world and within 48 blocks. Configure `quest.objective.waypoint-enabled`
 and `waypoint-particle-range-blocks` (default `48`, range `8-64`) in the quest
 definition. Older definitions that omit these fields use the defaults.
 
-The quest reward is configured with `quest.reward.type: character-exp` and
-`quest.reward.amount` (default `25`, valid range `0-100000`). It is recorded in
-the character's persistent RPG experience field, not vanilla Minecraft XP or an
-inventory item. Completion and reward claim are one SQLite transaction; failure
-to apply the reward rolls the quest status back so completion can safely retry.
-An existing completion with `reward_claimed: false` is granted the configured
-reward once on the next join, covering players who completed the tutorial before
-this reward was added.
+The quest reward supports `quest.reward.type: character-exp` (amount `0-100000`)
+or `vncoin` (amount `1-1000000`); the default remains `character-exp` with `25`.
+Both rewards and completion are recorded in one SQLite transaction. VNCOIN uses
+a stable quest/player transaction ID, so reconnects and duplicate completion
+callbacks cannot credit it twice. If a wallet would exceed its balance limit,
+the entire completion transaction rolls back and can retry later. An existing
+completion with `reward_claimed: false` receives its configured reward once on
+next join.
 
 The quest can be disabled with `quest.enabled`; `/vnreload` reloads its
 definition, while invalid YAML keeps the last valid definition. There is no
 player command or permission for quest progress. Players open the read-only quest
 journal from slot 20 in the main menu (opened with F or `/vnmenu`). It displays
 the current status, checkpoint, guidance, destination, completion time, and
-whether the character-XP reward was claimed. The refresh button synchronizes
+whether the configured reward was claimed. The refresh button synchronizes
 saved progress; the journal can be hidden with `rpg.quest-journal.enabled`
 (default `true`) in `config.yml`. Start/reminder feedback and completion
 confirmation are also sent as in-game messages.

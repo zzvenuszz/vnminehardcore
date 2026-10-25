@@ -63,15 +63,22 @@ public final class TutorialQuestDefinitionLoader {
             return Optional.empty();
         }
         String rewardType = readRequiredText(rewardSection, "type", file, "quest.reward", logger);
-        if (rewardType != null && !"character-exp".equals(rewardType)) {
+        if (rewardType != null && !"character-exp".equals(rewardType) && !"vncoin".equals(rewardType)) {
             logger.warning("[Quest] Unsupported reward type '" + rewardType + "' at " +
-                file.getName() + ".quest.reward.type; only 'character-exp' is supported.");
+                file.getName() + ".quest.reward.type; supported types are 'character-exp' and 'vncoin'.");
             valid = false;
         }
         Integer rewardAmount = readRequiredInteger(rewardSection, "amount", file, "quest.reward", logger);
-        if (rewardAmount != null && (rewardAmount < 0 || rewardAmount > 100_000)) {
-            logger.warning("[Quest] quest.reward.amount in " + file.getName() + " must be between 0 and 100000.");
-            valid = false;
+        if (rewardAmount != null) {
+            if ("character-exp".equals(rewardType) && (rewardAmount < 0 || rewardAmount > 100_000)) {
+                logger.warning("[Quest] character-exp reward amount in " + file.getName()
+                    + " must be between 0 and 100000.");
+                valid = false;
+            } else if ("vncoin".equals(rewardType) && (rewardAmount < 1 || rewardAmount > 1_000_000)) {
+                logger.warning("[Quest] VNCOIN reward amount in " + file.getName()
+                    + " must be between 1 and 1000000.");
+                valid = false;
+            }
         }
 
         ConfigurationSection objective = quest.getConfigurationSection("objective");

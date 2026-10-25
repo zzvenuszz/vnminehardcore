@@ -994,6 +994,61 @@ public class PlayerProfileDatabaseManager {
         });
     }
 
+    public boolean completeQuestAndAwardWallet(String uuid, String questId, String currentStep,
+            long coinReward, String completedAt) throws SQLException {
+        validateQuestWalletReward(uuid, questId, coinReward, completedAt);
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET status = 'completed', current_step = ?, " +
+                    "completed_at = ?, reward_claimed = 1 " +
+                    "WHERE uuid = ? AND quest_id = ? AND status = 'active' AND reward_claimed = 0")) {
+                statement.setString(1, currentStep);
+                statement.setString(2, completedAt);
+                statement.setString(3, uuid);
+                statement.setString(4, questId);
+                if (statement.executeUpdate() != 1) return false;
+            }
+            applyQuestWalletReward(connection, uuid, questId, coinReward, completedAt);
+            return true;
+        });
+    }
+
+    public boolean claimCompletedQuestWalletReward(String uuid, String questId,
+            long coinReward, String claimedAt) throws SQLException {
+        validateQuestWalletReward(uuid, questId, coinReward, claimedAt);
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET reward_claimed = 1 " +
+                    "WHERE uuid = ? AND quest_id = ? AND status = 'completed' AND reward_claimed = 0")) {
+                statement.setString(1, uuid);
+                statement.setString(2, questId);
+                if (statement.executeUpdate() != 1) return false;
+            }
+            applyQuestWalletReward(connection, uuid, questId, coinReward, claimedAt);
+            return true;
+        });
+    }
+
+    private void validateQuestWalletReward(String uuid, String questId, long amount, String timestamp) {
+        if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank()
+                || questId.length() > 64 || amount < 1 || amount > MAX_WALLET_BALANCE
+                || timestamp == null || timestamp.isBlank()) {
+            throw new IllegalArgumentException("Quest VNCOIN reward fields are invalid.");
+        }
+    }
+
+    private void applyQuestWalletReward(Connection connection, String uuid, String questId,
+            long amount, String timestamp) throws SQLException {
+        String transactionId = "quest-reward:" + uuid + ":" + questId;
+        WalletTransactionResult result = applyWalletTransaction(connection, uuid, amount, transactionId,
+            "quest", null, "Phần thưởng nhiệm vụ " + questId, timestamp);
+        if (result.status() != WalletTransactionStatus.APPLIED
+                && result.status() != WalletTransactionStatus.DUPLICATE) {
+            throw new SQLException("Could not apply quest VNCOIN reward " + questId
+                + ": wallet status=" + result.status());
+        }
+    }
+
     private CharacterProgression.AwardResult awardProfileExperience(
             Connection connection, String uuid, int experienceReward, String updatedAt) throws SQLException {
         int level;

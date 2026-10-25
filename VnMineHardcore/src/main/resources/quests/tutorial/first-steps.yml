@@ -20,12 +20,12 @@ quest:
   description: "Hãy tìm điểm an toàn đầu tiên tại Nhân giới."
 
   reward:
-    # [VI] Loại phần thưởng; chỉ hỗ trợ character-exp để lưu và trao nguyên tử trong SQLite.
-    # [EN] Reward type; only character-exp is supported for atomic SQLite persistence and delivery.
+    # [VI] Loại thưởng: character-exp (XP RPG) hoặc vncoin; mặc định character-exp.
+    # [EN] Reward type: character-exp (RPG XP) or vncoin; defaults to character-exp.
     type: character-exp
 
-    # [VI] Số XP nhân vật được cộng khi hoàn thành; mặc định 25, giới hạn 0..100000.
-    # [EN] Character XP granted on completion; defaults to 25, valid range 0..100000.
+    # [VI] Số thưởng khi hoàn thành; character-exp hợp lệ 0..100000, vncoin hợp lệ 1..1000000.
+    # [EN] Completion reward amount; character-exp allows 0..100000, vncoin allows 1..1000000.
     amount: 25
 
   objective:

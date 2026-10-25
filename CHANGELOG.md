@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v2.8.0] - 2026-10-25
+
+### Added
+- Cho phép quest tutorial thưởng VNCOIN; đánh dấu nhận thưởng và ghi giao dịch ledger bằng transaction SQLite nguyên tử với ID cố định theo người chơi và quest để chống nhận trùng.
+
 ## [v2.7.0] - 2026-10-25
 
 ### Added

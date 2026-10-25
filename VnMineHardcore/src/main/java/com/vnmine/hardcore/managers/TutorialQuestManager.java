@@ -240,9 +240,12 @@ public final class TutorialQuestManager implements Listener {
             PlayerProfileDatabaseManager.PlayerProfile updatedProfile = null;
             if (progress.isPresent() && "completed".equals(progress.get().status())
                     && !progress.get().rewardClaimed()) {
-                rewardClaimedNow = database.claimCompletedQuestExperienceReward(playerId.toString(),
-                    quest.id(), quest.reward().amount(), Instant.now().toString());
-                if (rewardClaimedNow) {
+                rewardClaimedNow = "vncoin".equals(quest.reward().type())
+                    ? database.claimCompletedQuestWalletReward(playerId.toString(), quest.id(),
+                        quest.reward().amount(), Instant.now().toString())
+                    : database.claimCompletedQuestExperienceReward(playerId.toString(), quest.id(),
+                        quest.reward().amount(), Instant.now().toString());
+                if (rewardClaimedNow && "character-exp".equals(quest.reward().type())) {
                     updatedProfile = database.getPlayerProfile(playerId.toString()).orElse(null);
                 }
             }
@@ -264,12 +267,18 @@ public final class TutorialQuestManager implements Listener {
                 + data.progress().get().status() + ", startedNow=" + data.startedNow()
                 + ", rewardClaimedNow=" + data.rewardClaimedNow());
             if (data.rewardClaimedNow()) {
-                CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
-                if (characters != null && data.updatedProfile() != null) {
-                    characters.updateLoadedProfile(data.updatedProfile());
+                if ("character-exp".equals(quest.reward().type())) {
+                    CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+                    if (characters != null && data.updatedProfile() != null) {
+                        characters.updateLoadedProfile(data.updatedProfile());
+                    }
+                    sendLevelUpFeedback(player, data.profile());
+                    player.sendMessage("§aPhần thưởng nhiệm vụ đã được lưu: §e+"
+                        + quest.reward().amount() + " EXP§a.");
+                } else {
+                    player.sendMessage("§aPhần thưởng nhiệm vụ đã được lưu: §6+"
+                        + quest.reward().amount() + " VNCOIN§a.");
                 }
-                sendLevelUpFeedback(player, data.profile());
-                player.sendMessage("§aPhần thưởng nhiệm vụ đã được lưu: §e+" + quest.reward().amount() + " EXP§a.");
                 return;
             }
             PlayerProfileDatabaseManager.QuestProgress progress = data.progress().get();
@@ -335,7 +344,9 @@ public final class TutorialQuestManager implements Listener {
         lore.add("§eChỉ dẫn: §f" + quest.objective().startMessage());
         lore.add("§eĐiểm đến: §f" + quest.objective().realmId());
         lore.add("§ePhạm vi: §f" + quest.objective().radiusBlocks() + " block");
-        lore.add("§ePhần thưởng dự kiến: §b+" + quest.reward().amount() + " EXP nhân vật");
+        lore.add("§ePhần thưởng dự kiến: " + ("vncoin".equals(quest.reward().type())
+            ? "§6+" + quest.reward().amount() + " VNCOIN"
+            : "§b+" + quest.reward().amount() + " EXP nhân vật"));
         return List.copyOf(lore);
     }
 
@@ -452,16 +463,20 @@ public final class TutorialQuestManager implements Listener {
             return;
         }
         debugQuest("complete-start player=" + player.getName() + ", quest=" + quest.id()
-            + ", rewardExp=" + quest.reward().amount());
+            + ", rewardType=" + quest.reward().type() + ", rewardAmount=" + quest.reward().amount());
         Optional<PlayerProfileDatabaseManager.PlayerProfile> previousProfile =
             plugin.getCharacterSelectionManager().getLoadedProfile(playerId);
         plugin.getPlayerProfileDatabaseManager().executeGameplayDatabaseTask(
             "quest.complete player=" + player.getName() + " quest=" + quest.id(), () -> {
-            boolean completed = plugin.getPlayerProfileDatabaseManager().completeQuestAndAwardExperience(
-                playerId.toString(), quest.id(), "completed", quest.reward().amount(), Instant.now().toString());
+            boolean completed = "vncoin".equals(quest.reward().type())
+                ? plugin.getPlayerProfileDatabaseManager().completeQuestAndAwardWallet(playerId.toString(),
+                    quest.id(), "completed", quest.reward().amount(), Instant.now().toString())
+                : plugin.getPlayerProfileDatabaseManager().completeQuestAndAwardExperience(playerId.toString(),
+                    quest.id(), "completed", quest.reward().amount(), Instant.now().toString());
             if (completed) {
-                PlayerProfileDatabaseManager.PlayerProfile updated = plugin.getPlayerProfileDatabaseManager()
-                    .getPlayerProfile(playerId.toString()).orElse(null);
+                PlayerProfileDatabaseManager.PlayerProfile updated = "character-exp".equals(quest.reward().type())
+                    ? plugin.getPlayerProfileDatabaseManager().getPlayerProfile(playerId.toString()).orElse(null)
+                    : null;
                 return new QuestCompletionData(true, Optional.empty(), updated);
             }
             Optional<PlayerProfileDatabaseManager.QuestProgress> progress =
@@ -479,17 +494,21 @@ public final class TutorialQuestManager implements Listener {
             }
             if (result.completed()) {
                 debugQuest("complete-result player=" + player.getName() + ", quest=" + quest.id()
-                    + ", completed=true, exp=" + quest.reward().amount());
+                    + ", completed=true, rewardType=" + quest.reward().type()
+                    + ", rewardAmount=" + quest.reward().amount());
                 activeQuestSessions.remove(playerId);
                 lastWaypointAtMillis.remove(playerId);
                 CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
                 if (characters != null && result.updatedProfile() != null) {
                     characters.updateLoadedProfile(result.updatedProfile());
                 }
-                previousProfile.ifPresent(profile -> sendLevelUpFeedback(player, profile));
+                if ("character-exp".equals(quest.reward().type())) {
+                    previousProfile.ifPresent(profile -> sendLevelUpFeedback(player, profile));
+                }
                 player.sendMessage("§a§lNhiệm vụ hoàn thành: §f" + quest.title());
                 player.sendMessage("§7" + quest.objective().completeMessage());
-                player.sendMessage("§ePhần thưởng: +" + quest.reward().amount() + " EXP nhân vật.");
+                player.sendMessage("§ePhần thưởng: +" + quest.reward().amount()
+                    + ("vncoin".equals(quest.reward().type()) ? " VNCOIN." : " EXP nhân vật."));
                 return;
             }
             if (result.progress().isPresent() && "completed".equals(result.progress().get().status())) {
