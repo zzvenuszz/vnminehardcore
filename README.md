@@ -607,6 +607,16 @@ saved progress; the journal can be hidden with `rpg.quest-journal.enabled`
 (default `true`) in `config.yml`. Start/reminder feedback and completion
 confirmation are also sent as in-game messages.
 
+### Class Availability
+
+`player-classes.yml` records each class as `available`, `locked`, or `planned`.
+Only `available` classes that also have at least one implemented RPG skill appear
+in character creation; `locked` and `planned` entries stay hidden. If an older
+server copy has no `availability` key, the plugin auto-detects it from supported
+skills. The bundled catalog currently enables `swordsman`, `guardian`, and
+`mage`; the other listed classes are marked `planned` until their skills and
+player-facing setup are complete.
+
 ### RPG NPCs
 
 NPC dialogue templates are defined in

@@ -73,7 +73,7 @@ public final class CharacterSelectionManager implements Listener {
         int index = 0;
         for (RaceDefinition race : races.values()) {
             if (classesByRace.getOrDefault(race.id(), Collections.emptyList()).stream()
-                    .noneMatch(klass -> playableClassIds.contains(klass.id()))) {
+                    .noneMatch(this::isClassSelectable)) {
                 continue;
             }
             if (index >= MENU_SLOTS.length) break;
@@ -95,9 +95,14 @@ public final class CharacterSelectionManager implements Listener {
     public void setPlayableClassIds(Set<String> classIds) {
         playableClassIds = Set.copyOf(classIds);
         for (String classId : getClassIds()) {
-            if (!playableClassIds.contains(classId)) {
+            ClassDefinition definition = findClassForId(classId);
+            if (definition != null && "available".equals(definition.availability())
+                    && !playableClassIds.contains(classId)) {
                 plugin.getLogger().warning("[Character] Class '" + classId
-                    + "' is hidden from character creation because it has no implemented RPG skill.");
+                    + "' is marked available but hidden because no implemented RPG skill supports it.");
+            } else if (definition != null && !"available".equals(definition.availability())) {
+                plugin.getLogger().info("[Character] Class '" + classId + "' is " + definition.availability()
+                    + " and hidden from character creation.");
             }
         }
     }
@@ -116,7 +121,7 @@ public final class CharacterSelectionManager implements Listener {
         Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Chọn class cho " + race.name());
         holder.inventory = inventory;
         List<ClassDefinition> classList = classesByRace.getOrDefault(raceId, Collections.emptyList()).stream()
-            .filter(klass -> playableClassIds.contains(klass.id()))
+            .filter(this::isClassSelectable)
             .toList();
         if (classList.isEmpty()) {
             player.sendMessage("§eChủng tộc này chưa có class RPG khả dụng. Hãy chọn chủng tộc khác.");
@@ -137,7 +142,7 @@ public final class CharacterSelectionManager implements Listener {
         if (!isCreationAvailable(player)) return;
         RaceDefinition race = races.get(raceId);
         ClassDefinition selectedClass = findClass(raceId, classId);
-        if (race == null || selectedClass == null || !playableClassIds.contains(classId)) {
+        if (race == null || !isClassSelectable(selectedClass)) {
             player.sendMessage("§cKhông tìm thấy lựa chọn race/class hợp lệ.");
             return;
         }
@@ -390,7 +395,7 @@ public final class CharacterSelectionManager implements Listener {
         if (!isCreationAvailable(player)) return;
         RaceDefinition race = races.get(raceId);
         ClassDefinition selectedClass = findClass(raceId, classId);
-        if (race == null || selectedClass == null || !playableClassIds.contains(classId)) {
+        if (race == null || !isClassSelectable(selectedClass)) {
             player.sendMessage("§cClass này chưa khả dụng để tạo nhân vật.");
             return;
         }
@@ -505,13 +510,20 @@ public final class CharacterSelectionManager implements Listener {
             String name = readText(section, "name", path);
             String description = readText(section, "description", path);
             Material icon = readMaterial(section, "icon", path);
-            if (raceId == null || name == null || description == null || icon == null) continue;
+            String availability = section.contains("availability")
+                ? readText(section, "availability", path) : "auto";
+            if (raceId == null || name == null || description == null || icon == null || availability == null) continue;
+            if (!Set.of("auto", "available", "locked", "planned").contains(availability)) {
+                plugin.getLogger().warning("[Character] Invalid availability '" + availability
+                    + "' at " + path + ".availability; expected auto, available, locked or planned.");
+                continue;
+            }
             List<ClassDefinition> classList = classesByRace.get(raceId);
             if (classList == null) {
                 plugin.getLogger().warning("[Character] Unknown race '" + raceId + "' at " + path + ".race.");
                 continue;
             }
-            classList.add(new ClassDefinition(raceId, id, name, icon, description));
+            classList.add(new ClassDefinition(raceId, id, name, icon, description, availability));
         }
 
         races.entrySet().removeIf(entry -> {
@@ -579,6 +591,17 @@ public final class CharacterSelectionManager implements Listener {
             .orElse(null);
     }
 
+    private ClassDefinition findClassForId(String classId) {
+        return classesByRace.values().stream().flatMap(List::stream)
+            .filter(klass -> klass.id().equals(classId)).findFirst().orElse(null);
+    }
+
+    private boolean isClassSelectable(ClassDefinition klass) {
+        return klass != null && ("available".equals(klass.availability())
+                || "auto".equals(klass.availability()))
+            && playableClassIds.contains(klass.id());
+    }
+
     private ItemStack createRaceItem(RaceDefinition race) {
         return createSelectionItem(race.material(), "§6" + race.name(), List.of(
             "§7" + race.description(),
@@ -609,7 +632,8 @@ public final class CharacterSelectionManager implements Listener {
     public record RaceDefinition(String id, String name, Material material, String description) {
     }
 
-    public record ClassDefinition(String raceId, String id, String name, Material material, String description) {
+    public record ClassDefinition(String raceId, String id, String name, Material material, String description,
+                                  String availability) {
     }
 
     private static final class CharacterMenuHolder implements InventoryHolder {

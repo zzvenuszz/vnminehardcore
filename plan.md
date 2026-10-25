@@ -295,11 +295,13 @@ Menu lọc item theo người chơi cũng đã package bằng Java 25 và chép 
 
 ### Phase D — Class và trải nghiệm người chơi
 
-- [ ] Phân loại class available/locked/planned; ẩn class chưa playable.
+- [x] Phân loại class available/locked/planned; ẩn class chưa playable.
 - [ ] Hoàn thành từng class gồm skill, book, passive, UI, tutorial, balance và test.
 - [ ] Tutorial hướng dẫn nhặt/dùng VNCOIN, merchant, portal và boss.
 - [ ] Quest journal lưu progress, claim một lần và waypoint.
 - [ ] Party cơ bản định nghĩa rõ chia EXP/loot; không nhân đôi VNCOIN.
+
+**Tiến độ Phase D:** `player-classes.yml` hiện phân loại 3 class `available` (Lính kiếm, Vệ binh, Pháp sư) và 12 class `planned`; GUI chỉ hiện class có trạng thái available cùng skill đang được hỗ trợ. Cấu hình server cũ thiếu khóa availability dùng auto-detect để không làm hỏng character creation. Compile Java 25 thành công; cần restart và kiểm tra GUI trên server. Các class còn lại chưa được làm skill/UI/tutorial/balance.
 - [ ] Trang bị/crafting theo tier sau khi economy sink ổn định.
 
 **Chấp nhận:** người mới tự tạo nhân vật, hiểu class, hoàn thành tutorial, kiếm/tiêu coin và tới boss đầu mà không cần admin.

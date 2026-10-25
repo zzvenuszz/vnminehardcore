@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v2.10.0] - 2026-10-25
+
+### Changed
+- Gắn trạng thái `available`/`locked`/`planned` cho class; chỉ hiển thị class available có skill hoạt động trong giao diện tạo nhân vật, đồng thời giữ tương thích với cấu hình cũ thiếu trạng thái.
+
 ## [v2.9.0] - 2026-10-25
 
 ### Added
