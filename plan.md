@@ -291,7 +291,7 @@ Menu lọc item theo người chơi cũng đã package bằng Java 25 và chép 
 
 **Tiếp tục Phase C:** hỗ trợ cấu hình quest thưởng `vncoin` 1–1,000,000 bên cạnh `character-exp`. Khi hoàn thành, cập nhật trạng thái quest, cờ nhận thưởng và wallet ledger trong cùng transaction; ID giao dịch cố định theo UUID người chơi và quest ngăn trả thưởng lặp. Quest đã hoàn thành nhưng chưa nhận được thưởng sẽ được thử lại lúc vào server. Compile Java 25 thành công; chưa package/test gameplay. Merchant, thống kê và quest reward vẫn cần test trên server; sink VNCOIN chưa triển khai.
 
-**Merchant purchase confirmation:** bấm offer giờ mở trang xác nhận có số lượng và giá cuối; chỉ nút xác nhận mới bắt đầu debit. Nút hủy quay lại đúng trang merchant. Compile Java 25 thành công; chưa package hoặc test GUI trên server. Chưa có sink sửa gear riêng.
+**Merchant purchase confirmation:** bấm offer giờ mở trang xác nhận có số lượng và giá cuối; chỉ nút xác nhận mới bắt đầu debit. Nút hủy quay lại đúng trang merchant. JAR 2.9.0 build lúc 2026-10-25 04:43 UTC, dung lượng 1,900,289 bytes, SHA-256 `8b7015859634f7714cb63e8dca95e6c9e3034176b639ba1d0298c7cf33688ff1`, đã cài vào `VNMINE/plugins`; native SQLite chỉ có Linux x86_64. Chưa test GUI trên server. Chưa có sink sửa gear riêng.
 
 ### Phase D — Class và trải nghiệm người chơi
 
