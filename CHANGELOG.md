@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v2.9.0] - 2026-10-25
+
+### Added
+- Thêm màn hình xác nhận số lượng và giá VNCOIN trước khi bắt đầu giao dịch merchant.
+
 ## [v2.8.0] - 2026-10-25
 
 ### Added

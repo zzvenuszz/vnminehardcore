@@ -769,7 +769,52 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         }
         MerchantOffer offer = holder.offers.get(event.getRawSlot());
         if (offer == null) return;
-        purchaseMerchantOffer(player, offer);
+        openMerchantPurchaseConfirmation(player, event.getView().getTopInventory(), offer);
+    }
+
+    private void openMerchantPurchaseConfirmation(Player player, Inventory returnInventory, MerchantOffer offer) {
+        MerchantConfirmHolder holder = new MerchantConfirmHolder(player.getUniqueId(), returnInventory, offer);
+        Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Xác nhận mua");
+        holder.inventory = inventory;
+        ItemStack display = offer.item().clone();
+        ItemMeta meta = display.getItemMeta();
+        if (meta != null) {
+            List<String> lore = meta.hasLore() && meta.getLore() != null
+                ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+            lore.add("§7Số lượng: §f" + offer.item().getAmount());
+            lore.add("§7Giá phải trả: §6" + offer.price() + " VNCOIN");
+            meta.setLore(lore);
+            display.setItemMeta(meta);
+        }
+        inventory.setItem(13, display);
+        inventory.setItem(11, menuItem(Material.LIME_STAINED_GLASS_PANE, "§aXác nhận mua",
+            List.of("§7Trừ §6" + offer.price() + " VNCOIN§7 và nhận vật phẩm.")));
+        inventory.setItem(15, menuItem(Material.RED_STAINED_GLASS_PANE, "§cHủy",
+            List.of("§7Quay lại cửa hàng, không trừ tiền.")));
+        player.openInventory(inventory);
+    }
+
+    @EventHandler
+    public void onMerchantPurchaseConfirmationClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof MerchantConfirmHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)
+                || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        if (event.getRawSlot() == 11) {
+            player.closeInventory();
+            purchaseMerchantOffer(player, holder.offer);
+        } else if (event.getRawSlot() == 15) {
+            player.openInventory(holder.returnInventory);
+        }
+    }
+
+    @EventHandler
+    public void onMerchantInventoryDrag(InventoryDragEvent event) {
+        InventoryHolder holder = event.getView().getTopInventory().getHolder();
+        if (holder instanceof MerchantMenuHolder || holder instanceof MerchantConfirmHolder) {
+            event.setCancelled(true);
+        }
     }
 
     private List<MerchantOffer> loadMerchantOffers() {
@@ -1441,6 +1486,24 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         private MerchantMenuHolder(UUID viewer, List<MerchantOffer> allOffers) {
             this.viewer = viewer;
             this.allOffers = allOffers;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return inventory;
+        }
+    }
+
+    private static final class MerchantConfirmHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final Inventory returnInventory;
+        private final MerchantOffer offer;
+        private Inventory inventory;
+
+        private MerchantConfirmHolder(UUID viewer, Inventory returnInventory, MerchantOffer offer) {
+            this.viewer = viewer;
+            this.returnInventory = returnInventory;
+            this.offer = offer;
         }
 
         @Override

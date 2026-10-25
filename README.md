@@ -675,8 +675,10 @@ buttons (defaults `1`, `10`, and `100` VNCOIN). Only system-created RPG items
 can be listed. Prices and offer counts are bounded by
 `economy.merchant.custom.max-price` and `max-offers` in `config.yml`.
 
-Merchant purchases debit VNCOIN and create a persistent pending item delivery in
-the same database transaction. If the player disconnects during a purchase, the
+Clicking a merchant offer opens a confirmation screen that shows the quantity
+and exact VNCOIN price; payment starts only after the player confirms. Merchant
+purchases debit VNCOIN and create a persistent pending item delivery in the same
+database transaction. If the player disconnects during a purchase, the
 item is reconciled on next join. If the inventory is full, free a slot and run
 `/vncoin` or rejoin to retry delivery; keep a delivery item in place until the
 server confirms it. `system-merchant` NPCs use the shared catalog under
