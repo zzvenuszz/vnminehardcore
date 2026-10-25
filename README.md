@@ -588,9 +588,11 @@ spawn. The only supported objective type in this slice is
 `visit-realm-spawn`; its horizontal radius defaults to 8 blocks and can be
 configured from 1 to 64. The quest ID and objective ID are persisted in SQLite,
 so reconnecting does not restart or duplicate progress.
-While the objective is active, a shared ticker recalculates the path from the
-player's current location to the target. End Rod particles mark the path, while
-a bright green ring and vertical beam mark the destination. Open the quest
+While the objective is active, a shared ticker recalculates a bounded ground
+navigation route from the player's current location to the target. End Rod
+chevrons form repeated `>>>` arrows on the walkable surface and a particle ring
+marks the target on the ground. The route avoids solid terrain and updates as
+the player moves. Open the quest
 journal from slot 20 in the main menu and click the tracking toggle in slot 11 to
 enable or disable tracking; that choice is saved on the player. While the
 tutorial is active, the sidebar also shows its current objective. The compass in
@@ -682,13 +684,16 @@ title-cased role. Names are limited to 64 characters and support `&` color
 codes. Create and move require a player location; other commands may be run
 from console. Runtime NPCs are stationary, silent, invulnerable vanilla
 villagers and are protected from the custom villager-trade system. Right-click
-opens a 54-slot, glass-backed dialogue GUI. A `story` NPC plays its assigned
-chapter pages as a typewriter action-bar dialogue and posts each completed page
-in chat. Admins can shift-right-click a story NPC, choose **Chọn chapter cốt
-truyện**, then select its chapter. New story NPCs default to the first configured
-chapter. Quest-giver NPCs show available, active, completed, and unavailable
-quests as clickable actions. Selecting a quest plays its configured dialog
-before accepting or submitting items. Quest journal and skill tree buttons open
+opens the NPC interaction menu. A `story` NPC plays its assigned chapter as a
+typewriter dialog in the action bar, prefixed with `[Tên NPC:]`; dialogue text
+does not go to chat or item lore. Admins can shift-right-click a story NPC,
+choose **Chọn chapter cốt truyện**, then select its chapter. New story NPCs
+default to the first configured chapter. Quest-giver NPCs show available,
+active, completed, and unavailable quests as clickable actions. Selecting a
+quest plays its configured state dialog in the action bar. When an available
+quest dialog finishes, a GUI opens with the quest details and **Nhận nhiệm vụ**
+confirmation; an in-progress item turn-in dialog similarly opens the submit
+confirmation GUI. No dialogue content is sent to chat. Quest journal and skill tree buttons open
 their RPG interfaces; a skill-book button grants the configured book. An
 `accept-quest` action uses the same dialog flow and only accepts from its
 configured giver NPC ID.
@@ -741,8 +746,8 @@ their current position. The display definition and entity are persistent across
 chunk unloads/restarts.
 
 ```
-/vntext create <id> <facing> <color> <scale> <text...>
-/vntext edit <id> <facing> <color> <scale> <text...>
+/vntext create <id> <facing> <rotation 0-360> <color> <scale> <text...>
+/vntext edit <id> <facing> <rotation 0-360> <color> <scale> <text...>
 /vntext move <id>
 /vntext info <id>
 /vntext list
@@ -751,11 +756,14 @@ chunk unloads/restarts.
 
 Facing values are `UP`, `DOWN`, `NORTH`, `SOUTH`, `EAST`, and `WEST`. Colors
 include Minecraft names such as `gold`, `red`, `aqua`, plus `orange` and hex
-values like `#FFAA00`. Scale must be from `0.1` to `32`; text can contain up to
-256 characters. For example:
+values like `#FFAA00`. Rotation is an independent angle around the text plane's
+normal, from `0` to `360` degrees; it does not change which direction the text
+faces. Scale must be from `0.1` to `32`; text can contain up to 256 characters.
+The previous syntax without a rotation value is still accepted and uses `0`
+degrees. For example:
 
 ```
-/vntext create test-label UP orange 9 KHU VỰC TEST
+/vntext create test-label UP 45 orange 9 KHU VỰC TEST
 ```
 
 Definitions are saved in `plugins/VnMineHardcore/text-displays.yml`. The maximum
@@ -789,28 +797,43 @@ controls. Chat prompts accept `!cancel` and reopen the relevant editor.
 
 Players can open **Hồ sơ RPG → Nhiệm vụ** or `/vnquest journal` to switch between
 active quests and completed quest history. Selecting an active quest opens its
-full objective/checkpoint list and reward preview, with controls to track or
-abandon it. Abandonment requires confirmation; abandoned quests may be accepted
+full objective/checkpoint list and reward preview, with separate controls to
+select the tracked quest, enable or disable its navigation particles, or
+abandon it. Particle visibility is saved per player and independent from quest
+tracking. Abandonment requires confirmation; abandoned quests may be accepted
 again. At most three quests can be active at once. The scoreboard lists each
 active quest's current objective step and progress. Legacy Bukkit scoreboard
 rows do not support click events, so use `/vnquest detail <id>` or select the
-quest in the RPG journal to open details. Tracking draws a live particle path to
-the quest-giver NPC in the same world; when the NPC is in another world, the
-action bar tells the player which world to visit. `rpg.quests.tracking` controls
-particle visibility and update interval.
+quest in the RPG journal to open details. Tracking draws a live ground route to
+the quest-giver NPC in the same world; chevrons follow terrain instead of
+cutting straight through obstacles. When the NPC is in another world, the
+action bar tells the player which world to visit. `rpg.quests.tracking.particle-enabled`
+is the server-wide particle switch and `update-interval-ticks` controls refresh
+frequency. The per-player GUI switch disables particles without disabling the
+quest or its tracking selection. Particles already sent to the client fade out
+naturally after being disabled.
 
 Quest definitions continue to be stored in `quests/quest-definitions.yml`.
-The editor still lacks generic Material/RPG-ID objectives, NPC/region/portal/
-crafting objectives, daily repeatable quest settings, and cross-player party
-credit outside system-boss damage contributions.
+The current objective set includes mob and system-boss kills, RPG/exact-item
+collection, exact-item hand-in, and visiting a configured NPC ID. The objective
+editor accepts sequential steps, so a quest can request multiple configured
+hand-ins. In **Quản lý quest → Mục tiêu quest**, use **Thêm mục tiêu gặp NPC**
+and enter an existing NPC ID; **Đặt bước đầu: gặp NPC** can make it the first
+step. Hand-in objectives use the exact system item held by the admin when
+configured. Block interaction, fishing, taming, enchanting, brewing, smelting,
+crafting, item consumption/breaking/mending, shearing, entity damage, and
+inventory-open objectives can use Paper events but are not implemented yet.
+Vote objectives need an external vote-plugin integration; custom/cuboid
+objectives need a stable extension API and region model. Daily repeatable quests
+and cross-player party credit outside boss contributions remain planned.
 
 Custom `merchant` NPCs can have an individual shop. Use `/vnnpc edit <id>` or
 Shift-right-click the NPC to open its editor. Shift-click a system-created RPG
 item in the player's inventory to add it; left-click a listed item to edit its
-price, right-click to remove it, and click **Lưu cửa hàng** to save the draft to
-`npcs.yml`. The price screen has configurable small, medium, and large `-`/`+`
-buttons (defaults `1`, `10`, and `100` VNCOIN). Only system-created RPG items
-can be listed. Prices and offer counts are bounded by
+price and right-click to remove it. **Cấu hình giá mua vào** opens a second
+54-slot editor for buy orders. Add an RPG item, then set the quantity to hand in
+and VNCOIN paid with `-1/-10/-100` and `+1/+10/+100` buttons. Save each list to
+`npcs.yml`. Only system-created RPG items can be listed. Prices and offer counts are bounded by
 `economy.merchant.custom.max-price` and `max-offers` in `config.yml`.
 
 Clicking a merchant offer opens a confirmation screen that shows the quantity
@@ -821,6 +844,13 @@ item is reconciled on next join. If the inventory is full, free a slot and run
 `/vncoin` or rejoin to retry delivery; keep a delivery item in place until the
 server confirms it. `system-merchant` NPCs use the shared catalog under
 `economy.merchant.offers`, while custom merchants use their saved per-NPC list.
+System and custom merchants show **Bán vật phẩm cho shop**. Players review the
+exact item count and VNCOIN, confirm the sale, then matching items are removed
+and the wallet ledger is credited. All inventory items can use the configured
+default/material rate; an exact RPG item buy order at a custom NPC takes priority.
+Ground item nameplates display a matching NPC buy order as `[quantity = VNCOIN]`; other drops use the default
+`64 = 1 VNCOIN`. Configure `economy.merchant.ground-item-default` or
+`ground-item-price-overrides` in `config.yml` for fallback values.
 
 Admins can run `/vncoin stats` to see the total VNCOIN issued, spent, net change,
 and the busiest ledger sources for the configured reporting window. Set

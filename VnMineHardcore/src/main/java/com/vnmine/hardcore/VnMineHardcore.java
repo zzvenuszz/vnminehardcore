@@ -209,6 +209,7 @@ public final class VnMineHardcore extends JavaPlugin {
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
+        economyManager.refreshAllGroundItemNames();
         Bukkit.getPluginManager().registerEvents(npcManager, this);
         try {
             this.textDisplayManager = new TextDisplayManager(this);

@@ -620,7 +620,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private void renderSkillDetails(Player player, SkillDefinitionLoader.SkillDefinition skill, String skillId,
                                     PlayerProfileDatabaseManager.PlayerProfile profile, int rank) {
         QuickCastHolder holder = new QuickCastHolder(QuickCastScreen.SKILL_DETAILS, 0, skillId);
-        Inventory inventory = Bukkit.createInventory(holder, 27, "§6Chi tiết: " + skill.displayName());
+        Inventory inventory = Bukkit.createInventory(holder, 54, "§6Chi tiết: " + skill.displayName());
         holder.inventory = inventory;
         List<String> details = new java.util.ArrayList<>(List.of(
             "§7" + skill.description(),

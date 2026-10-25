@@ -1029,6 +1029,23 @@ economy:
     # [VI] Bật/tắt cửa hàng VNCOIN mở từ NPC; mặc định bật.
     # [EN] Enable the VNCOIN shop opened by an NPC; defaults to true.
     enabled: true
+    # [VI] Giá hiển thị trên item rơi nếu không có giá thu mua riêng trong shop NPC; mặc định 64 item = 1 VNCOIN.
+    # [EN] Label shown on dropped items without an NPC buy-order override; defaults to 64 items = 1 VNCOIN.
+    ground-item-default:
+      # [VI] Số item cần đổi theo giá mặc định; hợp lệ 1-100000.
+      # [EN] Item quantity required for the default sell value; valid range 1-100000.
+      amount: 64
+      # [VI] VNCOIN nhận được khi giao đủ số item mặc định; hợp lệ 1-1000000.
+      # [EN] VNCOIN paid when the default item quantity is submitted; valid range 1-1000000.
+      vncoin: 1
+    # [VI] Giá riêng theo Material, ưu tiên hơn giá mặc định nhưng thấp hơn giá thu mua item khớp chính xác ở NPC merchant.
+    # [EN] Material-specific value overrides the default, but exact NPC merchant buy orders take priority.
+    ground-item-price-overrides: {}
+    # Ví dụ / Example:
+    # ground-item-price-overrides:
+    #   DIAMOND:
+    #     amount: 1
+    #     vncoin: 8
     # [VI] Danh mục chung bán bởi NPC system-merchant. Mỗi giá từ 1 đến 1,000,000; số lượng không vượt kích thước stack.
     # [EN] Shared catalog sold by system-merchant NPCs. Each price is 1-1,000,000; amount cannot exceed the stack size.
     offers:

@@ -30,7 +30,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -40,7 +39,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.yaml.snakeyaml.error.YAMLException;
 
-/** Stores reusable quest dialogs and displays story/quest text in a glass-backed typewriter GUI. */
+/** Stores reusable quest dialogs and displays story/quest text as an action-bar typewriter. */
 public final class QuestDialogManager implements Listener, CommandExecutor, TabCompleter {
     private static final String PERMISSION = "vnmine.command.quest.admin";
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
@@ -104,7 +103,7 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
     }
 
     public void openQuestDialogue(Player player, String dialogId, String speaker, Runnable onContinue) {
-        openQuestDialogue(player, dialogId, speaker, "Hãy tiếp tục để xác nhận lựa chọn của bạn.", onContinue);
+        openQuestDialogue(player, dialogId, speaker, "Ta có điều muốn nói với bạn.", onContinue);
     }
 
     public void openQuestDialogue(Player player, String dialogId, String speaker,
@@ -115,10 +114,10 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
             String fallback = dialogId == null
                 ? fallbackText
                 : "Hội thoại đang được cấu hình lại; hãy thử lại sau.";
-            openPages(player, "Hội thoại • " + speaker, speaker, List.of(fallback), onContinue);
+            openPages(player, speaker, List.of(fallback), onContinue);
             return;
         }
-        openPages(player, speaker + " — " + dialog.title(), speaker, dialog.pages(), onContinue);
+        openPages(player, speaker, dialog.pages(), onContinue);
     }
 
     public void openStoryChapter(Player player, String speaker, StoryChapterLoader.StoryChapter chapter) {
@@ -126,51 +125,60 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
             player.sendMessage("§cNPC này chưa được gán chapter truyện. Admin hãy shift+click phải NPC để chỉnh sửa.");
             return;
         }
-        openPages(player, "Cốt truyện • " + chapter.title(), speaker, chapter.pages(), null);
+        openPages(player, speaker, chapter.pages(), null);
     }
 
-    private void openPages(Player player, String guiTitle, String speaker, List<String> pages, Runnable onContinue) {
+    private void openPages(Player player, String speaker, List<String> pages, Runnable onContinue) {
         if (pages == null || pages.isEmpty()) {
-            player.sendMessage("§cKhông có nội dung hội thoại để hiển thị.");
+            player.sendActionBar("§cKhông có nội dung hội thoại để hiển thị.");
             if (onContinue != null) onContinue.run();
             return;
         }
         DialogueSession previous = sessions.remove(player.getUniqueId());
         if (previous != null) previous.cancelled = true;
-        DialogHolder holder = new DialogHolder(player.getUniqueId(), Menu.PLAYBACK, null, 0, null);
-        Inventory inventory = Bukkit.createInventory(holder, 54, trimTitle(guiTitle));
-        holder.inventory = inventory;
-        for (int slot = 0; slot < 54; slot++) {
-            inventory.setItem(slot, item(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
+        List<String> chunks = splitDialoguePages(pages);
+        if (chunks.isEmpty()) {
+            player.sendActionBar("§cKhông có nội dung hội thoại để hiển thị.");
+            if (onContinue != null) onContinue.run();
+            return;
         }
-        inventory.setItem(4, item(Material.WRITABLE_BOOK, "§6" + stripAndFormat(speaker),
-            List.of("§7Hội thoại đang phát…")));
-        inventory.setItem(22, item(Material.PAPER, "§fLời kể", List.of("§7Đang chuẩn bị nội dung…")));
-        inventory.setItem(45, item(Material.BOOK, "§dTrang 1 / " + pages.size(), List.of()));
-        inventory.setItem(49, item(Material.LIME_DYE, "§aTiếp tục", List.of("§7Nhấn để hiện nhanh hoặc sang trang.")));
-        inventory.setItem(53, item(Material.BARRIER, "§cĐóng", List.of()));
-        DialogueSession session = new DialogueSession(player.getUniqueId(), holder, speaker, pages,
-            onContinue, inventory);
+        DialogueSession session = new DialogueSession(player.getUniqueId(), speaker, chunks, onContinue);
         sessions.put(player.getUniqueId(), session);
-        preparePage(session);
-        player.openInventory(inventory);
+        prepareChunk(session);
+        updatePlayback(session);
     }
 
-    private void preparePage(DialogueSession session) {
-        String source = ChatColor.translateAlternateColorCodes('&', session.pages.get(session.page));
-        session.text = source.replace('\n', ' ');
+    private static List<String> splitDialoguePages(List<String> pages) {
+        List<String> chunks = new ArrayList<>();
+        for (String page : pages) {
+            String text = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', page))
+                .replace('\n', ' ').trim();
+            while (!text.isBlank()) {
+                int end = Math.min(36, text.codePointCount(0, text.length()));
+                if (end < text.codePointCount(0, text.length())) {
+                    int charEnd = text.offsetByCodePoints(0, end);
+                    int split = text.lastIndexOf(' ', charEnd);
+                    if (split > 12) end = text.codePointCount(0, split);
+                }
+                int charEnd = text.offsetByCodePoints(0, end);
+                chunks.add(text.substring(0, charEnd).trim());
+                text = text.substring(charEnd).stripLeading();
+            }
+        }
+        return List.copyOf(chunks);
+    }
+
+    private void prepareChunk(DialogueSession session) {
+        session.text = session.chunks.get(session.chunkIndex);
         session.codePoints = session.text.codePointCount(0, session.text.length());
         session.visibleCodePoints = 0;
-        session.announced = false;
-        session.holder.inventory.setItem(45, item(Material.BOOK,
-            "§dTrang " + (session.page + 1) + " / " + session.pages.size(), List.of()));
-        updatePlayback(session);
+        session.pauseTicks = 0;
     }
 
     private void tickSessions() {
         for (DialogueSession session : List.copyOf(sessions.values())) {
             Player player = Bukkit.getPlayer(session.viewer);
-            if (player == null || !player.isOnline() || player.getOpenInventory().getTopInventory() != session.inventory) {
+            if (player == null || !player.isOnline()) {
                 sessions.remove(session.viewer, session);
                 session.cancelled = true;
                 continue;
@@ -178,6 +186,15 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
             if (session.visibleCodePoints < session.codePoints) {
                 session.visibleCodePoints = Math.min(session.codePoints, session.visibleCodePoints + 2);
                 updatePlayback(session);
+            } else if (session.pauseTicks > 0) {
+                session.pauseTicks--;
+            } else if (++session.chunkIndex < session.chunks.size()) {
+                prepareChunk(session);
+                updatePlayback(session);
+            } else if (sessions.remove(session.viewer, session)) {
+                player.sendActionBar(" ");
+                Runnable callback = session.onContinue;
+                if (callback != null && !session.cancelled) callback.run();
             }
         }
     }
@@ -188,16 +205,14 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
         Player player = Bukkit.getPlayer(session.viewer);
         if (player != null) {
             player.sendActionBar(LegacyComponentSerializer.legacySection()
-                .deserialize("§6" + stripAndFormat(session.speaker) + " §8» §f" + visible));
+                .deserialize("§6[" + actionBarSpeaker(session.speaker) + ":] §f" + visible));
+            if (session.visibleCodePoints >= session.codePoints) session.pauseTicks = 8;
         }
-        List<String> lore = wrapText(visible, 32);
-        lore.add(session.visibleCodePoints < session.codePoints ? "§7▌" : "§aNội dung đã hiển thị");
-        if (lore.size() > 10) lore = new ArrayList<>(lore.subList(lore.size() - 10, lore.size()));
-        session.inventory.setItem(22, item(Material.PAPER, "§fLời kể", lore));
-        if (session.visibleCodePoints >= session.codePoints && !session.announced) {
-            session.announced = true;
-            if (player != null) player.sendMessage("§6" + stripAndFormat(session.speaker) + " §8» §f" + session.text);
-        }
+    }
+
+    private static String actionBarSpeaker(String speaker) {
+        String plain = stripAndFormat(speaker);
+        return plain.length() <= 20 ? plain : plain.substring(0, 20);
     }
 
     @EventHandler
@@ -206,14 +221,12 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
                 || event.getClickedInventory() != event.getView().getTopInventory()) return;
-        if (holder.menu != Menu.PLAYBACK && !player.hasPermission(PERMISSION)) {
+        if (!player.hasPermission(PERMISSION)) {
             player.closeInventory();
             return;
         }
         int slot = event.getRawSlot();
-        if (holder.menu == Menu.PLAYBACK) {
-            handlePlaybackClick(player, slot);
-        } else if (holder.menu == Menu.SELECT) {
+        if (holder.menu == Menu.SELECT) {
             if (slot == 45) {
                 finishSelection(player, holder, null);
             } else if (slot == 49) {
@@ -257,39 +270,6 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
                 }
             } else if (slot == 15) openEditor(player, holder.dialogId);
         }
-    }
-
-    private void handlePlaybackClick(Player player, int slot) {
-        DialogueSession session = sessions.get(player.getUniqueId());
-        if (session == null) return;
-        if (slot == 53) {
-            sessions.remove(player.getUniqueId(), session);
-            session.cancelled = true;
-            player.closeInventory();
-            return;
-        }
-        if (session.visibleCodePoints < session.codePoints) {
-            session.visibleCodePoints = session.codePoints;
-            updatePlayback(session);
-            return;
-        }
-        if (session.page + 1 < session.pages.size()) {
-            session.page++;
-            preparePage(session);
-        } else {
-            sessions.remove(player.getUniqueId(), session);
-            Runnable callback = session.onContinue;
-            player.closeInventory();
-            if (callback != null && !session.cancelled) callback.run();
-        }
-    }
-
-    @EventHandler
-    public void onClose(InventoryCloseEvent event) {
-        if (!(event.getInventory().getHolder() instanceof DialogHolder holder) || holder.menu != Menu.PLAYBACK) return;
-        DialogueSession session = sessions.get(holder.viewer);
-        if (session != null && session.inventory == event.getInventory()
-                && sessions.remove(holder.viewer, session)) session.cancelled = true;
     }
 
     @EventHandler
@@ -348,7 +328,7 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
 
     private void openDeleteConfirmation(Player player, String id) {
         DialogHolder holder = new DialogHolder(player.getUniqueId(), Menu.CONFIRM_DELETE, id, 0, null);
-        Inventory menu = Bukkit.createInventory(holder, 27, "Xóa quest-dialog?");
+        Inventory menu = Bukkit.createInventory(holder, 54, "Xóa quest-dialog?");
         holder.inventory = menu;
         menu.setItem(4, item(Material.WRITABLE_BOOK, "§c" + id, List.of("§7Hành động không thể hoàn tác.")));
         menu.setItem(11, item(Material.LIME_DYE, "§aXác nhận xóa", List.of()));
@@ -490,25 +470,6 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
 
     private static boolean validTitle(String title) { return title != null && !title.isBlank() && title.length() <= 64; }
     private static String stripAndFormat(String text) { return ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', text)); }
-    private static String trimTitle(String title) { return title.length() <= 32 ? title : title.substring(0, 32); }
-
-    private static List<String> wrapText(String text, int width) {
-        List<String> lines = new ArrayList<>();
-        String clean = ChatColor.stripColor(text);
-        for (int start = 0; start < clean.length();) {
-            int end = Math.min(clean.length(), start + width);
-            if (end < clean.length()) {
-                int split = clean.lastIndexOf(' ', end);
-                if (split > start) end = split;
-            }
-            lines.add("§f" + clean.substring(start, end));
-            start = end;
-            while (start < clean.length() && clean.charAt(start) == ' ') start++;
-        }
-        if (lines.isEmpty()) lines.add("§7…");
-        return lines;
-    }
-
     private static ItemStack item(Material material, String name, List<String> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
@@ -528,7 +489,7 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
         return List.of();
     }
 
-    private enum Menu { LIST, EDIT, CONFIRM_DELETE, SELECT, PLAYBACK }
+    private enum Menu { LIST, EDIT, CONFIRM_DELETE, SELECT }
     private enum InputField { CREATE_ID, CREATE_TITLE, RENAME, CONTENT }
     private record PendingInput(InputField field, String dialogId, int page, String value) {
         private PendingInput(InputField field, String dialogId, int page) {
@@ -541,21 +502,20 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
 
     private static final class DialogueSession {
         private final UUID viewer;
-        private final DialogHolder holder;
         private final String speaker;
-        private final List<String> pages;
+        private final List<String> chunks;
         private final Runnable onContinue;
-        private final Inventory inventory;
-        private int page;
+        private int chunkIndex;
+        private int pauseTicks;
         private int visibleCodePoints;
         private int codePoints;
         private String text = "";
-        private boolean announced;
         private boolean cancelled;
-        private DialogueSession(UUID viewer, DialogHolder holder, String speaker, List<String> pages,
-                                Runnable onContinue, Inventory inventory) {
-            this.viewer = viewer; this.holder = holder; this.speaker = speaker;
-            this.pages = List.copyOf(pages); this.onContinue = onContinue; this.inventory = inventory;
+        private DialogueSession(UUID viewer, String speaker, List<String> chunks, Runnable onContinue) {
+            this.viewer = viewer;
+            this.speaker = speaker;
+            this.chunks = List.copyOf(chunks);
+            this.onContinue = onContinue;
         }
     }
 

@@ -80,7 +80,8 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
             definitions.values().stream().sorted(Comparator.comparing(TextDefinition::id))
                 .forEach(definition -> sender.sendMessage("§6" + definition.id() + " §7• "
                     + definition.world() + " §f" + coordinates(definition.x(), definition.y(), definition.z())
-                    + " §7• " + definition.facing() + " • " + definition.color() + " • scale "
+                    + " §7• facing " + definition.facing() + " • rotation " + definition.rotationDegrees()
+                    + "° • " + definition.color() + " • scale "
                     + definition.scale()));
             if (definitions.isEmpty()) sender.sendMessage("§7Chưa có text display nào.");
             return true;
@@ -90,7 +91,8 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
             if (definition == null) sender.sendMessage("§cKhông tìm thấy text display.");
             else sender.sendMessage("§6" + definition.id() + " §7• " + definition.world() + " §f"
                 + coordinates(definition.x(), definition.y(), definition.z()) + " §7• facing="
-                + definition.facing() + " color=" + definition.color() + " scale=" + definition.scale()
+                + definition.facing() + " rotation=" + definition.rotationDegrees() + "° color="
+                + definition.color() + " scale=" + definition.scale()
                 + " text=§f" + definition.text());
             return true;
         }
@@ -135,17 +137,23 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
             return;
         }
         Facing facing = Facing.parse(args[2]);
-        TextColor color = parseColor(args[3]);
+        boolean hasRotation = args.length >= 7 && parseRotation(args[3]) != null;
+        int colorIndex = hasRotation ? 4 : 3;
+        int scaleIndex = hasRotation ? 5 : 4;
+        int textStart = hasRotation ? 6 : 5;
+        Float rotation = hasRotation ? parseRotation(args[3]) : 0.0f;
+        TextColor color = parseColor(args[colorIndex]);
         float scale;
         try {
-            scale = Float.parseFloat(args[4]);
+            scale = Float.parseFloat(args[scaleIndex]);
         } catch (NumberFormatException exception) {
             scale = -1.0f;
         }
-        String text = String.join(" ", java.util.Arrays.copyOfRange(args, 5, args.length));
-        if (facing == null || color == null || !Float.isFinite(scale) || scale < 0.1f || scale > 32.0f
+        String text = String.join(" ", java.util.Arrays.copyOfRange(args, textStart, args.length));
+        if (facing == null || rotation == null || rotation < 0.0f || rotation > 360.0f || color == null
+                || !Float.isFinite(scale) || scale < 0.1f || scale > 32.0f
                 || text.isBlank() || text.length() > 256) {
-            player.sendMessage("§cFacing, màu, kích thước hoặc nội dung không hợp lệ. Scale hợp lệ: 0.1-32; text tối đa 256 ký tự.");
+            player.sendMessage("§cFacing, rotation, màu, kích thước hoặc nội dung không hợp lệ. Rotation: 0-360; scale: 0.1-32; text tối đa 256 ký tự.");
             sendUsage(player);
             return;
         }
@@ -164,8 +172,8 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
             worldName = player.getWorld().getName();
         }
         TextDefinition next = new TextDefinition(id, worldName,
-            location.getX(), location.getY(), location.getZ(), facing, canonicalColor(args[3]), scale,
-            text, old == null ? null : old.entityId());
+            location.getX(), location.getY(), location.getZ(), facing, rotation,
+            canonicalColor(args[colorIndex]), scale, text, old == null ? null : old.entityId());
         definitions.put(id, next);
         TextDisplay entity = null;
         try {
@@ -176,11 +184,13 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
             definitions.put(id, next);
             if (!save()) throw new IOException("Atomic save failed.");
             plugin.getLogger().info("[TextDisplay] " + (editing ? "Updated" : "Created") + " id=" + id
-                + ", world=" + next.world() + ", facing=" + facing + ", color=" + next.color()
+                + ", world=" + next.world() + ", facing=" + facing + ", rotation=" + rotation
+                + ", color=" + next.color()
                 + ", scale=" + scale);
             player.sendMessage("§aĐã " + (editing ? "cập nhật" : "tạo") + " text display §f" + id
                 + " §atại §f" + next.world() + " " + coordinates(next.x(), next.y(), next.z())
-                + "§a. Facing §f" + facing + "§a, màu §f" + next.color() + "§a, scale §f" + scale + "§a.");
+                + "§a. Facing §f" + facing + "§a, xoay §f" + rotation + "°§a, màu §f"
+                + next.color() + "§a, scale §f" + scale + "§a.");
         } catch (RuntimeException | IOException exception) {
             if (old == null) {
                 definitions.remove(id);
@@ -356,8 +366,9 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
         display.setPersistent(true);
         display.setInvulnerable(true);
         Vector3f scale = new Vector3f(definition.scale(), definition.scale(), definition.scale());
+        Quaternionf roll = new Quaternionf().rotationZ((float) Math.toRadians(definition.rotationDegrees()));
         display.setTransformation(new org.bukkit.util.Transformation(
-            new Vector3f(), new Quaternionf(), scale, new Quaternionf()));
+            new Vector3f(), roll, scale, new Quaternionf()));
         display.teleport(location);
         Facing facing = definition.facing();
         display.setRotation(facing.yaw(), facing.pitch());
@@ -390,6 +401,7 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
             double y = yaml.getDouble(path + ".y", Double.NaN);
             double z = yaml.getDouble(path + ".z", Double.NaN);
             float scale = (float) yaml.getDouble(path + ".scale", 1.0);
+            float rotation = (float) yaml.getDouble(path + ".rotation-degrees", 0.0);
             Facing facing = Facing.parse(facingValue);
             UUID entityId;
             try {
@@ -399,6 +411,7 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
                 entityId = null;
             }
             if (!ID_PATTERN.matcher(id).matches() || worldName.isBlank() || facing == null
+                    || !Float.isFinite(rotation) || rotation < 0.0f || rotation > 360.0f
                     || parseColor(colorValue) == null || !Double.isFinite(x) || !Double.isFinite(y)
                     || !Double.isFinite(z) || !Float.isFinite(scale) || scale < 0.1f || scale > 32.0f
                     || text.isBlank() || text.length() > 256) {
@@ -406,7 +419,7 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
                 continue;
             }
             definitions.put(id, new TextDefinition(id, worldName, x, y, z,
-                facing, canonicalColor(colorValue), scale, text, entityId));
+                facing, rotation, canonicalColor(colorValue), scale, text, entityId));
         }
         plugin.getLogger().info("[TextDisplay] Loaded " + definitions.size() + " managed text displays.");
     }
@@ -427,6 +440,7 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
             yaml.set(path + ".y", definition.y());
             yaml.set(path + ".z", definition.z());
             yaml.set(path + ".facing", definition.facing().name());
+            yaml.set(path + ".rotation-degrees", definition.rotationDegrees());
             yaml.set(path + ".color", definition.color());
             yaml.set(path + ".scale", definition.scale());
             yaml.set(path + ".text", definition.text());
@@ -441,6 +455,9 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
             yaml.setComments(path + ".facing", List.of(
                 "[VI] Hướng mặt phẳng text: UP, DOWN, NORTH, SOUTH, EAST hoặc WEST.",
                 "[EN] Text plane facing: UP, DOWN, NORTH, SOUTH, EAST, or WEST."));
+            yaml.setComments(path + ".rotation-degrees", List.of(
+                "[VI] Góc xoay quanh pháp tuyến mặt chữ, độc lập với facing; mặc định 0, hợp lệ 0-360 độ.",
+                "[EN] Roll around the text-plane normal, independent of facing; defaults to 0, valid range 0-360 degrees."));
             yaml.setComments(path + ".color", List.of(
                 "[VI] Màu tên hoặc mã hex #RRGGBB; ví dụ gold, orange, aqua, #FFAA00.",
                 "[EN] Named color or #RRGGBB hex color; for example gold, orange, aqua, #FFAA00."));
@@ -526,6 +543,15 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
         return raw == null ? "" : raw.toLowerCase(Locale.ROOT);
     }
 
+    private static Float parseRotation(String raw) {
+        try {
+            float value = Float.parseFloat(raw);
+            return Float.isFinite(value) ? value : null;
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
     private static int blockToChunk(double coordinate) {
         return ((int) Math.floor(coordinate)) >> 4;
     }
@@ -535,10 +561,11 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
     }
 
     private static void sendUsage(CommandSender sender) {
-        sender.sendMessage("§e/vntext create <id> <facing> <color> <scale> <text...>");
-        sender.sendMessage("§e/vntext edit <id> <facing> <color> <scale> <text...>");
+        sender.sendMessage("§e/vntext create <id> <facing> <rotation 0-360> <color> <scale> <text...>");
+        sender.sendMessage("§e/vntext edit <id> <facing> <rotation 0-360> <color> <scale> <text...>");
+        sender.sendMessage("§7Cú pháp cũ không có rotation vẫn được hỗ trợ (mặc định 0°).");
         sender.sendMessage("§e/vntext move <id> §7| §e/vntext remove <id> §7| §e/vntext info <id> §7| §e/vntext list");
-        sender.sendMessage("§7Facing: UP/DOWN/NORTH/SOUTH/EAST/WEST • màu: gold/orange/white/#RRGGBB • scale: 0.1-32.");
+        sender.sendMessage("§7Facing: UP/DOWN/NORTH/SOUTH/EAST/WEST • rotation quanh mặt chữ: 0-360° • màu: gold/orange/white/#RRGGBB • scale: 0.1-32.");
     }
 
     @Override
@@ -556,8 +583,24 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
                 .filter(value -> value.startsWith(args[2].toUpperCase(Locale.ROOT))).toList();
         }
         if (args.length == 4 && List.of("create", "edit").contains(args[0].toLowerCase(Locale.ROOT))) {
+            if (args[3].isBlank()) {
+                List<String> suggestions = new ArrayList<>(COLORS.keySet());
+                suggestions.addAll(List.of("0", "45", "90", "180", "270"));
+                return suggestions.stream().sorted().toList();
+            }
+            if (parseRotation(args[3]) != null) return List.of("0", "45", "90", "180", "270");
             return COLORS.keySet().stream().filter(value -> value.startsWith(args[3].toLowerCase(Locale.ROOT)))
                 .sorted().toList();
+        }
+        if (args.length == 5 && List.of("create", "edit").contains(args[0].toLowerCase(Locale.ROOT))
+                && parseRotation(args[3]) != null) {
+            return COLORS.keySet().stream().filter(value -> value.startsWith(args[4].toLowerCase(Locale.ROOT)))
+                .sorted().toList();
+        }
+        if (args.length == 6 && List.of("create", "edit").contains(args[0].toLowerCase(Locale.ROOT))
+                && parseRotation(args[3]) != null) {
+            return List.of("0.5", "1", "2", "4", "9", "16").stream()
+                .filter(value -> value.startsWith(args[5])).toList();
         }
         return List.of();
     }
@@ -587,14 +630,15 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
     }
 
     private record TextDefinition(String id, String world, double x, double y, double z,
-                                  Facing facing, String color, float scale, String text, UUID entityId) {
+                                  Facing facing, float rotationDegrees, String color, float scale,
+                                  String text, UUID entityId) {
         private TextDefinition withEntityId(UUID value) {
-            return new TextDefinition(id, world, x, y, z, facing, color, scale, text, value);
+            return new TextDefinition(id, world, x, y, z, facing, rotationDegrees, color, scale, text, value);
         }
 
         private TextDefinition withLocation(String worldName, Location location) {
             return new TextDefinition(id, worldName, location.getX(), location.getY(), location.getZ(),
-                facing, color, scale, text, entityId);
+                facing, rotationDegrees, color, scale, text, entityId);
         }
     }
 }

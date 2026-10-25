@@ -49,9 +49,11 @@ import org.yaml.snakeyaml.error.YAMLException;
 /** Data-driven entry point for NPC-given combat quests. */
 public final class QuestCatalogManager implements Listener, CommandExecutor, TabCompleter {
     private static final String ADMIN_PERMISSION = "vnmine.command.quest.admin";
+    private static final double TRACKING_PARTICLE_RANGE = 36.0;
     private final VnMineHardcore plugin;
     private final File definitionsFile;
     private final NamespacedKey questItemKey;
+    private final NamespacedKey waypointParticlesKey;
     private final Map<String, QuestDefinition> definitions = new LinkedHashMap<>();
     private final Map<String, QuestDialogRefs> questDialogs = new LinkedHashMap<>();
     private final Map<UUID, Map<String, PlayerProfileDatabaseManager.QuestProgress>> activeByPlayer =
@@ -66,6 +68,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     public QuestCatalogManager(VnMineHardcore plugin) throws IOException {
         this.plugin = plugin;
         this.questItemKey = new NamespacedKey(plugin, "quest_item_id");
+        this.waypointParticlesKey = new NamespacedKey(plugin, "quest_waypoint_particles");
         File directory = new File(plugin.getDataFolder(), "quests");
         if (!directory.isDirectory() && !directory.mkdirs()) {
             throw new IOException("Could not create quest configuration directory.");
@@ -219,6 +222,12 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             menu.setItem(30, adminItem(progress.tracked() ? Material.COMPASS : Material.MAP,
                 progress.tracked() ? "§bĐang theo dõi" : "§eTheo dõi quest", List.of(
                     "§7Theo dõi tới NPC giao nhiệm vụ.", "§eNhấn để đổi trạng thái.")));
+            boolean particlesEnabled = areQuestWaypointParticlesEnabled(player);
+            menu.setItem(31, adminItem(particlesEnabled ? Material.LIME_DYE : Material.GRAY_DYE,
+                particlesEnabled ? "§aParticle dẫn đường: Bật" : "§7Particle dẫn đường: Tắt", List.of(
+                    "§7Tùy chọn riêng cho bạn, lưu qua lần đăng nhập.",
+                    "§7Quản trị viên vẫn có thể tắt particle toàn server.",
+                    "§eNhấn để " + (particlesEnabled ? "tắt" : "bật") + " mũi tên dẫn đường.")));
             menu.setItem(32, adminItem(Material.REDSTONE, "§cHủy nhiệm vụ", List.of(
                 "§7Tiến độ nhiệm vụ này sẽ bị bỏ.", "§eNhấn để xác nhận hủy.")));
         }
@@ -241,7 +250,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         QuestDefinition quest = definitions.get(questId);
         if (quest == null) return;
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.CONFIRM_ABANDON, questId, 0);
-        Inventory menu = Bukkit.createInventory(holder, 27, "Xác nhận hủy nhiệm vụ");
+        Inventory menu = Bukkit.createInventory(holder, 54, "Xác nhận hủy nhiệm vụ");
         holder.inventory = menu;
         menu.setItem(13, adminItem(Material.BOOK, "§cHủy quest: §f" + quest.title(), List.of(
             "§7Tiến độ đã làm sẽ không được giữ.")));
@@ -350,32 +359,36 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(16, adminItem(Material.REPEATER, "§dĐiều kiện nhận quest", List.of(
             "§7Số điều kiện: §f" + quest.requirements().size(), "§7Tất cả điều kiện cùng phải đạt.",
             "§eNhấn để quản lý điều kiện.")));
-        menu.setItem(29, adminItem(Material.IRON_SWORD, "§bMục tiêu quest", List.of(
+        menu.setItem(19, adminItem(Material.IRON_SWORD, "§bMục tiêu quest", List.of(
             "§7Số bước: §f" + quest.objectives().size(), "§7Bước đầu: " + objectiveDescription(quest.objectives().getFirst()),
             "§eNhấn để quản lý chuỗi mục tiêu.")));
-        menu.setItem(31, adminItem(Material.CHEST, "§6Item thưởng", List.of(
+        menu.setItem(21, adminItem(Material.CHEST, "§6Item thưởng", List.of(
             "§7Số stack: §f" + quest.itemRewards().size(), "§eNhấn để mở rương cấu hình.")));
-        menu.setItem(20, adminItem(Material.LIME_DYE, "§aEXP +1", List.of("§7Hiện tại: " + quest.experienceReward())));
-        menu.setItem(21, adminItem(Material.RED_DYE, "§cEXP -1", List.of("§7Hiện tại: " + quest.experienceReward())));
-        menu.setItem(22, adminItem(Material.LIME_DYE, "§aEXP +10", List.of("§7Hiện tại: " + quest.experienceReward())));
-        menu.setItem(23, adminItem(Material.RED_DYE, "§cEXP -10", List.of("§7Hiện tại: " + quest.experienceReward())));
-        menu.setItem(24, adminItem(Material.LIME_DYE, "§aEXP +100", List.of("§7Hiện tại: " + quest.experienceReward())));
-        menu.setItem(25, adminItem(Material.RED_DYE, "§cEXP -100", List.of("§7Hiện tại: " + quest.experienceReward())));
-        menu.setItem(28, adminItem(Material.GOLD_INGOT, "§6VNCOIN: " + quest.vncoinReward(), List.of(
-            "§7Dùng nút +/- để chỉnh số tiền thưởng.")));
-        menu.setItem(30, adminItem(Material.LIME_DYE, "§aVNCOIN +1", List.of()));
-        menu.setItem(32, adminItem(Material.RED_DYE, "§cVNCOIN -1", List.of()));
-        menu.setItem(34, adminItem(Material.LIME_DYE, "§aVNCOIN +10", List.of()));
-        menu.setItem(35, adminItem(Material.RED_DYE, "§cVNCOIN -10", List.of()));
-        menu.setItem(36, adminItem(Material.LIME_DYE, "§aVNCOIN +100", List.of()));
-        menu.setItem(37, adminItem(Material.RED_DYE, "§cVNCOIN -100", List.of()));
-        menu.setItem(33, adminItem(Material.REDSTONE, "§cXóa quest", List.of("§7Xóa định nghĩa và gỡ khỏi danh sách.")));
+        menu.setItem(23, adminItem(Material.REDSTONE, "§cXóa quest", List.of("§7Xóa định nghĩa và gỡ khỏi danh sách.")));
         QuestDialogRefs refs = dialogRefs(quest.id());
-        menu.setItem(38, dialogChoiceItem("Hội thoại khi có thể nhận", refs.available()));
-        menu.setItem(39, dialogChoiceItem("Hội thoại khi đang làm", refs.inProgress()));
-        menu.setItem(40, dialogChoiceItem("Hội thoại khi hoàn tất", refs.completed()));
-        menu.setItem(41, dialogChoiceItem("Hội thoại khi không đủ điều kiện", refs.unavailable()));
-        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại danh sách", List.of()));
+        menu.setItem(28, dialogChoiceItem("Hội thoại: có thể nhận", refs.available()));
+        menu.setItem(29, dialogChoiceItem("Hội thoại: đang làm", refs.inProgress()));
+        menu.setItem(30, dialogChoiceItem("Hội thoại: hoàn tất", refs.completed()));
+        menu.setItem(31, dialogChoiceItem("Hội thoại: chưa đủ điều kiện", refs.unavailable()));
+        menu.setItem(36, adminItem(Material.EXPERIENCE_BOTTLE,
+            "§bEXP thưởng: " + quest.experienceReward(), List.of("§7Giới hạn: 0–100000 EXP.")));
+        int[] expSlots = {37, 38, 39, 41, 42, 43};
+        int[] expDeltas = {-100, -10, -1, 1, 10, 100};
+        for (int index = 0; index < expSlots.length; index++) {
+            int delta = expDeltas[index];
+            menu.setItem(expSlots[index], adminItem(delta > 0 ? Material.LIME_DYE : Material.RED_DYE,
+                "§fEXP " + (delta > 0 ? "§a+" : "§c") + delta, List.of()));
+        }
+        menu.setItem(45, adminItem(Material.ARROW, "§eQuay lại danh sách", List.of()));
+        int[] coinSlots = {46, 47, 48, 50, 51, 52};
+        int[] coinDeltas = {-100, -10, -1, 1, 10, 100};
+        for (int index = 0; index < coinSlots.length; index++) {
+            int delta = coinDeltas[index];
+            menu.setItem(coinSlots[index], adminItem(delta > 0 ? Material.LIME_DYE : Material.RED_DYE,
+                "§fVNCOIN " + (delta > 0 ? "§a+" : "§c") + delta, List.of()));
+        }
+        menu.setItem(49, adminItem(Material.GOLD_INGOT, "§6VNCOIN thưởng: " + quest.vncoinReward(),
+            List.of("§7Giới hạn: 0–1000000 VNCOIN.")));
         player.openInventory(menu);
     }
 
@@ -389,6 +402,35 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             return;
         }
         int slot = event.getRawSlot();
+        if (holder.menu == QuestMenu.NPC_ACCEPT || holder.menu == QuestMenu.NPC_SUBMIT) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+            if (slot == 15 || slot == 49 || slot == 53) {
+                player.closeInventory();
+                return;
+            }
+            if (slot != 11) return;
+            QuestDefinition quest = definitions.get(holder.questId);
+            if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(holder.npcId)) {
+                player.closeInventory();
+                player.sendMessage("§cNhiệm vụ không còn khả dụng tại NPC này.");
+                return;
+            }
+            player.closeInventory();
+            if (holder.menu == QuestMenu.NPC_ACCEPT) {
+                if (!activeByPlayer.getOrDefault(player.getUniqueId(), Map.of()).containsKey(quest.id())
+                        && !completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of()).contains(quest.id())
+                        && canDisplayQuest(player, quest)
+                        && activeByPlayer.getOrDefault(player.getUniqueId(), Map.of()).size() < 3) {
+                    acceptQuest(player, holder.npcId, quest.id());
+                } else {
+                    player.sendMessage("§cĐiều kiện nhận quest đã thay đổi; hãy kiểm tra lại tại NPC.");
+                }
+            } else {
+                submitQuestItems(player, holder.npcId, quest.id());
+            }
+            return;
+        }
         if (holder.menu == QuestMenu.PLAYER_JOURNAL || holder.menu == QuestMenu.PLAYER_HISTORY) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -456,6 +498,17 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                         }
                         openQuestDetails(player, questId, false);
                     }));
+            } else if (!completed && slot == 31) {
+                boolean enabled = !areQuestWaypointParticlesEnabled(player);
+                player.getPersistentDataContainer().set(waypointParticlesKey, PersistentDataType.BYTE,
+                    enabled ? (byte) 1 : (byte) 0);
+                if (!enabled) {
+                    QuestWaypointRenderer.forget(player.getUniqueId());
+                    player.sendActionBar(" ");
+                }
+                player.sendMessage(enabled ? "§aĐã bật mũi tên particle dẫn đường quest."
+                    : "§eĐã tắt mũi tên particle dẫn đường quest.");
+                openQuestDetails(player, questId, false);
             }
             return;
         }
@@ -550,7 +603,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             openAdminList(player, 0);
             return;
         }
-        if (slot == 49) {
+        if (slot == 45) {
             openAdminList(player, holder.page);
         } else if (slot == 10) {
             prompt(player, new PendingTextInput(TextField.RENAME, quest.id(), holder.page));
@@ -561,41 +614,41 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             openQuestEditor(player, quest.id());
         } else if (slot == 16) {
             openRequirementsMenu(player, quest.id());
-        } else if (slot >= 38 && slot <= 41) {
-            QuestDialogStage stage = QuestDialogStage.values()[slot - 38];
+        } else if (slot >= 28 && slot <= 31) {
+            QuestDialogStage stage = QuestDialogStage.values()[slot - 28];
             String selected = dialogRefs(quest.id()).forStage(stage);
             plugin.getQuestDialogManager().openSelector(player, selected, dialogId ->
                 updateQuestDialog(player, quest.id(), stage, dialogId));
-        } else if (slot == 29) {
+        } else if (slot == 19) {
             openObjectivesMenu(player, quest.id());
-        } else if (slot >= 20 && slot <= 25) {
+        } else if (slot == 21) {
+            openRewardItems(player, quest);
+        } else if (slot == 23) {
+            openDeleteConfirmation(player, quest.id(), holder.page);
+        } else if (slot >= 37 && slot <= 43 && slot != 40) {
             int delta = switch (slot) {
-                case 20 -> 1;
-                case 21 -> -1;
-                case 22 -> 10;
-                case 23 -> -10;
-                case 24 -> 100;
-                default -> -100;
+                case 37 -> -100;
+                case 38 -> -10;
+                case 39 -> -1;
+                case 41 -> 1;
+                case 42 -> 10;
+                default -> 100;
             };
             replaceDefinition(quest, quest.withExperienceReward(
                 Math.max(0, Math.min(100_000, quest.experienceReward() + delta))));
             openQuestEditor(player, quest.id());
-        } else if (slot == 30 || slot == 32 || slot == 34 || slot == 35 || slot == 36 || slot == 37) {
+        } else if (slot == 46 || slot == 47 || slot == 48 || slot == 50 || slot == 51 || slot == 52) {
             int delta = switch (slot) {
-                case 30 -> 1;
-                case 32 -> -1;
-                case 34 -> 10;
-                case 35 -> -10;
-                case 36 -> 100;
-                default -> -100;
+                case 46 -> -100;
+                case 47 -> -10;
+                case 48 -> -1;
+                case 50 -> 1;
+                case 51 -> 10;
+                default -> 100;
             };
             replaceDefinition(quest, quest.withWalletReward(
                 Math.max(0, Math.min(1_000_000, quest.vncoinReward() + delta))));
             openQuestEditor(player, quest.id());
-        } else if (slot == 31) {
-            openRewardItems(player, quest);
-        } else if (slot == 33) {
-            openDeleteConfirmation(player, quest.id(), holder.page);
         }
     }
 
@@ -624,13 +677,17 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại quest", List.of()));
         menu.setItem(50, adminItem(Material.WITHER_SKELETON_SKULL, "§cThêm mục tiêu hạ boss", List.of(
             "§7Yêu cầu boss hệ thống với ID hợp lệ.", "§7Ví dụ: winter-tyrant")));
+        menu.setItem(51, adminItem(Material.VILLAGER_SPAWN_EGG, "§bThêm mục tiêu gặp NPC", List.of(
+            "§7Nhập ID NPC cần gặp, ví dụ: hunter.", "§7Mỗi lần tương tác hợp lệ tăng tiến độ 1.")));
+        menu.setItem(52, adminItem(Material.NAME_TAG, "§dĐặt bước đầu: gặp NPC", List.of(
+            "§7Thay bước đầu hiện tại bằng mục tiêu gặp NPC.", "§7Nhập NPC ID, ví dụ: hunter.")));
         player.openInventory(menu);
     }
 
     private void handleObjectiveMenuClick(Player player, QuestMenuHolder holder, int slot) {
         QuestDefinition quest = definitions.get(holder.questId);
         if (quest == null) return;
-        if ((slot == 45 || slot == 46 || slot == 47 || slot == 48 || slot == 50
+        if ((slot == 45 || slot == 46 || slot == 47 || slot == 48 || slot == 50 || slot == 51 || slot == 52
                 || holder.questSlots.containsKey(slot))
                 && hasActiveQuest(quest.id())) {
             player.sendMessage("§cKhông thể sửa mục tiêu khi người chơi đang làm quest này.");
@@ -664,6 +721,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             prompt(player, new PendingTextInput(TextField.ADD_SUBMIT_ITEM_AMOUNT, quest.id(), 0));
         } else if (slot == 50) {
             prompt(player, new PendingTextInput(TextField.ADD_BOSS_ID, quest.id(), 0));
+        } else if (slot == 51) {
+            prompt(player, new PendingTextInput(TextField.ADD_OBJECTIVE_NPC_ID, quest.id(), 0));
+        } else if (slot == 52) {
+            prompt(player, new PendingTextInput(TextField.SET_PRIMARY_NPC_ID, quest.id(), 0));
         } else if (holder.questSlots.containsKey(slot)) {
             int index = Integer.parseInt(holder.questSlots.get(slot));
             if (index == 0) {
@@ -688,12 +749,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             case SUBMIT_EXACT_ITEM -> "Nộp " + objective.requiredItem().getType()
                 + (objective.itemName().isBlank() ? "" : " (" + objective.itemName() + ")")
                 + " × " + objective.amount();
+            case VISIT_NPC -> "Gặp NPC " + objective.itemId() + " × " + objective.amount();
         };
     }
 
     private void openDeleteConfirmation(Player player, String questId, int page) {
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.CONFIRM_DELETE, questId, page);
-        Inventory menu = Bukkit.createInventory(holder, 27, "Xác nhận xóa quest");
+        Inventory menu = Bukkit.createInventory(holder, 54, "Xác nhận xóa quest");
         holder.inventory = menu;
         QuestDefinition quest = definitions.get(questId);
         menu.setItem(4, adminItem(Material.BOOK, "§cXóa " + (quest == null ? questId : quest.title()),
@@ -877,6 +939,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             case ADD_SUBMIT_ITEM_AMOUNT -> "§eHãy nhập §fsố item cần nộp cho NPC§e, số nguyên 1-100000, ví dụ: §f10";
             case ADD_BOSS_ID -> "§eHãy nhập §fID boss hệ thống§e, ví dụ: §fwinter-tyrant";
             case ADD_BOSS_AMOUNT -> "§eHãy nhập §fsố lần cần hạ boss§e, số nguyên 1-100, ví dụ: §f1";
+            case ADD_OBJECTIVE_NPC_ID -> "§eHãy nhập §fID NPC cần gặp§e, ví dụ: §fhunter";
+            case SET_PRIMARY_NPC_ID -> "§eNhập §fID NPC cho bước đầu§e, ví dụ: §fhunter";
         };
         player.closeInventory();
         player.sendMessage("§6[Quản lý quest] " + instruction);
@@ -1131,6 +1195,39 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     }
                     openObjectivesMenu(player, quest.id());
                 }
+                case ADD_OBJECTIVE_NPC_ID -> {
+                    QuestDefinition quest = definitions.get(input.questId());
+                    String npcId = text.trim().toLowerCase(Locale.ROOT);
+                    if (quest == null || !npcId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                            || plugin.getNpcManager() == null || !plugin.getNpcManager().hasNpc(npcId)) {
+                        player.sendMessage("§cKhông tìm thấy NPC theo ID đó. Ví dụ hợp lệ: §fhunter");
+                        prompt(player, input);
+                        return;
+                    }
+                    List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+                    if (objectives.size() >= 45) player.sendMessage("§cQuest đã đạt tối đa 45 mục tiêu.");
+                    else {
+                        objectives.add(new QuestObjective(ObjectiveType.VISIT_NPC, EntityType.ZOMBIE,
+                            1, npcId, null, "", 0));
+                        replaceDefinition(quest, quest.withObjectives(objectives));
+                    }
+                    openObjectivesMenu(player, quest.id());
+                }
+                case SET_PRIMARY_NPC_ID -> {
+                    QuestDefinition quest = definitions.get(input.questId());
+                    String npcId = text.trim().toLowerCase(Locale.ROOT);
+                    if (quest == null || !npcId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                            || plugin.getNpcManager() == null || !plugin.getNpcManager().hasNpc(npcId)) {
+                        player.sendMessage("§cKhông tìm thấy NPC theo ID đó. Ví dụ hợp lệ: §fhunter");
+                        prompt(player, input);
+                        return;
+                    }
+                    List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+                    objectives.set(0, new QuestObjective(ObjectiveType.VISIT_NPC, EntityType.ZOMBIE,
+                        1, npcId, null, "", 0));
+                    replaceDefinition(quest, quest.withObjectives(objectives));
+                    openObjectivesMenu(player, quest.id());
+                }
             }
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.SEVERE, "[QuestAdmin] Failed processing chat input for "
@@ -1145,7 +1242,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             openRequirementsMenu(player, input.questId());
         else if (input.field() == TextField.ADD_OBJECTIVE_ITEM_AMOUNT
                 || input.field() == TextField.ADD_SUBMIT_ITEM_AMOUNT
-                || input.field() == TextField.ADD_BOSS_ID || input.field() == TextField.ADD_BOSS_AMOUNT)
+                || input.field() == TextField.ADD_BOSS_ID || input.field() == TextField.ADD_BOSS_AMOUNT
+                || input.field() == TextField.ADD_OBJECTIVE_NPC_ID || input.field() == TextField.SET_PRIMARY_NPC_ID)
             openObjectivesMenu(player, input.questId());
         else if (input.field() == TextField.ADD_KILL_ENTITY || input.field() == TextField.ADD_KILL_AMOUNT
                 || input.field() == TextField.EDIT_KILL_ENTITY || input.field() == TextField.EDIT_KILL_AMOUNT)
@@ -1200,6 +1298,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 case COLLECT_RPG_ITEM -> "collect-rpg-item";
                 case COLLECT_EXACT_ITEM -> "collect-exact-item";
                 case SUBMIT_EXACT_ITEM -> "submit-exact-item";
+                case VISIT_NPC -> "visit-npc";
             });
             yaml.set(base + ".objective.entity", quest.targetEntity().name());
             yaml.set(base + ".objective.amount", quest.target());
@@ -1210,6 +1309,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 yaml.set(base + ".objective.item-material", quest.itemMaterial().name());
                 yaml.set(base + ".objective.item-name", quest.itemName());
                 yaml.set(base + ".objective.drop-chance-percent", quest.dropChancePercent());
+            } else if (quest.objectiveType() == ObjectiveType.VISIT_NPC) {
+                yaml.set(base + ".objective.npc-id", quest.itemId());
             }
             List<Map<String, Object>> extraObjectives = new java.util.ArrayList<>();
             for (QuestObjective objective : quest.additionalObjectives()) {
@@ -1220,17 +1321,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     case COLLECT_RPG_ITEM -> "collect-rpg-item";
                     case COLLECT_EXACT_ITEM -> "collect-exact-item";
                     case SUBMIT_EXACT_ITEM -> "submit-exact-item";
+                    case VISIT_NPC -> "visit-npc";
                 });
                 if (objective.type() == ObjectiveType.KILL_MOB) saved.put("entity", objective.entity().name());
                 else if (objective.type() == ObjectiveType.KILL_BOSS) saved.put("boss-id", objective.itemId());
+                else if (objective.type() == ObjectiveType.VISIT_NPC) saved.put("npc-id", objective.itemId());
                 else saved.put("item", objective.requiredItem().serialize());
                 saved.put("amount", objective.amount());
                 extraObjectives.add(saved);
             }
             yaml.set(base + ".additional-objectives", extraObjectives);
             yaml.setComments(base + ".additional-objectives", List.of(
-                "[VI] Mục tiêu tuần tự bổ sung; hỗ trợ kill-mob/kill-boss/collect-exact-item/submit-exact-item, tối đa 44 bước bổ sung.",
-                "[EN] Additional sequential objectives; supports kill-mob/kill-boss/collect-exact-item/submit-exact-item, maximum 44 extra steps."));
+                "[VI] Mục tiêu tuần tự bổ sung; hỗ trợ kill-mob/kill-boss/collect-exact-item/submit-exact-item/visit-npc, tối đa 44 bước bổ sung.",
+                "[EN] Additional sequential objectives; supports kill-mob/kill-boss/collect-exact-item/submit-exact-item/visit-npc, maximum 44 extra steps."));
             yaml.set(base + ".reward.vncoin", quest.vncoinReward());
             yaml.set(base + ".reward.character-exp", quest.experienceReward());
             yaml.set(base + ".reward.items", quest.itemRewards().stream().map(ItemStack::serialize).toList());
@@ -1399,9 +1502,12 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 case "kill-mob" -> ObjectiveType.KILL_MOB;
                 case "collect-rpg-item" -> ObjectiveType.COLLECT_RPG_ITEM;
                 case "kill-boss" -> ObjectiveType.KILL_BOSS;
+                case "visit-npc" -> ObjectiveType.VISIT_NPC;
                 default -> null;
             };
-            String itemId = quest.getString("objective.item-id", "").trim();
+            String itemId = objectiveType == ObjectiveType.VISIT_NPC
+                ? quest.getString("objective.npc-id", "").trim()
+                : quest.getString("objective.item-id", "").trim();
             String itemMaterialText = quest.getString("objective.item-material", "").trim().toUpperCase(Locale.ROOT);
             String itemName = quest.getString("objective.item-name", "").trim();
             int dropChance = quest.getInt("objective.drop-chance-percent", 0);
@@ -1414,7 +1520,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 quest.getMapList("additional-objectives"), id);
             if (!id.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || !giver.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
                     || title.isBlank() || title.length() > 64 || objectiveType == null
-                    || (objectiveType != ObjectiveType.KILL_BOSS && !entityType.isAlive())
+                    || (objectiveType != ObjectiveType.KILL_BOSS && objectiveType != ObjectiveType.VISIT_NPC
+                        && !entityType.isAlive())
                     || target < 1 || target > 100_000 || reward < 0 || reward > 1_000_000
                     || experienceReward < 0 || experienceReward > 100_000
                     || (objectiveType == ObjectiveType.KILL_BOSS
@@ -1424,7 +1531,9 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     || (objectiveType == ObjectiveType.COLLECT_RPG_ITEM
                         && (!itemId.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || itemMaterial == null
                             || itemMaterial.isAir() || itemName.isBlank() || itemName.length() > 64
-                            || dropChance < 1 || dropChance > 100))) {
+                            || dropChance < 1 || dropChance > 100))
+                    || (objectiveType == ObjectiveType.VISIT_NPC
+                        && !itemId.matches("[a-z0-9]+(?:-[a-z0-9]+)*"))) {
                 throw new IOException("Quest '" + id + "' has invalid fields or unsupported bounds.");
             }
             definitions.put(id, new QuestDefinition(id, giver, title, objectiveType, entityType,
@@ -1490,6 +1599,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     && plugin.getConfigManager().bossConfigs.containsKey(bossId)) {
                 objectives.add(new QuestObjective(ObjectiveType.KILL_BOSS, EntityType.ZOMBIE,
                     amount, bossId, null, "", 0));
+            } else if ("visit-npc".equals(type) && raw.get("npc-id") instanceof String npcId
+                    && npcId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) {
+                objectives.add(new QuestObjective(ObjectiveType.VISIT_NPC, EntityType.ZOMBIE,
+                    amount, npcId, null, "", 0));
             } else {
                 throw new IOException("Quest '" + questId + "' has an unsupported additional objective.");
             }
@@ -1670,20 +1783,96 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             PlayerProfileDatabaseManager.QuestProgress progress = active.get(questId);
             int step = currentObjectiveIndex(progress, quest);
             Runnable followUp = quest.objectives().get(step).type() == ObjectiveType.SUBMIT_EXACT_ITEM
-                ? () -> submitQuestItems(player, npcId, questId) : null;
+                ? () -> openNpcQuestSubmit(player, npcId, questId) : null;
             plugin.getQuestDialogManager().openQuestDialogue(player, refs.inProgress(), speaker,
                 followUp == null ? "Hãy tiếp tục mục tiêu của nhiệm vụ."
-                    : "Nếu bạn đã có vật phẩm yêu cầu, hãy tiếp tục để nộp cho ta.", followUp);
+                    : "Nếu đã có vật phẩm yêu cầu, ta có thể nhận chúng.", followUp);
             return;
         }
         if (active.size() < 3 && canDisplayQuest(player, quest)) {
             plugin.getQuestDialogManager().openQuestDialogue(player, refs.available(), speaker,
-                "Ta có một nhiệm vụ cần bạn giúp. Hãy tiếp tục để nhận nhiệm vụ.",
-                () -> acceptQuest(player, npcId, questId));
+                "Ta có một nhiệm vụ cần bạn giúp.",
+                () -> openNpcQuestOffer(player, npcId, questId));
         } else {
             plugin.getQuestDialogManager().openQuestDialogue(player, refs.unavailable(), speaker,
                 "Bạn chưa đáp ứng điều kiện nhận nhiệm vụ này hoặc đã nhận đủ số nhiệm vụ đang làm.", null);
         }
+    }
+
+    public void recordNpcVisit(Player player, String npcId) {
+        if (npcId == null || npcId.isBlank()) return;
+        Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer
+            .getOrDefault(player.getUniqueId(), Map.of());
+        for (String questId : List.copyOf(active.keySet())) {
+            QuestDefinition quest = definitions.get(questId);
+            if (quest == null) continue;
+            int step = currentObjectiveIndex(active.get(questId), quest);
+            QuestObjective objective = quest.objectives().get(step);
+            if (objective.type() == ObjectiveType.VISIT_NPC && objective.itemId().equalsIgnoreCase(npcId)) {
+                debugQuest("npc-visit-matched player=" + player.getName() + ", quest=" + questId
+                    + ", npc=" + npcId);
+                increment(player, quest, step, 1);
+            }
+        }
+    }
+
+    private void openNpcQuestOffer(Player player, String npcId, String questId) {
+        QuestDefinition quest = definitions.get(questId);
+        Map<String, PlayerProfileDatabaseManager.QuestProgress> active =
+            activeByPlayer.getOrDefault(player.getUniqueId(), Map.of());
+        if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(npcId)
+                || active.containsKey(questId)
+                || completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of()).contains(questId)
+                || active.size() >= 3 || !canDisplayQuest(player, quest)) {
+            player.sendMessage("§cQuest không còn đủ điều kiện nhận; hãy nói chuyện lại với NPC.");
+            return;
+        }
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.NPC_ACCEPT, questId, 0);
+        holder.npcId = npcId;
+        Inventory menu = Bukkit.createInventory(holder, 54, "Nhận nhiệm vụ • " + trimTitle(quest.title()));
+        holder.inventory = menu;
+        for (int slot = 0; slot < menu.getSize(); slot++)
+            menu.setItem(slot, adminItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
+        List<String> details = new java.util.ArrayList<>();
+        details.add("§7NPC giao: §f" + npcId);
+        details.add("§7Mục tiêu:");
+        for (int index = 0; index < quest.objectives().size(); index++) {
+            QuestObjective objective = quest.objectives().get(index);
+            details.add("§f" + (index + 1) + ". " + objectiveDescription(objective)
+                + " × " + objective.amount());
+        }
+        details.add("§7Thưởng: §e" + quest.vncoinReward() + " VNCOIN §7| §b" + quest.experienceReward() + " EXP");
+        details.addAll(rewardLore(quest));
+        menu.setItem(13, adminItem(Material.WRITTEN_BOOK, "§6" + quest.title(), details));
+        menu.setItem(11, adminItem(Material.LIME_DYE, "§aNhận nhiệm vụ", List.of(
+            "§7Nhiệm vụ sẽ được thêm vào nhật ký của bạn.")));
+        menu.setItem(15, adminItem(Material.RED_DYE, "§cĐể sau", List.of("§7Chưa nhận nhiệm vụ này.")));
+        player.openInventory(menu);
+    }
+
+    private void openNpcQuestSubmit(Player player, String npcId, String questId) {
+        QuestDefinition quest = definitions.get(questId);
+        PlayerProfileDatabaseManager.QuestProgress progress = activeByPlayer
+            .getOrDefault(player.getUniqueId(), Map.of()).get(questId);
+        if (quest == null || progress == null || !quest.giverNpcId().equals(npcId)) return;
+        int step = currentObjectiveIndex(progress, quest);
+        QuestObjective objective = quest.objectives().get(step);
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.NPC_SUBMIT, questId, 0);
+        holder.npcId = npcId;
+        Inventory menu = Bukkit.createInventory(holder, 54, "Nộp vật phẩm nhiệm vụ");
+        holder.inventory = menu;
+        for (int slot = 0; slot < menu.getSize(); slot++)
+            menu.setItem(slot, adminItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
+        menu.setItem(13, adminItem(Material.PAPER, "§e" + objectiveDescription(objective), List.of(
+            "§7Cần nộp: §f" + Math.max(0, objective.amount() - progress.objectiveProgress()),
+            "§7Vật phẩm sẽ bị lấy khỏi túi khi xác nhận.")));
+        menu.setItem(11, adminItem(Material.LIME_DYE, "§aNộp vật phẩm", List.of()));
+        menu.setItem(15, adminItem(Material.RED_DYE, "§cĐể sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private static String trimTitle(String title) {
+        return title.length() <= 24 ? title : title.substring(0, 24);
     }
 
     public void submitQuestItems(Player player, String npcId, String questId) {
@@ -1822,6 +2011,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
+        QuestWaypointRenderer.forget(event.getPlayer().getUniqueId());
         activeByPlayer.remove(event.getPlayer().getUniqueId());
         completedByPlayer.remove(event.getPlayer().getUniqueId());
         pendingTextInputs.remove(event.getPlayer().getUniqueId());
@@ -1839,12 +2029,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             if (active == null || !active.containsKey(quest.id())) continue;
             int objectiveIndex = currentObjectiveIndex(active.get(quest.id()), quest);
             QuestObjective objective = quest.objectives().get(objectiveIndex);
-            if (objective.entity() != event.getEntityType()) continue;
-            if (objective.type() == ObjectiveType.KILL_MOB) {
+            if (objective.type() == ObjectiveType.KILL_MOB && objective.entity() == event.getEntityType()) {
                 debugQuest("kill-matched player=" + player.getName() + ", quest=" + quest.id()
                     + ", entity=" + event.getEntityType() + ", entityId=" + event.getEntity().getUniqueId());
                 increment(player, quest, objectiveIndex, 1);
-            } else if (ThreadLocalRandom.current().nextInt(100) < objective.dropChancePercent()) {
+            } else if (objective.type() == ObjectiveType.COLLECT_RPG_ITEM
+                    && objective.entity() == event.getEntityType()
+                    && ThreadLocalRandom.current().nextInt(100) < objective.dropChancePercent()) {
                 dropQuestItem(event.getEntity().getLocation(), quest);
             }
         }
@@ -2068,30 +2259,22 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     + " §eđể gặp NPC giao nhiệm vụ.");
                 continue;
             }
-            Location from = player.getLocation().clone().add(0, 1.0, 0);
-            Location to = destination.clone().add(0, 1.2, 0);
-            org.bukkit.util.Vector direction = to.toVector().subtract(from.toVector());
-            double distance = direction.length();
-            if (!particlesEnabled) {
+            if (!particlesEnabled || !areQuestWaypointParticlesEnabled(player)) {
                 sendTrackingHint(player, "§eNPC nhiệm vụ tại §fX " + destination.getBlockX() + " Y "
                     + destination.getBlockY() + " Z " + destination.getBlockZ());
                 continue;
             }
-            if (distance < 2.0) {
-                player.spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, to, 8, 0.5, 0.8, 0.5, 0.0);
-                continue;
-            }
-            direction.normalize();
-            double visibleLength = Math.min(distance, 36.0);
-            int points = Math.min(24, Math.max(2, (int) (visibleLength / 1.5)));
-            for (int index = 1; index <= points; index++) {
-                Location point = from.clone().add(direction.clone().multiply(visibleLength * index / points));
-                player.spawnParticle(org.bukkit.Particle.END_ROD, point, 1, 0.02, 0.02, 0.02, 0.0);
-            }
-            if (distance <= 32.0) {
-                player.spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, to, 6, 0.4, 0.7, 0.4, 0.0);
+            if (!QuestWaypointRenderer.render(player, destination, TRACKING_PARTICLE_RANGE)) {
+                sendTrackingHint(player, "§eKhông tìm được đường đi bộ tới NPC; vị trí: §fX "
+                    + destination.getBlockX() + " Y " + destination.getBlockY() + " Z "
+                    + destination.getBlockZ());
             }
         }
+    }
+
+    private boolean areQuestWaypointParticlesEnabled(Player player) {
+        Byte stored = player.getPersistentDataContainer().get(waypointParticlesKey, PersistentDataType.BYTE);
+        return stored == null || stored != 0;
     }
 
     private void sendTrackingHint(Player player, String message) {
@@ -2102,7 +2285,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         lastCrossWorldHint.put(player.getUniqueId(), now);
     }
 
-    private enum ObjectiveType { KILL_MOB, KILL_BOSS, COLLECT_RPG_ITEM, COLLECT_EXACT_ITEM, SUBMIT_EXACT_ITEM }
+    private enum ObjectiveType { KILL_MOB, KILL_BOSS, COLLECT_RPG_ITEM, COLLECT_EXACT_ITEM, SUBMIT_EXACT_ITEM, VISIT_NPC }
     private record QuestObjective(ObjectiveType type, EntityType entity, int amount,
                                   String itemId, Material itemMaterial, String itemName,
                                   int dropChancePercent, ItemStack requiredItem) {
@@ -2224,7 +2407,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private enum QuestMenu { LIST, EDIT, CONFIRM_DELETE, CONFIRM_ABANDON, REQUIREMENTS,
-        PREREQUISITE_SELECT, OBJECTIVES, REWARD_ITEMS, PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS }
+        PREREQUISITE_SELECT, OBJECTIVES, REWARD_ITEMS, PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS,
+        NPC_ACCEPT, NPC_SUBMIT }
     private enum QuestDialogStage {
         AVAILABLE("Có thể nhận"), IN_PROGRESS("Đang thực hiện"), COMPLETED("Hoàn tất/nhận thưởng"),
         UNAVAILABLE("Không đủ điều kiện/đầy giới hạn");
@@ -2252,7 +2436,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
     private enum TextField { CREATE_ID, RENAME, GIVER, ADD_LEVEL_REQUIREMENT, ADD_ITEM_AMOUNT,
         ADD_KILL_ENTITY, ADD_KILL_AMOUNT, EDIT_KILL_ENTITY, EDIT_KILL_AMOUNT, ADD_OBJECTIVE_ITEM_AMOUNT,
-        ADD_SUBMIT_ITEM_AMOUNT, ADD_BOSS_ID, ADD_BOSS_AMOUNT }
+        ADD_SUBMIT_ITEM_AMOUNT, ADD_BOSS_ID, ADD_BOSS_AMOUNT, ADD_OBJECTIVE_NPC_ID, SET_PRIMARY_NPC_ID }
     private record PendingTextInput(TextField field, String questId, int page, String value) {
         private PendingTextInput(TextField field, String questId, int page) { this(field, questId, page, ""); }
     }
@@ -2262,6 +2446,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         private final QuestMenu menu;
         private final String questId;
         private final int page;
+        private String npcId;
         private final Map<Integer, String> questSlots = new LinkedHashMap<>();
         private Inventory inventory;
         private boolean navigating;

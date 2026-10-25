@@ -6189,7 +6189,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                                                 String itemType, String classId, int page,
                                                 int size, String title) {
         ServiceMenuHolder holder = new ServiceMenuHolder(player.getUniqueId(), type, target, itemType, classId, page);
-        holder.inventory = Bukkit.createInventory(holder, size, title);
+        holder.inventory = Bukkit.createInventory(holder, Math.max(54, size), title);
         return holder;
     }
 
@@ -8114,7 +8114,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
 
     private void openUnitMenu(Player player, Unit unit) {
         UnitMenuHolder holder = new UnitMenuHolder(player.getUniqueId(), unit.id);
-        Inventory inventory = Bukkit.createInventory(holder, 27, "Quản lý lính #" + shortId(unit.id));
+        Inventory inventory = Bukkit.createInventory(holder, 54, "Quản lý lính #" + shortId(unit.id));
         holder.inventory = inventory;
         inventory.setItem(4, menuItem(Material.NAME_TAG, unitLabel(unit, true), unitDetails(unit)));
         inventory.setItem(10, menuItem(Material.IRON_SWORD, "§cChế độ tấn công", List.of()));

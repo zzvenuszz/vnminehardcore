@@ -148,7 +148,7 @@ public final class CharacterSelectionManager implements Listener {
         }
         CharacterMenuHolder holder = new CharacterMenuHolder(
             player.getUniqueId(), "confirm", raceId, classId, new HashMap<>());
-        Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Xác nhận nhân vật");
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Xác nhận nhân vật");
         holder.inventory = inventory;
         inventory.setItem(11, createActionItem(Material.LIME_CONCRETE, "§aXác nhận tạo nhân vật", List.of(
             "§7Chủng tộc: §6" + race.name(),
@@ -339,7 +339,7 @@ public final class CharacterSelectionManager implements Listener {
         String className = selectedClass == null ? String.valueOf(profile.selectedClass()) : selectedClass.name();
         CharacterMenuHolder holder = new CharacterMenuHolder(
             player.getUniqueId(), "profile", null, null, new HashMap<>());
-        Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Hồ sơ nhân vật");
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Hồ sơ nhân vật");
         holder.inventory = inventory;
         inventory.setItem(11, createActionItem(Material.SUNFLOWER, "§6Ví VNCOIN: §7Đang tải...",
             List.of("§7Số dư đơn vị tiền tệ của máy chủ.")));

@@ -68,6 +68,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     private final Map<String, NpcDefinitionLoader.NpcDefinition> definitions;
     private final Map<String, NpcRecord> npcs = new LinkedHashMap<>();
     private final Map<String, LinkedHashMap<Integer, MerchantListing>> merchantListings = new LinkedHashMap<>();
+    private final Map<String, LinkedHashMap<Integer, MerchantBuyOrder>> merchantBuyOrders = new LinkedHashMap<>();
     private final Map<UUID, PendingNpcInput> pendingNpcInputs = new ConcurrentHashMap<>();
     private final int maxNpcs;
 
@@ -100,6 +101,24 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     public java.util.Optional<String> getNpcDisplayName(String npcId) {
         NpcRecord npc = npcId == null ? null : npcs.get(npcId.toLowerCase(Locale.ROOT));
         return npc == null ? java.util.Optional.empty() : java.util.Optional.of(npc.displayName());
+    }
+
+    public boolean hasNpc(String npcId) {
+        return npcId != null && npcs.containsKey(npcId.toLowerCase(Locale.ROOT));
+    }
+
+    public java.util.Optional<MerchantBuyQuote> getBestMerchantBuyQuote(ItemStack item) {
+        if (item == null || item.getType().isAir()) return java.util.Optional.empty();
+        MerchantBuyQuote best = null;
+        for (Map.Entry<String, LinkedHashMap<Integer, MerchantBuyOrder>> merchant : merchantBuyOrders.entrySet()) {
+            for (MerchantBuyOrder order : merchant.getValue().values()) {
+                if (!order.item().isSimilar(item)) continue;
+                MerchantBuyQuote quote = new MerchantBuyQuote(order.amount(), order.price(), merchant.getKey());
+                if (best == null || (double) quote.price() / quote.amount() > (double) best.price() / best.amount())
+                    best = quote;
+            }
+        }
+        return java.util.Optional.ofNullable(best);
     }
 
     public void openAdminMenu(Player player) {
@@ -211,7 +230,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
 
     private void openNpcDeleteConfirmation(Player player, String npcId, int page) {
         NpcMenuHolder holder = new NpcMenuHolder(player.getUniqueId(), NpcMenu.CONFIRM_DELETE, npcId, page);
-        Inventory menu = Bukkit.createInventory(holder, 27, "Xác nhận xóa NPC");
+        Inventory menu = Bukkit.createInventory(holder, 54, "Xác nhận xóa NPC");
         holder.inventory = menu;
         menu.setItem(4, createDialogueItem(Material.VILLAGER_SPAWN_EGG, "§cXóa NPC §f" + npcId,
             List.of("§7Hành động này không thể hoàn tác.")));
@@ -431,8 +450,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                         openNpcEditor(player, input.npcId(), input.page());
                         return;
                     }
-                    if (!type.equals("merchant") && !merchantListings.getOrDefault(old.id(), new LinkedHashMap<>()).isEmpty()) {
-                        player.sendMessage("§cHãy xóa hết mặt hàng merchant trước khi đổi sang loại khác.");
+                    if (!type.equals("merchant") && (!merchantListings.getOrDefault(old.id(), new LinkedHashMap<>()).isEmpty()
+                            || !merchantBuyOrders.getOrDefault(old.id(), new LinkedHashMap<>()).isEmpty())) {
+                        player.sendMessage("§cHãy xóa hết hàng mua/bán của merchant trước khi đổi loại NPC.");
                         openNpcEditor(player, input.npcId(), input.page());
                         return;
                     }
@@ -504,6 +524,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             openNpcEditor(player, npc.id(), 0);
             return;
         }
+        if (plugin.getQuestCatalogManager() != null) {
+            plugin.getQuestCatalogManager().recordNpcVisit(player, npc.id());
+        }
         if ("system-merchant".equals(npc.type())) {
             plugin.getEconomyManager().openMerchantMenu(player);
             return;
@@ -517,7 +540,12 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 .getOrDefault(npc.id(), new LinkedHashMap<>()).values().stream()
                 .map(listing -> new EconomyManager.CustomMerchantOffer(listing.item().clone(), listing.price()))
                 .toList();
-            plugin.getEconomyManager().openCustomMerchantMenu(player, npc.id(), dialogueTitle(npc.displayName()), offers);
+            List<EconomyManager.CustomMerchantBuyOrder> buyOrders = merchantBuyOrders
+                .getOrDefault(npc.id(), new LinkedHashMap<>()).values().stream()
+                .map(order -> new EconomyManager.CustomMerchantBuyOrder(order.item().clone(),
+                    order.amount(), order.price())).toList();
+            plugin.getEconomyManager().openCustomMerchantMenu(player, npc.id(),
+                dialogueTitle(npc.displayName()), offers, buyOrders);
             return;
         }
         if ("story".equals(npc.type())) {
@@ -616,6 +644,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             saveMerchantDraft(player, holder.merchantId, holder.draft);
             return;
         }
+        if (slot == 47) {
+            openMerchantBuyEditor(player, holder.merchantId,
+                copyBuyOrders(merchantBuyOrders.get(holder.merchantId)));
+            return;
+        }
         if (slot == 53) {
             player.closeInventory();
             return;
@@ -710,6 +743,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
         inventory.setItem(45, createDialogueItem(Material.EMERALD, "§aLưu cửa hàng",
             List.of("§7Lưu danh sách và giá vào npcs.yml.")));
+        inventory.setItem(47, createDialogueItem(Material.HOPPER, "§bCấu hình giá mua vào",
+            List.of("§7Đặt vật phẩm người chơi có thể bán cho shop.",
+                "§7Cấu hình số lượng item đổi lấy VNCOIN.")));
         inventory.setItem(49, createDialogueItem(Material.BOOK, "§eChỉnh sửa shop",
             List.of("§7Shift-click item RPG trong túi để thêm.",
                 "§7Chuột phải món trong shop để gỡ.",
@@ -720,6 +756,209 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         player.openInventory(inventory);
     }
 
+    private void openMerchantBuyEditor(Player player, String merchantId,
+            LinkedHashMap<Integer, MerchantBuyOrder> draft) {
+        MerchantBuyEditorHolder holder = new MerchantBuyEditorHolder(player.getUniqueId(), merchantId, draft);
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Giá mua vào " + merchantId);
+        holder.inventory = inventory;
+        for (int slot = 45; slot < 54; slot++)
+            inventory.setItem(slot, createDialogueItem(Material.GRAY_STAINED_GLASS_PANE, "§r", List.of()));
+        for (Map.Entry<Integer, MerchantBuyOrder> entry : draft.entrySet()) {
+            MerchantBuyOrder order = entry.getValue();
+            ItemStack display = order.item().clone();
+            display.setAmount(Math.min(order.amount(), display.getMaxStackSize()));
+            ItemMeta meta = display.getItemMeta();
+            if (meta != null) {
+                List<String> lore = meta.hasLore() && meta.getLore() != null
+                    ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                lore.add("§7Cần giao: §f" + order.amount() + " item");
+                lore.add("§7Nhận: §6" + order.price() + " VNCOIN");
+                lore.add("§eChuột trái: sửa | Chuột phải: gỡ");
+                meta.setLore(lore);
+                display.setItemMeta(meta);
+            }
+            inventory.setItem(entry.getKey(), display);
+        }
+        inventory.setItem(45, createDialogueItem(Material.EMERALD, "§aLưu giá mua vào", List.of(
+            "§7Lưu các mặt hàng và lượng VNCOIN sẽ trả.")));
+        inventory.setItem(49, createDialogueItem(Material.BOOK, "§eThêm vật phẩm RPG", List.of(
+            "§7Shift-click vật phẩm hệ thống trong túi để thêm.",
+            "§7Chuột trái sửa số lượng và VNCOIN; phải-click gỡ.")));
+        inventory.setItem(53, createDialogueItem(Material.ARROW, "§eQuay lại shop bán ra", List.of()));
+        player.openInventory(inventory);
+    }
+
+    @EventHandler
+    public void onMerchantBuyEditorClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof MerchantBuyEditorHolder holder)) return;
+        if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())) {
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getClickedInventory() != event.getView().getTopInventory()) {
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+                ItemStack source = event.getCurrentItem();
+                if (source != null && isSystemCreatedItem(source)) {
+                    int target = firstEmptyBuyOrderSlot(holder.draft);
+                    if (target < 0) {
+                        player.sendMessage("§cDanh sách giá mua vào đã đủ " + configuredMerchantMaxOffers() + " món.");
+                        return;
+                    }
+                    ItemStack template = source.clone();
+                    template.setAmount(1);
+                    holder.draft.put(target, new MerchantBuyOrder(template, 1, 1));
+                    event.setCurrentItem(null);
+                    openMerchantBuyEditor(player, holder.merchantId, holder.draft);
+                } else if (source != null) {
+                    player.sendMessage("§cChỉ có thể cấu hình vật phẩm RPG do hệ thống tạo.");
+                }
+            }
+            return;
+        }
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot == 45) {
+            saveMerchantBuyOrders(player, holder.merchantId, holder.draft);
+            return;
+        }
+        if (slot == 53) {
+            openMerchantEditor(player, holder.merchantId,
+                copyListings(merchantListings.get(holder.merchantId)));
+            return;
+        }
+        if (slot < 0 || slot >= 45) return;
+        ItemStack cursor = event.getCursor();
+        if (cursor != null && !cursor.getType().isAir()) {
+            if (!isSystemCreatedItem(cursor)) {
+                player.sendMessage("§cChỉ có thể đặt vật phẩm RPG do hệ thống tạo.");
+                return;
+            }
+            ItemStack template = cursor.clone();
+            template.setAmount(1);
+            MerchantBuyOrder old = holder.draft.get(slot);
+            holder.draft.put(slot, new MerchantBuyOrder(template,
+                old == null ? 1 : old.amount(), old == null ? 1 : old.price()));
+            event.setCursor(null);
+            openMerchantBuyEditor(player, holder.merchantId, holder.draft);
+            return;
+        }
+        if (!holder.draft.containsKey(slot)) return;
+        if (event.getClick() == ClickType.RIGHT || event.getClick() == ClickType.SHIFT_RIGHT) {
+            holder.draft.remove(slot);
+            openMerchantBuyEditor(player, holder.merchantId, holder.draft);
+        } else {
+            openMerchantBuyOrderEditor(player, holder.merchantId, holder.draft, slot);
+        }
+    }
+
+    @EventHandler
+    public void onMerchantBuyOrderClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof MerchantBuyOrderHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        MerchantBuyOrder order = holder.draft.get(holder.slot);
+        if (order == null) {
+            openMerchantBuyEditor(player, holder.merchantId, holder.draft);
+            return;
+        }
+        int amountDelta = switch (event.getRawSlot()) {
+            case 10 -> -100; case 11 -> -10; case 12 -> -1;
+            case 14 -> 1; case 15 -> 10; case 16 -> 100; default -> 0;
+        };
+        long priceDelta = switch (event.getRawSlot()) {
+            case 28 -> -100; case 29 -> -10; case 30 -> -1;
+            case 32 -> 1; case 33 -> 10; case 34 -> 100; default -> 0L;
+        };
+        if (amountDelta != 0 || priceDelta != 0) {
+            int amount = Math.max(1, Math.min(100_000, order.amount() + amountDelta));
+            long price = Math.max(1L, Math.min(configuredMerchantMaxPrice(), order.price() + priceDelta));
+            holder.draft.put(holder.slot, new MerchantBuyOrder(order.item(), amount, price));
+            openMerchantBuyOrderEditor(player, holder.merchantId, holder.draft, holder.slot);
+        } else if (event.getRawSlot() == 49 || event.getRawSlot() == 53) {
+            openMerchantBuyEditor(player, holder.merchantId, holder.draft);
+        }
+    }
+
+    @EventHandler
+    public void onMerchantBuyEditorDrag(InventoryDragEvent event) {
+        InventoryHolder holder = event.getView().getTopInventory().getHolder();
+        if ((holder instanceof MerchantBuyEditorHolder || holder instanceof MerchantBuyOrderHolder)
+                && event.getRawSlots().stream().anyMatch(slot -> slot < event.getView().getTopInventory().getSize())) {
+            event.setCancelled(true);
+        }
+    }
+
+    private void openMerchantBuyOrderEditor(Player player, String merchantId,
+            LinkedHashMap<Integer, MerchantBuyOrder> draft, int slot) {
+        MerchantBuyOrder order = draft.get(slot);
+        if (order == null) {
+            openMerchantBuyEditor(player, merchantId, draft);
+            return;
+        }
+        MerchantBuyOrderHolder holder = new MerchantBuyOrderHolder(player.getUniqueId(), merchantId, draft, slot);
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Số lượng và giá đổi");
+        holder.inventory = inventory;
+        for (int fill = 0; fill < inventory.getSize(); fill++)
+            inventory.setItem(fill, createDialogueItem(Material.GRAY_STAINED_GLASS_PANE, "§r", List.of()));
+        ItemStack item = order.item().clone();
+        item.setAmount(Math.min(order.amount(), item.getMaxStackSize()));
+        inventory.setItem(13, item);
+        inventory.setItem(10, priceButton(Material.RED_DYE, "-100 item"));
+        inventory.setItem(11, priceButton(Material.RED_DYE, "-10 item"));
+        inventory.setItem(12, priceButton(Material.RED_DYE, "-1 item"));
+        inventory.setItem(14, priceButton(Material.LIME_DYE, "+1 item"));
+        inventory.setItem(15, priceButton(Material.LIME_DYE, "+10 item"));
+        inventory.setItem(16, priceButton(Material.LIME_DYE, "+100 item"));
+        inventory.setItem(22, createDialogueItem(Material.PAPER, "§eSố lượng: §f" + order.amount(),
+            List.of("§7Số item cần giao để đổi lấy giá VNCOIN bên dưới.")));
+        inventory.setItem(28, priceButton(Material.RED_DYE, "-100 VNCOIN"));
+        inventory.setItem(29, priceButton(Material.RED_DYE, "-10 VNCOIN"));
+        inventory.setItem(30, priceButton(Material.RED_DYE, "-1 VNCOIN"));
+        inventory.setItem(32, priceButton(Material.LIME_DYE, "+1 VNCOIN"));
+        inventory.setItem(33, priceButton(Material.LIME_DYE, "+10 VNCOIN"));
+        inventory.setItem(34, priceButton(Material.LIME_DYE, "+100 VNCOIN"));
+        inventory.setItem(31, createDialogueItem(Material.GOLD_INGOT, "§6Giá: §e" + order.price() + " VNCOIN",
+            List.of("§7Nhận khoản tiền này khi giao đủ item.")));
+        inventory.setItem(49, createDialogueItem(Material.ARROW, "§eQuay lại", List.of()));
+        inventory.setItem(53, createDialogueItem(Material.LIME_DYE, "§aXong", List.of()));
+        player.openInventory(inventory);
+    }
+
+    private void saveMerchantBuyOrders(Player player, String merchantId,
+            LinkedHashMap<Integer, MerchantBuyOrder> draft) {
+        LinkedHashMap<Integer, MerchantBuyOrder> previous = merchantBuyOrders.get(merchantId);
+        if (draft.isEmpty()) merchantBuyOrders.remove(merchantId);
+        else merchantBuyOrders.put(merchantId, copyBuyOrders(draft));
+        try {
+            saveNpcs();
+            player.sendMessage("§aĐã lưu " + draft.size() + " giá mua vào cho shop " + merchantId + ".");
+            plugin.getLogger().info("[NPC][Merchant] Saved buy orders: npc=" + merchantId + ", count=" + draft.size());
+            if (plugin.getEconomyManager() != null) plugin.getEconomyManager().refreshAllGroundItemNames();
+            openMerchantEditor(player, merchantId, copyListings(merchantListings.get(merchantId)));
+        } catch (IOException exception) {
+            if (previous == null) merchantBuyOrders.remove(merchantId);
+            else merchantBuyOrders.put(merchantId, previous);
+            plugin.getLogger().log(Level.SEVERE, "[NPC][Merchant] Could not save buy orders for " + merchantId, exception);
+            player.sendMessage("§cKhông lưu được giá mua vào; dữ liệu cũ được khôi phục.");
+            openMerchantBuyEditor(player, merchantId, draft);
+        }
+    }
+
+    private int firstEmptyBuyOrderSlot(Map<Integer, MerchantBuyOrder> draft) {
+        for (int slot = 0; slot < Math.min(45, configuredMerchantMaxOffers()); slot++)
+            if (!draft.containsKey(slot)) return slot;
+        return -1;
+    }
+
+    private LinkedHashMap<Integer, MerchantBuyOrder> copyBuyOrders(Map<Integer, MerchantBuyOrder> source) {
+        LinkedHashMap<Integer, MerchantBuyOrder> copy = new LinkedHashMap<>();
+        if (source != null) source.forEach((slot, order) -> copy.put(slot,
+            new MerchantBuyOrder(order.item(), order.amount(), order.price())));
+        return copy;
+    }
+
     private void openMerchantPriceEditor(Player player, String merchantId,
                                          LinkedHashMap<Integer, MerchantListing> draft, int slot) {
         MerchantListing listing = draft.get(slot);
@@ -728,7 +967,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             return;
         }
         MerchantPriceHolder holder = new MerchantPriceHolder(player.getUniqueId(), merchantId, draft, slot);
-        Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Giá VNCOIN");
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Giá VNCOIN");
         holder.inventory = inventory;
         ItemStack item = listing.item().clone();
         ItemMeta itemMeta = item.getItemMeta();
@@ -1105,11 +1344,13 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         Entity entity = findNpcEntity(current);
         npcs.remove(id);
         LinkedHashMap<Integer, MerchantListing> oldListings = merchantListings.remove(id);
+        LinkedHashMap<Integer, MerchantBuyOrder> oldBuyOrders = merchantBuyOrders.remove(id);
         try {
             saveNpcs();
         } catch (IOException exception) {
             npcs.put(id, current);
             if (oldListings != null) merchantListings.put(id, oldListings);
+            if (oldBuyOrders != null) merchantBuyOrders.put(id, oldBuyOrders);
             throw exception;
         }
         if (entity != null) entity.remove();
@@ -1224,6 +1465,36 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 }
                 merchantListings.put(id, listings);
             }
+            ConfigurationSection savedBuyOrders = entry.getConfigurationSection("merchant-buy-orders");
+            if (savedBuyOrders != null) {
+                if (!"merchant".equals(type)) {
+                    throw new InvalidConfigurationException("Only custom merchant NPC '" + id
+                        + "' may contain merchant-buy-orders.");
+                }
+                LinkedHashMap<Integer, MerchantBuyOrder> orders = new LinkedHashMap<>();
+                for (String rawSlot : savedBuyOrders.getKeys(false)) {
+                    int slot;
+                    try {
+                        slot = Integer.parseInt(rawSlot);
+                    } catch (NumberFormatException exception) {
+                        throw new InvalidConfigurationException("Invalid merchant buy-order slot '" + rawSlot
+                            + "' for NPC '" + id + "'.", exception);
+                    }
+                    ConfigurationSection order = savedBuyOrders.getConfigurationSection(rawSlot);
+                    ItemStack item = order == null ? null : order.getItemStack("item");
+                    int amount = order == null ? 0 : order.getInt("amount", 0);
+                    long price = order == null ? 0L : order.getLong("price", 0L);
+                    if (slot < 0 || slot >= 45 || !isSystemCreatedItem(item) || amount < 1
+                            || amount > 100_000 || price < 1
+                            || price > PlayerProfileDatabaseManager.MAX_WALLET_BALANCE) {
+                        throw new InvalidConfigurationException("Invalid merchant buy order at NPC '" + id
+                            + "', slot " + rawSlot + ".");
+                    }
+                    item.setAmount(1);
+                    orders.put(slot, new MerchantBuyOrder(item, amount, price));
+                }
+                merchantBuyOrders.put(id, orders);
+            }
         }
     }
 
@@ -1249,6 +1520,24 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                     String offerPath = path + ".merchant-offers." + offer.getKey();
                     configuration.set(offerPath + ".item", offer.getValue().item().clone());
                     configuration.set(offerPath + ".price", offer.getValue().price());
+                }
+            }
+            Map<Integer, MerchantBuyOrder> buyOrders = merchantBuyOrders.get(npc.id());
+            if (buyOrders != null) {
+                for (Map.Entry<Integer, MerchantBuyOrder> order : buyOrders.entrySet()) {
+                    String orderPath = path + ".merchant-buy-orders." + order.getKey();
+                    configuration.set(orderPath + ".item", order.getValue().item().clone());
+                    configuration.set(orderPath + ".amount", order.getValue().amount());
+                    configuration.set(orderPath + ".price", order.getValue().price());
+                    configuration.setComments(orderPath + ".item", List.of(
+                        "[VI] Item RPG chính xác người chơi cần giao; được lưu từ GUI merchant.",
+                        "[EN] Exact RPG item players must hand in; saved through the merchant GUI."));
+                    configuration.setComments(orderPath + ".amount", List.of(
+                        "[VI] Số item cần giao để đổi một lần; hợp lệ 1-100000.",
+                        "[EN] Item count required for one exchange; valid range 1-100000."));
+                    configuration.setComments(orderPath + ".price", List.of(
+                        "[VI] VNCOIN trả cho đủ số lượng item; hợp lệ 1 đến giới hạn max-price.",
+                        "[EN] VNCOIN paid for the required item count; valid range 1 through max-price."));
                 }
             }
         }
@@ -1532,6 +1821,15 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
     }
 
+    private record MerchantBuyOrder(ItemStack item, int amount, long price) {
+        private MerchantBuyOrder {
+            item = item.clone();
+            item.setAmount(1);
+        }
+    }
+
+    public record MerchantBuyQuote(int amount, long price, String merchantId) { }
+
     private enum NpcMenu { LIST, EDIT, CONFIRM_DELETE, STORY_CHAPTERS }
     private enum NpcTextField { CREATE_ID, CREATE_TYPE, CREATE_NAME, RENAME, CHANGE_TYPE }
     private record PendingNpcInput(NpcTextField field, String npcId, int page, String value) { }
@@ -1611,5 +1909,39 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         public Inventory getInventory() {
             return inventory;
         }
+    }
+
+    private static final class MerchantBuyEditorHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final String merchantId;
+        private final LinkedHashMap<Integer, MerchantBuyOrder> draft;
+        private Inventory inventory;
+
+        private MerchantBuyEditorHolder(UUID viewer, String merchantId,
+                LinkedHashMap<Integer, MerchantBuyOrder> draft) {
+            this.viewer = viewer;
+            this.merchantId = merchantId;
+            this.draft = draft;
+        }
+
+        @Override public Inventory getInventory() { return inventory; }
+    }
+
+    private static final class MerchantBuyOrderHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final String merchantId;
+        private final LinkedHashMap<Integer, MerchantBuyOrder> draft;
+        private final int slot;
+        private Inventory inventory;
+
+        private MerchantBuyOrderHolder(UUID viewer, String merchantId,
+                LinkedHashMap<Integer, MerchantBuyOrder> draft, int slot) {
+            this.viewer = viewer;
+            this.merchantId = merchantId;
+            this.draft = draft;
+            this.slot = slot;
+        }
+
+        @Override public Inventory getInventory() { return inventory; }
     }
 }

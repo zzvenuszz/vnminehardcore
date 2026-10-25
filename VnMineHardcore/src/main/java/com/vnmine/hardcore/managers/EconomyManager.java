@@ -89,6 +89,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private final Map<UUID, Long> nextBossDropClaimAt = new HashMap<>();
     private final Set<CreatureSpawnEvent.SpawnReason> allowedSpawnReasons = new HashSet<>();
     private final Set<UUID> pendingMerchantPurchases = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> pendingMerchantSales = ConcurrentHashMap.newKeySet();
     private final Set<UUID> reconcilingMerchantDeliveries = ConcurrentHashMap.newKeySet();
     private final Set<String> lockedMerchantDeliveries = ConcurrentHashMap.newKeySet();
     private final Map<String, MobTier> tiersByEntity = new HashMap<>();
@@ -323,20 +324,18 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             }
         } else {
             visibleName = "§e" + stack.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
-            if (meta != null) {
-                meta.setDisplayName(visibleName);
-                stack.setItemMeta(meta);
-                itemEntity.setItemStack(stack);
-            }
         }
-        itemEntity.setCustomName(visibleName);
+        itemEntity.setCustomName(visibleName + groundItemSellLabel(stack));
         itemEntity.setCustomNameVisible(true);
     }
 
     @EventHandler
     public void onItemEntitiesLoad(EntitiesLoadEvent event) {
         for (Entity entity : event.getEntities()) {
-            if (entity instanceof Item item) trackGroundItem(item);
+            if (entity instanceof Item item) {
+                trackGroundItem(item);
+                applyGroundItemName(item);
+            }
         }
     }
 
@@ -362,6 +361,38 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 || meta.getPersistentDataContainer().has(coinBossDropKey, PersistentDataType.BYTE))
             || enchanted || hasLore || customName || isRareMaterial(stack.getType());
         itemNameCategories.put(item.getEntityId(), new ItemNameCategory(rpg, rare));
+    }
+
+    private void applyGroundItemName(Item item) {
+        ItemStack stack = item.getItemStack();
+        ItemMeta meta = stack.getItemMeta();
+        String name = meta != null && meta.hasDisplayName() ? sanitizeVisibleName(meta.getDisplayName())
+            : "§e" + stack.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
+        item.setCustomName(name + groundItemSellLabel(stack));
+        item.setCustomNameVisible(true);
+    }
+
+    private String groundItemSellLabel(ItemStack stack) {
+        if (hasCoinTag(stack)) return "";
+        if (plugin.getNpcManager() != null) {
+            var quote = plugin.getNpcManager().getBestMerchantBuyQuote(stack);
+            if (quote.isPresent()) return " §7[" + quote.get().amount() + " = " + quote.get().price() + " VNCOIN]";
+        }
+        GroundSellQuote quote = groundItemSellQuote(stack);
+        return " §7[" + quote.amount() + " = " + quote.price() + " VNCOIN]";
+    }
+
+    private GroundSellQuote groundItemSellQuote(ItemStack stack) {
+        String override = "economy.merchant.ground-item-price-overrides." + stack.getType().name();
+        int amount = plugin.getConfig().getInt(override + ".amount", 0);
+        long price = plugin.getConfig().getLong(override + ".vncoin", 0L);
+        if (amount < 1 || amount > 100_000 || price < 1 || price > 1_000_000L) {
+            amount = plugin.getConfig().getInt("economy.merchant.ground-item-default.amount", 64);
+            price = plugin.getConfig().getLong("economy.merchant.ground-item-default.vncoin", 1L);
+        }
+        if (amount < 1 || amount > 100_000 || price < 1 || price > 1_000_000L)
+            return new GroundSellQuote(64, 1L);
+        return new GroundSellQuote(amount, price);
     }
 
     private boolean isGenericGroundItemLabel(String displayName, Material material) {
@@ -434,6 +465,17 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         player.getPersistentDataContainer().set(itemNameModeKey, PersistentDataType.STRING, mode.name());
         itemNameModes.put(player.getUniqueId(), mode);
         refreshItemNames(player);
+    }
+
+    public void refreshAllGroundItemNames() {
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                if (entity instanceof Item item) {
+                    trackGroundItem(item);
+                    applyGroundItemName(item);
+                }
+            }
+        }
     }
 
     private void refreshItemNames(Player player) {
@@ -638,7 +680,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                     return;
                 }
                 WalletMenuHolder holder = new WalletMenuHolder(player.getUniqueId());
-                Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Ví VNCOIN");
+                Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Ví VNCOIN");
                 holder.inventory = inventory;
                 inventory.setItem(11, menuItem(Material.SUNFLOWER, "§6Ví VNCOIN: §e" + view.balance(),
                     List.of("§7Đơn vị tiền tệ của VnMine.", "§7Số dư được lưu an toàn phía máy chủ.")));
@@ -676,11 +718,16 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             player.sendMessage("§cCửa hàng VNCOIN hiện đang đóng.");
             return;
         }
-        openMerchantInventory(player, "VnMine • Thương nhân", loadMerchantOffers());
+        openMerchantInventory(player, "VnMine • Thương nhân", loadMerchantOffers(), "system-merchant", List.of());
     }
 
     public void openCustomMerchantMenu(Player player, String merchantId, String title,
                                        List<CustomMerchantOffer> customOffers) {
+        openCustomMerchantMenu(player, merchantId, title, customOffers, List.of());
+    }
+
+    public void openCustomMerchantMenu(Player player, String merchantId, String title,
+            List<CustomMerchantOffer> customOffers, List<CustomMerchantBuyOrder> customBuyOrders) {
         if (!economyEnabled || !plugin.getConfig().getBoolean("economy.merchant.enabled", true)) {
             player.sendMessage("§cCửa hàng VNCOIN hiện đang đóng.");
             return;
@@ -698,15 +745,37 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 : item.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
             offers.add(new MerchantOffer(merchantId + "-" + index, item, offer.price(), name));
         }
-        openMerchantInventory(player, title, offers);
+        List<MerchantBuyOffer> buyOffers = new ArrayList<>();
+        for (int index = 0; index < customBuyOrders.size() && index < 45; index++) {
+            CustomMerchantBuyOrder order = customBuyOrders.get(index);
+            ItemStack item = order.item().clone();
+            item.setAmount(Math.min(order.amount(), item.getMaxStackSize()));
+            buyOffers.add(new MerchantBuyOffer(merchantId + "-buy-" + index, order.item(),
+                order.amount(), order.price(), itemName(order.item())));
+        }
+        openMerchantInventory(player, title, offers, merchantId, buyOffers);
     }
 
     private void openMerchantInventory(Player player, String title, List<MerchantOffer> offers) {
+        openMerchantInventory(player, title, offers, "", List.of());
+    }
+
+    private void openMerchantInventory(Player player, String title, List<MerchantOffer> offers,
+            String merchantId, List<MerchantBuyOffer> buyOffers) {
         if (offers.isEmpty()) {
-            player.sendMessage("§cCửa hàng hiện chưa có mặt hàng nào.");
+            if (buyOffers.isEmpty() && merchantId.isBlank()) {
+                player.sendMessage("§cCửa hàng hiện chưa có mặt hàng nào.");
+                return;
+            }
+            MerchantMenuHolder holder = new MerchantMenuHolder(player.getUniqueId(), List.of(),
+                merchantId, title, buyOffers);
+            holder.inventory = Bukkit.createInventory(holder, 54, title);
+            renderMerchantPage(holder.inventory, holder);
+            player.openInventory(holder.inventory);
             return;
         }
-        MerchantMenuHolder holder = new MerchantMenuHolder(player.getUniqueId(), List.copyOf(offers));
+        MerchantMenuHolder holder = new MerchantMenuHolder(player.getUniqueId(), List.copyOf(offers),
+            merchantId, title, buyOffers);
         Inventory inventory = Bukkit.createInventory(holder, 54, title);
         holder.inventory = inventory;
         renderMerchantPage(inventory, holder);
@@ -742,6 +811,10 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         if (holder.page > 0) inventory.setItem(45,
             menuItem(Material.ARROW, "§eTrang trước", List.of("§7Quay lại trang " + holder.page + ".")));
         inventory.setItem(49, menuItem(Material.BARRIER, "§cĐóng cửa hàng", List.of()));
+        if (!holder.merchantId.isBlank()) inventory.setItem(47,
+            menuItem(Material.HOPPER, "§bBán vật phẩm cho shop", List.of(
+                "§7Đổi item trong túi thành VNCOIN.", "§7Giá thu mua riêng của shop được ưu tiên.",
+                "§eNhấn để xem giá thu mua.")));
         if (holder.page + 1 < pages) inventory.setItem(53,
             menuItem(Material.ARROW, "§eTrang sau", List.of("§7Mở trang " + (holder.page + 2) + ".")));
     }
@@ -755,6 +828,10 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 || event.getClickedInventory() != event.getView().getTopInventory()) return;
         if (event.getRawSlot() == 49) {
             player.closeInventory();
+            return;
+        }
+        if (event.getRawSlot() == 47 && !holder.merchantId.isBlank()) {
+            openMerchantSellInventory(player, holder);
             return;
         }
         if (event.getRawSlot() == 45 && holder.page > 0) {
@@ -772,9 +849,237 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         openMerchantPurchaseConfirmation(player, event.getView().getTopInventory(), offer);
     }
 
+    private void openMerchantSellInventory(Player player, MerchantMenuHolder source) {
+        List<MerchantBuyOffer> offers = new ArrayList<>();
+        List<ItemStack> seen = new ArrayList<>();
+        for (ItemStack stack : player.getInventory().getStorageContents()) {
+            if (stack == null || stack.getType().isAir() || hasCoinTag(stack) || isLockedMerchantDelivery(stack)) continue;
+            ItemStack template = stack.clone();
+            template.setAmount(1);
+            if (seen.stream().anyMatch(template::isSimilar)) continue;
+            seen.add(template);
+            MerchantBuyOffer configured = source.buyOffers.stream()
+                .filter(value -> value.item().isSimilar(template))
+                .max(java.util.Comparator.comparingDouble(value -> (double) value.price() / value.amount()))
+                .orElse(null);
+            GroundSellQuote quote = configured == null && plugin.getNpcManager() != null
+                ? plugin.getNpcManager().getBestMerchantBuyQuote(template)
+                    .map(value -> new GroundSellQuote(value.amount(), value.price())).orElse(null)
+                : configured == null ? null : new GroundSellQuote(configured.amount(), configured.price());
+            if (quote == null) quote = groundItemSellQuote(stack);
+            offers.add(new MerchantBuyOffer(source.merchantId + "-default-" + stack.getType().name(),
+                template, quote.amount(), quote.price(), itemName(template)));
+        }
+        source.buyOffers.stream().filter(order -> seen.stream().noneMatch(order.item()::isSimilar))
+            .limit(Math.max(0, 45 - offers.size())).forEach(offers::add);
+        MerchantSellMenuHolder holder = new MerchantSellMenuHolder(player.getUniqueId(), source,
+            List.copyOf(offers));
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Bán item cho shop");
+        holder.inventory = inventory;
+        for (int slot = 0; slot < 54; slot++)
+            inventory.setItem(slot, menuItem(Material.GRAY_STAINED_GLASS_PANE, "§r", List.of()));
+        for (int index = 0; index < Math.min(45, holder.offers.size()); index++) {
+            MerchantBuyOffer offer = holder.offers.get(index);
+            ItemStack display = offer.item().clone();
+            display.setAmount(Math.min(offer.amount(), display.getMaxStackSize()));
+            ItemMeta meta = display.getItemMeta();
+            if (meta != null) {
+                List<String> lore = meta.hasLore() && meta.getLore() != null
+                    ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                lore.add("§7Cần giao: §f" + offer.amount() + " item");
+                lore.add("§7Nhận: §6" + offer.price() + " VNCOIN");
+                lore.add("§eNhấn để đổi item lấy tiền.");
+                display.setItemMeta(meta);
+            }
+            inventory.setItem(index, display);
+            holder.offerSlots.put(index, offer);
+        }
+        inventory.setItem(49, menuItem(Material.ARROW, "§eQuay lại cửa hàng", List.of()));
+        inventory.setItem(53, menuItem(Material.BARRIER, "§cĐóng", List.of()));
+        player.openInventory(inventory);
+    }
+
+    @EventHandler
+    public void onMerchantSellMenuClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof MerchantSellMenuHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        if (event.getRawSlot() == 49) {
+            openMerchantInventory(player, holder.source.title, holder.source.allOffers,
+                holder.source.merchantId, holder.source.buyOffers);
+            return;
+        }
+        if (event.getRawSlot() == 53) {
+            player.closeInventory();
+            return;
+        }
+        MerchantBuyOffer offer = holder.offerSlots.get(event.getRawSlot());
+        if (offer != null) openMerchantSellConfirmation(player, holder, offer);
+    }
+
+    private void openMerchantSellConfirmation(Player player, MerchantSellMenuHolder source, MerchantBuyOffer offer) {
+        MerchantSellConfirmHolder holder = new MerchantSellConfirmHolder(player.getUniqueId(), source, offer);
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Xác nhận bán item");
+        holder.inventory = inventory;
+        for (int slot = 0; slot < 54; slot++)
+            inventory.setItem(slot, menuItem(Material.GRAY_STAINED_GLASS_PANE, "§r", List.of()));
+        ItemStack display = offer.item().clone();
+        display.setAmount(Math.min(offer.amount(), display.getMaxStackSize()));
+        inventory.setItem(22, display);
+        inventory.setItem(20, menuItem(Material.LIME_DYE, "§aXác nhận bán", List.of(
+            "§7Lấy §f" + offer.amount() + " item§7 khỏi túi.", "§7Cộng §6" + offer.price() + " VNCOIN§7 vào ví.")));
+        inventory.setItem(24, menuItem(Material.RED_DYE, "§cHủy", List.of("§7Quay lại danh sách thu mua.")));
+        inventory.setItem(49, menuItem(Material.PAPER, "§eKiểm tra túi trước khi xác nhận", List.of()));
+        player.openInventory(inventory);
+    }
+
+    @EventHandler
+    public void onMerchantSellConfirmationClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof MerchantSellConfirmHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        if (event.getRawSlot() == 24) openMerchantSellInventory(player, holder.source.source);
+        else if (event.getRawSlot() == 20) {
+            player.closeInventory();
+            sellMerchantBuyOrder(player, holder.source, holder.offer);
+        }
+    }
+
+    private void sellMerchantBuyOrder(Player player, MerchantSellMenuHolder source, MerchantBuyOffer offer) {
+        UUID playerId = player.getUniqueId();
+        if (!pendingMerchantSales.add(playerId)) {
+            player.sendMessage("§eĐang xử lý giao dịch trước đó, vui lòng chờ.");
+            return;
+        }
+        if (countExactItem(player, offer.item()) < offer.amount()) {
+            pendingMerchantSales.remove(playerId);
+            player.sendMessage("§cBạn không có đủ " + offer.amount() + " item cần giao.");
+            openMerchantSellInventory(player, source.source);
+            return;
+        }
+        ItemStack removed = offer.item().clone();
+        removed.setAmount(offer.amount());
+        if (!removeExactItems(player, offer.item(), offer.amount())) {
+            pendingMerchantSales.remove(playerId);
+            player.sendMessage("§cKhông thể lấy item khỏi túi; giao dịch đã bị hủy.");
+            openMerchantSellInventory(player, source.source);
+            return;
+        }
+        try {
+            player.saveData();
+        } catch (RuntimeException failure) {
+            restoreMerchantSaleItems(player, removed);
+            pendingMerchantSales.remove(playerId);
+            plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Could not persist inventory before sell: player="
+                + player.getName() + ", offer=" + offer.id(), failure);
+            player.sendMessage("§cKhông thể lưu túi đồ an toàn; giao dịch đã được hoàn tác.");
+            return;
+        }
+        String transactionId = "merchant-sell:" + UUID.randomUUID();
+        String ledgerReason = "Bán " + offer.amount() + " "
+            + (offer.name().length() > 180 ? offer.name().substring(0, 180) : offer.name());
+        player.sendMessage("§7Đang xử lý giao dịch bán item...");
+        database.executeGameplayDatabaseTask("wallet.merchant-sell player=" + player.getName()
+                + " offer=" + offer.id(), () -> database.applyWalletTransaction(playerId.toString(),
+                    offer.price(), transactionId, "merchant-sell", playerId.toString(),
+                    ledgerReason, Instant.now().toString()))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                pendingMerchantSales.remove(playerId);
+                if (failure != null || result == null
+                        || result.status() != PlayerProfileDatabaseManager.WalletTransactionStatus.APPLIED) {
+                    restoreMerchantSaleItems(player, removed);
+                    if (failure != null) {
+                        plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Sell transaction failed: player="
+                            + player.getName() + ", offer=" + offer.id() + ", transaction=" + transactionId, failure);
+                    }
+                    if (player.isOnline()) player.sendMessage("§cKhông hoàn tất được giao dịch; item đã được hoàn lại.");
+                    return;
+                }
+                debug("[RPG-DEBUG][VNCOIN][Merchant] sell player=" + player.getName() + ", offer=" + offer.id()
+                    + ", amount=" + offer.amount() + ", price=" + offer.price() + ", balance=" + result.balance()
+                    + ", transaction=" + transactionId);
+                if (player.isOnline()) {
+                    player.sendMessage("§aĐã bán " + offer.amount() + " item và nhận §6"
+                        + offer.price() + " VNCOIN§a.");
+                    player.saveData();
+                }
+            }));
+    }
+
+    private int countExactItem(Player player, ItemStack template) {
+        long count = 0;
+        for (ItemStack item : player.getInventory().getStorageContents())
+            if (item != null && !item.getType().isAir() && item.isSimilar(template)) count += item.getAmount();
+        return (int) Math.min(Integer.MAX_VALUE, count);
+    }
+
+    private boolean removeExactItems(Player player, ItemStack template, int amount) {
+        if (amount < 1 || countExactItem(player, template) < amount) return false;
+        int remaining = amount;
+        for (int slot = 0; slot < player.getInventory().getStorageContents().length && remaining > 0; slot++) {
+            ItemStack item = player.getInventory().getItem(slot);
+            if (item == null || item.getType().isAir() || !item.isSimilar(template)) continue;
+            int taken = Math.min(remaining, item.getAmount());
+            item.setAmount(item.getAmount() - taken);
+            if (item.getAmount() <= 0) player.getInventory().setItem(slot, null);
+            remaining -= taken;
+        }
+        return remaining == 0;
+    }
+
+    private void restoreMerchantSaleItems(Player player, ItemStack removed) {
+        if (player.isOnline()) {
+            int remaining = removed.getAmount();
+            while (remaining > 0) {
+                ItemStack stack = removed.clone();
+                int give = Math.min(remaining, stack.getMaxStackSize());
+                stack.setAmount(give);
+                Map<Integer, ItemStack> overflow = player.getInventory().addItem(stack);
+                overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+                remaining -= give;
+            }
+            try {
+                player.saveData();
+            } catch (RuntimeException failure) {
+                plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Could not persist a sale refund for "
+                    + player.getName(), failure);
+            }
+            return;
+        }
+        List<byte[]> serialized = new ArrayList<>();
+        int remaining = removed.getAmount();
+        while (remaining > 0) {
+            ItemStack stack = removed.clone();
+            int amount = Math.min(remaining, stack.getMaxStackSize());
+            stack.setAmount(amount);
+            serialized.add(stack.serializeAsBytes());
+            remaining -= amount;
+        }
+        String source = "merchant-sell-refund:" + player.getUniqueId() + ":" + UUID.randomUUID();
+        database.executeGameplayDatabaseTask("wallet.merchant-sell-refund player=" + player.getName(), () -> {
+            database.enqueueMerchantDeliveries(player.getUniqueId().toString(), source, serialized,
+                Instant.now().toString());
+            return null;
+        }).whenComplete((ignored, failure) -> {
+            if (failure != null) plugin.getLogger().log(Level.SEVERE,
+                "[Economy][Merchant] Could not queue offline sell refund for " + player.getName(), failure);
+            else Bukkit.getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()) reconcileMerchantDeliveries(player);
+            });
+        });
+    }
+
+    private static String itemName(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        return meta != null && meta.hasDisplayName() ? meta.getDisplayName()
+            : item.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
     private void openMerchantPurchaseConfirmation(Player player, Inventory returnInventory, MerchantOffer offer) {
         MerchantConfirmHolder holder = new MerchantConfirmHolder(player.getUniqueId(), returnInventory, offer);
-        Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Xác nhận mua");
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Xác nhận mua");
         holder.inventory = inventory;
         ItemStack display = offer.item().clone();
         ItemMeta meta = display.getItemMeta();
@@ -812,7 +1117,8 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     @EventHandler
     public void onMerchantInventoryDrag(InventoryDragEvent event) {
         InventoryHolder holder = event.getView().getTopInventory().getHolder();
-        if (holder instanceof MerchantMenuHolder || holder instanceof MerchantConfirmHolder) {
+        if (holder instanceof MerchantMenuHolder || holder instanceof MerchantConfirmHolder
+                || holder instanceof MerchantSellMenuHolder || holder instanceof MerchantSellConfirmHolder) {
             event.setCancelled(true);
         }
     }
@@ -1108,7 +1414,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     public void openItemNameMenu(Player player) {
         ItemNameMode selected = getItemNameMode(player);
         ItemNameMenuHolder holder = new ItemNameMenuHolder(player.getUniqueId());
-        Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Tên item rơi");
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Tên item rơi");
         holder.inventory = inventory;
         for (int slot = 0; slot < 27; slot++) {
             if (slot < 9 || slot >= 18) inventory.setItem(slot,
@@ -1442,8 +1748,24 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         }
     }
 
+    public record CustomMerchantBuyOrder(ItemStack item, int amount, long price) {
+        public CustomMerchantBuyOrder {
+            item = item.clone();
+            item.setAmount(1);
+        }
+    }
+
     private record MerchantOffer(String id, ItemStack item, long price, String name) {
     }
+
+    private record MerchantBuyOffer(String id, ItemStack item, int amount, long price, String name) {
+        private MerchantBuyOffer {
+            item = item.clone();
+            item.setAmount(1);
+        }
+    }
+
+    private record GroundSellQuote(int amount, long price) { }
 
     private static final class ItemNameMenuHolder implements InventoryHolder {
         private final UUID viewer;
@@ -1479,13 +1801,20 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private static final class MerchantMenuHolder implements InventoryHolder {
         private final UUID viewer;
         private final List<MerchantOffer> allOffers;
+        private final String merchantId;
+        private final String title;
+        private final List<MerchantBuyOffer> buyOffers;
         private final Map<Integer, MerchantOffer> offers = new HashMap<>();
         private int page;
         private Inventory inventory;
 
-        private MerchantMenuHolder(UUID viewer, List<MerchantOffer> allOffers) {
+        private MerchantMenuHolder(UUID viewer, List<MerchantOffer> allOffers, String merchantId,
+                String title, List<MerchantBuyOffer> buyOffers) {
             this.viewer = viewer;
             this.allOffers = allOffers;
+            this.merchantId = merchantId;
+            this.title = title;
+            this.buyOffers = List.copyOf(buyOffers);
         }
 
         @Override
@@ -1510,5 +1839,36 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         public Inventory getInventory() {
             return inventory;
         }
+    }
+
+    private static final class MerchantSellMenuHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final MerchantMenuHolder source;
+        private final List<MerchantBuyOffer> offers;
+        private final Map<Integer, MerchantBuyOffer> offerSlots = new HashMap<>();
+        private Inventory inventory;
+
+        private MerchantSellMenuHolder(UUID viewer, MerchantMenuHolder source, List<MerchantBuyOffer> offers) {
+            this.viewer = viewer;
+            this.source = source;
+            this.offers = offers;
+        }
+
+        @Override public Inventory getInventory() { return inventory; }
+    }
+
+    private static final class MerchantSellConfirmHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final MerchantSellMenuHolder source;
+        private final MerchantBuyOffer offer;
+        private Inventory inventory;
+
+        private MerchantSellConfirmHolder(UUID viewer, MerchantSellMenuHolder source, MerchantBuyOffer offer) {
+            this.viewer = viewer;
+            this.source = source;
+            this.offer = offer;
+        }
+
+        @Override public Inventory getInventory() { return inventory; }
     }
 }

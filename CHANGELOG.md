@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.17.0] - 2026-10-25
+- Thêm công tắc particle tracking riêng cho người chơi; thay đường thẳng bằng mũi tên particle bám mặt đất và tìm đường quanh vật cản cho quest NPC/tutorial.
+- Chuyển hội thoại story/quest sang action bar chạy chữ theo dạng `[Tên NPC:]`; không gửi nội dung vào chat/lore. Dialog nhận quest kết thúc bằng GUI nhận quest.
+- Thêm góc xoay độc lập với facing cho `/vntext`, vẫn tương thích cú pháp cũ với rotation mặc định `0°`.
+- Thêm objective gặp NPC theo ID và hỗ trợ nối tiếp các mục tiêu nộp item RPG đã cấu hình.
+- Thêm shop thu mua item cho system/custom merchant với nút chỉnh số lượng/giá VNCOIN; hiển thị giá bán trên item rơi, mặc định `64 = 1 VNCOIN` và hỗ trợ override theo Material.
+- Mở rộng chest GUI 27 ô thành 54 ô; Quick Cast vẫn giữ một hàng 9 ô.
+
 ## [v2.16.0] - 2026-10-25
 - Thay luồng NPC story thành GUI nền kính phát nội dung chapter theo kiểu typewriter; admin shift+right-click để chọn chapter.
 - Thêm trình quản lý quest-dialog riêng và gán hội thoại theo trạng thái quest: có thể nhận, đang làm, hoàn tất/nhận thưởng, hoặc chưa đủ điều kiện; quest đã hoàn thành dùng hội thoại hoàn tất.

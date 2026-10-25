@@ -14,7 +14,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -85,6 +84,7 @@ public final class TutorialQuestManager implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
+        QuestWaypointRenderer.forget(playerId);
         activeQuestSessions.remove(playerId);
         lastWaypointAtMillis.remove(playerId);
     }
@@ -426,7 +426,7 @@ public final class TutorialQuestManager implements Listener {
             boolean hasActiveProfile,
             Optional<PlayerProfileDatabaseManager.QuestProgress> progress) {
         QuestJournalHolder holder = new QuestJournalHolder(player.getUniqueId(), hasActiveProfile, progress);
-        Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Nhật ký nhiệm vụ");
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Nhật ký nhiệm vụ");
         holder.inventory = inventory;
         if (hasActiveProfile) {
             inventory.setItem(9, createJournalItem(Material.BOOK, "§bQuest từ NPC",
@@ -528,33 +528,8 @@ public final class TutorialQuestManager implements Listener {
             + Math.round(Math.sqrt(dx * dx + dz * dz)) + " block");
         if (distance > definition.objective().waypointParticleRangeBlocks()) return;
 
-        if (definition.objective().targetMarkerEnabled()) showTargetMarker(player, target);
-
-        int steps = Math.max(1, (int) Math.ceil(distance / 3.0));
-        Location start = playerLocation.clone().add(0, 1.0, 0);
-        Location end = target.clone().add(0, 1.0, 0);
-        for (int step = 1; step <= steps; step++) {
-            double progress = (double) step / steps;
-            Location point = new Location(target.getWorld(),
-                start.getX() + (end.getX() - start.getX()) * progress,
-                start.getY() + (end.getY() - start.getY()) * progress,
-                start.getZ() + (end.getZ() - start.getZ()) * progress);
-            player.spawnParticle(Particle.END_ROD, point, 1, 0, 0, 0, 0);
-        }
-    }
-
-    private void showTargetMarker(Player player, Location target) {
-        double markerY = target.getY() + 0.15;
-        for (int step = 0; step < 12; step++) {
-            double angle = Math.PI * 2.0 * step / 12.0;
-            Location point = new Location(target.getWorld(),
-                target.getX() + Math.cos(angle) * 1.1, markerY,
-                target.getZ() + Math.sin(angle) * 1.1);
-            player.spawnParticle(Particle.HAPPY_VILLAGER, point, 1, 0, 0, 0, 0);
-        }
-        for (double height = 0.5; height <= 2.5; height += 0.5) {
-            player.spawnParticle(Particle.END_ROD, target.clone().add(0, height, 0), 1, 0, 0, 0, 0);
-        }
+        QuestWaypointRenderer.render(player, target,
+            definition.objective().waypointParticleRangeBlocks(), definition.objective().targetMarkerEnabled());
     }
 
     private void completeObjective(Player player) {
