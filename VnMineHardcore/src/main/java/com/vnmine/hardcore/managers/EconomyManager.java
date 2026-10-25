@@ -55,6 +55,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
+import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.event.world.EntitiesUnloadEvent;
 import org.bukkit.inventory.Inventory;
@@ -327,6 +328,34 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         }
         itemEntity.setCustomName(visibleName + groundItemSellLabel(stack));
         itemEntity.setCustomNameVisible(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockDrop(BlockDropItemEvent event) {
+        for (Item dropped : event.getItems()) {
+            ItemStack stack = dropped.getItemStack();
+            if (!isPlainStackableBlockDrop(stack)) continue;
+            ItemStack normalized = new ItemStack(stack.getType(), stack.getAmount());
+            dropped.setItemStack(normalized);
+            trackGroundItem(dropped);
+            applyGroundItemName(dropped);
+        }
+    }
+
+    private boolean isPlainStackableBlockDrop(ItemStack stack) {
+        if (stack == null || stack.getType().isAir() || !stack.getType().isBlock()
+                || stack.getMaxStackSize() <= 1) return false;
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null || meta.hasDisplayName() || meta.hasLore() || meta.hasEnchants()
+                || meta.hasAttributeModifiers() || meta.isUnbreakable() || !meta.getItemFlags().isEmpty()
+                || !meta.getPersistentDataContainer().getKeys().isEmpty()) return false;
+        if (meta.hasCustomModelData()) return false;
+        return !(meta instanceof org.bukkit.inventory.meta.BlockStateMeta)
+            && !(meta instanceof org.bukkit.inventory.meta.BannerMeta)
+            && !(meta instanceof org.bukkit.inventory.meta.SkullMeta)
+            && !(meta instanceof org.bukkit.inventory.meta.BookMeta)
+            && !(meta instanceof org.bukkit.inventory.meta.PotionMeta)
+            && !(meta instanceof org.bukkit.inventory.meta.Damageable);
     }
 
     @EventHandler

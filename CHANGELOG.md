@@ -1,5 +1,11 @@
 # Changelog
 
+## [v2.17.1] - 2026-10-25
+- Chuẩn hóa metadata không mang dữ liệu RPG của các item block rơi ra để chúng stack với item vanilla; giữ nguyên item có PDC, tên, lore, enchant hoặc metadata đặc biệt.
+- Thêm nút bật/tắt theo dõi riêng cho từng quest ngay trong nhật ký và nút bật/tắt particle có trạng thái rõ ràng, lưu bền.
+- Chỉ dẫn đường tới NPC khi objective hiện tại là gặp NPC hoặc nộp item; hiển thị title/subtitle khi hoàn thành quest.
+- Đặt bình EXP ở giữa cụm nút tăng/giảm, ngay phía trên icon VNCOIN trong giao diện sửa quest.
+
 ## [v2.17.0] - 2026-10-25
 - Thêm công tắc particle tracking riêng cho người chơi; thay đường thẳng bằng mũi tên particle bám mặt đất và tìm đường quanh vật cản cho quest NPC/tutorial.
 - Chuyển hội thoại story/quest sang action bar chạy chữ theo dạng `[Tên NPC:]`; không gửi nội dung vào chat/lore. Dialog nhận quest kết thúc bằng GUI nhận quest.

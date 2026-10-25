@@ -428,6 +428,21 @@ Menu lọc item theo người chơi cũng đã package bằng Java 25 và chép 
 - JAR: `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.17.0.jar`, `2,093,432` bytes; SHA-256 `c04b77716cf37d8dfcb4995d97d713284196a04cb75f6d030e3a265968362b90`.
 - Đã xác minh chỉ có native SQLite `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so`; JAR giữ `org/sqlite/JDBC.class` và `META-INF/services/java.sql.Driver`. Bản `2.16.0` cũ được chuyển vào `.old-builds` để Paper không nạp hai bản plugin cùng lúc.
 
+## Sửa stack item và trải nghiệm quest — 2026-10-25
+
+- Đã thêm chuẩn hóa cho block item rơi ra chỉ khi stack không có PDC, tên/lore/enchant, custom model, modifier hay metadata block đặc biệt. Các stack vanilla sạch được dựng lại theo Material và số lượng để loại thành phần phụ làm chúng không stack; metadata của item RPG/custom được giữ nguyên.
+- Nhật ký nhiệm vụ có nút riêng cho từng quest, hiển thị trạng thái theo dõi bật/tắt; có nút particle ở trang nhật ký và trang chi tiết, đổi nhãn ngay sau click và lưu PDC người chơi.
+- Waypoint hiện chọn NPC theo objective đang chạy: `VISIT_NPC` dẫn tới NPC mục tiêu, `SUBMIT_EXACT_ITEM` dẫn tới NPC giao quest; objective hạ mob/boss hoặc thu thập không còn chỉ về NPC sai. Hint cũ được xóa khi không có đích.
+- Khi quest NPC hoặc tutorial hoàn thành, người chơi nhận title/subtitle có tên quest và phần thưởng. Bình EXP được đặt giữa cụm nút chỉnh EXP và nằm ngay trên icon VNCOIN trong editor.
+- Đã build/package thành công bản `2.17.1`; chưa kiểm thử Paper/gameplay. Cần xác minh stack torch và các block drop thường/custom, toggle tracking/particle qua mở lại menu và đăng nhập lại, điều hướng cho từng loại objective, title/subtitle và vị trí icon EXP/VNCOIN.
+
+## Cập nhật phát hành 2.17.1 — 2026-10-25
+
+- Tăng phiên bản `2.17.0` → `2.17.1` cho các sửa lỗi và cập nhật UX; README, CHANGELOG và kế hoạch đã được đồng bộ.
+- Maven `clean package -Dmaven.test.skip=true` thành công bằng JDK 25 lúc `2026-10-25 11:04:24 UTC`. Xác nhận compile/package; test tự động bị bỏ qua và gameplay Paper chưa chạy.
+- JAR: `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.17.1.jar`, `2,095,106` bytes; SHA-256 `2403fbf7e71a9df7c4a6455787659a09144cf6ffda412d4fffe25cb639d9abe2`.
+- Đã xác minh chỉ có native SQLite `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so`, đồng thời giữ `org/sqlite/JDBC.class` và `META-INF/services/java.sql.Driver`. JAR `2.17.0` cũ được chuyển vào `.old-builds` để Paper không nạp trùng phiên bản.
+
 ## Cập nhật phát hành 2.16.0 — 2026-10-25
 
 - Build Maven `clean package` thành công bằng JDK 25 lúc `2026-10-25 09:42:57 UTC`; test tự động được bỏ qua (`-Dmaven.test.skip=true`), vì vậy kết quả xác nhận compile/package, chưa xác nhận gameplay.

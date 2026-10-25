@@ -724,6 +724,11 @@ the player does not meet quest requirements or has reached the active quest cap.
 The quest journal already supports reward previews; system-boss objectives and
 quest waypoint tracking are implemented. Generalized region/portal/crafting
 objectives, daily repeatable quests, and co-op reward attribution remain planned.
+In the active-quest journal, each quest has a separate on/off tracking button;
+the particle route has its own persistent toggle. Routes point to an NPC only
+while the current objective is to visit that NPC or submit items to the quest
+giver. Other objectives do not show an unrelated NPC route. Quest completion
+shows a title and subtitle with the quest name and rewards.
 Dialogue lookup first tries a definition whose ID matches the runtime NPC ID,
 then uses the first definition of the same role. If neither exists, the NPC
 still opens a short Vietnamese fallback dialogue; quest actions matching its

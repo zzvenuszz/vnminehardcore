@@ -118,7 +118,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     return definition == null ? entry.getKey() : definition.title();
                 }, String.CASE_INSENSITIVE_ORDER))
             .toList();
-        int pageCount = Math.max(1, (quests.size() + 44) / 45);
+        int pageCount = Math.max(1, (quests.size() + 21) / 22);
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.PLAYER_JOURNAL, null, page);
         Inventory menu = Bukkit.createInventory(holder, 54, "Nhiệm vụ đang nhận • " + (page + 1));
@@ -127,12 +127,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             menu.setItem(22, adminItem(Material.BOOK, "§7Chưa có quest NPC đang làm",
                 List.of("§7Nhận nhiệm vụ từ NPC để theo dõi tiến độ tại đây.")));
         } else {
-            for (int slot = 0; slot < 45; slot++) {
-                int questIndex = page * 45 + slot;
+            for (int displayIndex = 0; displayIndex < 22; displayIndex++) {
+                int questIndex = page * 22 + displayIndex;
                 if (questIndex >= quests.size()) break;
                 Map.Entry<String, PlayerProfileDatabaseManager.QuestProgress> entry = quests.get(questIndex);
                 QuestDefinition quest = definitions.get(entry.getKey());
                 if (quest == null) continue;
+                int slot = displayIndex * 2;
                 int step = currentObjectiveIndex(entry.getValue(), quest);
                 QuestObjective objective = quest.objectives().get(step);
                 List<String> lore = new java.util.ArrayList<>();
@@ -152,6 +153,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 menu.setItem(slot, adminItem(entry.getValue().tracked() ? Material.COMPASS : Material.WRITABLE_BOOK,
                     (entry.getValue().tracked() ? "§b" : "§f") + quest.title(), lore));
                 holder.questSlots.put(slot, quest.id());
+                menu.setItem(slot + 1, adminItem(entry.getValue().tracked() ? Material.LIME_DYE : Material.GRAY_DYE,
+                    entry.getValue().tracked() ? "§aTheo dõi: BẬT" : "§7Theo dõi: TẮT",
+                    List.of("§7Bật/tắt quest trên scoreboard.", "§eNhấn để đổi trạng thái.")));
+                holder.trackingSlots.put(slot + 1, quest.id());
             }
         }
         if (page > 0) menu.setItem(45, adminItem(Material.ARROW, "§eTrang trước", List.of()));
@@ -161,6 +166,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             List.of("§7Tổng quest đang làm: " + quests.size())));
         if (page + 1 < pageCount) menu.setItem(48, adminItem(Material.ARROW, "§eTrang sau", List.of()));
         menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại nhật ký tutorial", List.of()));
+        boolean particlesEnabled = areQuestWaypointParticlesEnabled(player);
+        menu.setItem(50, adminItem(particlesEnabled ? Material.LIME_DYE : Material.GRAY_DYE,
+            particlesEnabled ? "§aParticle dẫn đường: BẬT" : "§7Particle dẫn đường: TẮT", List.of(
+                "§7Tùy chọn riêng của bạn, áp dụng cho quest đang theo dõi.",
+                "§eNhấn để " + (particlesEnabled ? "tắt" : "bật") + " mũi tên dẫn đường.")));
         menu.setItem(53, adminItem(Material.BARRIER, "§cĐóng", List.of()));
         player.openInventory(menu);
     }
@@ -370,7 +380,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(29, dialogChoiceItem("Hội thoại: đang làm", refs.inProgress()));
         menu.setItem(30, dialogChoiceItem("Hội thoại: hoàn tất", refs.completed()));
         menu.setItem(31, dialogChoiceItem("Hội thoại: chưa đủ điều kiện", refs.unavailable()));
-        menu.setItem(36, adminItem(Material.EXPERIENCE_BOTTLE,
+        menu.setItem(40, adminItem(Material.EXPERIENCE_BOTTLE,
             "§bEXP thưởng: " + quest.experienceReward(), List.of("§7Giới hạn: 0–100000 EXP.")));
         int[] expSlots = {37, 38, 39, 41, 42, 43};
         int[] expDeltas = {-100, -10, -1, 1, 10, 100};
@@ -445,11 +455,15 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 else openPlayerJournal(player, 0);
             } else if (slot == 49) {
                 plugin.getTutorialQuestManager().openJournal(player);
+            } else if (slot == 50) {
+                toggleWaypointParticles(player, () -> openPlayerJournal(player, holder.page));
             } else if (slot == 53) {
                 player.closeInventory();
             } else if (holder.questSlots.containsKey(slot)) {
                 String questId = holder.questSlots.get(slot);
                 openQuestDetails(player, questId, holder.menu == QuestMenu.PLAYER_HISTORY);
+            } else if (holder.trackingSlots.containsKey(slot)) {
+                toggleQuestTracking(player, holder.trackingSlots.get(slot), () -> openPlayerJournal(player, holder.page));
             }
             return;
         }
@@ -464,51 +478,9 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             } else if (!completed && slot == 32) {
                 openAbandonConfirmation(player, questId);
             } else if (!completed && slot == 30) {
-                PlayerProfileDatabaseManager.QuestProgress progress = activeByPlayer
-                    .getOrDefault(player.getUniqueId(), Map.of()).get(questId);
-                if (progress == null) {
-                    openPlayerJournal(player);
-                    return;
-                }
-                UUID playerId = player.getUniqueId();
-                boolean wasTracked = progress.tracked();
-                PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
-                database.executeGameplayDatabaseTask("quest.journal-track player=" + player.getName()
-                        + " quest=" + questId + " tracked=" + !wasTracked,
-                        () -> wasTracked ? database.clearQuestTracking(playerId.toString(), questId)
-                            : database.setQuestTracked(playerId.toString(), questId))
-                    .whenComplete((changed, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
-                        if (failure != null) {
-                            plugin.getLogger().log(Level.SEVERE, "[Quest] Could not update tracked quest "
-                                + questId + " for " + player.getName(), failure);
-                            if (player.isOnline()) player.sendMessage("§cKhông thể cập nhật quest đang theo dõi.");
-                            return;
-                        }
-                        if (!player.isOnline()) return;
-                        if (changed) {
-                            Map<String, PlayerProfileDatabaseManager.QuestProgress> updated = new LinkedHashMap<>(
-                                activeByPlayer.getOrDefault(playerId, Map.of()));
-                            updated.replaceAll((id, value) -> new PlayerProfileDatabaseManager.QuestProgress(
-                                value.status(), value.currentStep(), value.startedAt(), value.completedAt(),
-                                value.rewardClaimed(), value.objectiveProgress(), !wasTracked && id.equals(questId)));
-                            activeByPlayer.put(playerId, Map.copyOf(updated));
-                            player.sendMessage(wasTracked ? "§eĐã bỏ theo dõi quest."
-                                : "§aĐang theo dõi quest trên scoreboard.");
-                            refreshBoard(player);
-                        }
-                        openQuestDetails(player, questId, false);
-                    }));
+                toggleQuestTracking(player, questId, () -> openQuestDetails(player, questId, false));
             } else if (!completed && slot == 31) {
-                boolean enabled = !areQuestWaypointParticlesEnabled(player);
-                player.getPersistentDataContainer().set(waypointParticlesKey, PersistentDataType.BYTE,
-                    enabled ? (byte) 1 : (byte) 0);
-                if (!enabled) {
-                    QuestWaypointRenderer.forget(player.getUniqueId());
-                    player.sendActionBar(" ");
-                }
-                player.sendMessage(enabled ? "§aĐã bật mũi tên particle dẫn đường quest."
-                    : "§eĐã tắt mũi tên particle dẫn đường quest.");
-                openQuestDetails(player, questId, false);
+                toggleWaypointParticles(player, () -> openQuestDetails(player, questId, false));
             }
             return;
         }
@@ -2151,6 +2123,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     completedByPlayer.computeIfAbsent(playerId, ignored -> ConcurrentHashMap.newKeySet())
                         .add(quest.id());
                     if (result.completed()) {
+                        player.sendTitle("§6§lNHIỆM VỤ HOÀN THÀNH",
+                            "§e" + quest.title() + " §8• §b+" + quest.experienceReward()
+                                + " EXP §8• §6+" + quest.vncoinReward() + " VNCOIN",
+                            10, 70, 20);
                         player.sendMessage("§6Hoàn thành nhiệm vụ: §f" + quest.title()
                             + " §7(thưởng " + quest.vncoinReward() + " VNCOIN, "
                             + quest.experienceReward() + " EXP)");
@@ -2248,15 +2224,33 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             Map.Entry<String, PlayerProfileDatabaseManager.QuestProgress> tracked = active.entrySet().stream()
                 .filter(entry -> entry.getValue().tracked() && definitions.containsKey(entry.getKey()))
                 .findFirst().orElse(null);
-            if (tracked == null) continue;
+            if (tracked == null) {
+                clearWaypointHint(player);
+                continue;
+            }
             QuestDefinition quest = definitions.get(tracked.getKey());
-            if (plugin.getNpcManager() == null) continue;
-            var target = plugin.getNpcManager().getNpcTarget(quest.giverNpcId());
-            if (target.isEmpty()) continue;
+            int objectiveIndex = currentObjectiveIndex(tracked.getValue(), quest);
+            QuestObjective objective = quest.objectives().get(objectiveIndex);
+            String targetNpcId = switch (objective.type()) {
+                case VISIT_NPC -> objective.itemId();
+                case SUBMIT_EXACT_ITEM -> quest.giverNpcId();
+                default -> null;
+            };
+            if (targetNpcId == null || plugin.getNpcManager() == null) {
+                QuestWaypointRenderer.forget(player.getUniqueId());
+                clearWaypointHint(player);
+                continue;
+            }
+            var target = plugin.getNpcManager().getNpcTarget(targetNpcId);
+            if (target.isEmpty()) {
+                QuestWaypointRenderer.forget(player.getUniqueId());
+                clearWaypointHint(player);
+                continue;
+            }
             Location destination = target.get().location();
             if (destination == null || destination.getWorld() != player.getWorld()) {
                 sendTrackingHint(player, "§eĐi tới thế giới §f" + target.get().world()
-                    + " §eđể gặp NPC giao nhiệm vụ.");
+                    + " §eđể gặp NPC mục tiêu.");
                 continue;
             }
             if (!particlesEnabled || !areQuestWaypointParticlesEnabled(player)) {
@@ -2277,12 +2271,68 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         return stored == null || stored != 0;
     }
 
+    private void toggleWaypointParticles(Player player, Runnable reopen) {
+        boolean enabled = !areQuestWaypointParticlesEnabled(player);
+        player.getPersistentDataContainer().set(waypointParticlesKey, PersistentDataType.BYTE,
+            enabled ? (byte) 1 : (byte) 0);
+        player.saveData();
+        if (!enabled) {
+            QuestWaypointRenderer.forget(player.getUniqueId());
+            player.sendActionBar(" ");
+        }
+        player.sendMessage(enabled ? "§aĐã bật mũi tên particle dẫn đường quest."
+            : "§eĐã tắt mũi tên particle dẫn đường quest.");
+        reopen.run();
+    }
+
+    private void toggleQuestTracking(Player player, String questId, Runnable reopen) {
+        UUID playerId = player.getUniqueId();
+        PlayerProfileDatabaseManager.QuestProgress progress = activeByPlayer
+            .getOrDefault(playerId, Map.of()).get(questId);
+        if (progress == null) {
+            reopen.run();
+            return;
+        }
+        boolean wasTracked = progress.tracked();
+        PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+        database.executeGameplayDatabaseTask("quest.journal-track player=" + player.getName()
+                + " quest=" + questId + " tracked=" + !wasTracked,
+                () -> wasTracked ? database.clearQuestTracking(playerId.toString(), questId)
+                    : database.setQuestTracked(playerId.toString(), questId))
+            .whenComplete((changed, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Quest] Could not update tracked quest "
+                        + questId + " for " + player.getName(), failure);
+                    if (player.isOnline()) player.sendMessage("§cKhông thể cập nhật quest đang theo dõi.");
+                    return;
+                }
+                if (!player.isOnline()) return;
+                if (changed) {
+                    Map<String, PlayerProfileDatabaseManager.QuestProgress> updated = new LinkedHashMap<>(
+                        activeByPlayer.getOrDefault(playerId, Map.of()));
+                    updated.replaceAll((id, value) -> new PlayerProfileDatabaseManager.QuestProgress(
+                        value.status(), value.currentStep(), value.startedAt(), value.completedAt(),
+                        value.rewardClaimed(), value.objectiveProgress(), !wasTracked && id.equals(questId)));
+                    activeByPlayer.put(playerId, Map.copyOf(updated));
+                    if (wasTracked) QuestWaypointRenderer.forget(playerId);
+                    player.sendMessage(wasTracked ? "§eĐã bỏ theo dõi quest."
+                        : "§aĐang theo dõi quest trên scoreboard.");
+                    refreshBoard(player);
+                }
+                reopen.run();
+            }));
+    }
+
     private void sendTrackingHint(Player player, String message) {
         long now = System.currentTimeMillis();
         long last = lastCrossWorldHint.getOrDefault(player.getUniqueId(), 0L);
         if (now - last < 2_000) return;
         player.sendActionBar(message);
         lastCrossWorldHint.put(player.getUniqueId(), now);
+    }
+
+    private void clearWaypointHint(Player player) {
+        if (lastCrossWorldHint.remove(player.getUniqueId()) != null) player.sendActionBar(" ");
     }
 
     private enum ObjectiveType { KILL_MOB, KILL_BOSS, COLLECT_RPG_ITEM, COLLECT_EXACT_ITEM, SUBMIT_EXACT_ITEM, VISIT_NPC }
@@ -2448,6 +2498,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         private final int page;
         private String npcId;
         private final Map<Integer, String> questSlots = new LinkedHashMap<>();
+        private final Map<Integer, String> trackingSlots = new LinkedHashMap<>();
         private Inventory inventory;
         private boolean navigating;
 

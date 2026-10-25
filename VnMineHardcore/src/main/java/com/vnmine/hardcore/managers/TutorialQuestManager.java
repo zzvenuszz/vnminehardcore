@@ -585,6 +585,10 @@ public final class TutorialQuestManager implements Listener {
                 if ("character-exp".equals(quest.reward().type())) {
                     previousProfile.ifPresent(profile -> sendLevelUpFeedback(player, profile));
                 }
+                String rewardUnit = "vncoin".equals(quest.reward().type()) ? " VNCOIN" : " EXP";
+                player.sendTitle("§6§lNHIỆM VỤ HOÀN THÀNH",
+                    "§e" + quest.title() + " §8• §6+" + quest.reward().amount() + rewardUnit,
+                    10, 70, 20);
                 player.sendMessage("§a§lNhiệm vụ hoàn thành: §f" + quest.title());
                 player.sendMessage("§7" + quest.objective().completeMessage());
                 player.sendMessage("§ePhần thưởng: +" + quest.reward().amount()
