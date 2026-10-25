@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -16,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
@@ -49,9 +51,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
+import org.bukkit.scheduler.BukkitRunnable;
 
 public final class SkillManager implements Listener, CommandExecutor, TabCompleter {
     private static final String ADMIN_PERMISSION = "vnmine.command.skillbook.admin";
@@ -59,7 +61,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         "blade-flare", "guard-break", "shield-wall", "taunt", "fire-bolt", "arcane-field");
     private static final Set<String> IMPLEMENTED_PASSIVES = Set.of("battle-focus", "fortify", "mana-flow");
 
-    private final JavaPlugin plugin;
+    private final VnMineHardcore plugin;
     private final PlayerProfileDatabaseManager database;
     private final ConfigManager config;
     private final NamespacedKey bookIdKey;
@@ -72,8 +74,11 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private final Map<UUID, Integer> manaFlowRanks = new HashMap<>();
     private final Map<UUID, Long> manaFlowLastCastAt = new HashMap<>();
     private final Set<UUID> mouseDropInteractions = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> pendingSkillCasts = new java.util.HashSet<>();
+    private final Set<UUID> pendingBookUses = new java.util.HashSet<>();
+    private final Set<UUID> pendingSkillUpgrades = new java.util.HashSet<>();
 
-    public SkillManager(JavaPlugin plugin, PlayerProfileDatabaseManager database, ConfigManager config) {
+    public SkillManager(VnMineHardcore plugin, PlayerProfileDatabaseManager database, ConfigManager config) {
         this.plugin = plugin;
         this.database = database;
         this.config = config;
@@ -88,6 +93,10 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     @EventHandler(ignoreCancelled = true)
     public void onQuickCastKey(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
+        if (pendingBookUses.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+            return;
+        }
         if (mouseDropInteractions.remove(player.getUniqueId()) || !isQuickCastKeyEnabled()) return;
         Inventory topInventory = player.getOpenInventory().getTopInventory();
         if (!(topInventory.getHolder() instanceof QuickCastHolder)
@@ -102,6 +111,10 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onQuickCastInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (pendingBookUses.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+            return;
+        }
 
         if (event.getClickedInventory() == null
                 && (event.getAction() == InventoryAction.DROP_ALL_CURSOR
@@ -148,7 +161,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         if (holder.screen == QuickCastScreen.QUICK_BAR) {
             int selectedSlot = quickBarSlot(event.getSlot());
             if (selectedSlot < 1) return;
-            String assignedSkill = getQuickSlots(player).get(selectedSlot);
+            String assignedSkill = holder.assignedSlots.get(selectedSlot);
             if (assignedSkill == null) {
                 openSkillPicker(player, selectedSlot);
             } else if (event.isRightClick()) {
@@ -240,32 +253,33 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
 
     private void refreshPassiveRanks(Player player) {
         UUID playerId = player.getUniqueId();
-        try {
+        database.executeGameplayDatabaseTask("skill.passive-ranks player=" + player.getName(), () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
                 database.getPlayerProfile(playerId.toString());
-            if (profile.isEmpty() || !profile.get().active()) {
-                battleFocusRanks.remove(playerId);
-                fortifyRanks.remove(playerId);
-                fortifyStates.remove(playerId);
-                manaFlowRanks.remove(playerId);
-                manaFlowLastCastAt.remove(playerId);
-                return;
-            }
-            List<PlayerProfileDatabaseManager.SkillProgress> learned =
-                database.getLearnedSkills(playerId.toString());
-            setCachedPassiveRank(playerId, "battle-focus", "swordsman", profile.get().selectedClass(), learned);
-            setCachedPassiveRank(playerId, "fortify", "guardian", profile.get().selectedClass(), learned);
-            setCachedPassiveRank(playerId, "mana-flow", "mage", profile.get().selectedClass(), learned);
-        } catch (SQLException exception) {
+            if (profile.isEmpty() || !profile.get().active()) return null;
+            return new PassiveRankSnapshot(profile.get().selectedClass(),
+                database.getLearnedSkills(playerId.toString()));
+        }).whenComplete((snapshot, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
             battleFocusRanks.remove(playerId);
             fortifyRanks.remove(playerId);
             fortifyStates.remove(playerId);
             manaFlowRanks.remove(playerId);
             manaFlowLastCastAt.remove(playerId);
-            plugin.getLogger().log(Level.SEVERE, "Could not load RPG passive ranks for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải nội tại RPG. Hãy thử vào lại sau.");
-        }
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not load RPG passive ranks for "
+                    + player.getName() + ".", failure);
+                if (player.isOnline()) player.sendMessage("§cKhông thể tải nội tại RPG. Hãy thử vào lại sau.");
+                return;
+            }
+            if (snapshot == null) return;
+            setCachedPassiveRank(playerId, "battle-focus", "swordsman", snapshot.selectedClass(), snapshot.learned());
+            setCachedPassiveRank(playerId, "fortify", "guardian", snapshot.selectedClass(), snapshot.learned());
+            setCachedPassiveRank(playerId, "mana-flow", "mage", snapshot.selectedClass(), snapshot.learned());
+        }));
+    }
+
+    private record PassiveRankSnapshot(String selectedClass,
+                                       List<PlayerProfileDatabaseManager.SkillProgress> learned) {
     }
 
     private void setCachedPassiveRank(UUID playerId, String skillId, String classId,
@@ -330,16 +344,9 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     }
 
     private boolean hasActiveRpgProfile(Player player) {
-        try {
-            Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
-                database.getPlayerProfile(player.getUniqueId().toString());
-            return profile.isPresent() && profile.get().active();
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not check RPG profile before opening quick cast for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải hồ sơ RPG; thao tác thả vật phẩm vẫn hoạt động bình thường.");
-            return false;
-        }
+        return plugin.getCharacterSelectionManager() != null
+            && plugin.getCharacterSelectionManager().getLoadedProfile(player.getUniqueId())
+                .filter(PlayerProfileDatabaseManager.PlayerProfile::active).isPresent();
     }
 
     private void scheduleQuickCastToggle(Player player) {
@@ -354,25 +361,49 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     }
 
     private void openQuickCast(Player player) {
-        try {
+        UUID playerId = player.getUniqueId();
+        debugFeature("[RPG-DEBUG][SkillUI] quick-cast-open player=" + player.getName());
+        database.executeGameplayDatabaseTask("skill.quick-cast-menu player=" + player.getName(), () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
-                database.getPlayerProfile(player.getUniqueId().toString());
-            if (profile.isEmpty() || !profile.get().active()) {
+                database.getPlayerProfile(playerId.toString());
+            if (profile.isEmpty() || !profile.get().active()) return null;
+            Map<Integer, String> slots = database.getQuickSkillSlots(playerId.toString());
+            Map<String, Integer> ranks = new HashMap<>();
+            for (PlayerProfileDatabaseManager.SkillProgress progress
+                    : database.getLearnedSkills(playerId.toString())) {
+                ranks.put(progress.skillId(), progress.rank());
+            }
+            return new QuickCastData(slots, ranks);
+        }).whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not load RPG data for Quick Cast: "
+                    + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể tải hồ sơ RPG. Hãy thử lại sau.");
+                return;
+            }
+            debugFeature("[RPG-DEBUG][SkillUI] quick-cast-data player=" + player.getName()
+                + ", loaded=" + (data != null)
+                + (data == null ? "" : ", assignedSlots=" + data.slots().size()
+                    + ", learnedSkills=" + data.ranks().size()));
+            if (data == null) {
                 player.sendMessage("§cBạn cần tạo nhân vật RPG trước khi dùng Quick Cast.");
                 return;
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not load RPG profile for Quick Cast: "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải hồ sơ RPG. Hãy thử lại sau.");
-            return;
-        }
-        Map<Integer, String> assignedSlots = getQuickSlots(player);
+            renderQuickCast(player, data);
+        }));
+    }
+
+    private record QuickCastData(Map<Integer, String> slots, Map<String, Integer> ranks) {
+    }
+
+    private void renderQuickCast(Player player, QuickCastData data) {
         QuickCastHolder holder = new QuickCastHolder(QuickCastScreen.QUICK_BAR, 0);
+        holder.assignedSlots = data.slots();
         Inventory inventory = Bukkit.createInventory(holder, 9, "§6Quick Cast");
         holder.inventory = inventory;
         for (int slot = 1; slot <= 9; slot++) {
-            String skillId = assignedSlots.get(slot);
+            String skillId = data.slots().get(slot);
             SkillDefinitionLoader.SkillDefinition skill = skillId == null ? null : registry.skills().get(skillId);
             ItemStack icon;
             if (skill == null) {
@@ -383,7 +414,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                 icon.setItemMeta(meta);
             } else {
                 icon = createSkillIcon(skill, "§eSlot " + slot + " §8| §f" + skill.displayName(),
-                    List.of("§7Rank " + findSkillRank(player, skill.id()), "§7Hồi chiêu: "
+                    List.of("§7Rank " + data.ranks().getOrDefault(skill.id(), 0), "§7Hồi chiêu: "
                         + cooldownRemainingSeconds(player, skill.id()) + " giây",
                         "§bMana: " + skill.manaCost(),
                         "§aNhấp trái để cast", "§cNhấp phải để bỏ gán"));
@@ -394,23 +425,37 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     }
 
     private void openSkillTree(Player player) {
-        PlayerProfileDatabaseManager.PlayerProfile profile;
-        List<PlayerProfileDatabaseManager.SkillProgress> learned;
-        try {
+        UUID playerId = player.getUniqueId();
+        debugFeature("[RPG-DEBUG][SkillUI] tree-open player=" + player.getName());
+        database.executeGameplayDatabaseTask("skill.tree-menu player=" + player.getName(), () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> loaded =
-                database.getPlayerProfile(player.getUniqueId().toString());
-            if (loaded.isEmpty() || !loaded.get().active()) {
+                database.getPlayerProfile(playerId.toString());
+            if (loaded.isEmpty() || !loaded.get().active()) return null;
+            return new ProfileSkills(loaded.get(), database.getLearnedSkills(playerId.toString()));
+        }).whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not load skill tree for "
+                    + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể tải cây kỹ năng. Hãy thử lại sau.");
+            } else if (data == null) {
+                debugFeature("[RPG-DEBUG][SkillUI] tree-data player=" + player.getName() + ", loaded=false");
                 player.sendMessage("§cBạn cần tạo nhân vật RPG trước khi mở cây kỹ năng.");
-                return;
+            } else {
+                debugFeature("[RPG-DEBUG][SkillUI] tree-data player=" + player.getName()
+                    + ", loaded=true, class=" + data.profile().selectedClass()
+                    + ", learnedSkills=" + data.learned().size());
+                renderSkillTree(player, data.profile(), data.learned());
             }
-            profile = loaded.get();
-            learned = database.getLearnedSkills(player.getUniqueId().toString());
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not load skill tree for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải cây kỹ năng. Hãy thử lại sau.");
-            return;
-        }
+        }));
+    }
+
+    private record ProfileSkills(PlayerProfileDatabaseManager.PlayerProfile profile,
+                                 List<PlayerProfileDatabaseManager.SkillProgress> learned) {
+    }
+
+    private void renderSkillTree(Player player, PlayerProfileDatabaseManager.PlayerProfile profile,
+                                 List<PlayerProfileDatabaseManager.SkillProgress> learned) {
         Map<String, Integer> ranks = new HashMap<>();
         learned.forEach(skill -> ranks.put(skill.skillId(), skill.rank()));
         List<SkillDefinitionLoader.SkillDefinition> classSkills = registry.skills().values().stream()
@@ -480,30 +525,34 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             player.sendMessage("§cSách kỹ năng này hiện không khả dụng.");
             return;
         }
-        try {
-            boolean learned = database.getLearnedSkills(player.getUniqueId().toString()).stream()
-                .anyMatch(progress -> progress.skillId().equals(book.skillId()));
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("skill.npc-book-check player=" + player.getName(),
+                () -> database.getLearnedSkills(playerId.toString()).stream()
+                .anyMatch(progress -> progress.skillId().equals(book.skillId())))
+            .whenComplete((learned, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not check learned skills before NPC book grant for "
+                    + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể kiểm tra kỹ năng đã học. Hãy thử lại sau.");
+                return;
+            }
             if (learned) {
                 player.sendMessage("§eBạn đã học kỹ năng này rồi.");
                 return;
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not check learned skills before NPC book grant for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể kiểm tra kỹ năng đã học. Hãy thử lại sau.");
-            return;
-        }
-        for (ItemStack item : player.getInventory().getContents()) {
-            if (bookId.equals(getBookId(item))) {
-                player.sendMessage("§eBạn đã có sách kỹ năng này trong túi đồ.");
+            for (ItemStack item : player.getInventory().getContents()) {
+                if (bookId.equals(getBookId(item))) {
+                    player.sendMessage("§eBạn đã có sách kỹ năng này trong túi đồ.");
+                    return;
+                }
+            }
+            if (!player.getInventory().addItem(createSkillBook(book)).isEmpty()) {
+                player.sendMessage("§cTúi đồ đã đầy; không thể nhận sách kỹ năng.");
                 return;
             }
-        }
-        if (!player.getInventory().addItem(createSkillBook(book)).isEmpty()) {
-            player.sendMessage("§cTúi đồ đã đầy; không thể nhận sách kỹ năng.");
-            return;
-        }
-        player.sendMessage("§aBạn nhận được sách kỹ năng §e" + book.displayName() + "§a.");
+            player.sendMessage("§aBạn nhận được sách kỹ năng §e" + book.displayName() + "§a.");
+        }));
     }
 
     public List<SkillDefinitionLoader.SkillBookDefinition> getSkillBooks() {
@@ -536,25 +585,40 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private void openSkillDetails(Player player, String skillId) {
         SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(skillId);
         if (!isSkillSupported(skill)) return;
-        PlayerProfileDatabaseManager.PlayerProfile profile;
-        int rank;
-        try {
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("skill.details-menu player=" + player.getName()
+                + " skill=" + skillId, () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> loaded =
-                database.getPlayerProfile(player.getUniqueId().toString());
-            if (loaded.isEmpty() || !loaded.get().active()) {
-                player.sendMessage("§cBạn cần tạo nhân vật RPG trước.");
-                return;
-            }
-            profile = loaded.get();
-            rank = database.getLearnedSkills(player.getUniqueId().toString()).stream()
+                database.getPlayerProfile(playerId.toString());
+            if (loaded.isEmpty() || !loaded.get().active()) return null;
+            int rank = database.getLearnedSkills(playerId.toString()).stream()
                 .filter(progress -> progress.skillId().equals(skillId))
                 .mapToInt(PlayerProfileDatabaseManager.SkillProgress::rank).findFirst().orElse(0);
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not load skill details for " + skillId
-                + " and " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải chi tiết kỹ năng. Hãy thử lại sau.");
-            return;
-        }
+            return new SkillDetailsData(loaded.get(), rank);
+        }).whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not load skill details for " + skillId
+                    + " and " + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể tải chi tiết kỹ năng. Hãy thử lại sau.");
+            } else if (data == null) {
+                debugFeature("[RPG-DEBUG][SkillUI] details-data player=" + player.getName()
+                    + ", skill=" + skillId + ", loaded=false");
+                player.sendMessage("§cBạn cần tạo nhân vật RPG trước.");
+            } else {
+                debugFeature("[RPG-DEBUG][SkillUI] details-data player=" + player.getName()
+                    + ", skill=" + skillId + ", rank=" + data.rank()
+                    + ", class=" + data.profile().selectedClass());
+                renderSkillDetails(player, skill, skillId, data.profile(), data.rank());
+            }
+        }));
+    }
+
+    private record SkillDetailsData(PlayerProfileDatabaseManager.PlayerProfile profile, int rank) {
+    }
+
+    private void renderSkillDetails(Player player, SkillDefinitionLoader.SkillDefinition skill, String skillId,
+                                    PlayerProfileDatabaseManager.PlayerProfile profile, int rank) {
         QuickCastHolder holder = new QuickCastHolder(QuickCastScreen.SKILL_DETAILS, 0, skillId);
         Inventory inventory = Bukkit.createInventory(holder, 27, "§6Chi tiết: " + skill.displayName());
         holder.inventory = inventory;
@@ -619,10 +683,25 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private void upgradeSkill(Player player, String skillId) {
         SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(skillId);
         if (skill == null || (skill.passive() && !IMPLEMENTED_PASSIVES.contains(skill.id()))) return;
-        try {
-            PlayerProfileDatabaseManager.SkillUpgradeResult result = database.upgradeSkill(
-                player.getUniqueId().toString(), skillId, skill.classId(),
-                skill.requiredLevel(), skill.maxRank());
+        UUID playerId = player.getUniqueId();
+        if (!pendingSkillUpgrades.add(playerId)) {
+            player.sendMessage("§eĐang xử lý nâng cấp kỹ năng. Vui lòng chờ một chút.");
+            return;
+        }
+        database.executeGameplayDatabaseTask("skill.upgrade player=" + player.getName()
+                + " skill=" + skillId, () -> database.upgradeSkill(
+                playerId.toString(), skillId, skill.classId(), skill.requiredLevel(), skill.maxRank()))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            pendingSkillUpgrades.remove(playerId);
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not upgrade skill " + skillId
+                    + " for " + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể nâng kỹ năng. Skill point chưa bị trừ.");
+                return;
+            }
+            debugFeature("[RPG-DEBUG][SkillUpgrade] player=" + player.getName()
+                + ", skill=" + skillId + ", result=" + result);
             switch (result) {
                 case UPGRADED -> {
                     if (skill.passive()) {
@@ -637,34 +716,28 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                 case REQUIREMENTS_NOT_MET -> player.sendMessage("§cChưa đạt cấp yêu cầu cho rank kế tiếp.");
                 case PROFILE_NOT_FOUND -> player.sendMessage("§cKhông tìm thấy hồ sơ nhân vật đang hoạt động.");
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not upgrade skill " + skillId
-                + " for " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể nâng kỹ năng. Skill point chưa bị trừ.");
-        }
-    }
-
-    private Optional<PlayerProfileDatabaseManager.ManaState> getManaState(Player player) {
-        try {
-            return database.getManaState(player.getUniqueId().toString(), config.rpgMaxMana,
-                config.rpgManaRegenerationPerSecond, System.currentTimeMillis());
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not load mana for " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải mana. Hãy thử lại sau.");
-            return Optional.empty();
-        }
+        }));
     }
 
     private void openSkillPicker(Player player, int selectedSlot) {
-        List<PlayerProfileDatabaseManager.SkillProgress> learned;
-        try {
-            learned = database.getLearnedSkills(player.getUniqueId().toString());
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not load learned skills for quick-slot assignment: "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải kỹ năng. Hãy thử lại sau.");
-            return;
-        }
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("skill.quick-slot-picker player=" + player.getName(),
+                () -> database.getLearnedSkills(playerId.toString()))
+            .whenComplete((learned, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE,
+                        "Could not load learned skills for quick-slot assignment: " + player.getName() + ".",
+                        failure);
+                    player.sendMessage("§cKhông thể tải kỹ năng. Hãy thử lại sau.");
+                    return;
+                }
+                renderSkillPicker(player, selectedSlot, learned);
+            }));
+    }
+
+    private void renderSkillPicker(Player player, int selectedSlot,
+                                   List<PlayerProfileDatabaseManager.SkillProgress> learned) {
         List<SkillDefinitionLoader.SkillDefinition> available = learned.stream()
             .map(progress -> registry.skills().get(progress.skillId()))
             .filter(skill -> skill != null && !skill.passive() && CAST_HANDLERS.contains(skill.id()))
@@ -714,17 +787,6 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         return inventorySlot >= 0 && inventorySlot < 9 ? inventorySlot + 1 : -1;
     }
 
-    private Map<Integer, String> getQuickSlots(Player player) {
-        try {
-            return database.getQuickSkillSlots(player.getUniqueId().toString());
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not load quick skill slots for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải quick slots. Hãy thử lại sau.");
-            return Map.of();
-        }
-    }
-
     private void assignQuickSlot(Player player, int slot, String skillId) {
         SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(skillId);
         if (skill == null || slot < 1 || slot > 9) return;
@@ -732,9 +794,20 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             player.sendMessage("§cKỹ năng này chưa hỗ trợ quick cast.");
             return;
         }
-        try {
-            PlayerProfileDatabaseManager.QuickSlotResult result = database.assignQuickSkill(
-                player.getUniqueId().toString(), slot, skill.id(), skill.classId());
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("skill.quick-slot-assign player=" + player.getName()
+                + " slot=" + slot + " skill=" + skillId, () -> database.assignQuickSkill(
+                playerId.toString(), slot, skill.id(), skill.classId()))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not assign skill " + skillId + " to slot "
+                    + slot + " for " + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể lưu quick slot. Hãy thử lại sau.");
+                return;
+            }
+            debugFeature("[RPG-DEBUG][QuickSlot] assign player=" + player.getName()
+                + ", slot=" + slot + ", skill=" + skillId + ", result=" + result);
             switch (result) {
                 case ASSIGNED -> {
                     player.sendMessage("§aĐã gán §e" + skill.displayName() + "§a vào slot " + slot + ".");
@@ -749,159 +822,285 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                 case PROFILE_NOT_FOUND ->
                     player.sendMessage("§cBạn cần tạo nhân vật RPG trước khi gán kỹ năng.");
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not assign skill " + skillId + " to slot "
-                + slot + " for " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể lưu quick slot. Hãy thử lại sau.");
-        }
+        }));
     }
 
     private void clearQuickSlot(Player player, int slot) {
-        try {
-            if (database.clearQuickSkillSlot(player.getUniqueId().toString(), slot)) {
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("skill.quick-slot-clear player=" + player.getName()
+                + " slot=" + slot, () -> database.clearQuickSkillSlot(playerId.toString(), slot))
+            .whenComplete((cleared, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not clear quick slot " + slot
+                    + " for " + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể lưu thay đổi quick slot.");
+                return;
+            }
+            debugFeature("[RPG-DEBUG][QuickSlot] clear player=" + player.getName()
+                + ", slot=" + slot + ", changed=" + cleared);
+            if (cleared) {
                 player.sendMessage("§aĐã bỏ gán kỹ năng ở slot " + slot + ".");
             }
             openQuickCast(player);
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not clear quick slot " + slot
-                + " for " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể lưu thay đổi quick slot.");
-        }
+        }));
     }
 
     private void castQuickSlot(Player player, int slot) {
-        Map<Integer, String> quickSlots;
-        try {
-            quickSlots = database.getQuickSkillSlots(player.getUniqueId().toString());
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not load quick skill slots before cast for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải quick slots. Hãy thử lại sau.");
-            return;
-        }
-        String skillId = quickSlots.get(slot);
-        if (skillId == null) {
-            player.sendMessage("§7Slot " + slot + " chưa được gán kỹ năng.");
-            return;
-        }
-        castSkill(player, skillId);
+        UUID playerId = player.getUniqueId();
+        debugFeature("[RPG-DEBUG][SkillCast] quick-slot-read player=" + player.getName()
+            + ", slot=" + slot);
+        database.executeGameplayDatabaseTask("skill.quick-slot-cast player=" + player.getName(),
+                () -> database.getQuickSkillSlots(playerId.toString()))
+            .whenComplete((quickSlots, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "Could not load quick skill slots before cast for "
+                        + player.getName() + ".", failure);
+                    player.sendMessage("§cKhông thể tải quick slots. Hãy thử lại sau.");
+                    return;
+                }
+                String skillId = quickSlots.get(slot);
+                debugFeature("[RPG-DEBUG][SkillCast] quick-slot-result player=" + player.getName()
+                    + ", slot=" + slot + ", skill=" + (skillId == null ? "empty" : skillId));
+                if (skillId == null) {
+                    player.sendMessage("§7Slot " + slot + " chưa được gán kỹ năng.");
+                    return;
+                }
+                castSkill(player, skillId);
+            }));
     }
 
     private void castSkill(Player player, String skillId) {
+        long castStartedAt = System.nanoTime();
+        debugCast(player, skillId, "started");
         SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(skillId);
         if (!isSkillSupported(skill) || skill.passive()) {
+            debugCast(player, skillId, "rejected: unsupported or passive skill");
             player.sendMessage("§cKỹ năng này không thể cast.");
             return;
         }
-        Optional<PlayerProfileDatabaseManager.PlayerProfile> profile;
-        List<PlayerProfileDatabaseManager.SkillProgress> learned;
-        try {
-            profile = database.getPlayerProfile(player.getUniqueId().toString());
-            learned = database.getLearnedSkills(player.getUniqueId().toString());
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not validate skill cast " + skillId
-                + " for " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể xác minh kỹ năng. Hãy thử lại sau.");
-            return;
-        }
-        if (profile.isEmpty() || !profile.get().active()
-                || !skill.classId().equals(profile.get().selectedClass())) {
-            player.sendMessage("§cKỹ năng không dành cho class hiện tại.");
-            return;
-        }
-        int rank = learned.stream().filter(progress -> progress.skillId().equals(skillId))
-            .mapToInt(PlayerProfileDatabaseManager.SkillProgress::rank).findFirst().orElse(0);
-        if (rank < 1) {
-            player.sendMessage("§cBạn chưa học kỹ năng này.");
-            return;
-        }
+        debugCast(player, skillId, "definition class=" + skill.classId() + ", manaCost="
+            + skill.manaCost() + ", cooldownSeconds=" + skill.cooldownSeconds());
         long remaining = cooldownRemainingMillis(player, skillId);
         if (remaining > 0) {
+            debugCast(player, skillId, "rejected: cooldown remaining " + remaining + "ms");
             player.sendMessage("§e" + skill.displayName() + " hồi chiêu còn "
                 + ((remaining + 999) / 1000) + " giây.");
             return;
         }
+        long targetCheckStartedAt = System.nanoTime();
         if (!hasValidCastTarget(player, skill)) {
+            debugCast(player, skillId, "rejected: no valid target");
             player.sendMessage("§eKhông có mục tiêu hợp lệ trong phạm vi kỹ năng.");
             return;
         }
-        try {
-            PlayerProfileDatabaseManager.ManaSpendResult manaResult = database.spendMana(
-                player.getUniqueId().toString(), skill.manaCost(), config.rpgMaxMana,
-                config.rpgManaRegenerationPerSecond, System.currentTimeMillis());
-            if (manaResult == PlayerProfileDatabaseManager.ManaSpendResult.PROFILE_NOT_FOUND) {
+        debugCast(player, skillId, "valid target, checkMs=" + elapsedMillis(targetCheckStartedAt));
+        UUID playerId = player.getUniqueId();
+        if (!pendingSkillCasts.add(playerId)) {
+            debugCast(player, skillId, "rejected: another skill cast is waiting for the database");
+            return;
+        }
+        long databaseSubmittedAt = System.nanoTime();
+        database.executeGameplayDatabaseTask("skill.cast-spend player=" + player.getName() + " skill=" + skillId,
+                () -> database.spendManaForSkillCast(
+                playerId.toString(), skill.id(), skill.classId(), skill.manaCost(), config.rpgMaxMana,
+                config.rpgManaRegenerationPerSecond, System.currentTimeMillis()))
+            .whenComplete((castState, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    pendingSkillCasts.remove(playerId);
+                    plugin.getLogger().log(Level.SEVERE, "Could not validate/spend mana for skill " + skillId
+                        + " cast by " + player.getName() + ".", failure);
+                    if (player.isOnline()) player.sendMessage("§cKhông thể dùng mana. Kỹ năng chưa được cast.");
+                    return;
+                }
+                logDatabaseCallbackLatency(player, skillId, castState.status(), databaseSubmittedAt);
+                debugCast(player, skillId, "database-result=" + castState.status()
+                    + (castState.manaState() == null ? "" : ", mana=" + castState.manaState().currentMana()
+                        + "/" + castState.manaState().maxMana())
+                    + ", rank=" + castState.rank());
+                if (!player.isOnline()) {
+                    pendingSkillCasts.remove(playerId);
+                    if (castState.status() == PlayerProfileDatabaseManager.SkillCastStatus.SPENT) {
+                        refundManaAsync(playerId, skill.manaCost(), null, skillId, player.getName());
+                    }
+                    return;
+                }
+                finishSkillCast(player, skill, castState, castStartedAt);
+            }));
+    }
+
+    private void finishSkillCast(Player player, SkillDefinitionLoader.SkillDefinition skill,
+                                 PlayerProfileDatabaseManager.SkillCastResult castState,
+                                 long castStartedAt) {
+        UUID playerId = player.getUniqueId();
+        switch (castState.status()) {
+            case PROFILE_NOT_FOUND -> {
+                pendingSkillCasts.remove(playerId);
                 player.sendMessage("§cKhông tìm thấy hồ sơ nhân vật đang hoạt động.");
                 return;
             }
-            if (manaResult == PlayerProfileDatabaseManager.ManaSpendResult.NOT_ENOUGH_MANA) {
-                Optional<PlayerProfileDatabaseManager.ManaState> current = getManaState(player);
-                player.sendMessage("§cKhông đủ mana"
-                    + (current.isEmpty() ? "." : " (" + current.get().currentMana()
-                        + "/" + current.get().maxMana() + ")."));
+            case CLASS_MISMATCH -> {
+                pendingSkillCasts.remove(playerId);
+                player.sendMessage("§cKỹ năng không dành cho class hiện tại.");
                 return;
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not spend mana for skill " + skillId
-                + " cast by " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể dùng mana. Kỹ năng chưa được cast.");
+            case SKILL_NOT_LEARNED -> {
+                pendingSkillCasts.remove(playerId);
+                player.sendMessage("§cBạn chưa học kỹ năng này.");
+                return;
+            }
+            case NOT_ENOUGH_MANA -> {
+                pendingSkillCasts.remove(playerId);
+                PlayerProfileDatabaseManager.ManaState state = castState.manaState();
+                if (state != null) showManaActionBar(player, state);
+                player.sendMessage("§cKhông đủ mana" + (state == null ? "."
+                    : " (" + state.currentMana() + "/" + state.maxMana() + ")."));
+                return;
+            }
+            case SPENT -> { }
+        }
+
+        if (!hasValidCastTarget(player, skill)) {
+            debugCast(player, skill.id(), "target-recheck=failed, manaRefund=" + skill.manaCost());
+            refundManaAsync(playerId, skill.manaCost(), player, skill.id(), player.getName());
             return;
         }
-        boolean castSucceeded = applySkillEffect(player, skill, rank);
+        boolean castSucceeded;
+        try {
+            castSucceeded = applySkillEffect(player, skill, castState.rank());
+        } catch (RuntimeException exception) {
+            castSucceeded = false;
+            plugin.getLogger().log(Level.SEVERE, "Skill effect threw an exception after mana was spent: skill="
+                + skill.id() + ", player=" + player.getName() + ". Mana refund will be attempted.", exception);
+        }
+        debugCast(player, skill.id(), "effect=" + (castSucceeded ? "applied" : "failed")
+            + ", elapsedMs=" + elapsedMillis(castStartedAt));
         if (!castSucceeded) {
-            try {
-                Optional<PlayerProfileDatabaseManager.ManaRestoreResult> refund = database.restoreMana(
-                    player.getUniqueId().toString(), skill.manaCost(), config.rpgMaxMana,
-                    config.rpgManaRegenerationPerSecond, System.currentTimeMillis());
-                if (refund.isEmpty()) {
-                    plugin.getLogger().severe("Could not refund mana after failed skill cast " + skillId
-                        + " for " + player.getName() + ": active profile was not found.");
-                    player.sendMessage("§cKỹ năng không kích hoạt được và chưa thể hoàn mana. Hãy báo quản trị viên.");
-                    return;
-                }
-            } catch (SQLException exception) {
-                plugin.getLogger().log(Level.SEVERE, "Could not refund mana after failed skill cast " + skillId
-                    + " for " + player.getName() + ".", exception);
-                player.sendMessage("§cKỹ năng không kích hoạt được; lỗi hoàn mana đã được ghi nhận. Hãy báo quản trị viên.");
-                return;
-            }
-            player.sendMessage("§eKỹ năng không kích hoạt được. Mana đã được hoàn lại; hồi chiêu không bắt đầu.");
+            refundManaAsync(playerId, skill.manaCost(), player, skill.id(), player.getName());
             return;
         }
+
+        pendingSkillCasts.remove(playerId);
         long castAt = System.currentTimeMillis();
-        int manaFlowRank = manaFlowRanks.getOrDefault(player.getUniqueId(), 0);
-        long previousManaFlowCast = manaFlowLastCastAt.getOrDefault(player.getUniqueId(), 0L);
+        int manaFlowRank = manaFlowRanks.getOrDefault(playerId, 0);
+        long previousManaFlowCast = manaFlowLastCastAt.getOrDefault(playerId, 0L);
         boolean manaFlowChain = manaFlowRank > 0
             && isManaFlowChain(previousManaFlowCast, castAt, config.rpgManaFlowChainWindowSeconds);
-        manaFlowLastCastAt.put(player.getUniqueId(), castAt);
-        if (manaFlowChain) {
-            restoreManaFlow(player, manaFlowRank);
-        }
-        cooldowns.computeIfAbsent(player.getUniqueId(), ignored -> new HashMap<>())
-            .put(skillId, castAt + skill.cooldownSeconds() * 1000L);
+        manaFlowLastCastAt.put(playerId, castAt);
+        cooldowns.computeIfAbsent(playerId, ignored -> new HashMap<>())
+            .put(skill.id(), castAt + skill.cooldownSeconds() * 1000L);
         player.sendMessage("§aĐã cast §e" + skill.displayName() + "§a §8| §b-" + skill.manaCost() + " mana");
+        debugCast(player, skill.id(), "completed, elapsedMs=" + elapsedMillis(castStartedAt));
+        if (manaFlowChain) restoreManaFlowAsync(player, manaFlowRank, castState.manaState());
+        else if (castState.manaState() != null) showManaActionBar(player, castState.manaState());
     }
 
-    private void restoreManaFlow(Player player, int rank) {
+    private void refundManaAsync(UUID playerId, int amount, Player player, String skillId, String playerName) {
+        database.executeGameplayDatabaseTask("skill.refund player=" + playerName + " skill=" + skillId,
+                () -> database.restoreMana(
+                playerId.toString(), amount, config.rpgMaxMana,
+                config.rpgManaRegenerationPerSecond, System.currentTimeMillis()))
+            .whenComplete((refund, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                pendingSkillCasts.remove(playerId);
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "Could not refund mana after failed skill cast "
+                        + skillId + " for " + playerName + ".", failure);
+                    if (player != null && player.isOnline()) {
+                        player.sendMessage("§cKỹ năng không kích hoạt được; lỗi hoàn mana đã được ghi nhận. Hãy báo quản trị viên.");
+                    }
+                    return;
+                }
+                if (refund.isEmpty()) {
+                    plugin.getLogger().severe("Could not refund mana after failed skill cast " + skillId
+                        + " for " + playerName + ": active profile was not found.");
+                    if (player != null && player.isOnline()) {
+                        player.sendMessage("§cKỹ năng không kích hoạt được và chưa thể hoàn mana. Hãy báo quản trị viên.");
+                    }
+                    return;
+                }
+                debugFeature("[RPG-DEBUG][SkillCast] refund-result player=" + playerName
+                    + ", skill=" + skillId + ", mana=" + refund.get().state().currentMana()
+                    + "/" + refund.get().state().maxMana());
+                if (player != null && player.isOnline()) {
+                    showManaActionBar(player, refund.get().state());
+                    player.sendMessage("§eKỹ năng không kích hoạt được. Mana đã được hoàn lại; hồi chiêu không bắt đầu.");
+                }
+            }));
+    }
+
+    private void restoreManaFlowAsync(Player player, int rank,
+                                      PlayerProfileDatabaseManager.ManaState currentState) {
         int restoreAmount = calculateManaFlowRestore(rank, config.rpgManaFlowManaPerChainCastPerRank);
-        if (restoreAmount == 0) return;
-        try {
-            Optional<PlayerProfileDatabaseManager.ManaRestoreResult> result = database.restoreMana(
-                player.getUniqueId().toString(), restoreAmount, config.rpgMaxMana,
-                config.rpgManaRegenerationPerSecond, System.currentTimeMillis());
-            if (result.isEmpty()) {
-                plugin.getLogger().warning("Mana Flow could not restore mana because the active profile "
-                    + "was not found for " + player.getName() + ".");
-                player.sendMessage("§cCast thành công nhưng Mạch Pháp không tìm thấy hồ sơ để hồi mana.");
-                return;
-            }
-            int restored = result.get().restoredAmount();
-            if (restored > 0) {
-                player.sendMessage("§dMạch Pháp: +" + restored + " mana.");
-            }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not restore Mana Flow mana for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cCast thành công nhưng Mạch Pháp không thể hồi mana lần này.");
+        if (restoreAmount == 0) {
+            if (currentState != null) showManaActionBar(player, currentState);
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("skill.mana-flow player=" + player.getName(),
+                () -> database.restoreMana(
+                playerId.toString(), restoreAmount, config.rpgMaxMana,
+                config.rpgManaRegenerationPerSecond, System.currentTimeMillis()))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "Could not restore Mana Flow mana for "
+                        + player.getName() + ".", failure);
+                    player.sendMessage("§cCast thành công nhưng Mạch Pháp không thể hồi mana lần này.");
+                    if (currentState != null) showManaActionBar(player, currentState);
+                    return;
+                }
+                if (result.isEmpty()) {
+                    plugin.getLogger().warning("Mana Flow could not restore mana because the active profile "
+                        + "was not found for " + player.getName() + ".");
+                    player.sendMessage("§cCast thành công nhưng Mạch Pháp không tìm thấy hồ sơ để hồi mana.");
+                    if (currentState != null) showManaActionBar(player, currentState);
+                    return;
+                }
+                debugFeature("[RPG-DEBUG][ManaFlow] player=" + player.getName()
+                    + ", requested=" + restoreAmount + ", restored=" + result.get().restoredAmount()
+                    + ", mana=" + result.get().state().currentMana() + "/" + result.get().state().maxMana());
+                showManaActionBar(player, result.get().state());
+                if (result.get().restoredAmount() > 0) {
+                    player.sendMessage("§dMạch Pháp: +" + result.get().restoredAmount() + " mana.");
+                }
+            }));
+    }
+
+    private void debugCast(Player player, String skillId, String detail) {
+        if (config.consoleDebug) {
+            plugin.getLogger().info("[RPG-DEBUG][SkillCast] player=" + player.getName()
+                + ", skill=" + skillId + ", " + detail);
+        }
+    }
+
+    private void debugFeature(String message) {
+        if (config.consoleDebug) plugin.getLogger().info(message);
+    }
+
+    private long elapsedMillis(long startedAtNanos) {
+        return (System.nanoTime() - startedAtNanos) / 1_000_000L;
+    }
+
+    private void showManaActionBar(Player player, PlayerProfileDatabaseManager.ManaState state) {
+        int segments = 10;
+        int filled = Math.max(0, Math.min(segments,
+            (int) Math.round((double) state.currentMana() / state.maxMana() * segments)));
+        String bar = "§b" + "▰".repeat(filled) + "§8" + "▱".repeat(segments - filled);
+        player.sendActionBar("§3✦ Mana §f" + state.currentMana() + "/" + state.maxMana() + " " + bar);
+        debugCast(player, "mana", "actionbar-shown=" + state.currentMana() + "/" + state.maxMana());
+    }
+
+    private void logDatabaseCallbackLatency(Player player, String skillId,
+                                            PlayerProfileDatabaseManager.SkillCastStatus status,
+                                            long submittedAtNanos) {
+        long durationMillis = elapsedMillis(submittedAtNanos);
+        debugCast(player, skillId, "transaction=" + status + ", taskToMainCallbackMs=" + durationMillis
+            + " (includes queue, DB and scheduler handoff)");
+        if (durationMillis >= 250) {
+            plugin.getLogger().warning("[RPG-PERF][SkillCast] responseLatencyMs=" + durationMillis
+                + ", includes queue/DB/main-thread handoff, player=" + player.getName()
+                + ", skill=" + skillId + ", status=" + status);
         }
     }
 
@@ -912,7 +1111,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             case "shield-wall" -> true;
             case "taunt" -> player.getNearbyEntities(8, 5, 8).stream().anyMatch(Monster.class::isInstance);
             case "fire-bolt" -> findRayTarget(player, 20.0, 0.4) != null;
-            case "arcane-field" -> !getArcaneFieldTargets(player).isEmpty();
+            case "arcane-field" -> !getMeteorTargets(getArcaneFieldCenter(player)).isEmpty();
             default -> false;
         };
     }
@@ -985,21 +1184,137 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     }
 
     private boolean castArcaneField(Player player, int rank) {
-        org.bukkit.Location center = getArcaneFieldCenter(player);
-        List<LivingEntity> targets = getArcaneFieldTargets(player);
+        Location center = getArcaneFieldCenter(player);
+        List<Monster> targets = getMeteorTargets(center);
+        debugCast(player, "arcane-field", "center=" + center.getBlockX() + "," + center.getBlockY()
+            + "," + center.getBlockZ() + ", initialTargets=" + targets.size() + ", rank=" + rank);
         if (targets.isEmpty()) return false;
-        for (LivingEntity target : targets) {
-            target.damage(1.5 + rank, player);
-            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1, true, true, true));
-        }
-        player.getWorld().spawnParticle(Particle.PORTAL, center, 50, 1.5, 0.5, 1.5, 0.2);
-        player.playSound(center, Sound.BLOCK_BEACON_ACTIVATE, 0.7f, 1.6f);
+        startMeteorShower(player, center, rank);
         return true;
     }
 
-    private List<LivingEntity> getArcaneFieldTargets(Player player) {
-        return player.getWorld().getNearbyEntities(getArcaneFieldCenter(player), 3.0, 2.0, 3.0).stream()
-            .filter(Monster.class::isInstance).map(LivingEntity.class::cast).toList();
+    private List<Monster> getMeteorTargets(Location center) {
+        return center.getWorld().getNearbyEntities(center, 5.0, 4.0, 5.0).stream()
+            .filter(Monster.class::isInstance).map(Monster.class::cast).toList();
+    }
+
+    private void startMeteorShower(Player caster, Location center, int rank) {
+        org.bukkit.World world = center.getWorld();
+        Location strikeCenter = center.clone();
+        Set<java.util.UUID> damagedTargets = new HashSet<>();
+        int meteorCount = 5 + rank;
+        double damage = 8.0 + rank * 2.0;
+        debugCast(caster, "arcane-field", "warning=started, meteorCount=" + meteorCount
+            + ", damagePerTarget=" + damage + ", center=" + strikeCenter.getBlockX() + ","
+            + strikeCenter.getBlockY() + "," + strikeCenter.getBlockZ() + ", terrainChanges=false");
+
+        new BukkitRunnable() {
+            private int elapsedTicks;
+
+            @Override
+            public void run() {
+                if (!world.isChunkLoaded(strikeCenter.getBlockX() >> 4, strikeCenter.getBlockZ() >> 4)) {
+                    if (caster.isOnline()) debugCast(caster, "arcane-field", "cancelled=chunk-unloaded");
+                    cancel();
+                    return;
+                }
+                if (elapsedTicks < 20 && elapsedTicks % 2 == 0) {
+                    spawnMeteorWarning(world, strikeCenter);
+                }
+                if (elapsedTicks == 0) {
+                    caster.playSound(strikeCenter, Sound.BLOCK_BEACON_POWER_SELECT, 0.8f, 0.7f);
+                }
+                if (elapsedTicks == 20) {
+                    for (int index = 0; index < meteorCount; index++) {
+                        Location impact = getMeteorImpact(strikeCenter, index, meteorCount);
+                        if (caster.isOnline()) debugCast(caster, "arcane-field", "meteor-launch="
+                            + (index + 1) + "/" + meteorCount + ", impact=" + impact.getBlockX() + ","
+                            + impact.getBlockY() + "," + impact.getBlockZ());
+                        launchMeteor(caster.getUniqueId(), world, impact, index * 5L, damage, damagedTargets);
+                    }
+                    cancel();
+                }
+                elapsedTicks++;
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    private void spawnMeteorWarning(org.bukkit.World world, Location center) {
+        double radius = 4.5;
+        for (int point = 0; point < 20; point++) {
+            double angle = Math.PI * 2.0 * point / 20.0;
+            Location marker = center.clone().add(Math.cos(angle) * radius, 0.15,
+                Math.sin(angle) * radius);
+            world.spawnParticle(Particle.END_ROD, marker, 1, 0, 0, 0, 0);
+        }
+        world.spawnParticle(Particle.PORTAL, center.clone().add(0, 0.2, 0), 10,
+            1.4, 0.05, 1.4, 0.02);
+    }
+
+    private Location getMeteorImpact(Location center, int index, int count) {
+        if (index == 0) return center.clone();
+        double angle = index * 2.399963229728653;
+        double radius = 4.0 * Math.sqrt(index / (double) (count - 1));
+        return center.clone().add(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+    }
+
+    private void launchMeteor(java.util.UUID casterId, org.bukkit.World world, Location impact,
+                              long delayTicks, double damage, Set<java.util.UUID> damagedTargets) {
+        double driftAngle = (impact.getX() * 0.17 + impact.getZ() * 0.11) % (Math.PI * 2.0);
+        Vector drift = new Vector(Math.cos(driftAngle) * 5.0, 10.0,
+            Math.sin(driftAngle) * 5.0);
+        Location start = impact.clone().add(drift);
+        Vector travel = impact.toVector().subtract(start.toVector());
+        double distance = travel.length();
+        Vector direction = travel.normalize();
+        int flightTicks = Math.max(1, (int) Math.ceil(distance / 1.5));
+
+        new BukkitRunnable() {
+            private int tick;
+
+            @Override
+            public void run() {
+                if (tick > flightTicks) {
+                    landMeteor(casterId, world, impact, damage, damagedTargets);
+                    cancel();
+                    return;
+                }
+                Location point = start.clone().add(direction.clone().multiply(distance * tick / flightTicks));
+                world.spawnParticle(Particle.FLAME, point, 5, 0.12, 0.12, 0.12, 0.01);
+                world.spawnParticle(Particle.SMOKE, point, 2, 0.08, 0.08, 0.08, 0.01);
+                if (tick == 0) world.playSound(start, Sound.ENTITY_BLAZE_SHOOT, 0.5f, 0.8f);
+                tick++;
+            }
+        }.runTaskTimer(plugin, delayTicks, 1L);
+    }
+
+    private void landMeteor(java.util.UUID casterId, org.bukkit.World world, Location impact,
+                            double damage, Set<java.util.UUID> damagedTargets) {
+        if (!world.isChunkLoaded(impact.getBlockX() >> 4, impact.getBlockZ() >> 4)) return;
+        world.spawnParticle(Particle.EXPLOSION, impact, 1);
+        world.spawnParticle(Particle.FLAME, impact.clone().add(0, 0.2, 0), 28, 1.1, 0.25, 1.1, 0.03);
+        world.spawnParticle(Particle.SMOKE, impact.clone().add(0, 0.2, 0), 16, 0.9, 0.3, 0.9, 0.02);
+        world.playSound(impact, Sound.ENTITY_GENERIC_EXPLODE, 0.65f, 1.2f);
+
+        Player caster = Bukkit.getPlayer(casterId);
+        int affectedCount = 0;
+        for (Entity entity : world.getNearbyEntities(impact, 2.6, 2.2, 2.6)) {
+            if (!(entity instanceof Monster target) || !damagedTargets.add(target.getUniqueId())) continue;
+            if (caster != null && caster.isOnline()) target.damage(damage, caster);
+            else target.damage(damage);
+            affectedCount++;
+            if (caster != null && caster.isOnline()) {
+                debugCast(caster, "arcane-field", "target-hit=" + target.getType()
+                    + ", entityId=" + target.getUniqueId() + ", damage=" + damage
+                    + ", healthAfter=" + Math.max(0.0, target.getHealth()));
+            }
+            target.setFireTicks(Math.max(target.getFireTicks(), 60));
+            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 0, true, true, true));
+        }
+        if (caster != null && caster.isOnline()) {
+            debugCast(caster, "arcane-field", "meteor-landed=" + impact.getBlockX() + ","
+                + impact.getBlockY() + "," + impact.getBlockZ() + ", affected=" + affectedCount);
+        }
     }
 
     private org.bukkit.Location getArcaneFieldCenter(Player player) {
@@ -1008,18 +1323,6 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         RayTraceResult blockHit = player.getWorld().rayTraceBlocks(eyeLocation, direction, 12.0);
         return blockHit == null ? eyeLocation.add(direction.multiply(12))
             : blockHit.getHitPosition().toLocation(player.getWorld());
-    }
-
-    private int findSkillRank(Player player, String skillId) {
-        try {
-            return database.getLearnedSkills(player.getUniqueId().toString()).stream()
-                .filter(progress -> progress.skillId().equals(skillId))
-                .mapToInt(PlayerProfileDatabaseManager.SkillProgress::rank).findFirst().orElse(0);
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.WARNING, "Could not read rank for skill " + skillId
-                + " for " + player.getName() + ".", exception);
-            return 0;
-        }
     }
 
     private long cooldownRemainingMillis(Player player, String skillId) {
@@ -1048,10 +1351,20 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             throw new IOException("Skill definitions or skill books are invalid; see the log for details.");
         }
         registry = loaded.get();
+        List<String> unsupportedActiveSkills = registry.skills().values().stream()
+            .filter(skill -> !skill.passive() && !CAST_HANDLERS.contains(skill.id()))
+            .map(SkillDefinitionLoader.SkillDefinition::id).toList();
+        if (!unsupportedActiveSkills.isEmpty()) {
+            throw new IOException("Active skills have no runtime cast handler: "
+                + String.join(", ", unsupportedActiveSkills) + ". Remove or implement them before enabling.");
+        }
         registry.skills().values().stream()
-            .filter(skill -> !isSkillSupported(skill))
-            .forEach(skill -> plugin.getLogger().warning("[Skills] Skill '" + skill.id()
-                + "' has no runtime handler and will not be available to players."));
+            .filter(skill -> skill.passive() && !IMPLEMENTED_PASSIVES.contains(skill.id()))
+            .forEach(skill -> plugin.getLogger().warning("[Skills] Passive skill '" + skill.id()
+                + "' has no runtime implementation; it remains unavailable and cannot be upgraded."));
+        plugin.getLogger().info("[Skills] Registry ready: skills=" + registry.skills().size()
+            + ", books=" + registry.books().size() + ", playableClasses=" + getPlayableClassIds().size()
+            + ", castHandlers=" + CAST_HANDLERS.size() + ", passiveHandlers=" + IMPLEMENTED_PASSIVES.size());
         Bukkit.getOnlinePlayers().forEach(this::refreshPassiveRanks);
     }
 
@@ -1085,34 +1398,52 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             player.sendMessage("§cKỹ năng trong sách hiện chưa được triển khai; sách chưa bị tiêu thụ.");
             return;
         }
-        Optional<PlayerProfileDatabaseManager.PlayerProfile> profile;
-        try {
-            profile = database.getPlayerProfile(player.getUniqueId().toString());
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not load RPG profile while learning skill book "
-                + bookId + " for " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể đọc hồ sơ nhân vật. Sách chưa bị tiêu thụ; hãy thử lại sau.");
+        UUID playerId = player.getUniqueId();
+        if (!pendingBookUses.add(playerId)) {
+            debugFeature("[RPG-DEBUG][SkillBook] use-skipped player=" + player.getName()
+                + ", skill=" + skill.id() + ", reason=already-pending");
             return;
         }
-        if (profile.isEmpty() || !profile.get().active()) {
-            player.sendMessage("§cBạn cần tạo nhân vật RPG trước khi học kỹ năng.");
-            return;
-        }
-        if (!skill.classId().equals(profile.get().selectedClass())) {
-            player.sendMessage("§cKỹ năng này chỉ dành cho class §e" + skill.classId() + "§c. Sách chưa bị tiêu thụ.");
-            return;
-        }
-        if (profile.get().level() < skill.requiredLevel()) {
-            player.sendMessage("§cCần đạt cấp " + skill.requiredLevel() + " để học kỹ năng này. Sách chưa bị tiêu thụ.");
-            return;
-        }
-
-        try {
-            PlayerProfileDatabaseManager.SkillLearnResult result = database.learnSkill(
-                player.getUniqueId().toString(), skill.id(), skill.classId(), skill.requiredLevel(),
-                Instant.now().toString());
+        debugFeature("[RPG-DEBUG][SkillBook] learn-start player=" + player.getName()
+            + ", skill=" + skill.id() + ", book=" + book.id());
+        database.executeGameplayDatabaseTask("skill.book-learn player=" + player.getName()
+                + " skill=" + skill.id(), () -> database.learnSkill(
+                playerId.toString(), skill.id(), skill.classId(), skill.requiredLevel(), Instant.now().toString()))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            pendingBookUses.remove(playerId);
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not save learned skill " + skill.id()
+                    + " for " + player.getName() + ".", failure);
+                if (player.isOnline()) {
+                    player.sendMessage("§cKhông thể lưu kỹ năng. Sách chưa bị tiêu thụ; hãy thử lại sau.");
+                }
+                return;
+            }
+            debugFeature("[RPG-DEBUG][SkillBook] learn-result player=" + player.getName()
+                + ", skill=" + skill.id() + ", result=" + result);
+            if (result == PlayerProfileDatabaseManager.SkillLearnResult.LEARNED && !player.isOnline()) {
+                database.executeGameplayDatabaseTask("skill.book-rollback player=" + player.getName()
+                        + " skill=" + skill.id(), () -> database.rollbackNewSkillLearn(
+                    playerId.toString(), skill.id())).whenComplete((rolledBack, rollbackFailure) -> {
+                        if (rollbackFailure != null || !Boolean.TRUE.equals(rolledBack)) {
+                            plugin.getLogger().log(Level.SEVERE, "Could not roll back a skill book learn "
+                                + "after player " + player.getName() + " disconnected.", rollbackFailure);
+                        }
+                    });
+                return;
+            }
+            if (!player.isOnline()) return;
             switch (result) {
                 case LEARNED -> {
+                    if (!bookId.equals(getBookId(player.getInventory().getItemInMainHand()))) {
+                        plugin.getLogger().severe("Skill book disappeared during async learn for "
+                            + player.getName() + "; learned skill will be rolled back.");
+                        database.executeGameplayDatabaseTask("skill.book-rollback player=" + player.getName()
+                                + " skill=" + skill.id(), () -> database.rollbackNewSkillLearn(
+                            playerId.toString(), skill.id()));
+                        player.sendMessage("§cKhông thể xác nhận sách trong tay. Kỹ năng đã được hoàn tác.");
+                        return;
+                    }
                     consumeOneFromMainHand(player);
                     if (skill.passive()) {
                         if (skill.id().equals("battle-focus")) {
@@ -1132,11 +1463,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                 case PROFILE_NOT_FOUND ->
                     player.sendMessage("§cKhông tìm thấy hồ sơ nhân vật đang hoạt động. Sách chưa bị tiêu thụ.");
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not save learned skill " + skill.id()
-                + " for " + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể lưu kỹ năng. Sách chưa bị tiêu thụ; hãy thử lại sau.");
-        }
+        }));
     }
 
     static boolean isSkillBookUseAction(EquipmentSlot hand, Action action) {
@@ -1160,6 +1487,8 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        debugFeature("[RPG-DEBUG][Command] command=/" + command.getName() + ", sender="
+            + sender.getName() + ", args=" + String.join(" ", args));
         if (command.getName().equalsIgnoreCase("vnskills")) {
             return handleSkillsCommand(sender, args);
         }
@@ -1187,31 +1516,36 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             openSkillTree(player);
             return true;
         }
-        try {
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("skill.command-list player=" + player.getName(), () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
-                database.getPlayerProfile(player.getUniqueId().toString());
-            if (profile.isEmpty() || !profile.get().active()) {
+                database.getPlayerProfile(playerId.toString());
+            if (profile.isEmpty() || !profile.get().active()) return null;
+            return new ProfileSkills(profile.get(), database.getLearnedSkills(playerId.toString()));
+        }).whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not list learned skills for "
+                    + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể tải danh sách kỹ năng. Hãy thử lại sau.");
+                return;
+            }
+            if (data == null) {
                 player.sendMessage("§cBạn cần tạo nhân vật RPG trước.");
-                return true;
+                return;
             }
-            List<PlayerProfileDatabaseManager.SkillProgress> learned =
-                database.getLearnedSkills(player.getUniqueId().toString());
-            player.sendMessage("§6§lKỹ năng nhân vật §7| §e" + profile.get().selectedClass()
-                + " §7| Cấp " + profile.get().level());
-            if (learned.isEmpty()) {
+            player.sendMessage("§6§lKỹ năng nhân vật §7| §e" + data.profile().selectedClass()
+                + " §7| Cấp " + data.profile().level());
+            if (data.learned().isEmpty()) {
                 player.sendMessage("§7Chưa học kỹ năng nào. Dùng sách kỹ năng phù hợp với class của bạn.");
-                return true;
+                return;
             }
-            for (PlayerProfileDatabaseManager.SkillProgress progress : learned) {
+            for (PlayerProfileDatabaseManager.SkillProgress progress : data.learned()) {
                 SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(progress.skillId());
                 String name = skill == null ? progress.skillId() : skill.displayName();
                 player.sendMessage("§a• §f" + name + " §7- Rank " + progress.rank());
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not list learned skills for "
-                + player.getName() + ".", exception);
-            player.sendMessage("§cKhông thể tải danh sách kỹ năng. Hãy thử lại sau.");
-        }
+        }));
         return true;
     }
 
@@ -1301,6 +1635,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         private final int selectedSlot;
         private final String selectedSkillId;
         private Inventory inventory;
+        private Map<Integer, String> assignedSlots = Map.of();
 
         private QuickCastHolder(QuickCastScreen screen, int selectedSlot) {
             this(screen, selectedSlot, null);

@@ -412,7 +412,7 @@ public class EnvironmentListener implements Listener {
                 if (!(hasTorch && config.claustrophobiaTorchReducePercent >= 1.0)) {
                     player.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 100, Math.max(0, claustroAmp + 1)));
                     player.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 100, Math.max(0, claustroAmp)));
-                    player.sendActionBar("§0§l🕳 SỢ HẦM! §7Ngột ngạt dưới lòng đất...");
+                    player.sendActionBar("§5§l🕳 SỢ HẦM! §7Ngột ngạt dưới lòng đất...");
                 }
             }
         }

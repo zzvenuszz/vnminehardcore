@@ -34,6 +34,7 @@ public final class TutorialQuestManager implements Listener {
     private final File definitionFile;
     private final Map<UUID, Boolean> activeQuestSessions = new HashMap<>();
     private final Map<UUID, Long> lastWaypointAtMillis = new HashMap<>();
+    private final java.util.Set<UUID> pendingQuestCompletions = new java.util.HashSet<>();
     private TutorialQuestDefinitionLoader.TutorialQuestDefinition definition;
 
     public TutorialQuestManager(VnMineHardcore plugin) {
@@ -105,19 +106,34 @@ public final class TutorialQuestManager implements Listener {
             player.sendMessage("§cKhông thể tải nhật ký nhiệm vụ. Dữ liệu của bạn vẫn được giữ.");
             return;
         }
-        try {
+        UUID playerId = player.getUniqueId();
+        debugQuest("journal-open-start player=" + player.getName() + ", quest=" + definition.id());
+        TutorialQuestDefinitionLoader.TutorialQuestDefinition quest = definition;
+        database.executeGameplayDatabaseTask("quest.journal player=" + player.getName(), () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
-                database.getPlayerProfile(player.getUniqueId().toString());
+                database.getPlayerProfile(playerId.toString());
             boolean hasActiveProfile = profile.isPresent() && profile.get().active();
             Optional<PlayerProfileDatabaseManager.QuestProgress> progress = hasActiveProfile
-                ? database.getQuestProgress(player.getUniqueId().toString(), definition.id())
+                ? database.getQuestProgress(playerId.toString(), quest.id())
                 : Optional.empty();
-            openJournalInventory(player, hasActiveProfile, progress);
-        } catch (java.sql.SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "[Quest] Failed to open quest journal for " +
-                player.getName(), exception);
-            player.sendMessage("§cKhông thể tải nhật ký nhiệm vụ. Dữ liệu của bạn vẫn được giữ.");
-        }
+            return new QuestJournalData(hasActiveProfile, progress);
+        }).whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "[Quest] Failed to open quest journal for " +
+                    player.getName(), failure);
+                player.sendMessage("§cKhông thể tải nhật ký nhiệm vụ. Dữ liệu của bạn vẫn được giữ.");
+                return;
+            }
+            debugQuest("journal-open-result player=" + player.getName() + ", activeProfile="
+                + data.hasActiveProfile() + ", status="
+                + data.progress().map(PlayerProfileDatabaseManager.QuestProgress::status).orElse("none"));
+            openJournalInventory(player, data.hasActiveProfile(), data.progress());
+        }));
+    }
+
+    private record QuestJournalData(boolean hasActiveProfile,
+                                    Optional<PlayerProfileDatabaseManager.QuestProgress> progress) {
     }
 
     @EventHandler
@@ -182,13 +198,16 @@ public final class TutorialQuestManager implements Listener {
 
     private void initializePlayer(Player player, boolean showReminder) {
         if (definition == null) return;
-        if (!definition.enabled()) {
+        TutorialQuestDefinitionLoader.TutorialQuestDefinition quest = definition;
+        if (!quest.enabled()) {
             UUID playerId = player.getUniqueId();
             activeQuestSessions.remove(playerId);
             lastWaypointAtMillis.remove(playerId);
             return;
         }
         UUID playerId = player.getUniqueId();
+        debugQuest("initialize-start player=" + player.getName() + ", quest=" + quest.id()
+            + ", reminder=" + showReminder);
         activeQuestSessions.remove(playerId);
         lastWaypointAtMillis.remove(playerId);
         PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
@@ -197,49 +216,73 @@ public final class TutorialQuestManager implements Listener {
             player.sendMessage("§cKhông thể tải nhiệm vụ hướng dẫn lúc này. Tiến trình của bạn vẫn được giữ.");
             return;
         }
-
-        try {
+        database.executeGameplayDatabaseTask("quest.initialize player=" + player.getName(), () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
                 database.getPlayerProfile(playerId.toString());
-            if (profile.isEmpty() || !profile.get().active()) return;
+            if (profile.isEmpty() || !profile.get().active()) return null;
 
             Optional<PlayerProfileDatabaseManager.QuestProgress> progress =
-                database.getQuestProgress(playerId.toString(), definition.id());
+                database.getQuestProgress(playerId.toString(), quest.id());
             boolean startedNow = false;
             if (progress.isEmpty()) {
                 String startedAt = Instant.now().toString();
-                if (database.startQuestProgress(playerId.toString(), definition.id(),
-                        definition.objective().id(), startedAt)) {
+                if (database.startQuestProgress(playerId.toString(), quest.id(),
+                        quest.objective().id(), startedAt)) {
                     startedNow = true;
                     progress = Optional.of(new PlayerProfileDatabaseManager.QuestProgress(
-                        "active", definition.objective().id(), startedAt, null, false));
+                        "active", quest.objective().id(), startedAt, null, false));
                 } else {
-                    progress = database.getQuestProgress(playerId.toString(), definition.id());
+                    progress = database.getQuestProgress(playerId.toString(), quest.id());
                 }
             }
 
-            if (progress.isEmpty()) return;
-            if ("completed".equals(progress.get().status())) {
-                if (!progress.get().rewardClaimed()
-                        && database.claimCompletedQuestExperienceReward(
-                            playerId.toString(), definition.id(), definition.reward().amount(), Instant.now().toString())) {
-                    plugin.getCharacterSelectionManager().refreshLoadedProfile(player);
-                    sendLevelUpFeedback(player, profile.get());
-                    player.sendMessage("§aPhần thưởng nhiệm vụ đã được lưu: §e+" +
-                        definition.reward().amount() + " EXP§a.");
+            boolean rewardClaimedNow = false;
+            PlayerProfileDatabaseManager.PlayerProfile updatedProfile = null;
+            if (progress.isPresent() && "completed".equals(progress.get().status())
+                    && !progress.get().rewardClaimed()) {
+                rewardClaimedNow = database.claimCompletedQuestExperienceReward(playerId.toString(),
+                    quest.id(), quest.reward().amount(), Instant.now().toString());
+                if (rewardClaimedNow) {
+                    updatedProfile = database.getPlayerProfile(playerId.toString()).orElse(null);
                 }
+            }
+            return new QuestInitData(profile.get(), progress, startedNow, rewardClaimedNow, updatedProfile);
+        }).whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "[Quest] Failed to initialize tutorial progress for " +
+                    player.getName(), failure);
+                player.sendMessage("§cKhông thể lưu/tải tiến trình nhiệm vụ. Dữ liệu của bạn vẫn được giữ.");
                 return;
             }
-            if (!"active".equals(progress.get().status())) return;
-            if (!definition.objective().id().equals(progress.get().currentStep())) {
+            if (data == null || data.progress().isEmpty()) {
+                debugQuest("initialize-result player=" + player.getName()
+                    + ", activeProfile=" + (data != null) + ", progress=none");
+                return;
+            }
+            debugQuest("initialize-result player=" + player.getName() + ", status="
+                + data.progress().get().status() + ", startedNow=" + data.startedNow()
+                + ", rewardClaimedNow=" + data.rewardClaimedNow());
+            if (data.rewardClaimedNow()) {
+                CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+                if (characters != null && data.updatedProfile() != null) {
+                    characters.updateLoadedProfile(data.updatedProfile());
+                }
+                sendLevelUpFeedback(player, data.profile());
+                player.sendMessage("§aPhần thưởng nhiệm vụ đã được lưu: §e+" + quest.reward().amount() + " EXP§a.");
+                return;
+            }
+            PlayerProfileDatabaseManager.QuestProgress progress = data.progress().get();
+            if (!"active".equals(progress.status())) return;
+            if (!quest.objective().id().equals(progress.currentStep())) {
                 plugin.getLogger().warning("[Quest] Active tutorial progress has an unknown objective ID for " +
                     player.getName() + "; saved progress was preserved.");
                 return;
             }
-            if (startedNow || showReminder) {
-                player.sendMessage("§6§l" + definition.title());
-                player.sendMessage("§7" + definition.description());
-                player.sendMessage("§e" + definition.objective().startMessage());
+            if (data.startedNow() || showReminder) {
+                player.sendMessage("§6§l" + quest.title());
+                player.sendMessage("§7" + quest.description());
+                player.sendMessage("§e" + quest.objective().startMessage());
             }
 
             boolean alreadyAtTarget = isAtObjective(player.getLocation());
@@ -249,11 +292,13 @@ public final class TutorialQuestManager implements Listener {
             } else {
                 showWaypoint(player, player.getLocation(), true);
             }
-        } catch (java.sql.SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "[Quest] Failed to initialize tutorial progress for " +
-                player.getName(), exception);
-            player.sendMessage("§cKhông thể lưu/tải tiến trình nhiệm vụ. Dữ liệu của bạn vẫn được giữ.");
-        }
+        }));
+    }
+
+    private record QuestInitData(PlayerProfileDatabaseManager.PlayerProfile profile,
+                                 Optional<PlayerProfileDatabaseManager.QuestProgress> progress,
+                                 boolean startedNow, boolean rewardClaimedNow,
+                                 PlayerProfileDatabaseManager.PlayerProfile updatedProfile) {
     }
 
     static boolean isWithinObjectiveRadius(double centerX, double centerZ, double x, double z, int radius) {
@@ -400,39 +445,78 @@ public final class TutorialQuestManager implements Listener {
     private void completeObjective(Player player) {
         if (definition == null) return;
         UUID playerId = player.getUniqueId();
-        try {
-            Optional<PlayerProfileDatabaseManager.PlayerProfile> previousProfile =
-                plugin.getCharacterSelectionManager().getLoadedProfile(playerId);
+        TutorialQuestDefinitionLoader.TutorialQuestDefinition quest = definition;
+        if (!pendingQuestCompletions.add(playerId)) {
+            debugQuest("complete-skipped player=" + player.getName() + ", quest=" + quest.id()
+                + ", reason=already-pending");
+            return;
+        }
+        debugQuest("complete-start player=" + player.getName() + ", quest=" + quest.id()
+            + ", rewardExp=" + quest.reward().amount());
+        Optional<PlayerProfileDatabaseManager.PlayerProfile> previousProfile =
+            plugin.getCharacterSelectionManager().getLoadedProfile(playerId);
+        plugin.getPlayerProfileDatabaseManager().executeGameplayDatabaseTask(
+            "quest.complete player=" + player.getName() + " quest=" + quest.id(), () -> {
             boolean completed = plugin.getPlayerProfileDatabaseManager().completeQuestAndAwardExperience(
-                playerId.toString(), definition.id(), "completed", definition.reward().amount(),
-                Instant.now().toString());
+                playerId.toString(), quest.id(), "completed", quest.reward().amount(), Instant.now().toString());
             if (completed) {
-                activeQuestSessions.remove(playerId);
-                lastWaypointAtMillis.remove(playerId);
-                plugin.getCharacterSelectionManager().refreshLoadedProfile(player);
-                previousProfile.ifPresent(profile -> sendLevelUpFeedback(player, profile));
-                player.sendMessage("§a§lNhiệm vụ hoàn thành: §f" + definition.title());
-                player.sendMessage("§7" + definition.objective().completeMessage());
-                player.sendMessage("§ePhần thưởng: +" + definition.reward().amount() + " EXP nhân vật.");
+                PlayerProfileDatabaseManager.PlayerProfile updated = plugin.getPlayerProfileDatabaseManager()
+                    .getPlayerProfile(playerId.toString()).orElse(null);
+                return new QuestCompletionData(true, Optional.empty(), updated);
+            }
+            Optional<PlayerProfileDatabaseManager.QuestProgress> progress =
+                plugin.getPlayerProfileDatabaseManager().getQuestProgress(playerId.toString(), quest.id());
+            return new QuestCompletionData(false, progress, null);
+        }).whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            pendingQuestCompletions.remove(playerId);
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "[Quest] Failed to complete tutorial objective for " +
+                    player.getName(), failure);
+                activeQuestSessions.put(playerId, true);
+                player.sendMessage("§cChưa thể lưu tiến trình nhiệm vụ. Hãy rời khu vực rồi quay lại để thử lại.");
                 return;
             }
-
-            Optional<PlayerProfileDatabaseManager.QuestProgress> progress =
-                plugin.getPlayerProfileDatabaseManager().getQuestProgress(playerId.toString(), definition.id());
-            if (progress.isPresent() && "completed".equals(progress.get().status())) {
+            if (result.completed()) {
+                debugQuest("complete-result player=" + player.getName() + ", quest=" + quest.id()
+                    + ", completed=true, exp=" + quest.reward().amount());
+                activeQuestSessions.remove(playerId);
+                lastWaypointAtMillis.remove(playerId);
+                CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+                if (characters != null && result.updatedProfile() != null) {
+                    characters.updateLoadedProfile(result.updatedProfile());
+                }
+                previousProfile.ifPresent(profile -> sendLevelUpFeedback(player, profile));
+                player.sendMessage("§a§lNhiệm vụ hoàn thành: §f" + quest.title());
+                player.sendMessage("§7" + quest.objective().completeMessage());
+                player.sendMessage("§ePhần thưởng: +" + quest.reward().amount() + " EXP nhân vật.");
+                return;
+            }
+            if (result.progress().isPresent() && "completed".equals(result.progress().get().status())) {
+                debugQuest("complete-result player=" + player.getName() + ", quest=" + quest.id()
+                    + ", completed=false, persistedStatus=completed");
                 activeQuestSessions.remove(playerId);
                 lastWaypointAtMillis.remove(playerId);
                 return;
             }
             plugin.getLogger().warning("[Quest] Could not complete tutorial objective for " +
                 player.getName() + "; the active progress remains available.");
+            debugQuest("complete-result player=" + player.getName() + ", quest=" + quest.id()
+                + ", completed=false, status="
+                + result.progress().map(PlayerProfileDatabaseManager.QuestProgress::status).orElse("missing"));
             activeQuestSessions.put(playerId, true);
             player.sendMessage("§cChưa thể lưu tiến trình nhiệm vụ. Hãy rời khu vực rồi quay lại để thử lại.");
-        } catch (java.sql.SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "[Quest] Failed to complete tutorial objective for " +
-                player.getName(), exception);
-            activeQuestSessions.put(playerId, true);
-            player.sendMessage("§cChưa thể lưu tiến trình nhiệm vụ. Hãy rời khu vực rồi quay lại để thử lại.");
+        }));
+    }
+
+    private record QuestCompletionData(boolean completed,
+                                       Optional<PlayerProfileDatabaseManager.QuestProgress> progress,
+                                       PlayerProfileDatabaseManager.PlayerProfile updatedProfile) {
+    }
+
+    private void debugQuest(String detail) {
+        if (plugin.getConfig().getBoolean("logging.console-debug", false)) {
+            plugin.getLogger().info("[RPG-DEBUG][Quest] " + detail);
         }
     }
 

@@ -691,7 +691,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     }
 
     private static String formatDisplayName(String displayName) {
-        return ChatColor.translateAlternateColorCodes('&', displayName);
+        return EconomyManager.sanitizeVisibleName(ChatColor.translateAlternateColorCodes('&', displayName));
     }
 
     private static String titleCase(String value) {

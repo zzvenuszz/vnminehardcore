@@ -628,7 +628,10 @@ public final class BossLeaderboardManager implements Listener {
                                      ConfigurationSection bookEnchantments) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return;
-        if (name != null && !name.isBlank()) meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', name));
+        if (name != null && !name.isBlank()) {
+            meta.setDisplayName(EconomyManager.sanitizeVisibleName(
+                ChatColor.translateAlternateColorCodes('&', name)));
+        }
         if (lore != null && !lore.isEmpty()) {
             meta.setLore(lore.stream().map(line -> ChatColor.translateAlternateColorCodes('&', line)).toList());
         }

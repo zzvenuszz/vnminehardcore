@@ -254,7 +254,7 @@ public class ConfigManager {
    public boolean renameEnabled;
    public String nameStructure;
    // Logging
-   public boolean consoleDebug;
+   public volatile boolean consoleDebug;
    public boolean logDeaths;
    public boolean logDisasters;
 
@@ -333,7 +333,7 @@ public class ConfigManager {
               CharacterProgression.DEFAULT_SKILL_POINTS_PER_LEVEL, 0, 10);
       this.rpgMaxMana = readBoundedInt("rpg.skills.mana.max-mana", 100, 1, 1000);
       this.rpgManaRegenerationPerSecond =
-          readBoundedInt("rpg.skills.mana.regeneration-per-second", 5, 0, 100);
+          readBoundedInt("rpg.skills.mana.regeneration-per-second", 1, 0, 100);
       this.rpgBattleFocusDamageBonusPerRank =
           readBoundedDouble(this.config, "rpg.skills.passives.battle-focus.damage-bonus-per-rank",
               0.03, 0.0, 0.10);
@@ -1028,7 +1028,7 @@ public class ConfigManager {
             DisasterConfig dc = new DisasterConfig();
             dc.enabled = section.getBoolean("enabled", true);
             dc.chance = section.getInt("chance", 5);
-            dc.name = section.getString("name", disasterId);
+            dc.name = EconomyManager.sanitizeVisibleName(section.getString("name", disasterId));
             dc.worlds = section.getStringList("conditions.worlds");
             dc.chatDescription = section.getString("chat-description", "");
             dc.effectIntervalSeconds = section.getInt("effect-interval-seconds", 5);
@@ -1036,7 +1036,7 @@ public class ConfigManager {
             dc.durationSeconds = section.getInt("duration-seconds", 600);
 
             // Custom title/subtitle for disaster start
-            dc.startTitle = section.getString("start-title", "");
+            dc.startTitle = EconomyManager.sanitizeVisibleName(section.getString("start-title", ""));
             dc.startSubtitle = section.getString("start-subtitle", "");
 
             // Earthquake specific
@@ -1529,7 +1529,8 @@ public class ConfigManager {
                   ConfigManager.BossConfig bc = new ConfigManager.BossConfig();
                   bc.enabled = section.getBoolean("enabled", true);
                   bc.entityType = section.getString("entity-type", "WITHER");
-                  bc.displayName = section.getString("display-name", "§c§lBoss");
+                  bc.displayName = EconomyManager.sanitizeVisibleName(
+                     section.getString("display-name", "§c§lBoss"));
                   bc.armyTokenClass = section.getString("army-token-class", "guardian");
                   if (bc.armyTokenClass == null || !bc.armyTokenClass.matches("[a-z0-9_]+")) {
                      this.plugin.getLogger().warning("[Boss] Invalid army-token-class in " + fileName + "; using guardian.");
@@ -1638,7 +1639,7 @@ public class ConfigManager {
                            dc.minAmount = dropSection.getInt("min-amount", 1);
                            dc.maxAmount = dropSection.getInt("max-amount", 1);
                            dc.chance = dropSection.getDouble("chance", 0.5);
-                           dc.name = dropSection.getString("name");
+                           dc.name = EconomyManager.sanitizeVisibleName(dropSection.getString("name"));
                            dc.lore = dropSection.getStringList("lore");
                            ConfigurationSection bookEnchants = dropSection.getConfigurationSection("book-enchantments");
                            if (bookEnchants != null) {
@@ -1663,7 +1664,8 @@ public class ConfigManager {
                   if (armorSetSection != null) {
                      ConfigManager.BossArmorSetConfig armorSet = new ConfigManager.BossArmorSetConfig();
                      armorSet.enabled = armorSetSection.getBoolean("enabled", true);
-                     armorSet.name = armorSetSection.getString("name", bc.displayName + " Di Vật");
+                     armorSet.name = EconomyManager.sanitizeVisibleName(
+                        armorSetSection.getString("name", bc.displayName + " Di Vật"));
                      armorSet.storyId = armorSetSection.getString("story-id");
                      double dropChance = armorSetSection.getDouble("drop-chance", this.bossArmorPieceDropChance);
                      if (!Double.isFinite(dropChance) || dropChance < 0.0 || dropChance > 1.0) {

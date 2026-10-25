@@ -268,19 +268,19 @@ skills:
     class-id: mage
     # [VI] Tên skill hiển thị; bắt buộc, không được để trống.
     # [EN] Skill display name; required and must not be blank.
-    display-name: "Trường Bí Thuật"
+    display-name: "Mưa Sao Băng"
     # [VI] Mô tả chức năng skill; bắt buộc, không được để trống.
     # [EN] Skill gameplay description; required and must not be blank.
-    description: "Tạo vùng ma lực làm suy yếu kẻ địch trong khu vực."
+    description: "Đánh dấu một vùng rộng, sau đó gọi mưa thiên thạch bay chéo xuống gây sát thương phép diện rộng."
     # [VI] Active được gán slot và chủ động cast; passive tự kích hoạt, không dùng slot.
     # [EN] Active skills are slotted and cast; passive skills trigger automatically without a slot.
     cast-type: active
     # [VI] Mặc định là giá trị bên dưới; active hợp lệ 1-120 giây, passive phải bằng 0.
     # [EN] Defaults to the value below; active range is 1-120 seconds, passives must be 0.
-    cooldown-seconds: 11
+    cooldown-seconds: 24
     # [VI] Mana tiêu hao; mặc định là giá trị dưới đây, hợp lệ 0-1000; passive phải bằng 0.
     # [EN] Mana cost; defaults to the value below, valid range 0-1000; passives must be 0.
-    mana-cost: 18
+    mana-cost: 30
     # [VI] Cấp nhân vật tối thiểu để học; hợp lệ từ 1 đến 30.
     # [EN] Minimum character level to learn; valid range is 1 to 30.
     required-level: 2
@@ -296,8 +296,8 @@ skills:
     # [VI] Lore truyền thừa của skill; từ 1 đến 20 dòng, mỗi dòng không rỗng.
     # [EN] Skill inheritance lore; 1 to 20 non-empty lines.
     lore:
-      - "Ma lực không mất đi; nó chỉ đổi hình dạng."
-      - "Một vùng kiểm soát tốt có thể thay đổi cả trận chiến."
+      - "Vùng rơi được đánh dấu trước khi thiên thạch trút xuống."
+      - "Thiên thạch gây sát thương lớn và không phá hủy địa hình."
 
   mana-flow:
     # [VI] ID class trong player-classes.yml; phải là ID chữ thường, số và dấu gạch ngang.

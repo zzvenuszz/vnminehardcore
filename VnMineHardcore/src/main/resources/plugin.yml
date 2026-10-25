@@ -131,6 +131,9 @@ commands:
   vnmenu:
     description: Mở menu chức năng của VnMineHardcore
     usage: /vnmenu
+  vncoin:
+    description: Xem ví, lịch sử hoặc quản trị tiền tệ VNCOIN
+    usage: /vncoin [balance|history [người_chơi]|give|take <người_chơi> <số> [lý_do]]
   quatanthu:
     description: Nhận túi quà tân thủ và chọn token triệu hồi bậc 1
     usage: /quatanthu
@@ -210,6 +213,12 @@ permissions:
     default: true
   vnmine.command.army.admin:
     description: Cho phép cấp và quản lý lính của người chơi bằng /vnarmy
+    default: op
+  vnmine.command.vncoin.admin:
+    description: Cho phép cộng hoặc trừ VNCOIN của người chơi
+    default: op
+  vnmine.command.vncoin.history.others:
+    description: Cho phép xem lịch sử giao dịch VNCOIN của người chơi khác
     default: op
   vnmine.command.skills:
     description: Cho phép xem kỹ năng RPG đã học bằng /vnskills

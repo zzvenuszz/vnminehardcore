@@ -15,9 +15,11 @@ import org.bukkit.scheduler.BukkitTask;
 import org.yaml.snakeyaml.error.YAMLException;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 
 public final class VnMineHardcore extends JavaPlugin {
@@ -25,7 +27,9 @@ public final class VnMineHardcore extends JavaPlugin {
     private static VnMineHardcore instance;
     private ConfigManager configManager;
     private PlayerProfileDatabaseManager playerProfileDatabaseManager;
+    private EconomyManager economyManager;
     private BukkitTask profileDatabaseBackupTask;
+    private final Set<String> registeredCommands = new HashSet<>();
     private CharacterSelectionManager characterSelectionManager;
     private RpgWorldManager rpgWorldManager;
     private TutorialQuestManager tutorialQuestManager;
@@ -62,6 +66,10 @@ public final class VnMineHardcore extends JavaPlugin {
     @Override
     public void onEnable() {
         var protocolLib = Bukkit.getPluginManager().getPlugin("ProtocolLib");
+        getLogger().info("[Compatibility] java=" + System.getProperty("java.version")
+            + ", server=" + Bukkit.getVersion() + ", bukkit=" + Bukkit.getBukkitVersion()
+            + ", protocolLib=" + (protocolLib == null ? "missing"
+                : protocolLib.getDescription().getVersion()));
         if (protocolLib == null) {
             getLogger().severe("ProtocolLib is required for VnMineHardcore.");
             Bukkit.getPluginManager().disablePlugin(this);
@@ -87,6 +95,9 @@ public final class VnMineHardcore extends JavaPlugin {
             configManager.profileDatabaseBackupRetentionCount,
             configManager.profileDatabaseWriteRetries,
             configManager.profileDatabaseWriteRetryDelayMillis);
+        this.playerProfileDatabaseManager.configureGameplayDatabaseDiagnostics(
+            getLogger(), () -> configManager.consoleDebug);
+        this.economyManager = new EconomyManager(this, playerProfileDatabaseManager);
         configureCharacterProgression();
         try {
             this.playerProfileDatabaseManager.initialize();
@@ -161,6 +172,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(rpgWorldManager, this);
         Bukkit.getPluginManager().registerEvents(tutorialQuestManager, this);
         Bukkit.getPluginManager().registerEvents(skillManager, this);
+        Bukkit.getPluginManager().registerEvents(economyManager, this);
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
         this.combatListener = new CombatListener(this, deathListener, configManager);
         this.environmentListener = new EnvironmentListener(this, configManager);
@@ -213,6 +225,7 @@ public final class VnMineHardcore extends JavaPlugin {
         registerCommand("quatanthu", mercenaryManager, mercenaryManager);
         registerCommand("vndeathhistory", deathHistoryManager, deathHistoryManager);
         registerCommand("vnportal", portalManager, portalManager);
+        registerCommand("vncoin", economyManager, economyManager);
         startProfileDatabaseBackupTask();
 
         getLogger().info("§a  VnMineHardcore enabled - Hell difficulty!");
@@ -225,12 +238,21 @@ public final class VnMineHardcore extends JavaPlugin {
 
     private void registerCommand(String name, org.bukkit.command.CommandExecutor executor,
                                  TabCompleter tabCompleter) {
+        String normalizedName = name.toLowerCase(Locale.ROOT);
+        if (!registeredCommands.add(normalizedName)) {
+            throw new IllegalStateException("Command '/" + normalizedName + "' was registered more than once.");
+        }
         PluginCommand pluginCommand = getCommand(name);
         if (pluginCommand == null) {
             throw new IllegalStateException("Command '/" + name + "' is missing from plugin.yml.");
         }
         pluginCommand.setExecutor(executor);
         pluginCommand.setTabCompleter(tabCompleter);
+        if (configManager.consoleDebug) {
+            getLogger().info("[RPG-DEBUG][CommandRegistry] command=/" + name
+                + ", executor=" + executor.getClass().getSimpleName()
+                + ", tabCompleter=" + tabCompleter.getClass().getSimpleName());
+        }
     }
 
     private void reloadProfileDatabaseMaintenance() {
@@ -280,11 +302,19 @@ public final class VnMineHardcore extends JavaPlugin {
         if (tooltipManager != null) tooltipManager.stop();
         if (logManager != null) logManager.stop();
         if (timeControlManager != null) timeControlManager.stop();
+        if (economyManager != null) economyManager.close();
+        if (playerProfileDatabaseManager != null) {
+            playerProfileDatabaseManager.shutdownGameplayDatabaseExecutor();
+        }
         getLogger().info("VnMineHardcore disabled.");
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (configManager != null && configManager.consoleDebug) {
+            getLogger().info("[RPG-DEBUG][Command] command=/" + command.getName() + ", sender="
+                + sender.getName() + ", args=" + String.join(" ", args));
+        }
         if (command.getName().equalsIgnoreCase("tp")) {
             return handleTeleportToWorldSpawn(sender, args);
         }
@@ -587,6 +617,12 @@ public final class VnMineHardcore extends JavaPlugin {
             sendHelpLine(sender, "vnmine.command.death.history",
                 "§e/vndeathhistory [player] §7- Xem/khôi phục lịch sử inventory lúc chết.");
             sendHelpLine(sender, null,
+                "§e/vncoin §7- Xem số dư VNCOIN; §e/vncoin history §7- Xem giao dịch gần đây.");
+            sendHelpLine(sender, "vnmine.command.vncoin.history.others",
+                "§e/vncoin history <player> §7- Xem lịch sử ví người chơi khác.");
+            sendHelpLine(sender, "vnmine.command.vncoin.admin",
+                "§e/vncoin give|take <player> <số> [lý do] §7- Quản trị số dư có audit.");
+            sendHelpLine(sender, null,
                 "§e/quatanthu §7- Nhận túi quà tân thủ nếu đủ điều kiện.");
             sendHelpLine(sender, null,
                 "§e/vnmenu §7- Mở menu chính; phím F cũng mở menu này.");
@@ -602,6 +638,13 @@ public final class VnMineHardcore extends JavaPlugin {
                 return true;
             }
             configManager.reload();
+            try {
+                economyManager.reloadConfiguration();
+            } catch (IllegalArgumentException exception) {
+                getLogger().log(Level.SEVERE,
+                    "[Economy] VNCOIN config is invalid; previous economy settings remain active.", exception);
+                sender.sendMessage("§cCấu hình VNCOIN không hợp lệ; thiết lập VNCOIN trước đó vẫn được giữ.");
+            }
             reloadProfileDatabaseMaintenance();
             timeControlManager.reload();
             hungerListener.reload();
@@ -1131,6 +1174,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public static VnMineHardcore getInstance() { return instance; }
     public ConfigManager getConfigManager() { return configManager; }
     public PlayerProfileDatabaseManager getPlayerProfileDatabaseManager() { return playerProfileDatabaseManager; }
+    public EconomyManager getEconomyManager() { return economyManager; }
     public Map<String, NpcDefinitionLoader.NpcDefinition> getNpcDefinitions() {
         return npcDefinitions;
     }

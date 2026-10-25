@@ -55,9 +55,9 @@ rpg:
       # [VI] Mana tối đa của nhân vật; mặc định 100, hợp lệ 1-1000.
       # [EN] Maximum character mana; defaults to 100, valid range 1-1000.
       max-mana: 100
-      # [VI] Mana hồi mỗi giây; mặc định 5, hợp lệ 0-100.
-      # [EN] Mana regenerated per second; defaults to 5, valid range 0-100.
-      regeneration-per-second: 5
+      # [VI] Mana hồi mỗi giây; mặc định 1, hợp lệ 0-100.
+      # [EN] Mana regenerated per second; defaults to 1, valid range 0-100.
+      regeneration-per-second: 1
     passives:
       battle-focus:
         # [VI] Sát thương đánh thường cộng thêm cho mỗi rank của Tâm Kiếm; mặc định 0.03 (3%), hợp lệ 0-0.10 (0-10%).
@@ -957,6 +957,60 @@ rename:
   name-structure: "<name> ☠ <count>"
 
 # ============================================================
+# [ECONOMY] 🌻 TIỀN TỆ / CURRENCY
+# ============================================================
+# [VI] Ví VNCOIN và phần thưởng từ quái cơ bản.
+# [EN] VNCOIN wallet and basic-mob rewards.
+economy:
+  enabled: true
+  mob-drops:
+    enabled: true
+    # [VI] Tỉ lệ thử một lần cho mỗi quái cơ bản hợp lệ bị hạ bởi người chơi.
+    # [EN] Chance rolled once for each eligible basic mob killed by a player.
+    chance: 0.20
+    # [VI] Xác suất này được áp dụng sau khi đã trúng tỉ lệ rơi chung; 5% tương đương khoảng 1% số quái bị hạ.
+    # [EN] Rolled after the general drop succeeds; 5% means about 1% of kills become critical drops.
+    critical-drop-chance: 0.05
+    critical-min: 5
+    critical-max: 7
+    # [VI] Log từng lần roll/drop/spawn bị loại. Chỉ bật trong thời gian kiểm thử vì rất nhiều dòng.
+    # [EN] Log each roll/drop/eligibility decision. Enable only while testing; this can be verbose.
+    debug-logs: false
+    # [VI] Mặc định không tính quái từ spawner, triệu hồi plugin, tuần tra hoặc sự kiện.
+    # [EN] Spawner, plugin summons, patrols and event mobs are excluded by default.
+    eligible-spawn-reasons:
+      - NATURAL
+      - CHUNK_GEN
+    tiers:
+      # [VI] Lượng thường giữ ở mức 1-2 coin cho mọi tier; critical drop dùng khoảng riêng phía trên.
+      # [EN] Regular drops stay at 1-2 coins for every tier; critical drops use the separate range above.
+      I:
+        min: 1
+        max: 2
+        entities: [ZOMBIE, SKELETON, SPIDER, SILVERFISH]
+      II:
+        min: 1
+        max: 2
+        entities: [HUSK, STRAY, DROWNED, CAVE_SPIDER]
+      III:
+        min: 1
+        max: 2
+        entities: [WITCH, ENDERMAN, PILLAGER, MAGMA_CUBE]
+      IV:
+        min: 1
+        max: 2
+        entities: [RAVAGER, EVOKER, GUARDIAN]
+  boss-drops:
+    enabled: true
+    # [VI] Tổng VNCOIN cho boss hạ bởi nhóm người chơi đủ điều kiện nhận thưởng.
+    # [EN] Total VNCOIN for a boss defeated by eligible player contributors.
+    total-coins: 100
+    # [VI] Chia thành các vật phẩm riêng; 100 coin / 5 coin = 20 drop.
+    # [EN] Split into separate items; 100 coins / 5 coins = 20 drops.
+    coins-per-drop: 5
+    scatter-radius: 5.0
+
+# ============================================================
 # [LOGGING] 📝 NHẬT KÝ / LOGGING
 # ============================================================
 # [VI] Cấu hình ghi nhật ký hệ thống
@@ -964,7 +1018,7 @@ rename:
 logging:
   # [VI] Bật log debug trong console (dành cho debug, có thể rất nhiều dòng)
   # [EN] Enable debug console logs (for debugging, may be very verbose)
-  console-debug: false
+  console-debug: true
 
   # [VI] Ghi nhật ký các cái chết
   # [EN] Log deaths

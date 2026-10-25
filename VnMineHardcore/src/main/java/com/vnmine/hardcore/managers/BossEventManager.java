@@ -2468,7 +2468,7 @@ public class BossEventManager implements Listener {
          health = Math.max(0.0, Math.min(maximum, health));
          this.currentBoss
             .setCustomName(
-               displayName
+               EconomyManager.sanitizeVisibleName(displayName)
                   + " §8[Lv."
                   + this.currentBossLevel
                   + "] §c"
@@ -3458,6 +3458,9 @@ public class BossEventManager implements Listener {
       }
 
       if (playerEarnedRewards) {
+         if (this.currentBoss != null && this.plugin.getEconomyManager() != null) {
+            this.plugin.getEconomyManager().dropBossCoins(this.currentBoss.getLocation(), bc.displayName);
+         }
          for (Entry<String, ConfigManager.DropConfig> dropEntry : bc.drops.entrySet()) {
             ConfigManager.DropConfig dc = dropEntry.getValue();
             if (Double.isFinite(dc.chance) && dc.chance >= 0.0 && dc.chance <= 1.0 && this.random.nextDouble() < dc.chance) {
@@ -4039,6 +4042,11 @@ public class BossEventManager implements Listener {
 
    public String getCurrentBossName() {
       return this.currentBossName;
+   }
+
+   public boolean isBossOrSummon(Entity entity) {
+      return entity != null && (entity.equals(this.currentBoss)
+         || this.bossSummons.contains(entity.getUniqueId()));
    }
 
    public Set<String> getBossIds() {

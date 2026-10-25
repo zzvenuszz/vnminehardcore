@@ -45,6 +45,8 @@ public final class CharacterSelectionManager implements Listener {
     private final Map<String, RaceDefinition> races = new LinkedHashMap<>();
     private final Map<String, List<ClassDefinition>> classesByRace = new HashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
+    private final Set<UUID> profileLookupComplete = new java.util.HashSet<>();
+    private final Set<UUID> pendingProfileCreates = new java.util.HashSet<>();
     private Set<String> playableClassIds = Set.of();
     private boolean definitionsAvailable;
 
@@ -172,7 +174,9 @@ public final class CharacterSelectionManager implements Listener {
         }
 
         if ("profile".equals(holder.type)) {
-            if (slot == 15 && plugin.getTutorialQuestManager() != null) {
+            if (slot == 11 && plugin.getEconomyManager() != null) {
+                plugin.getEconomyManager().openWalletMenu(player);
+            } else if (slot == 15 && plugin.getTutorialQuestManager() != null) {
                 plugin.getTutorialQuestManager().openJournal(player);
             } else if (slot == 22 && plugin.getMercenaryManager() != null) {
                 plugin.getMercenaryManager().openMainMenu(player);
@@ -216,35 +220,53 @@ public final class CharacterSelectionManager implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        try {
-            Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
-                plugin.getPlayerProfileDatabaseManager().getPlayerProfile(player.getUniqueId().toString());
-            if (profile.isEmpty()) {
-                loadedProfiles.remove(player.getUniqueId());
-                return;
-            }
-
-            PlayerProfileDatabaseManager.PlayerProfile loadedProfile = profile.get();
-            loadedProfiles.put(player.getUniqueId(), loadedProfile);
-            if (!races.containsKey(loadedProfile.selectedRace())
-                || findClass(loadedProfile.selectedRace(), loadedProfile.selectedClass()) == null) {
-                plugin.getLogger().warning("[Profile] Stored race/class definition is missing for player " +
-                    player.getName() + "; profile data was preserved.");
-            }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "[Profile] Failed to load character profile for " +
-                player.getName(), exception);
-            player.sendMessage("§cKhông thể tải hồ sơ nhân vật. Dữ liệu của bạn vẫn được giữ nguyên.");
-        }
+        UUID playerId = player.getUniqueId();
+        debugProfile("load-start player=" + player.getName() + ", source=join");
+        String playerName = player.getName();
+        plugin.getPlayerProfileDatabaseManager()
+            .executeGameplayDatabaseTask("profile.load.join player=" + playerName, () ->
+                plugin.getPlayerProfileDatabaseManager().getPlayerProfile(playerId.toString()))
+            .whenComplete((profile, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Profile] Failed to load character profile for " +
+                        player.getName(), failure);
+                    if (player.isOnline()) {
+                        player.sendMessage("§cKhông thể tải hồ sơ nhân vật. Dữ liệu của bạn vẫn được giữ nguyên.");
+                    }
+                    return;
+                }
+                profileLookupComplete.add(playerId);
+                debugProfile("load-result player=" + playerName + ", source=join, found=" + profile.isPresent());
+                if (profile.isEmpty()) {
+                    loadedProfiles.remove(playerId);
+                    return;
+                }
+                PlayerProfileDatabaseManager.PlayerProfile loadedProfile = profile.get();
+                loadedProfiles.put(playerId, loadedProfile);
+                if (!races.containsKey(loadedProfile.selectedRace())
+                        || findClass(loadedProfile.selectedRace(), loadedProfile.selectedClass()) == null) {
+                    plugin.getLogger().warning("[Profile] Stored race/class definition is missing for player " +
+                        player.getName() + "; profile data was preserved.");
+                }
+            }));
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        loadedProfiles.remove(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        loadedProfiles.remove(playerId);
+        profileLookupComplete.remove(playerId);
     }
 
     public Optional<PlayerProfileDatabaseManager.PlayerProfile> getLoadedProfile(UUID playerId) {
         return Optional.ofNullable(loadedProfiles.get(playerId));
+    }
+
+    public void updateLoadedProfile(PlayerProfileDatabaseManager.PlayerProfile profile) {
+        if (profile != null) {
+            loadedProfiles.put(UUID.fromString(profile.uuid()), profile);
+        }
     }
 
     public void openCharacterMenu(Player player) {
@@ -257,20 +279,28 @@ public final class CharacterSelectionManager implements Listener {
             player.sendMessage("§cHệ thống hồ sơ chưa sẵn sàng.");
             return;
         }
-        try {
-            Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
-                database.getPlayerProfile(player.getUniqueId().toString());
-            if (profile.isPresent()) {
-                loadedProfiles.put(player.getUniqueId(), profile.get());
-                openProfileMenu(player, profile.get());
-            } else {
-                openRaceMenu(player);
-            }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "[Profile] Failed to open character menu for " +
-                player.getName(), exception);
-            player.sendMessage("§cKhông thể tải hồ sơ nhân vật. Dữ liệu của bạn vẫn được giữ nguyên.");
-        }
+        UUID playerId = player.getUniqueId();
+        debugProfile("menu-open-request player=" + player.getName());
+        database.executeGameplayDatabaseTask("profile.load.menu player=" + player.getName(),
+                () -> database.getPlayerProfile(playerId.toString()))
+            .whenComplete((profile, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Profile] Failed to open character menu for " +
+                        player.getName(), failure);
+                    player.sendMessage("§cKhông thể tải hồ sơ nhân vật. Dữ liệu của bạn vẫn được giữ nguyên.");
+                    return;
+                }
+                profileLookupComplete.add(playerId);
+                debugProfile("menu-open-result player=" + player.getName() + ", found=" + profile.isPresent());
+                if (profile.isPresent()) {
+                    loadedProfiles.put(playerId, profile.get());
+                    openProfileMenu(player, profile.get());
+                } else {
+                    loadedProfiles.remove(playerId);
+                    openRaceMenu(player);
+                }
+            }));
     }
 
     static List<String> buildProfileLore(PlayerProfileDatabaseManager.PlayerProfile profile,
@@ -304,6 +334,8 @@ public final class CharacterSelectionManager implements Listener {
             player.getUniqueId(), "profile", null, null, new HashMap<>());
         Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Hồ sơ nhân vật");
         holder.inventory = inventory;
+        inventory.setItem(11, createActionItem(Material.SUNFLOWER, "§6Ví VNCOIN: §7Đang tải...",
+            List.of("§7Số dư đơn vị tiền tệ của máy chủ.")));
         inventory.setItem(13, createActionItem(Material.PLAYER_HEAD, "§dHồ sơ RPG",
             buildProfileLore(profile, raceName, className,
                 plugin.getPlayerProfileDatabaseManager().getCharacterProgressionRules())));
@@ -314,21 +346,44 @@ public final class CharacterSelectionManager implements Listener {
         inventory.setItem(22, createActionItem(Material.ARROW, "§7Về menu chính", List.of(
             "§7Quay lại hub RPG.")));
         player.openInventory(inventory);
+        UUID playerId = player.getUniqueId();
+        String playerName = player.getName();
+        plugin.getPlayerProfileDatabaseManager()
+            .executeGameplayDatabaseTask("wallet.profile-view player=" + playerName,
+                () -> plugin.getPlayerProfileDatabaseManager().getWalletBalance(playerId.toString()))
+            .whenComplete((balance, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline() || player.getOpenInventory().getTopInventory() != inventory) return;
+                if (failure != null) {
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "[Economy] Could not load profile wallet for " + playerName + ".", failure);
+                    inventory.setItem(11, createActionItem(Material.SUNFLOWER, "§6Ví VNCOIN: §cLỗi tải",
+                        List.of("§7Mở lại hồ sơ để thử lại.")));
+                    return;
+                }
+                inventory.setItem(11, createActionItem(Material.SUNFLOWER, "§6Ví VNCOIN: §e" + balance,
+                    List.of("§7Số dư tiền tệ hiện tại.", "§eNhấp để xem lịch sử giao dịch.")));
+            }));
     }
 
     public void refreshLoadedProfile(Player player) {
-        try {
-            Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
-                plugin.getPlayerProfileDatabaseManager().getPlayerProfile(player.getUniqueId().toString());
-            if (profile.isPresent()) {
-                loadedProfiles.put(player.getUniqueId(), profile.get());
-            } else {
-                loadedProfiles.remove(player.getUniqueId());
-            }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "[Profile] Failed to refresh the in-memory profile for " +
-                player.getName(), exception);
-        }
+        UUID playerId = player.getUniqueId();
+        debugProfile("refresh-start player=" + player.getName());
+        plugin.getPlayerProfileDatabaseManager()
+            .executeGameplayDatabaseTask("profile.refresh player=" + player.getName(), () ->
+                plugin.getPlayerProfileDatabaseManager().getPlayerProfile(playerId.toString()))
+            .whenComplete((profile, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Profile] Failed to refresh the in-memory profile for " +
+                        player.getName(), failure);
+                } else if (profile.isPresent()) {
+                    loadedProfiles.put(playerId, profile.get());
+                    debugProfile("refresh-result player=" + player.getName() + ", found=true");
+                } else {
+                    loadedProfiles.remove(playerId);
+                    debugProfile("refresh-result player=" + player.getName() + ", found=false");
+                }
+            }));
     }
 
     public void finalizeSelection(Player player, String raceId, String classId) {
@@ -343,35 +398,48 @@ public final class CharacterSelectionManager implements Listener {
             player.sendMessage("§cHệ thống hồ sơ chưa sẵn sàng.");
             return;
         }
-        try {
-            String now = Instant.now().toString();
-            boolean created = plugin.getPlayerProfileDatabaseManager().createPlayerProfile(
-                player.getUniqueId().toString(),
-                player.getName(),
-                raceId,
-                classId,
-                1,
-                0,
-                null,
-                now
-            );
+        UUID playerId = player.getUniqueId();
+        if (!profileLookupComplete.contains(playerId)) {
+            player.sendMessage("§eHồ sơ đang được kiểm tra. Hãy thử lại sau giây lát.");
+            return;
+        }
+        if (!pendingProfileCreates.add(playerId)) return;
+        String playerName = player.getName();
+        debugProfile("create-start player=" + playerName + ", race=" + raceId + ", class=" + classId);
+        String now = Instant.now().toString();
+        plugin.getPlayerProfileDatabaseManager().executeGameplayDatabaseTask(
+                "profile.create player=" + playerName, () ->
+                plugin.getPlayerProfileDatabaseManager().createPlayerProfile(
+                    playerId.toString(), playerName, raceId, classId, 1, 0, null, now))
+            .whenComplete((created, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            pendingProfileCreates.remove(playerId);
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "[Profile] Failed to save character selection for " + playerName, failure);
+                player.sendMessage("§cKhông thể lưu hồ sơ nhân vật. Vui lòng thử lại sau.");
+                return;
+            }
             if (created) {
-                PlayerProfileDatabaseManager.PlayerProfile profile =
-                    new PlayerProfileDatabaseManager.PlayerProfile(
-                        player.getUniqueId().toString(), player.getName(), raceId, classId,
-                        1, 0, null, now, now, true
-                    );
-                loadedProfiles.put(player.getUniqueId(), profile);
+                PlayerProfileDatabaseManager.PlayerProfile profile = new PlayerProfileDatabaseManager.PlayerProfile(
+                    playerId.toString(), playerName, raceId, classId, 1, 0, null, now, now, true);
+                loadedProfiles.put(playerId, profile);
+                profileLookupComplete.add(playerId);
+                debugProfile("create-result player=" + playerName + ", created=true");
                 player.sendMessage("§aĐã tạo nhân vật: §6" + race.name() + " §7- §b" + selectedClass.name());
                 player.closeInventory();
                 plugin.getTutorialQuestManager().initializePlayer(player);
             } else {
+                debugProfile("create-result player=" + playerName + ", created=false, reason=profile-exists");
                 player.sendMessage("§cTài khoản của bạn đã có nhân vật. Không có dữ liệu nào bị ghi đè.");
                 player.closeInventory();
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().log(java.util.logging.Level.SEVERE, "[Profile] Failed to save character selection for " + player.getName(), exception);
-            player.sendMessage("§cKhông thể lưu hồ sơ nhân vật. Vui lòng thử lại sau.");
+        }));
+    }
+
+    private void debugProfile(String detail) {
+        if (plugin.getConfig().getBoolean("logging.console-debug", false)) {
+            plugin.getLogger().info("[RPG-DEBUG][Profile] " + detail);
         }
     }
 
@@ -388,22 +456,16 @@ public final class CharacterSelectionManager implements Listener {
     }
 
     private boolean hasExistingProfile(Player player) {
-        if (plugin.getPlayerProfileDatabaseManager() == null) {
-            player.sendMessage("§cHệ thống hồ sơ chưa sẵn sàng.");
+        UUID playerId = player.getUniqueId();
+        if (!profileLookupComplete.contains(playerId)) {
+            player.sendMessage("§eĐang tải hồ sơ nhân vật. Hãy thử lại sau giây lát.");
             return true;
         }
-        try {
-            if (plugin.getPlayerProfileDatabaseManager().hasPlayerProfile(player.getUniqueId().toString())) {
-                player.sendMessage("§cTài khoản của bạn đã có nhân vật. Chức năng nhiều nhân vật chưa được hỗ trợ.");
-                return true;
-            }
-            return false;
-        } catch (SQLException exception) {
-            plugin.getLogger().log(Level.SEVERE, "[Profile] Failed to check existing profile for " +
-                player.getName(), exception);
-            player.sendMessage("§cKhông thể kiểm tra hồ sơ nhân vật. Vui lòng thử lại sau.");
+        if (loadedProfiles.containsKey(playerId)) {
+            player.sendMessage("§cTài khoản của bạn đã có nhân vật. Chức năng nhiều nhân vật chưa được hỗ trợ.");
             return true;
         }
+        return false;
     }
 
     private void loadDefinitions() {

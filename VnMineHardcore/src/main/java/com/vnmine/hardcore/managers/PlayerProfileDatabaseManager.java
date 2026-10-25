@@ -12,6 +12,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
+import java.util.logging.Logger;
 import java.time.format.DateTimeFormatter;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -25,17 +33,26 @@ import java.util.Map;
 import java.util.Optional;
 
 public class PlayerProfileDatabaseManager {
-    public static final int SCHEMA_VERSION = 6;
+    public static final int SCHEMA_VERSION = 7;
+    public static final long MAX_WALLET_BALANCE = 2_147_483_647L;
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
         .withZone(ZoneOffset.UTC);
 
     private final File databaseFile;
     private final File backupDirectory;
+    private final ThreadPoolExecutor gameplayDatabaseExecutor = new ThreadPoolExecutor(
+        1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(256), runnable -> {
+            Thread thread = new Thread(runnable, "VnMineHardcore-ProfileDB");
+            thread.setDaemon(true);
+            return thread;
+        }, new ThreadPoolExecutor.AbortPolicy());
     private String recoveryMessage;
     private int backupRetentionCount;
     private int writeRetries;
     private int writeRetryDelayMillis;
     private volatile CharacterProgression.Rules progressionRules = CharacterProgression.Rules.defaults();
+    private volatile Logger diagnosticsLogger;
+    private volatile BooleanSupplier diagnosticsEnabled = () -> false;
 
     public PlayerProfileDatabaseManager(File dataFolder) {
         this(dataFolder, 12, 2, 50);
@@ -54,6 +71,85 @@ public class PlayerProfileDatabaseManager {
 
     public File getDatabaseFile() {
         return databaseFile;
+    }
+
+    /** Run profile database work away from the Paper server thread, in submission order. */
+    public <T> CompletableFuture<T> executeGameplayDatabaseTask(Callable<T> task) {
+        return executeGameplayDatabaseTask("gameplay", task);
+    }
+
+    public void configureGameplayDatabaseDiagnostics(Logger logger, BooleanSupplier enabled) {
+        diagnosticsLogger = logger;
+        diagnosticsEnabled = enabled == null ? () -> false : enabled;
+    }
+
+    /** Run named profile database work away from the server thread and emit optional timing diagnostics. */
+    public <T> CompletableFuture<T> executeGameplayDatabaseTask(String operation, Callable<T> task) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        String taskName = operation == null || operation.isBlank() ? "gameplay" : operation;
+        long enqueuedAt = System.nanoTime();
+        try {
+            gameplayDatabaseExecutor.execute(() -> {
+                long startedAt = System.nanoTime();
+                try {
+                    T value = task.call();
+                    long finishedAt = System.nanoTime();
+                    logGameplayDatabaseTask(taskName, (startedAt - enqueuedAt) / 1_000_000L,
+                        (finishedAt - startedAt) / 1_000_000L, null);
+                    result.complete(value);
+                } catch (Throwable failure) {
+                    long finishedAt = System.nanoTime();
+                    logGameplayDatabaseTask(taskName, (startedAt - enqueuedAt) / 1_000_000L,
+                        (finishedAt - startedAt) / 1_000_000L, failure);
+                    result.completeExceptionally(failure);
+                }
+            });
+        } catch (RejectedExecutionException exception) {
+            Logger logger = diagnosticsLogger;
+            if (logger != null) {
+                logger.log(java.util.logging.Level.SEVERE, "[RPG-DB][REJECTED] operation=" + taskName
+                    + ", queued=" + gameplayDatabaseExecutor.getQueue().size()
+                    + ", reason=queue-full-or-shutting-down", exception);
+            }
+            result.completeExceptionally(new SQLException(
+                "The profile database work queue is full or shutting down.", exception));
+        }
+        return result;
+    }
+
+    private void logGameplayDatabaseTask(String operation, long queueWaitMillis, long databaseMillis,
+                                        Throwable failure) {
+        Logger logger = diagnosticsLogger;
+        if (logger == null) return;
+        if (failure != null) {
+            logger.log(java.util.logging.Level.SEVERE, "[RPG-DB][ERROR] operation=" + operation
+                + ", queueWaitMs=" + queueWaitMillis + ", dbMs=" + databaseMillis
+                + ", queued=" + gameplayDatabaseExecutor.getQueue().size(), failure);
+            return;
+        }
+        if (databaseMillis >= 100 || queueWaitMillis >= 250) {
+            logger.warning("[RPG-PERF][DB] operation=" + operation + ", queueWaitMs=" + queueWaitMillis
+                + ", dbMs=" + databaseMillis + ", queued=" + gameplayDatabaseExecutor.getQueue().size());
+        } else if (diagnosticsEnabled.getAsBoolean()) {
+            logger.info("[RPG-DB][OK] operation=" + operation + ", queueWaitMs=" + queueWaitMillis
+                + ", dbMs=" + databaseMillis + ", queued=" + gameplayDatabaseExecutor.getQueue().size());
+        }
+    }
+
+    public int getPendingGameplayDatabaseTasks() {
+        return gameplayDatabaseExecutor.getQueue().size();
+    }
+
+    public void shutdownGameplayDatabaseExecutor() {
+        gameplayDatabaseExecutor.shutdown();
+        try {
+            if (!gameplayDatabaseExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                gameplayDatabaseExecutor.shutdownNow();
+            }
+        } catch (InterruptedException exception) {
+            gameplayDatabaseExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     public String getRecoveryMessage() {
@@ -291,6 +387,10 @@ public class PlayerProfileDatabaseManager {
                         migrateV5ToV6(connection);
                         version = 6;
                         setSchemaVersion(connection, version);
+                    } else if (version == 6) {
+                        migrateV6ToV7(connection);
+                        version = 7;
+                        setSchemaVersion(connection, version);
                     } else {
                         throw new SQLException("No player profile database migration exists from version "
                             + version + ".");
@@ -468,6 +568,17 @@ public class PlayerProfileDatabaseManager {
         });
     }
 
+    public boolean rollbackNewSkillLearn(String uuid, String skillId) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "DELETE FROM player_skill_progress WHERE uuid = ? AND skill_id = ? AND rank = 1")) {
+                statement.setString(1, uuid);
+                statement.setString(2, skillId);
+                return statement.executeUpdate() == 1;
+            }
+        });
+    }
+
     public List<SkillProgress> getLearnedSkills(String uuid) throws SQLException {
         List<SkillProgress> skills = new ArrayList<>();
         try (Connection connection = openConnection();
@@ -640,6 +751,59 @@ public class PlayerProfileDatabaseManager {
                 return update.executeUpdate() == 1
                     ? ManaSpendResult.SPENT : ManaSpendResult.NOT_ENOUGH_MANA;
             }
+        });
+    }
+
+    public SkillCastResult spendManaForSkillCast(String uuid, String skillId, String classId, int cost,
+                                                 int maxMana, int regenerationPerSecond, long nowMillis)
+        throws SQLException {
+        if (cost < 0 || cost > 1000) {
+            throw new IllegalArgumentException("Mana cost must be between 0 and 1000.");
+        }
+        validateManaSettings(maxMana, regenerationPerSecond, nowMillis);
+        return executeWriteTransaction(connection -> {
+            String selectedClass;
+            int rank;
+            try (PreparedStatement query = connection.prepareStatement(
+                    "SELECT p.selected_class, s.rank FROM player_profiles p "
+                        + "LEFT JOIN player_skill_progress s ON s.uuid = p.uuid AND s.skill_id = ? "
+                        + "WHERE p.uuid = ? AND p.is_active = 1")) {
+                query.setString(1, skillId);
+                query.setString(2, uuid);
+                try (ResultSet result = query.executeQuery()) {
+                    if (!result.next()) {
+                        return new SkillCastResult(SkillCastStatus.PROFILE_NOT_FOUND, 0, null);
+                    }
+                    selectedClass = result.getString("selected_class");
+                    rank = result.getInt("rank");
+                    if (result.wasNull()) rank = 0;
+                }
+            }
+            if (!classId.equals(selectedClass)) {
+                return new SkillCastResult(SkillCastStatus.CLASS_MISMATCH, 0, null);
+            }
+            if (rank < 1) {
+                return new SkillCastResult(SkillCastStatus.SKILL_NOT_LEARNED, 0, null);
+            }
+
+            ManaState current = refreshMana(connection, uuid, maxMana, regenerationPerSecond, nowMillis);
+            if (current == null) {
+                return new SkillCastResult(SkillCastStatus.PROFILE_NOT_FOUND, 0, null);
+            }
+            if (current.currentMana() < cost) {
+                return new SkillCastResult(SkillCastStatus.NOT_ENOUGH_MANA, rank, current);
+            }
+            try (PreparedStatement update = connection.prepareStatement(
+                    "UPDATE player_profiles SET mana = mana - ? WHERE uuid = ? AND is_active = 1 AND mana >= ?")) {
+                update.setInt(1, cost);
+                update.setString(2, uuid);
+                update.setInt(3, cost);
+                if (update.executeUpdate() != 1) {
+                    return new SkillCastResult(SkillCastStatus.NOT_ENOUGH_MANA, rank, current);
+                }
+            }
+            return new SkillCastResult(SkillCastStatus.SPENT, rank,
+                new ManaState(current.currentMana() - cost, maxMana));
         });
     }
 
@@ -960,6 +1124,17 @@ public class PlayerProfileDatabaseManager {
         PROFILE_NOT_FOUND
     }
 
+    public enum SkillCastStatus {
+        SPENT,
+        NOT_ENOUGH_MANA,
+        PROFILE_NOT_FOUND,
+        CLASS_MISMATCH,
+        SKILL_NOT_LEARNED
+    }
+
+    public record SkillCastResult(SkillCastStatus status, int rank, ManaState manaState) {
+    }
+
     public record SkillProgress(String skillId, int rank, String learnedAt) {
     }
 
@@ -967,6 +1142,20 @@ public class PlayerProfileDatabaseManager {
     }
 
     public record ManaRestoreResult(ManaState state, int restoredAmount) {
+    }
+
+    public enum WalletTransactionStatus {
+        APPLIED,
+        DUPLICATE,
+        INSUFFICIENT_FUNDS,
+        BALANCE_LIMIT
+    }
+
+    public record WalletTransactionResult(WalletTransactionStatus status, long balance, long appliedDelta) {
+    }
+
+    public record WalletLedgerEntry(long id, String transactionId, long delta, long balanceAfter,
+                                    String source, String actorUuid, String reason, String createdAt) {
     }
 
     public record AdminProgressionResult(int previousLevel, int currentLevel, int experience,
@@ -1060,6 +1249,7 @@ public class PlayerProfileDatabaseManager {
                 "uuid TEXT NOT NULL, slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 9), skill_id TEXT NOT NULL, " +
                 "PRIMARY KEY (uuid, slot), UNIQUE (uuid, skill_id), " +
                 "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
+            createWalletTables(statement);
         }
     }
 
@@ -1104,6 +1294,124 @@ public class PlayerProfileDatabaseManager {
             }
         }
         createCurrentTables(connection);
+    }
+
+    private void migrateV6ToV7(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            createWalletTables(statement);
+        }
+    }
+
+    private static void createWalletTables(Statement statement) throws SQLException {
+        statement.execute("CREATE TABLE IF NOT EXISTS player_wallets (" +
+            "uuid TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0 " +
+            "CHECK (balance BETWEEN 0 AND 2147483647), updated_at TEXT NOT NULL)");
+        statement.execute("CREATE TABLE IF NOT EXISTS player_wallet_ledger (" +
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, transaction_id TEXT NOT NULL UNIQUE, " +
+            "uuid TEXT NOT NULL, delta INTEGER NOT NULL CHECK (delta != 0), " +
+            "balance_after INTEGER NOT NULL CHECK (balance_after BETWEEN 0 AND 2147483647), " +
+            "source TEXT NOT NULL, actor_uuid TEXT, reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)");
+        statement.execute("CREATE INDEX IF NOT EXISTS idx_player_wallet_ledger_uuid_id " +
+            "ON player_wallet_ledger(uuid, id DESC)");
+    }
+
+    public long getWalletBalance(String uuid) throws SQLException {
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT balance FROM player_wallets WHERE uuid = ?")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? resultSet.getLong("balance") : 0L;
+            }
+        }
+    }
+
+    public WalletTransactionResult applyWalletTransaction(String uuid, long delta, String transactionId,
+            String source, String actorUuid, String reason, String createdAt) throws SQLException {
+        if (uuid == null || uuid.isBlank() || transactionId == null || transactionId.isBlank()
+                || transactionId.length() > 160 || source == null || source.isBlank()
+                || source.length() > 64 || reason == null || reason.length() > 240
+                || createdAt == null || createdAt.isBlank() || delta == 0
+                || delta < -MAX_WALLET_BALANCE || delta > MAX_WALLET_BALANCE) {
+            throw new IllegalArgumentException("Wallet transaction fields are invalid or outside supported bounds.");
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement duplicate = connection.prepareStatement(
+                    "SELECT uuid FROM player_wallet_ledger WHERE transaction_id = ?")) {
+                duplicate.setString(1, transactionId);
+                try (ResultSet resultSet = duplicate.executeQuery()) {
+                    if (resultSet.next()) {
+                        return new WalletTransactionResult(WalletTransactionStatus.DUPLICATE,
+                            readWalletBalance(connection, uuid), 0L);
+                    }
+                }
+            }
+            long currentBalance = readWalletBalance(connection, uuid);
+            if (delta < 0 && currentBalance < -delta) {
+                return new WalletTransactionResult(WalletTransactionStatus.INSUFFICIENT_FUNDS,
+                    currentBalance, 0L);
+            }
+            if (delta > 0 && currentBalance > MAX_WALLET_BALANCE - delta) {
+                return new WalletTransactionResult(WalletTransactionStatus.BALANCE_LIMIT,
+                    currentBalance, 0L);
+            }
+            long newBalance = currentBalance + delta;
+            try (PreparedStatement wallet = connection.prepareStatement(
+                    "INSERT INTO player_wallets(uuid, balance, updated_at) VALUES (?, ?, ?) " +
+                    "ON CONFLICT(uuid) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at")) {
+                wallet.setString(1, uuid);
+                wallet.setLong(2, newBalance);
+                wallet.setString(3, createdAt);
+                wallet.executeUpdate();
+            }
+            try (PreparedStatement ledger = connection.prepareStatement(
+                    "INSERT INTO player_wallet_ledger(transaction_id, uuid, delta, balance_after, " +
+                    "source, actor_uuid, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                ledger.setString(1, transactionId);
+                ledger.setString(2, uuid);
+                ledger.setLong(3, delta);
+                ledger.setLong(4, newBalance);
+                ledger.setString(5, source);
+                if (actorUuid == null || actorUuid.isBlank()) ledger.setNull(6, java.sql.Types.VARCHAR);
+                else ledger.setString(6, actorUuid);
+                ledger.setString(7, reason);
+                ledger.setString(8, createdAt);
+                ledger.executeUpdate();
+            }
+            return new WalletTransactionResult(WalletTransactionStatus.APPLIED, newBalance, delta);
+        });
+    }
+
+    public List<WalletLedgerEntry> getWalletHistory(String uuid, int limit) throws SQLException {
+        int safeLimit = Math.max(1, Math.min(20, limit));
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT id, transaction_id, delta, balance_after, source, actor_uuid, reason, created_at " +
+                 "FROM player_wallet_ledger WHERE uuid = ? ORDER BY id DESC LIMIT ?")) {
+            statement.setString(1, uuid);
+            statement.setInt(2, safeLimit);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                List<WalletLedgerEntry> entries = new ArrayList<>();
+                while (resultSet.next()) {
+                    entries.add(new WalletLedgerEntry(resultSet.getLong("id"),
+                        resultSet.getString("transaction_id"), resultSet.getLong("delta"),
+                        resultSet.getLong("balance_after"), resultSet.getString("source"),
+                        resultSet.getString("actor_uuid"), resultSet.getString("reason"),
+                        resultSet.getString("created_at")));
+                }
+                return List.copyOf(entries);
+            }
+        }
+    }
+
+    private long readWalletBalance(Connection connection, String uuid) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT balance FROM player_wallets WHERE uuid = ?")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? resultSet.getLong("balance") : 0L;
+            }
+        }
     }
 
     private void backfillLegacyExperience(Connection connection) throws SQLException {
