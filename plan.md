@@ -221,9 +221,9 @@
 - Đích truyện dài hạn là mở đường tới một boss cuối có tên gợi ý **“Đấng DIỆT THẾ Vô Danh”**. Chỉ cài cắm manh mối và điểm móc cấu hình/NPC; để trống boss, chỉ số và trận cuối để chủ server thiết kế sau.
 - Gợi ý thêm: hỗ trợ quest co-op có attribution/reward không nhân đôi, nhật ký sự kiện theo nhân vật, mục tiêu tracking bằng tọa độ/cross-world, tùy chọn giảm/tắt particle cho accessibility và dashboard admin theo dõi lượt nhận/reward/dấu hiệu farm.
 
-**Story reader — đã triển khai, chờ test:** 9 chapter mặc định có nội dung nối tiếp, kết thúc mở bằng manh mối về “Đấng DIỆT THẾ”; bấm chapter trong danh sách mở sách Minecraft với nội dung từng trang. NPC `story-keeper` có action `open-story`. Config cũ thiếu `pages` vẫn đọc được bằng cách dùng `summary` làm trang dự phòng. Đã đóng gói trong JAR 2.12.0; chưa kiểm thử thao tác sách/NPC trên Paper thật. Chưa có khóa chapter theo tiến độ.
+**Story reader — đã triển khai, chờ test:** 9 chapter mặc định có nội dung nối tiếp, kết thúc mở bằng manh mối về “Đấng DIỆT THẾ”; sổ truyện cũ vẫn mở sách Minecraft. NPC runtime loại `story` lưu chapter được gán, click phải mở GUI nền kính và phát từng trang bằng typewriter actionbar/chat; admin shift+click phải để chọn chapter. NPC mới mặc định chapter đầu tiên nếu có chapter cấu hình. Cập nhật này chưa build/gameplay test. Chưa có khóa chapter theo tiến độ.
 
-**Phần quest còn lại:** thay đổi scoreboard/journal/submit/boss/tracking hiện chưa build hoặc test trên server. Chưa có tuyến quest mẫu đầy đủ Thợ săn tiền thưởng/Giả kim, collect theo ID tổng quát, objective vùng/portal/crafting, boss contributor/party attribution và chống farm/spawner. Scoreboard sidebar API không hỗ trợ hyperlink click; `/vnquest detail <id>` mở trang chi tiết và GUI quest có thể click. Quest lặp tối đa 10 lần/ngày vẫn chỉ có API nền schema 9, chưa nối gameplay. Phím I mở inventory là phím client mặc định; Paper không cung cấp sự kiện nút I riêng để chuyển thành GUI plugin. Hiện menu plugin dùng F hoặc `/vnmenu`; không chặn inventory mặc định để tránh làm mất thao tác inventory.
+**Phần quest còn lại:** thay đổi scoreboard/journal/submit/boss/tracking ở working tree trước đó và hội thoại theo trạng thái mới hiện chưa gameplay test. Đã thêm GUI quản lý quest-dialog riêng (`/vnquestdialog admin`, cũng mở từ `/vnquest admin`), lựa chọn bốn trạng thái trong editor và luồng hội thoại trước nhận/nộp. Completed dialog mở sau lượt nộp cuối nhận thưởng và khi người chơi quay lại NPC sau khi quest hoàn tất; không tự bật giao diện giữa trận chiến. Unavailable dùng cho điều kiện chưa đạt hoặc đã đầy giới hạn quest đang làm. Chưa xác minh gameplay. Chưa có tuyến quest mẫu đầy đủ Thợ săn tiền thưởng/Giả kim, collect theo ID tổng quát, objective vùng/portal/crafting, boss contributor/party attribution và chống farm/spawner. Scoreboard sidebar API không hỗ trợ hyperlink click; `/vnquest detail <id>` mở trang chi tiết và GUI quest có thể click. Quest lặp tối đa 10 lần/ngày vẫn chỉ có API nền schema 9, chưa nối gameplay. Phím I mở inventory là phím client mặc định; Paper không cung cấp sự kiện nút I riêng để chuyển thành GUI plugin. Hiện menu plugin dùng F hoặc `/vnmenu`; không chặn inventory mặc định để tránh làm mất thao tác inventory.
 
 ### 5.3 Thế giới, portal và dungeon
 
@@ -399,6 +399,18 @@ Menu lọc item theo người chơi cũng đã package bằng Java 25 và chép 
 - Async không gọi Bukkit API; cache không thay dữ liệu bền vững.
 - Không ban người chơi khi chết hoặc thoát game. Mọi death penalty phải giữ nguyên nguyên tắc này.
 - 30% và 1–10 VNCOIN là baseline yêu cầu; mọi điều chỉnh phải ghi config và changelog.
+
+## Cập nhật NPC story và quest-dialog — 2026-10-25
+
+- Đã triển khai và build trong `2.16.0`: NPC `story` có chapter ID lưu bền vững và GUI kính phát nội dung từng trang bằng typewriter; admin shift+click phải để gán chapter. NPC quest-giver mở quest-dialog theo trạng thái; bốn loại dialog được chọn trong giao diện **sửa quest**, không phải giao diện sửa NPC. Có GUI riêng để tạo/sửa/xóa quest-dialog. Build đã xác nhận compile/package; gameplay test còn chờ.
+- Cần xác minh sau build/deploy: NPC cũ vẫn nạp được `npcs.yml` không có chapter ID; prompt GUI lưu và hủy đúng; typewriter đóng/hủy không chạy callback ngoài ý muốn; các trạng thái nhận quest/đang làm/nộp item/hoàn thành/đã hoàn thành/không đủ điều kiện hiển thị đúng dialog; xóa dialog đang được tham chiếu bị chặn.
+
+## Cập nhật phát hành 2.16.0 — 2026-10-25
+
+- Build Maven `clean package` thành công bằng JDK 25 lúc `2026-10-25 09:42:57 UTC`; test tự động được bỏ qua (`-Dmaven.test.skip=true`), vì vậy kết quả xác nhận compile/package, chưa xác nhận gameplay.
+- JAR: `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.16.0.jar`, `2,058,193` bytes; SHA-256 `a4d839445456b486b7b5c54e24bb66fb669bee615fa2c8df06ff7fc1d9f8c755`.
+- Đã kiểm tra JAR chỉ chứa native SQLite `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so`, đồng thời giữ `org/sqlite/JDBC.class` và `META-INF/services/java.sql.Driver`.
+- Đã tăng version `2.15.0` → `2.16.0`; tính năng đã ghi trong README/CHANGELOG. Chưa test trên Paper thật; cần kiểm tra editor quest/dialog, hội thoại bốn trạng thái, NPC story và tương thích dữ liệu NPC cũ.
 
 ## Cập nhật phát hành 2.15.0 — 2026-10-25
 

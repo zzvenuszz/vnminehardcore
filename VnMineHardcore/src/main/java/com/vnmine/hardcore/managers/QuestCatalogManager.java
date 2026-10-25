@@ -53,6 +53,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private final File definitionsFile;
     private final NamespacedKey questItemKey;
     private final Map<String, QuestDefinition> definitions = new LinkedHashMap<>();
+    private final Map<String, QuestDialogRefs> questDialogs = new LinkedHashMap<>();
     private final Map<UUID, Map<String, PlayerProfileDatabaseManager.QuestProgress>> activeByPlayer =
         new ConcurrentHashMap<>();
     private final Map<UUID, java.util.Set<String>> completedByPlayer = new ConcurrentHashMap<>();
@@ -90,6 +91,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             return;
         }
         openAdminList(player, 0);
+    }
+
+    public boolean isQuestDialogInUse(String dialogId) {
+        if (dialogId == null) return false;
+        return questDialogs.values().stream().anyMatch(refs -> dialogId.equals(refs.available())
+            || dialogId.equals(refs.inProgress()) || dialogId.equals(refs.completed())
+            || dialogId.equals(refs.unavailable()));
     }
 
     public void openPlayerJournal(Player player) {
@@ -316,6 +324,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         if ((safePage + 1) * 45 < quests.size()) menu.setItem(50,
             adminItem(Material.ARROW, "§eTrang sau", List.of()));
         menu.setItem(53, adminItem(Material.BARRIER, "§cĐóng", List.of()));
+        menu.setItem(51, adminItem(Material.WRITABLE_BOOK, "§dQuản lý quest-dialog", List.of(
+            "§7Tạo, sửa và xóa các hội thoại dùng lại.", "§eNhấn để mở trình quản lý.")));
         player.openInventory(menu);
     }
 
@@ -360,6 +370,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(36, adminItem(Material.LIME_DYE, "§aVNCOIN +100", List.of()));
         menu.setItem(37, adminItem(Material.RED_DYE, "§cVNCOIN -100", List.of()));
         menu.setItem(33, adminItem(Material.REDSTONE, "§cXóa quest", List.of("§7Xóa định nghĩa và gỡ khỏi danh sách.")));
+        QuestDialogRefs refs = dialogRefs(quest.id());
+        menu.setItem(38, dialogChoiceItem("Hội thoại khi có thể nhận", refs.available()));
+        menu.setItem(39, dialogChoiceItem("Hội thoại khi đang làm", refs.inProgress()));
+        menu.setItem(40, dialogChoiceItem("Hội thoại khi hoàn tất", refs.completed()));
+        menu.setItem(41, dialogChoiceItem("Hội thoại khi không đủ điều kiện", refs.unavailable()));
         menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại danh sách", List.of()));
         player.openInventory(menu);
     }
@@ -498,6 +513,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 openAdminList(player, holder.page - 1);
             } else if (slot == 50) {
                 openAdminList(player, holder.page + 1);
+            } else if (slot == 51) {
+                plugin.getQuestDialogManager().openAdmin(player);
             } else if (slot == 53) {
                 player.closeInventory();
             } else if (holder.questSlots.containsKey(slot)) {
@@ -544,6 +561,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             openQuestEditor(player, quest.id());
         } else if (slot == 16) {
             openRequirementsMenu(player, quest.id());
+        } else if (slot >= 38 && slot <= 41) {
+            QuestDialogStage stage = QuestDialogStage.values()[slot - 38];
+            String selected = dialogRefs(quest.id()).forStage(stage);
+            plugin.getQuestDialogManager().openSelector(player, selected, dialogId ->
+                updateQuestDialog(player, quest.id(), stage, dialogId));
         } else if (slot == 29) {
             openObjectivesMenu(player, quest.id());
         } else if (slot >= 20 && slot <= 25) {
@@ -1140,7 +1162,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private void deleteDefinition(QuestDefinition quest) {
         if (hasActiveQuest(quest.id())) return;
         definitions.remove(quest.id());
-        if (!saveDefinitions()) definitions.put(quest.id(), quest);
+        QuestDialogRefs oldRefs = questDialogs.remove(quest.id());
+        if (!saveDefinitions()) {
+            definitions.put(quest.id(), quest);
+            if (oldRefs != null) questDialogs.put(quest.id(), oldRefs);
+        }
     }
 
     private boolean hasActiveQuest(String questId) {
@@ -1160,6 +1186,14 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             yaml.set(base + ".enabled", quest.enabled());
             yaml.set(base + ".title", quest.title());
             yaml.set(base + ".giver-npc-id", quest.giverNpcId());
+            QuestDialogRefs refs = dialogRefs(quest.id());
+            yaml.set(base + ".dialogs.available", refs.available());
+            yaml.set(base + ".dialogs.in-progress", refs.inProgress());
+            yaml.set(base + ".dialogs.completed", refs.completed());
+            yaml.set(base + ".dialogs.unavailable", refs.unavailable());
+            yaml.setComments(base + ".dialogs", List.of(
+                "[VI] ID hội thoại tùy chọn cho từng trạng thái quest; tạo trong GUI Quản lý quest-dialog.",
+                "[EN] Optional dialog ID for each quest state; create these in the Quest Dialog Manager GUI."));
             yaml.set(base + ".objective.type", switch (quest.objectiveType()) {
                 case KILL_MOB -> "kill-mob";
                 case KILL_BOSS -> "kill-boss";
@@ -1289,6 +1323,46 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         return item;
     }
 
+    private ItemStack dialogChoiceItem(String label, String dialogId) {
+        QuestDialogManager manager = plugin.getQuestDialogManager();
+        boolean available = dialogId != null && manager != null && manager.hasDialog(dialogId);
+        return adminItem(available ? Material.WRITABLE_BOOK : Material.BOOK,
+            (available ? "§d" : "§7") + label,
+            List.of("§7Đang chọn: §f" + (dialogId == null ? "(chưa chọn)" : dialogId),
+                available ? "§eNhấn để đổi hội thoại." : "§cHội thoại chưa chọn hoặc không tồn tại."));
+    }
+
+    private QuestDialogRefs dialogRefs(String questId) {
+        return questDialogs.getOrDefault(questId, QuestDialogRefs.EMPTY);
+    }
+
+    private void updateQuestDialog(Player player, String questId, QuestDialogStage stage, String dialogId) {
+        if (!player.hasPermission(ADMIN_PERMISSION)) {
+            player.sendMessage("§cBạn không còn quyền quản lý quest.");
+            return;
+        }
+        QuestDefinition quest = definitions.get(questId);
+        if (quest == null) {
+            openAdminList(player, 0);
+            return;
+        }
+        QuestDialogRefs old = dialogRefs(questId);
+        QuestDialogRefs updated = old.with(stage, validDialogId(dialogId));
+        questDialogs.put(questId, updated);
+        if (!saveDefinitions()) {
+            if (old.equals(QuestDialogRefs.EMPTY)) questDialogs.remove(questId);
+            else questDialogs.put(questId, old);
+            player.sendMessage("§cKhông lưu được lựa chọn quest-dialog; xem console.");
+        } else {
+            player.sendMessage("§aĐã cập nhật hội thoại cho trạng thái §f" + stage.displayName + "§a.");
+        }
+        openQuestEditor(player, questId);
+    }
+
+    private static String validDialogId(String id) {
+        return id != null && id.matches("[a-z0-9]+(?:-[a-z0-9]+)*") ? id : null;
+    }
+
     private void loadDefinitions() throws IOException {
         YamlConfiguration yaml = new YamlConfiguration();
         try {
@@ -1358,6 +1432,14 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     ? quest.getString("objective.boss-id", "") : itemId, itemMaterial, itemName, dropChance,
                 quest.getBoolean("enabled", true), requirements, experienceReward, itemRewards,
                 additionalObjectives));
+            ConfigurationSection dialogs = quest.getConfigurationSection("dialogs");
+            if (dialogs != null) {
+                questDialogs.put(id, new QuestDialogRefs(
+                    validDialogId(dialogs.getString("available")),
+                    validDialogId(dialogs.getString("in-progress")),
+                    validDialogId(dialogs.getString("completed")),
+                    validDialogId(dialogs.getString("unavailable"))));
+            }
         }
         plugin.getLogger().info("[Quest] Loaded " + definitions.size() + " NPC quest definitions.");
     }
@@ -1554,25 +1636,54 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer
             .getOrDefault(player.getUniqueId(), Map.of());
         java.util.Set<String> completed = completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of());
-        List<NpcDefinitionLoader.NpcAction> actions = new java.util.ArrayList<>(definitions.values().stream()
-            .filter(quest -> quest.enabled() && quest.giverNpcId().equals(npcId)
-                && canDisplayQuest(player, quest) && !active.containsKey(quest.id())
-                && !completed.contains(quest.id()) && active.size() < 3)
+        return definitions.values().stream()
+            .filter(quest -> quest.enabled() && quest.giverNpcId().equals(npcId))
             .sorted(java.util.Comparator.comparing(QuestDefinition::id))
-            .map(quest -> new NpcDefinitionLoader.NpcAction("accept-quest",
-                quest.title().length() > 32 ? quest.title().substring(0, 32) : quest.title(), null, quest.id()))
-            .toList());
-        for (String questId : active.keySet()) {
-            QuestDefinition quest = definitions.get(questId);
-            if (quest == null || !quest.giverNpcId().equals(npcId)) continue;
-            int step = currentObjectiveIndex(active.get(questId), quest);
-            if (quest.objectives().get(step).type() == ObjectiveType.SUBMIT_EXACT_ITEM) {
-                actions.add(new NpcDefinitionLoader.NpcAction("submit-quest",
-                    (quest.title().length() > 20 ? quest.title().substring(0, 20) : quest.title()) + " • Nộp vật phẩm",
-                    null, quest.id()));
-            }
+            .map(quest -> {
+                String state = active.containsKey(quest.id()) ? "§e[Đang làm] "
+                    : completed.contains(quest.id()) ? "§a[Đã xong] "
+                    : canDisplayQuest(player, quest) && active.size() < 3 ? "§a[Có thể nhận] " : "§c[Chưa đủ điều kiện] ";
+                String title = quest.title().length() > 26 ? quest.title().substring(0, 26) : quest.title();
+                return new NpcDefinitionLoader.NpcAction("quest-interaction", state + title, null, quest.id());
+            }).toList();
+    }
+
+    public void handleNpcQuestInteraction(Player player, String npcId, String questId) {
+        QuestDefinition quest = definitions.get(questId);
+        if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(npcId)) {
+            player.sendMessage("§cNhiệm vụ này không khả dụng tại NPC hiện tại.");
+            return;
         }
-        return List.copyOf(actions);
+        UUID playerId = player.getUniqueId();
+        Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer
+            .getOrDefault(playerId, Map.of());
+        java.util.Set<String> completed = completedByPlayer.getOrDefault(playerId, java.util.Set.of());
+        QuestDialogRefs refs = dialogRefs(quest.id());
+        String speaker = plugin.getNpcManager() == null ? quest.title()
+            : plugin.getNpcManager().getNpcDisplayName(npcId).orElse(quest.title());
+        if (completed.contains(questId)) {
+            plugin.getQuestDialogManager().openQuestDialogue(player, refs.completed(), speaker,
+                "Nhiệm vụ này đã hoàn thành. Phần thưởng đã được trao cho bạn.", null);
+            return;
+        }
+        if (active.containsKey(questId)) {
+            PlayerProfileDatabaseManager.QuestProgress progress = active.get(questId);
+            int step = currentObjectiveIndex(progress, quest);
+            Runnable followUp = quest.objectives().get(step).type() == ObjectiveType.SUBMIT_EXACT_ITEM
+                ? () -> submitQuestItems(player, npcId, questId) : null;
+            plugin.getQuestDialogManager().openQuestDialogue(player, refs.inProgress(), speaker,
+                followUp == null ? "Hãy tiếp tục mục tiêu của nhiệm vụ."
+                    : "Nếu bạn đã có vật phẩm yêu cầu, hãy tiếp tục để nộp cho ta.", followUp);
+            return;
+        }
+        if (active.size() < 3 && canDisplayQuest(player, quest)) {
+            plugin.getQuestDialogManager().openQuestDialogue(player, refs.available(), speaker,
+                "Ta có một nhiệm vụ cần bạn giúp. Hãy tiếp tục để nhận nhiệm vụ.",
+                () -> acceptQuest(player, npcId, questId));
+        } else {
+            plugin.getQuestDialogManager().openQuestDialogue(player, refs.unavailable(), speaker,
+                "Bạn chưa đáp ứng điều kiện nhận nhiệm vụ này hoặc đã nhận đủ số nhiệm vụ đang làm.", null);
+        }
     }
 
     public void submitQuestItems(Player player, String npcId, String questId) {
@@ -1854,6 +1965,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                             + quest.experienceReward() + " EXP)");
                         if (!quest.itemRewards().isEmpty())
                             plugin.getEconomyManager().reconcileMerchantDeliveries(player);
+                        String npcName = plugin.getNpcManager() == null ? quest.giverNpcId()
+                            : plugin.getNpcManager().getNpcDisplayName(quest.giverNpcId()).orElse(quest.giverNpcId());
+                        if (consumedItem != null) {
+                            plugin.getQuestDialogManager().openQuestDialogue(player,
+                                dialogRefs(quest.id()).completed(), npcName,
+                                "Nhiệm vụ đã hoàn thành. Phần thưởng đã được trao cho bạn.", null);
+                        }
                     }
                 } else if (result.advanced()) {
                     int nextIndex = objectiveIndex + 1;
@@ -2107,6 +2225,31 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     private enum QuestMenu { LIST, EDIT, CONFIRM_DELETE, CONFIRM_ABANDON, REQUIREMENTS,
         PREREQUISITE_SELECT, OBJECTIVES, REWARD_ITEMS, PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS }
+    private enum QuestDialogStage {
+        AVAILABLE("Có thể nhận"), IN_PROGRESS("Đang thực hiện"), COMPLETED("Hoàn tất/nhận thưởng"),
+        UNAVAILABLE("Không đủ điều kiện/đầy giới hạn");
+        private final String displayName;
+        QuestDialogStage(String displayName) { this.displayName = displayName; }
+    }
+    private record QuestDialogRefs(String available, String inProgress, String completed, String unavailable) {
+        private static final QuestDialogRefs EMPTY = new QuestDialogRefs(null, null, null, null);
+        private String forStage(QuestDialogStage stage) {
+            return switch (stage) {
+                case AVAILABLE -> available;
+                case IN_PROGRESS -> inProgress;
+                case COMPLETED -> completed;
+                case UNAVAILABLE -> unavailable;
+            };
+        }
+        private QuestDialogRefs with(QuestDialogStage stage, String value) {
+            return switch (stage) {
+                case AVAILABLE -> new QuestDialogRefs(value, inProgress, completed, unavailable);
+                case IN_PROGRESS -> new QuestDialogRefs(available, value, completed, unavailable);
+                case COMPLETED -> new QuestDialogRefs(available, inProgress, value, unavailable);
+                case UNAVAILABLE -> new QuestDialogRefs(available, inProgress, completed, value);
+            };
+        }
+    }
     private enum TextField { CREATE_ID, RENAME, GIVER, ADD_LEVEL_REQUIREMENT, ADD_ITEM_AMOUNT,
         ADD_KILL_ENTITY, ADD_KILL_AMOUNT, EDIT_KILL_ENTITY, EDIT_KILL_AMOUNT, ADD_OBJECTIVE_ITEM_AMOUNT,
         ADD_SUBMIT_ITEM_AMOUNT, ADD_BOSS_ID, ADD_BOSS_AMOUNT }

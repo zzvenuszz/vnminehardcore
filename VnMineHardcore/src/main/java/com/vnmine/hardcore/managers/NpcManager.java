@@ -97,6 +97,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return java.util.Optional.of(new NpcTarget(npc.world(), location));
     }
 
+    public java.util.Optional<String> getNpcDisplayName(String npcId) {
+        NpcRecord npc = npcId == null ? null : npcs.get(npcId.toLowerCase(Locale.ROOT));
+        return npc == null ? java.util.Optional.empty() : java.util.Optional.of(npc.displayName());
+    }
+
     public void openAdminMenu(Player player) {
         if (!player.hasPermission(ADMIN_PERMISSION)) {
             player.sendMessage("§cBạn không có quyền quản lý NPC.");
@@ -195,6 +200,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 + formatCoordinate(npc.y()) + ", " + formatCoordinate(npc.z()), "§eNhấn để di chuyển NPC.")));
         menu.setItem(16, createDialogueItem(Material.REDSTONE, "§cXóa NPC", List.of(
             "§7Sẽ xóa thực thể NPC và dữ liệu shop liên quan.", "§eNhấn để xác nhận.")));
+        if (npc.type().equals("story")) {
+            String chapterId = npc.storyChapterId() == null ? "(chưa chọn)" : npc.storyChapterId();
+            menu.setItem(18, createDialogueItem(Material.WRITTEN_BOOK, "§dChọn chapter cốt truyện", List.of(
+                "§7Chapter ID: §f" + chapterId, "§eNhấn để chọn nội dung NPC sẽ kể.")));
+        }
         menu.setItem(49, createDialogueItem(Material.ARROW, "§eQuay lại danh sách", List.of()));
         player.openInventory(menu);
     }
@@ -208,6 +218,54 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         menu.setItem(11, createDialogueItem(Material.LIME_DYE, "§aXác nhận xóa", List.of()));
         menu.setItem(15, createDialogueItem(Material.RED_DYE, "§eHủy", List.of()));
         player.openInventory(menu);
+    }
+
+    private void openStoryChapterSelector(Player player, String npcId, int requestedPage) {
+        NpcRecord npc = npcs.get(npcId);
+        if (npc == null) { openNpcList(player, 0); return; }
+        List<StoryChapterLoader.StoryChapter> chapters = List.copyOf(
+            plugin.getConfigManager().getStoryChapters().values());
+        int pageCount = Math.max(1, (chapters.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        NpcMenuHolder holder = new NpcMenuHolder(player.getUniqueId(), NpcMenu.STORY_CHAPTERS, npcId, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Chọn chapter • " + npc.id());
+        holder.inventory = menu;
+        for (int slot = 0; slot < 45 && page * 45 + slot < chapters.size(); slot++) {
+            StoryChapterLoader.StoryChapter chapter = chapters.get(page * 45 + slot);
+            boolean selected = chapter.id().equals(npc.storyChapterId());
+            menu.setItem(slot, createDialogueItem(selected ? Material.ENCHANTED_BOOK : Material.WRITTEN_BOOK,
+                (selected ? "§a✓ " : "§f") + chapter.order() + ". " + chapter.title(), List.of(
+                    "§7ID: §f" + chapter.id(), "§7" + chapter.summary(), "§eNhấn để gán cho NPC.")));
+            holder.npcSlots.put(slot, chapter.id());
+        }
+        if (page > 0) menu.setItem(45, createDialogueItem(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(46, createDialogueItem(Material.BARRIER, "§cBỏ chọn chapter", List.of()));
+        menu.setItem(49, createDialogueItem(Material.ARROW, "§eQuay lại chỉnh NPC", List.of()));
+        if (page + 1 < pageCount) menu.setItem(50, createDialogueItem(Material.ARROW, "§eTrang sau", List.of()));
+        menu.setItem(53, createDialogueItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
+            List.of("§7Tổng chapter: " + chapters.size())));
+        if (chapters.isEmpty()) menu.setItem(22, createDialogueItem(Material.BARRIER, "§cChưa có chapter truyện", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void saveStoryChapterSelection(Player player, String npcId, String chapterId, int page) {
+        NpcRecord old = npcs.get(npcId);
+        if (old == null) { openNpcList(player, 0); return; }
+        if (chapterId != null && !plugin.getConfigManager().getStoryChapters().containsKey(chapterId)) {
+            player.sendMessage("§cChapter không tồn tại trong cấu hình truyện.");
+            openStoryChapterSelector(player, npcId, page);
+            return;
+        }
+        npcs.put(npcId, old.withStoryChapterId(chapterId));
+        try {
+            saveNpcs();
+            player.sendMessage("§aĐã " + (chapterId == null ? "bỏ chọn chapter" : "gán chapter §f" + chapterId)
+                + " §acho NPC §f" + npcId + "§a.");
+        } catch (IOException exception) {
+            npcs.put(npcId, old);
+            reportNpcGuiError(player, exception);
+        }
+        openNpcEditor(player, npcId, page);
     }
 
     @EventHandler
@@ -241,6 +299,15 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             } else if (slot == 15) openNpcEditor(player, holder.npcId, holder.page);
             return;
         }
+        if (holder.menu == NpcMenu.STORY_CHAPTERS) {
+            if (slot == 45 && holder.page > 0) openStoryChapterSelector(player, holder.npcId, holder.page - 1);
+            else if (slot == 46) saveStoryChapterSelection(player, holder.npcId, null, holder.page);
+            else if (slot == 49) openNpcEditor(player, holder.npcId, holder.page);
+            else if (slot == 50) openStoryChapterSelector(player, holder.npcId, holder.page + 1);
+            else if (holder.npcSlots.containsKey(slot))
+                saveStoryChapterSelection(player, holder.npcId, holder.npcSlots.get(slot), holder.page);
+            return;
+        }
         if (slot == 49) openNpcList(player, holder.page);
         else if (slot == 10) promptNpc(player, new PendingNpcInput(NpcTextField.RENAME, holder.npcId, holder.page, ""));
         else if (slot == 12) promptNpc(player, new PendingNpcInput(NpcTextField.CHANGE_TYPE, holder.npcId, holder.page, ""));
@@ -252,6 +319,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             }
             openNpcEditor(player, holder.npcId, holder.page);
         } else if (slot == 16) openNpcDeleteConfirmation(player, holder.npcId, holder.page);
+        else if (slot == 18) {
+            NpcRecord npc = npcs.get(holder.npcId);
+            if (npc != null && "story".equals(npc.type())) openStoryChapterSelector(player, holder.npcId, 0);
+        }
     }
 
     @EventHandler
@@ -427,12 +498,17 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             event.getPlayer().sendMessage("§cKhông tìm thấy dữ liệu của NPC này.");
             return;
         }
+        Player player = event.getPlayer();
+        if (player.isSneaking() && player.hasPermission(ADMIN_PERMISSION)
+                && ("story".equals(npc.type()) || "quest-giver".equals(npc.type()))) {
+            openNpcEditor(player, npc.id(), 0);
+            return;
+        }
         if ("system-merchant".equals(npc.type())) {
-            plugin.getEconomyManager().openMerchantMenu(event.getPlayer());
+            plugin.getEconomyManager().openMerchantMenu(player);
             return;
         }
         if ("merchant".equals(npc.type())) {
-            Player player = event.getPlayer();
             if (player.isSneaking() && player.hasPermission(ADMIN_PERMISSION)) {
                 openMerchantEditor(player, npc.id(), copyListings(merchantListings.get(npc.id())));
                 return;
@@ -444,11 +520,26 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             plugin.getEconomyManager().openCustomMerchantMenu(player, npc.id(), dialogueTitle(npc.displayName()), offers);
             return;
         }
-        NpcDefinitionLoader.NpcDefinition definition = findDialogueDefinition(id, npc.type(), definitions);
+        if ("story".equals(npc.type())) {
+            StoryChapterLoader.StoryChapter chapter = npc.storyChapterId() == null ? null
+                : plugin.getConfigManager().getStoryChapters().get(npc.storyChapterId());
+            if (chapter == null && npc.storyChapterId() != null) {
+                plugin.getLogger().warning("[NPC] Story NPC '" + npc.id() + "' references missing chapter '"
+                    + npc.storyChapterId() + "'.");
+            }
+            plugin.getQuestDialogManager().openStoryChapter(player,
+                ChatColor.stripColor(formatDisplayName(npc.displayName())), chapter);
+            return;
+        }
+        openNpcDialogue(player, npc, 0);
+    }
+
+    private void openNpcDialogue(Player player, NpcRecord npc, int actionPage) {
+        NpcDefinitionLoader.NpcDefinition definition = findDialogueDefinition(npc.id(), npc.type(), definitions);
         if (definition == null) {
             definition = createFallbackDialogueDefinition(npc);
         }
-        openDialogue(event.getPlayer(), npc, definition);
+        openDialogue(player, npc, definition, actionPage);
     }
 
     @EventHandler
@@ -462,6 +553,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             player.closeInventory();
             return;
         }
+        if (event.getRawSlot() == 46 || event.getRawSlot() == 48) {
+            NpcRecord npc = npcs.get(holder.npcId);
+            if (npc != null) openNpcDialogue(player, npc, holder.page + (event.getRawSlot() == 46 ? -1 : 1));
+            return;
+        }
         NpcDefinitionLoader.NpcAction action = holder.actions.get(event.getRawSlot());
         if (action == null) return;
         player.closeInventory();
@@ -471,7 +567,8 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             case "open-story" -> plugin.getMercenaryManager().openStoryJournal(player);
             case "open-merchant" -> plugin.getEconomyManager().openMerchantMenu(player);
             case "give-skill-book" -> plugin.getSkillManager().giveSkillBookFromNpc(player, action.bookId());
-            case "accept-quest" -> plugin.getQuestCatalogManager().acceptQuest(player, holder.npcId, action.questId());
+            case "accept-quest", "quest-interaction" -> plugin.getQuestCatalogManager()
+                .handleNpcQuestInteraction(player, holder.npcId, action.questId());
             case "submit-quest" -> plugin.getQuestCatalogManager().submitQuestItems(player, holder.npcId,
                 action.questId());
             default -> plugin.getLogger().warning("[NPC] Unsupported runtime action '" + action.type() + "'.");
@@ -764,8 +861,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             List.of(line), List.of());
     }
 
-    private void openDialogue(Player player, NpcRecord npc, NpcDefinitionLoader.NpcDefinition definition) {
-        DialogueHolder holder = new DialogueHolder(player.getUniqueId(), npc.id());
+    private void openDialogue(Player player, NpcRecord npc, NpcDefinitionLoader.NpcDefinition definition,
+                              int requestedActionPage) {
+        DialogueHolder holder = new DialogueHolder(player.getUniqueId(), npc.id(), requestedActionPage);
         Inventory inventory = Bukkit.createInventory(holder, 54, dialogueTitle(npc.displayName()));
         holder.inventory = inventory;
 
@@ -794,13 +892,16 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         for (NpcDefinitionLoader.NpcAction action : plugin.getQuestCatalogManager().getNpcQuestActions(player, npc.id())) {
             if (!configuredQuestIds.contains(action.questId())) dialogueActions.add(action);
         }
+        int pageCount = Math.max(1, (dialogueActions.size() + 8) / 9);
+        holder.page = Math.max(0, Math.min(requestedActionPage, pageCount - 1));
         int[] actionSlots = {37, 38, 39, 40, 41, 42, 43, 44, 45};
-        for (int index = 0; index < Math.min(actionSlots.length, dialogueActions.size()); index++) {
-            NpcDefinitionLoader.NpcAction action = dialogueActions.get(index);
+        for (int index = 0; index < actionSlots.length && holder.page * 9 + index < dialogueActions.size(); index++) {
+            NpcDefinitionLoader.NpcAction action = dialogueActions.get(holder.page * 9 + index);
             int slot = actionSlots[index];
             Material material = switch (action.type()) {
                 case "give-skill-book" -> Material.ENCHANTED_BOOK;
                 case "accept-quest" -> Material.FILLED_MAP;
+                case "quest-interaction" -> Material.FILLED_MAP;
                 case "open-skill-tree" -> Material.IRON_SWORD;
                 case "open-merchant" -> Material.EMERALD;
                 default -> Material.WRITABLE_BOOK;
@@ -809,6 +910,12 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 List.of("§7Nhấn để thực hiện.")));
             holder.actions.put(slot, action);
         }
+        if (holder.page > 0) inventory.setItem(46, createDialogueItem(Material.ARROW, "§eQuest trước", List.of()));
+        if (dialogueActions.size() > 9) inventory.setItem(47, createDialogueItem(Material.PAPER,
+            "§fTrang quest " + (holder.page + 1) + "/" + pageCount,
+            List.of("§7Tổng hành động: " + dialogueActions.size())));
+        if (holder.page + 1 < pageCount) inventory.setItem(48,
+            createDialogueItem(Material.ARROW, "§eQuest tiếp", List.of()));
         inventory.setItem(49, createDialogueItem(Material.BARRIER, "§cĐóng", List.of("§7Đóng hội thoại.")));
         player.openInventory(inventory);
     }
@@ -867,7 +974,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         Location location = player.getLocation();
         location.getWorld().getChunkAt(location.getBlockX() >> 4, location.getBlockZ() >> 4);
         Villager entity = spawnNpc(id, displayName, location);
-        npcs.put(id, new NpcRecord(id, type, displayName, location, entity.getUniqueId()));
+        NpcRecord created = new NpcRecord(id, type, displayName, location, entity.getUniqueId());
+        if ("story".equals(type)) created = created.withStoryChapterId(defaultStoryChapterId());
+        npcs.put(id, created);
         try {
             saveNpcs();
         } catch (IOException exception) {
@@ -1083,8 +1192,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                     throw new InvalidConfigurationException("Invalid entity-uuid for NPC '" + id + "'.", exception);
                 }
             }
+            String storyChapterId = entry.getString("story-chapter-id", "").trim();
+            if (storyChapterId.isBlank() && "story".equals(type)) storyChapterId = defaultStoryChapterId();
             npcs.put(id, new NpcRecord(id, type, displayName,
-                new Location(null, x, y, z, yaw, pitch), entityId, world));
+                new Location(null, x, y, z, yaw, pitch), entityId, world,
+                storyChapterId.isBlank() ? null : storyChapterId));
             ConfigurationSection savedListings = entry.getConfigurationSection("merchant-offers");
             if (savedListings != null) {
                 if (!"merchant".equals(type)) {
@@ -1130,6 +1242,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             configuration.set(path + ".yaw", npc.yaw());
             configuration.set(path + ".pitch", npc.pitch());
             configuration.set(path + ".entity-uuid", npc.entityId() == null ? null : npc.entityId().toString());
+            configuration.set(path + ".story-chapter-id", npc.storyChapterId());
             Map<Integer, MerchantListing> listings = merchantListings.get(npc.id());
             if (listings != null) {
                 for (Map.Entry<Integer, MerchantListing> offer : listings.entrySet()) {
@@ -1156,6 +1269,12 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         } finally {
             Files.deleteIfExists(temporary.toPath());
         }
+    }
+
+    private String defaultStoryChapterId() {
+        return plugin.getConfigManager().getStoryChapters().values().stream()
+            .min(Comparator.comparingInt(StoryChapterLoader.StoryChapter::order))
+            .map(StoryChapterLoader.StoryChapter::id).orElse(null);
     }
 
     private void reconcileLoadedNpcs() {
@@ -1344,19 +1463,25 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     }
 
     private record NpcRecord(String id, String type, String displayName, Location location,
-                             UUID entityId, String world) {
+                             UUID entityId, String world, String storyChapterId) {
         private NpcRecord(String id, String type, String displayName, Location location, UUID entityId) {
-            this(id, type, displayName, location.clone(), entityId, location.getWorld().getName());
+            this(id, type, displayName, location.clone(), entityId, location.getWorld().getName(), null);
         }
 
         private NpcRecord(String id, String type, String displayName, Location location,
                           UUID entityId, String world) {
+            this(id, type, displayName, location, entityId, world, null);
+        }
+
+        private NpcRecord(String id, String type, String displayName, Location location,
+                          UUID entityId, String world, String storyChapterId) {
             this.id = id;
             this.type = type;
             this.displayName = displayName;
             this.location = location.clone();
             this.entityId = entityId;
             this.world = world;
+            this.storyChapterId = storyChapterId;
         }
 
         private double x() {
@@ -1380,19 +1505,24 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
 
         private NpcRecord withDisplayName(String name) {
-            return new NpcRecord(id, type, name, location, entityId, world);
+            return new NpcRecord(id, type, name, location, entityId, world, storyChapterId);
         }
 
         private NpcRecord withType(String value) {
-            return new NpcRecord(id, value, displayName, location, entityId, world);
+            return new NpcRecord(id, value, displayName, location, entityId, world, storyChapterId);
         }
 
         private NpcRecord withLocation(Location newLocation, UUID newEntityId) {
-            return new NpcRecord(id, type, displayName, newLocation, newEntityId);
+            return new NpcRecord(id, type, displayName, newLocation, newEntityId,
+                newLocation.getWorld().getName(), storyChapterId);
         }
 
         private NpcRecord withEntityId(UUID newEntityId) {
-            return new NpcRecord(id, type, displayName, location, newEntityId, world);
+            return new NpcRecord(id, type, displayName, location, newEntityId, world, storyChapterId);
+        }
+
+        private NpcRecord withStoryChapterId(String value) {
+            return new NpcRecord(id, type, displayName, location, entityId, world, value);
         }
     }
 
@@ -1402,7 +1532,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
     }
 
-    private enum NpcMenu { LIST, EDIT, CONFIRM_DELETE }
+    private enum NpcMenu { LIST, EDIT, CONFIRM_DELETE, STORY_CHAPTERS }
     private enum NpcTextField { CREATE_ID, CREATE_TYPE, CREATE_NAME, RENAME, CHANGE_TYPE }
     private record PendingNpcInput(NpcTextField field, String npcId, int page, String value) { }
 
@@ -1427,12 +1557,14 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     private static final class DialogueHolder implements InventoryHolder {
         private final UUID viewer;
         private final String npcId;
+        private int page;
         private final Map<Integer, NpcDefinitionLoader.NpcAction> actions = new LinkedHashMap<>();
         private Inventory inventory;
 
-        private DialogueHolder(UUID viewer, String npcId) {
+        private DialogueHolder(UUID viewer, String npcId, int page) {
             this.viewer = viewer;
             this.npcId = npcId;
+            this.page = page;
         }
 
         @Override

@@ -135,6 +135,10 @@ commands:
   vnquest:
     description: Mở nhật ký quest hoặc giao diện quản trị quest RPG
     usage: /vnquest <journal|detail <id>|admin>
+  vnquestdialog:
+    description: Mở giao diện quản lý hội thoại quest RPG
+    usage: /vnquestdialog admin
+    permission: vnmine.command.quest.admin
   vnmenu:
     description: Mở menu chức năng của VnMineHardcore
     usage: /vnmenu

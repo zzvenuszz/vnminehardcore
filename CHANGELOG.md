@@ -1,5 +1,10 @@
 # Changelog
 
+## [v2.16.0] - 2026-10-25
+- Thay luồng NPC story thành GUI nền kính phát nội dung chapter theo kiểu typewriter; admin shift+right-click để chọn chapter.
+- Thêm trình quản lý quest-dialog riêng và gán hội thoại theo trạng thái quest: có thể nhận, đang làm, hoàn tất/nhận thưởng, hoặc chưa đủ điều kiện; quest đã hoàn thành dùng hội thoại hoàn tất.
+- Thêm `story-chapter-id` bền vững cho NPC story và dùng hội thoại trước khi nhận quest hoặc nộp vật phẩm.
+
 ## [Unreleased]
 
 ## [v2.15.0] - 2026-10-25

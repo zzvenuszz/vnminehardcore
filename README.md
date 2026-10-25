@@ -217,6 +217,7 @@ enabled: false  # in plugins/VnMineHardcore/disasters/chorus-explosion.yml
 | `/vnnpc ...` | Create, rename, move, inspect, list, or remove RPG NPCs | `vnmine.command.npc.admin` |
 | `/vntext ...` | Create and manage persistent, oriented, colored text displays | `vnmine.command.text.manage` |
 | `/vnquest admin` | Open the quest definition manager GUI | `vnmine.command.quest.admin` |
+| `/vnquestdialog admin` | Open the reusable quest-dialog manager | `vnmine.command.quest.admin` |
 | `/vnquest journal` | Open active quests and completed quest history, with details, rewards, tracking, and cancel controls | No permission |
 | `/vnquest detail <id>` | Open details for an active or completed quest; also used to open a quest named on the scoreboard | No permission |
 | `/quatanthu` | Nhận túi quà tân thủ và chọn 1 token triệu hồi lính đánh thuê bậc 1 | — |
@@ -334,7 +335,7 @@ Operators and the console have all plugin permissions by default.
 | `vnmine.command.progression.admin` | Grant character RPG EXP/levels from the admin GUI (default: op) |
 | `vnmine.command.npc.admin` | Create, rename, move, inspect, list, and remove RPG NPCs (default: op) |
 | `vnmine.command.text.manage` | Create, edit, move, list, inspect, and remove world text displays with `/vntext` (default: op) |
-| `vnmine.command.quest.admin` | Manage quest definitions through `/vnquest admin` (default: op) |
+| `vnmine.command.quest.admin` | Manage quest definitions and quest dialogs through `/vnquest admin` or `/vnquestdialog admin` (default: op) |
 | `vnmine.spawnprotection.bypass` | Let a non-operator place/break blocks inside protected regions |
 
 The old `vnmine.hardcore.admin` and `vnmine.hardcore.stats` nodes remain
@@ -657,6 +658,7 @@ duplicate YAML keys, unknown role types, and invalid definitions prevent the
 plugin from starting so the invalid data is not silently ignored. Runtime NPCs
 are stored separately in `plugins/VnMineHardcore/npcs.yml`; their entity UUID,
 role, display name, world, and location are saved and reconciled as chunks load.
+Story NPC records also persist their selected `story-chapter-id`.
 
 The bundled file provides tutorial-guide, class-trainer, coin-merchant,
 story-keeper, hunter, village-watch, and blacksmith dialogue templates. The story keeper
@@ -680,10 +682,16 @@ title-cased role. Names are limited to 64 characters and support `&` color
 codes. Create and move require a player location; other commands may be run
 from console. Runtime NPCs are stationary, silent, invulnerable vanilla
 villagers and are protected from the custom villager-trade system. Right-click
-opens a 54-slot dialogue GUI showing up to 20 configured lines and configured
-action buttons. Quest journal and skill tree buttons open their existing RPG
-interfaces; a skill-book button grants the configured book for learning. An
-`accept-quest` action accepts a quest only from its configured giver NPC ID.
+opens a 54-slot, glass-backed dialogue GUI. A `story` NPC plays its assigned
+chapter pages as a typewriter action-bar dialogue and posts each completed page
+in chat. Admins can shift-right-click a story NPC, choose **Chọn chapter cốt
+truyện**, then select its chapter. New story NPCs default to the first configured
+chapter. Quest-giver NPCs show available, active, completed, and unavailable
+quests as clickable actions. Selecting a quest plays its configured dialog
+before accepting or submitting items. Quest journal and skill tree buttons open
+their RPG interfaces; a skill-book button grants the configured book. An
+`accept-quest` action uses the same dialog flow and only accepts from its
+configured giver NPC ID.
 Quest definitions live in `quests/quest-definitions.yml`; the initial objective
 type is `kill-mob`, progress persists in SQLite, and VNCOIN rewards are paid
 once on completion. Create the sample quest NPCs at your chosen locations:
@@ -698,8 +706,19 @@ Current sample quests ask players to kill zombies, skeletons, or spiders, or
 collect special iron shards dropped by iron golems while a player has the
 blacksmith quest active. Quest materials carry a plugin PDC ID; ordinary raw
 iron does not count. The scoreboard shows the selected active quest and
-progress. System-boss objectives, quest-list/reward-preview GUI, particle
-tracking to arbitrary quest NPCs, and repeatable daily quests are still planned.
+progress. The quest editor can assign four optional dialog IDs: available,
+in-progress, completed/reward, and unavailable/requirements unmet. Open
+**/vnquest admin → Quản lý quest-dialog** or use `/vnquestdialog admin` to
+create, edit, and delete reusable dialog text. Enter pages separated by `|`,
+for example `Chào người lữ khách.|Hãy giúp ta tìm quặng.`. Dialogs persist in
+`plugins/VnMineHardcore/quests/quest-dialogs.yml`; deletion is blocked while a
+quest references that dialog. Bindings are stored in `quest-definitions.yml`.
+The completed dialog appears after an NPC item turn-in awards the quest and on
+later visits to the giver after completion. The unavailable dialog is used when
+the player does not meet quest requirements or has reached the active quest cap.
+The quest journal already supports reward previews; system-boss objectives and
+quest waypoint tracking are implemented. Generalized region/portal/crafting
+objectives, daily repeatable quests, and co-op reward attribution remain planned.
 Dialogue lookup first tries a definition whose ID matches the runtime NPC ID,
 then uses the first definition of the same role. If neither exists, the NPC
 still opens a short Vietnamese fallback dialogue; quest actions matching its
@@ -711,8 +730,8 @@ can also be managed from **Menu chính → Admin → Quản lý NPC**. The GUI s
 creating an NPC at the admin's current location, editing its display name and
 role, moving it to the current location, and deleting it after confirmation.
 Creation asks for ID, role, and display name in chat; each prompt shows valid
-formats and examples, and `!cancel` returns to the GUI. Custom dialogue editor,
-objective-specific reward actions, waypoint particles, and custom skins remain
+formats and examples, and `!cancel` returns to the GUI. Editing arbitrary
+dialogue templates, objective-specific reward actions, and custom skins remain
 future work.
 
 ### World text displays
