@@ -128,10 +128,13 @@ commands:
     description: Tạo và quản lý các NPC RPG
     usage: /vnnpc <create|edit|rename|move|remove|info|list>
     permission: vnmine.command.npc.admin
+  vntext:
+    description: Tạo, chỉnh sửa và quản lý text display cố định trong thế giới
+    usage: /vntext <create|edit|move|remove|info|list>
+    permission: vnmine.command.text.manage
   vnquest:
-    description: Mở giao diện quản lý quest RPG
-    usage: /vnquest admin
-    permission: vnmine.command.quest.admin
+    description: Mở nhật ký quest hoặc giao diện quản trị quest RPG
+    usage: /vnquest <journal|detail <id>|admin>
   vnmenu:
     description: Mở menu chức năng của VnMineHardcore
     usage: /vnmenu
@@ -238,6 +241,9 @@ permissions:
     default: op
   vnmine.command.npc.admin:
     description: Cho phép tạo, đổi tên, di chuyển và xóa NPC RPG bằng /vnnpc
+    default: op
+  vnmine.command.text.manage:
+    description: Cho phép tạo, chỉnh sửa, di chuyển và xóa text display bằng /vntext
     default: op
   vnmine.command.quest.admin:
     description: Cho phép tạo, sửa, bật tắt và xóa quest RPG

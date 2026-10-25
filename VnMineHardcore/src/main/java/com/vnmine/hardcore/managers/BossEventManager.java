@@ -117,6 +117,7 @@ public class BossEventManager implements Listener {
    private final NamespacedKey armyOwnerKey;
    private final NamespacedKey bossArmorSetKey;
    private final NamespacedKey rpgSystemItemKey;
+   private final NamespacedKey rpgSystemBossKey;
    private final ConfigManager config;
    private final LogManager logManager;
    private final BossLeaderboardManager leaderboardManager;
@@ -185,6 +186,7 @@ public class BossEventManager implements Listener {
       this.armyOwnerKey = new NamespacedKey(plugin, "army_owner");
       this.bossArmorSetKey = new NamespacedKey(plugin, "boss_armor_set");
       this.rpgSystemItemKey = new NamespacedKey(plugin, "rpg_system_item");
+      this.rpgSystemBossKey = new NamespacedKey(plugin, "rpg_system_boss_id");
       this.config = config;
       this.logManager = plugin.getLogManager();
       this.leaderboardManager = plugin.getBossLeaderboardManager();
@@ -2674,6 +2676,12 @@ public class BossEventManager implements Listener {
             } else {
                this.currentBoss = livingBoss;
                this.activeBossConfig = bc;
+               String systemBossId = this.config.bossConfigs.entrySet().stream()
+                  .filter(entry -> entry.getValue() == bc)
+                  .map(Map.Entry::getKey)
+                  .findFirst().orElse("unknown");
+               this.currentBoss.getPersistentDataContainer().set(
+                  this.rpgSystemBossKey, PersistentDataType.STRING, systemBossId);
                if (this.config.bossSizeEnabled && this.config.bossSizeEntityTypes.contains(this.currentBoss.getType().name())) {
                   AttributeInstance scaleAttribute = this.currentBoss.getAttribute(Attribute.SCALE);
                   if (scaleAttribute == null) {
@@ -3426,6 +3434,14 @@ public class BossEventManager implements Listener {
    }
 
    private void onBossKilled(ConfigManager.BossConfig bc) {
+      if (this.currentBoss != null) {
+         String bossId = this.currentBoss.getPersistentDataContainer()
+            .get(this.rpgSystemBossKey, PersistentDataType.STRING);
+         if (bossId != null && this.plugin.getQuestCatalogManager() != null) {
+            this.plugin.getQuestCatalogManager().onSystemBossDefeated(
+               bossId, this.currentBoss.getUniqueId(), Set.copyOf(this.bossDamageContributions.keySet()));
+         }
+      }
       EntityDamageEvent lastDamage = this.currentBoss == null ? null : this.currentBoss.getLastDamageCause();
       Set<UUID> eligiblePlayers = this.getRewardEligiblePlayers();
       this.awardBossExperience(bc);

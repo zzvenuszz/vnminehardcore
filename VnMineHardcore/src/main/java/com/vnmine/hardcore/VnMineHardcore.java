@@ -36,6 +36,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private QuestCatalogManager questCatalogManager;
     private Map<String, NpcDefinitionLoader.NpcDefinition> npcDefinitions = Map.of();
     private NpcManager npcManager;
+    private TextDisplayManager textDisplayManager;
     private SkillManager skillManager;
     private LogManager logManager;
     private ThirstManager thirstManager;
@@ -200,6 +201,14 @@ public final class VnMineHardcore extends JavaPlugin {
             return;
         }
         Bukkit.getPluginManager().registerEvents(npcManager, this);
+        try {
+            this.textDisplayManager = new TextDisplayManager(this);
+        } catch (java.io.IOException exception) {
+            getLogger().log(Level.SEVERE, "Failed to initialize managed text displays.", exception);
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+        Bukkit.getPluginManager().registerEvents(textDisplayManager, this);
 
         // Register listeners
         Bukkit.getPluginManager().registerEvents(deathListener, this);
@@ -227,6 +236,7 @@ public final class VnMineHardcore extends JavaPlugin {
         registerCommand("vnskills", skillManager, skillManager);
         registerCommand("vnskillbook", skillManager, skillManager);
         registerCommand("vnnpc", npcManager, npcManager);
+        registerCommand("vntext", textDisplayManager, textDisplayManager);
         registerCommand("vnquest", questCatalogManager, questCatalogManager);
         registerCommand("vngroup", permissionManager, permissionManager);
         registerCommand("vnuser", permissionManager, permissionManager);
@@ -1192,6 +1202,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public NpcManager getNpcManager() {
         return npcManager;
     }
+    public TextDisplayManager getTextDisplayManager() { return textDisplayManager; }
     public SkillManager getSkillManager() { return skillManager; }
     public CharacterSelectionManager getCharacterSelectionManager() { return characterSelectionManager; }
     public RpgWorldManager getRpgWorldManager() { return rpgWorldManager; }

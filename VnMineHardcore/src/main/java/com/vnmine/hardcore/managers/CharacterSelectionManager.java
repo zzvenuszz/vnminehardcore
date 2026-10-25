@@ -183,6 +183,8 @@ public final class CharacterSelectionManager implements Listener {
                 plugin.getEconomyManager().openWalletMenu(player);
             } else if (slot == 15 && plugin.getTutorialQuestManager() != null) {
                 plugin.getTutorialQuestManager().openJournal(player);
+            } else if (slot == 17 && plugin.getQuestCatalogManager() != null) {
+                plugin.getQuestCatalogManager().openPlayerJournal(player);
             } else if (slot == 22 && plugin.getMercenaryManager() != null) {
                 plugin.getMercenaryManager().openMainMenu(player);
             }
@@ -346,8 +348,10 @@ public final class CharacterSelectionManager implements Listener {
                 plugin.getPlayerProfileDatabaseManager().getCharacterProgressionRules())));
         if (plugin.getConfig().getBoolean("rpg.quest-journal.enabled", true)) {
             inventory.setItem(15, createActionItem(Material.WRITABLE_BOOK, "§bNhật ký nhiệm vụ", List.of(
-                "§7Xem checkpoint và trạng thái nhiệm vụ tutorial.")));
+                "§7Theo dõi nhiệm vụ tutorial.")));
         }
+        inventory.setItem(17, createActionItem(Material.BOOK, "§eNhiệm vụ RPG", List.of(
+            "§7Xem nhiệm vụ đang nhận và nhật ký hoàn thành.")));
         inventory.setItem(22, createActionItem(Material.ARROW, "§7Về menu chính", List.of(
             "§7Quay lại hub RPG.")));
         player.openInventory(inventory);

@@ -215,7 +215,10 @@ enabled: false  # in plugins/VnMineHardcore/disasters/chorus-explosion.yml
 | `/vnuser ...` | Inspect users, assign groups, manage personal permission grants | `vnmine.command.users.manage` |
 | `/vnarmy ...` | Hire/manage mercenaries; rename with `/vnarmy rename <ID> <Tên mới>` | `vnmine.command.army` |
 | `/vnnpc ...` | Create, rename, move, inspect, list, or remove RPG NPCs | `vnmine.command.npc.admin` |
+| `/vntext ...` | Create and manage persistent, oriented, colored text displays | `vnmine.command.text.manage` |
 | `/vnquest admin` | Open the quest definition manager GUI | `vnmine.command.quest.admin` |
+| `/vnquest journal` | Open active quests and completed quest history, with details, rewards, tracking, and cancel controls | No permission |
+| `/vnquest detail <id>` | Open details for an active or completed quest; also used to open a quest named on the scoreboard | No permission |
 | `/quatanthu` | Nhận túi quà tân thủ và chọn 1 token triệu hồi lính đánh thuê bậc 1 | — |
 
 ### `/vnevent` Usage
@@ -330,6 +333,7 @@ Operators and the console have all plugin permissions by default.
 | `vnmine.command.skillbook.admin` | Give configured RPG skill books via command or admin GUI (default: op) |
 | `vnmine.command.progression.admin` | Grant character RPG EXP/levels from the admin GUI (default: op) |
 | `vnmine.command.npc.admin` | Create, rename, move, inspect, list, and remove RPG NPCs (default: op) |
+| `vnmine.command.text.manage` | Create, edit, move, list, inspect, and remove world text displays with `/vntext` (default: op) |
 | `vnmine.command.quest.admin` | Manage quest definitions through `/vnquest admin` (default: op) |
 | `vnmine.spawnprotection.bypass` | Let a non-operator place/break blocks inside protected regions |
 
@@ -711,6 +715,34 @@ formats and examples, and `!cancel` returns to the GUI. Custom dialogue editor,
 objective-specific reward actions, waypoint particles, and custom skins remain
 future work.
 
+### World text displays
+
+Operators with `vnmine.command.text.manage` can create a fixed text display at
+their current position. The display definition and entity are persistent across
+chunk unloads/restarts.
+
+```
+/vntext create <id> <facing> <color> <scale> <text...>
+/vntext edit <id> <facing> <color> <scale> <text...>
+/vntext move <id>
+/vntext info <id>
+/vntext list
+/vntext remove <id>
+```
+
+Facing values are `UP`, `DOWN`, `NORTH`, `SOUTH`, `EAST`, and `WEST`. Colors
+include Minecraft names such as `gold`, `red`, `aqua`, plus `orange` and hex
+values like `#FFAA00`. Scale must be from `0.1` to `32`; text can contain up to
+256 characters. For example:
+
+```
+/vntext create test-label UP orange 9 KHU VỰC TEST
+```
+
+Definitions are saved in `plugins/VnMineHardcore/text-displays.yml`. The maximum
+managed count is configured at `rpg.text-display.max-active` (default 100,
+allowed range 1–500).
+
 ### Quest administration
 
 `/vnquest admin` or **Menu chính → Admin → Quản lý nhiệm vụ** opens a paginated list of configured quests. Admins can create
@@ -723,21 +755,35 @@ The editor also supports AND requirements for minimum RPG level, completion of
 another quest, and an exact held item (including RPG metadata). Requirements
 are checked both when listing an NPC's quests and when accepting one. The
 objective screen can edit the first kill-mob objective and add/remove up to 44
-sequential objectives for killing mobs or collecting an exact item selected by
-the admin. Exact item matching preserves the selected item's metadata/PDC,
-including RPG item data. Legacy `collect-rpg-item` objectives remain supported
-as the first step. Progress is stored per step in SQLite and advances only
-after its target count is reached. Objective changes/deletion are blocked while
+sequential objectives for killing mobs, collecting/turning in an exact item, or
+killing a configured system boss. Exact item matching preserves metadata/PDC.
+Items are submitted to the quest's giver NPC and consumed only after checking the
+player's inventory; failed progress writes return items, using the persistent
+delivery queue if the player disconnects. Boss objectives use the system boss ID marker and count players
+who contributed damage to that encounter. Legacy `collect-rpg-item` objectives
+remain supported as the first step. Progress is stored per step in SQLite and
+advances only after its target count is reached. Objective changes/deletion are blocked while
 players have that quest active, preventing progress indexes from shifting. The reward editor accepts up to 45 item
 stacks and saves them to the quest definition; reward delivery uses the
 persistent delivery queue. EXP and VNCOIN rewards have +/-1, +/-10, and +/-100
 controls. Chat prompts accept `!cancel` and reopen the relevant editor.
 
+Players can open **Hồ sơ RPG → Nhiệm vụ** or `/vnquest journal` to switch between
+active quests and completed quest history. Selecting an active quest opens its
+full objective/checkpoint list and reward preview, with controls to track or
+abandon it. Abandonment requires confirmation; abandoned quests may be accepted
+again. At most three quests can be active at once. The scoreboard lists each
+active quest's current objective step and progress. Legacy Bukkit scoreboard
+rows do not support click events, so use `/vnquest detail <id>` or select the
+quest in the RPG journal to open details. Tracking draws a live particle path to
+the quest-giver NPC in the same world; when the NPC is in another world, the
+action bar tells the player which world to visit. `rpg.quests.tracking` controls
+particle visibility and update interval.
+
 Quest definitions continue to be stored in `quests/quest-definitions.yml`.
-The current GUI does not yet configure objectives by typed Minecraft/RPG ID,
-item delivery/consumption, boss or NPC objectives, completed-quest objectives
-within a sequence, player quest journal/reward preview, or daily repeatable
-quest settings.
+The editor still lacks generic Material/RPG-ID objectives, NPC/region/portal/
+crafting objectives, daily repeatable quest settings, and cross-player party
+credit outside system-boss damage contributions.
 
 Custom `merchant` NPCs can have an individual shop. Use `/vnnpc edit <id>` or
 Shift-right-click the NPC to open its editor. Shift-click a system-created RPG

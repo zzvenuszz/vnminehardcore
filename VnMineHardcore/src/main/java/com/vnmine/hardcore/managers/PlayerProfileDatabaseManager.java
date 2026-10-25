@@ -932,11 +932,91 @@ public class PlayerProfileDatabaseManager {
             "(uuid, quest_id, status, current_step, started_at, reward_claimed) " +
             "VALUES (?, ?, 'active', ?, ?, 0) ON CONFLICT(uuid, quest_id) DO NOTHING";
         return executeWriteTransaction(connection -> {
+            try (PreparedStatement count = connection.prepareStatement(
+                    "SELECT COUNT(*) FROM player_quest_progress WHERE uuid = ? AND status = 'active'")) {
+                count.setString(1, uuid);
+                try (ResultSet resultSet = count.executeQuery()) {
+                    if (resultSet.next() && resultSet.getInt(1) >= 3) return false;
+                }
+            }
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, uuid);
                 statement.setString(2, questId);
                 statement.setString(3, currentStep);
                 statement.setString(4, startedAt);
+                return statement.executeUpdate() == 1;
+            }
+        });
+    }
+
+    public QuestStartResult startQuestProgressWithLimit(String uuid, String questId, String currentStep,
+            String startedAt, int activeLimit) throws SQLException {
+        if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank()
+                || currentStep == null || currentStep.isBlank() || startedAt == null || startedAt.isBlank()
+                || activeLimit < 1 || activeLimit > 3) {
+            throw new IllegalArgumentException("Quest start fields are invalid.");
+        }
+        return executeWriteTransaction(connection -> {
+            boolean restartAbandoned = false;
+            try (PreparedStatement checkExisting = connection.prepareStatement(
+                    "SELECT status FROM player_quest_progress WHERE uuid = ? AND quest_id = ?")) {
+                checkExisting.setString(1, uuid);
+                checkExisting.setString(2, questId);
+                try (ResultSet resultSet = checkExisting.executeQuery()) {
+                    if (resultSet.next()) {
+                        if (!"abandoned".equals(resultSet.getString("status")))
+                            return QuestStartResult.ALREADY_EXISTS;
+                        restartAbandoned = true;
+                    }
+                }
+            }
+            try (PreparedStatement count = connection.prepareStatement(
+                    "SELECT COUNT(*) FROM player_quest_progress WHERE uuid = ? AND status = 'active'")) {
+                count.setString(1, uuid);
+                try (ResultSet resultSet = count.executeQuery()) {
+                    if (resultSet.next() && resultSet.getInt(1) >= activeLimit)
+                        return QuestStartResult.ACTIVE_LIMIT_REACHED;
+                }
+            }
+            if (restartAbandoned) {
+                try (PreparedStatement restart = connection.prepareStatement(
+                        "UPDATE player_quest_progress SET status = 'active', current_step = ?, " +
+                        "started_at = ?, completed_at = NULL, reward_claimed = 0, " +
+                        "objective_progress = 0, tracked = 0 WHERE uuid = ? AND quest_id = ? " +
+                        "AND status = 'abandoned'")) {
+                    restart.setString(1, currentStep);
+                    restart.setString(2, startedAt);
+                    restart.setString(3, uuid);
+                    restart.setString(4, questId);
+                    return restart.executeUpdate() == 1 ? QuestStartResult.STARTED
+                        : QuestStartResult.ALREADY_EXISTS;
+                }
+            }
+            try (PreparedStatement insert = connection.prepareStatement(
+                    "INSERT INTO player_quest_progress " +
+                    "(uuid, quest_id, status, current_step, started_at, reward_claimed) " +
+                    "VALUES (?, ?, 'active', ?, ?, 0) ON CONFLICT(uuid, quest_id) DO NOTHING")) {
+                insert.setString(1, uuid);
+                insert.setString(2, questId);
+                insert.setString(3, currentStep);
+                insert.setString(4, startedAt);
+                return insert.executeUpdate() == 1 ? QuestStartResult.STARTED : QuestStartResult.ALREADY_EXISTS;
+            }
+        });
+    }
+
+    public boolean abandonQuestProgress(String uuid, String questId, String abandonedAt) throws SQLException {
+        if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank()
+                || abandonedAt == null || abandonedAt.isBlank()) {
+            throw new IllegalArgumentException("Quest abandon fields are invalid.");
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET status = 'abandoned', completed_at = ?, tracked = 0 " +
+                    "WHERE uuid = ? AND quest_id = ? AND status = 'active'")) {
+                statement.setString(1, abandonedAt);
+                statement.setString(2, uuid);
+                statement.setString(3, questId);
                 return statement.executeUpdate() == 1;
             }
         });
@@ -966,6 +1046,21 @@ public class PlayerProfileDatabaseManager {
                 track.setString(1, uuid);
                 track.setString(2, questId);
                 return track.executeUpdate() == 1;
+            }
+        });
+    }
+
+    public boolean clearQuestTracking(String uuid, String questId) throws SQLException {
+        if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank()) {
+            throw new IllegalArgumentException("Quest tracking identifiers are required.");
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET tracked = 0 " +
+                    "WHERE uuid = ? AND quest_id = ? AND status = 'active' AND tracked = 1")) {
+                statement.setString(1, uuid);
+                statement.setString(2, questId);
+                return statement.executeUpdate() == 1;
             }
         });
     }
@@ -1350,6 +1445,8 @@ public class PlayerProfileDatabaseManager {
 
     public record QuestObjectiveProgressResult(boolean active, String currentStep, int progress, boolean tracked) {
     }
+
+    public enum QuestStartResult { STARTED, ALREADY_EXISTS, ACTIVE_LIMIT_REACHED }
 
     public enum SkillLearnResult {
         LEARNED,
@@ -1885,6 +1982,34 @@ public class PlayerProfileDatabaseManager {
                 return List.copyOf(deliveries);
             }
         }
+    }
+
+    public void enqueueMerchantDeliveries(String uuid, String transactionPrefix,
+            List<byte[]> itemData, String createdAt) throws SQLException {
+        if (uuid == null || uuid.isBlank() || transactionPrefix == null || transactionPrefix.isBlank()
+                || itemData == null || itemData.isEmpty() || itemData.size() > 45
+                || createdAt == null || createdAt.isBlank()) {
+            throw new IllegalArgumentException("Pending item delivery fields are invalid.");
+        }
+        for (byte[] data : itemData) {
+            if (data == null || data.length == 0 || data.length > 1_048_576)
+                throw new IllegalArgumentException("Pending item delivery contains an invalid item.");
+        }
+        executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO player_merchant_deliveries(transaction_id, uuid, item_data, created_at) " +
+                    "VALUES (?, ?, ?, ?) ON CONFLICT(transaction_id) DO NOTHING")) {
+                for (int index = 0; index < itemData.size(); index++) {
+                    statement.setString(1, transactionPrefix + ":" + index);
+                    statement.setString(2, uuid);
+                    statement.setBytes(3, itemData.get(index));
+                    statement.setString(4, createdAt);
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
+            return null;
+        });
     }
 
     public boolean markMerchantDeliveryDelivered(String uuid, String transactionId, String deliveredAt)

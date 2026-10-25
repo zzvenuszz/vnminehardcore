@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v2.15.0] - 2026-10-25
+- Thêm lệnh `/vntext` để tạo, chỉnh sửa, di chuyển, xem và xóa text display cố định; hỗ trợ facing 6 hướng, màu tên/hex, scale và lưu entity bền vững qua chunk/restart.
+- Thiết kế lại mục quest scoreboard để hiển thị tối đa 3 quest đang nhận, bậc mục tiêu và tiến độ; tên quest có thể mở chi tiết bằng `/vnquest detail <id>`.
+- Thêm GUI Nhiệm vụ RPG gồm danh sách đang nhận, nhật ký hoàn thành, chi tiết/reward preview, theo dõi và hủy quest có xác nhận; giới hạn đồng thời 3 quest.
+- Mở rộng objective theo chuỗi với hạ boss hệ thống và nộp item cho NPC giao quest; gắn marker PDC lên boss hệ thống và tracking particle cập nhật tới vị trí NPC, hướng dẫn world khi khác thế giới.
+
 ## [v2.14.0] - 2026-10-25
 - Thêm lối vào quản lý quest/NPC trong menu Admin; bổ sung GUI CRUD NPC và prompt chat có ví dụ, màu phân biệt, hỗ trợ `!cancel`.
 - Sửa lỗi NPC thiếu dialogue definition làm ngăn hiển thị quest theo NPC; dùng hội thoại mặc định tiếng Việt và ưu tiên definition khớp ID NPC.

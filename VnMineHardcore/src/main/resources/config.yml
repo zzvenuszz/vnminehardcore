@@ -95,10 +95,22 @@ rpg:
     # [VI] Bật/tắt mục nhật ký nhiệm vụ trong menu chính; mặc định true.
     # [EN] Enable/disable the quest journal entry in the main menu; default true.
     enabled: true
+  quests:
+    tracking:
+      # [VI] Bật particle dẫn đường tới NPC của quest đang theo dõi; mặc định true.
+      # [EN] Enable waypoint particles toward the tracked quest giver NPC; defaults to true.
+      particle-enabled: true
+      # [VI] Chu kỳ cập nhật đường particle, tính bằng tick; hợp lệ 5-40, mặc định 10.
+      # [EN] Waypoint particle update interval in ticks; valid range 5-40, defaults to 10.
+      update-interval-ticks: 10
   npc:
     # [VI] Số NPC runtime tối đa có thể quản lý; mặc định 100, hợp lệ 1-100.
     # [EN] Maximum number of managed runtime NPCs; defaults to 100, valid range 1-100.
     max-runtime-npcs: 100
+  text-display:
+    # [VI] Số text display quản lý tối đa; mặc định 100, hợp lệ 1-500.
+    # [EN] Maximum number of managed text displays; defaults to 100, valid range 1-500.
+    max-active: 100
   world-map:
     # [VI] Bật/tắt mục Bản đồ đại lục trong menu chính; mặc định true.
     # [EN] Enable/disable the continent map entry in the main menu; default true.

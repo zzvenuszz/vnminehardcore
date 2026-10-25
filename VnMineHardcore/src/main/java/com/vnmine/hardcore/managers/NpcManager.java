@@ -88,6 +88,15 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return entity.getPersistentDataContainer().has(npcIdKey, PersistentDataType.STRING);
     }
 
+    public java.util.Optional<NpcTarget> getNpcTarget(String npcId) {
+        if (npcId == null) return java.util.Optional.empty();
+        NpcRecord npc = npcs.get(npcId.toLowerCase(Locale.ROOT));
+        if (npc == null) return java.util.Optional.empty();
+        World world = Bukkit.getWorld(npc.world());
+        Location location = world == null ? null : toLocation(npc, world);
+        return java.util.Optional.of(new NpcTarget(npc.world(), location));
+    }
+
     public void openAdminMenu(Player player) {
         if (!player.hasPermission(ADMIN_PERMISSION)) {
             player.sendMessage("§cBạn không có quyền quản lý NPC.");
@@ -463,6 +472,8 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             case "open-merchant" -> plugin.getEconomyManager().openMerchantMenu(player);
             case "give-skill-book" -> plugin.getSkillManager().giveSkillBookFromNpc(player, action.bookId());
             case "accept-quest" -> plugin.getQuestCatalogManager().acceptQuest(player, holder.npcId, action.questId());
+            case "submit-quest" -> plugin.getQuestCatalogManager().submitQuestItems(player, holder.npcId,
+                action.questId());
             default -> plugin.getLogger().warning("[NPC] Unsupported runtime action '" + action.type() + "'.");
         }
     }
@@ -1322,6 +1333,14 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         sender.sendMessage("§e/vnnpc edit <id> §7(chỉnh cửa hàng của merchant tùy chỉnh)");
         sender.sendMessage("§e/vnnpc rename <id> <tên> §7| §e/vnnpc move <id>");
         sender.sendMessage("§e/vnnpc info <id> §7| §e/vnnpc list §7| §e/vnnpc remove <id>");
+    }
+
+    public record NpcTarget(String world, Location location) {
+        public NpcTarget {
+            location = location == null ? null : location.clone();
+        }
+
+        @Override public Location location() { return location == null ? null : location.clone(); }
     }
 
     private record NpcRecord(String id, String type, String displayName, Location location,

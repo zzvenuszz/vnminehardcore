@@ -165,6 +165,11 @@ public final class TutorialQuestManager implements Listener {
         }
 
         switch (event.getRawSlot()) {
+            case 9 -> {
+                if (holder.hasActiveProfile && plugin.getQuestCatalogManager() != null) {
+                    plugin.getQuestCatalogManager().openPlayerJournal(player);
+                }
+            }
             case 11 -> {
                 if (!holder.hasActiveProfile && plugin.getCharacterSelectionManager() != null) {
                     plugin.getCharacterSelectionManager().openRaceMenu(player);
@@ -423,6 +428,10 @@ public final class TutorialQuestManager implements Listener {
         QuestJournalHolder holder = new QuestJournalHolder(player.getUniqueId(), hasActiveProfile, progress);
         Inventory inventory = Bukkit.createInventory(holder, 27, "VnMine • Nhật ký nhiệm vụ");
         holder.inventory = inventory;
+        if (hasActiveProfile) {
+            inventory.setItem(9, createJournalItem(Material.BOOK, "§bQuest từ NPC",
+                List.of("§7Xem quest đang làm, tiến độ và phần thưởng.", "§eNhấn để mở danh sách quest.")));
+        }
 
         if (!hasActiveProfile) {
             inventory.setItem(13, createJournalItem(Material.PAPER, "§eChưa có nhân vật RPG", List.of(
