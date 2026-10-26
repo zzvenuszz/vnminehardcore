@@ -457,3 +457,122 @@ Menu lọc item theo người chơi cũng đã package bằng Java 25 và chép 
 - Tăng version từ 2.14.0 lên 2.15.0. Maven `clean package` thành công bằng JDK 25 vào 2026-10-25; test được bỏ qua (`-Dmaven.test.skip=true`), vì vậy đây là xác minh compile/package, không phải xác nhận gameplay.
 - JAR: `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.15.0.jar`, 2,028,299 bytes, SHA-256 `5892307b6ed5569153cb2ea2dcb8f2f2cce605968778ab9342f24b4d039cd7f7`.
 - Đã xác minh chỉ đóng gói native SQLite `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so`, đồng thời giữ `org/sqlite/JDBC.class` và `META-INF/services/java.sql.Driver`. Chưa kiểm thử trên server thật; cần restart và test command `/vntext` theo 6 hướng/màu/scale, persistence sau restart, cùng luồng quest/scoreboard/tracking và nộp item.
+
+## Kế hoạch flow khởi đầu RPG và kinh tế merchant — 2026-10-26
+
+Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hành trình người chơi mới, class theo chủng tộc, chuỗi tutorial, dấu hiệu NPC và quy tắc mua item. Đây là kế hoạch, chưa phải chức năng đã triển khai. Chỉ sửa `plan.md`; chưa thay đổi code/config, chưa build hoặc chạy test.
+
+### Đánh giá hiện trạng và điểm cần thiết kế trước
+
+- **Chưa có bước chọn đại lục khi đăng nhập lần đầu.** `CharacterSelectionManager.finalizeSelection` tạo hồ sơ sau khi người chơi chọn race/class. Bảng profile hiện yêu cầu race/class; tutorial quest chỉ khởi tạo khi hồ sơ active tồn tại. Flow mong muốn cần lưu đại lục và hoàn thành cuộc gặp tutorial NPC trước khi chọn race/class. Không thể chỉ đổi thứ tự mở GUI: cần trạng thái onboarding bền vững độc lập hoặc thay đổi schema hồ sơ.
+- **NPC runtime đã biết world nhưng chưa biết đại lục.** `NpcManager.NpcRecord` lưu world/tọa độ; `getNpcTarget` trả được world và vị trí nếu world đã nạp. Chưa có realm/continent ID gắn với NPC. Cần ID đại lục ổn định trên cấu hình đại lục, spawn và NPC, đồng thời validate world/realm nhất quán. Nếu NPC ở world khác, tracker có thể hướng dẫn người chơi đi tới world trước; sau đó mới hiện navigation cụ thể.
+- **Các world đang sẵn sàng chưa bao phủ mọi lựa chọn trong `classes.md`.** Resource hiện có cấu hình `human-realm` và `yeu-realm`; plugin không tự tạo world. Chỉ cho chọn đại lục có world, spawn và tutorial NPC hợp lệ; lựa chọn chưa sẵn sàng phải bị khóa/ẩn với lỗi cấu hình rõ ràng.
+- **Tutorial hiện tự bắt đầu quest `visit-realm-spawn` khi profile active được nạp**, không phải chuỗi gặp tutorial NPC rồi chọn race/class. Cần state machine: chọn đại lục → gặp đúng tutorial NPC → chọn race → chọn class → cấp skill book → cấp quest tutorial. Mỗi bước phải idempotent để reconnect/callback lặp không tạo trùng dữ liệu.
+- **Class cần là tổ hợp riêng theo chủng tộc.** `classes.md` là tài liệu tham khảo; registry hiện tìm class theo race nhưng chưa hiện thực các nhánh nghề riêng như Human Mage, Demon Witch, Fairy Priest. Cần giữ ID nghề cơ bản ổn định và tránh dùng chung class ID theo cách khiến UI/sách/skill bị lẫn.
+- **Chưa có mô hình tiến chức class.** Class cao cấp cần kế thừa skill class cha theo ID, cộng chỉ số và mở skill mới. Cần điều kiện level/item/quest/NPC có thể cấu hình; chặn chu trình kế thừa, skill trùng và nhận tiến chức lặp; giữ nguyên skill đã học khi migration.
+- **Chưa có cấp skill book đầu tiên theo tổ hợp race-class.** Cần GUI admin ánh xạ `race + class → starter skill book`, preview và validate tham chiếu. Cấp sách đúng một lần; nếu inventory đầy, dùng luồng nhận lại/kho thư bền vững thay vì làm rơi hoặc mất sách.
+- **Chưa có dấu `!`/`?` cá nhân trên NPC.** `!` phải phụ thuộc quest có thể nhận của từng người; `?` phải phụ thuộc trạng thái đã đọc story/tutorial của từng người/chapter. Không thể dùng marker toàn cục. Cần thiết kế viewer-specific và dọn marker khi người/NPC/chunk/world unload.
+- **Shop custom hiện có thể lấy báo giá từ merchant khác hoặc giá mặc định.** Trong `EconomyManager.openMerchantSellInventory`, nếu không tìm thấy buy-order khớp ở shop đang mở, code gọi `NpcManager.getBestMerchantBuyQuote` (duyệt tất cả merchant), sau đó mới fallback `groundItemSellQuote` (có mặc định 64 item = 1 VNCOIN). Đây là sai phạm vi: custom merchant phải chỉ mua các item được cấu hình tại chính NPC đó.
+- **Chưa đủ dữ liệu để khẳng định nguyên nhân duy nhất của lỗi bán lần hai cần đủ 64 item.** Fallback 64=1 phù hợp với triệu chứng khi item không khớp exact buy-order, nhưng cần kiểm tra order trong `npcs.yml`, metadata/PDC của item, số lượng cấu hình và log kết quả `ItemStack.isSimilar`. Phase sửa shop phải có log quote source, NPC/order ID, số lượng yêu cầu/đang có và item identity an toàn; kiểm thử bán lặp trước/sau restart.
+- **Giao dịch bán có cửa sổ crash mất item.** Mã lưu inventory sau khi trừ item rồi mới ghi giao dịch ví bất đồng bộ. Lỗi runtime có nhánh hoàn item, nhưng server crash giữa hai bước có thể làm mất item chưa nhận tiền. Cần transaction intent/escrow và reconciliation sau restart trước khi mở rộng thu mua.
+
+### Nguyên tắc thiết kế
+
+1. Tách “đã chọn đại lục” khỏi “đã hoàn tất tạo nhân vật”; không tạo race/class mặc định để lách thứ tự onboarding.
+2. Lưu trạng thái onboarding, cấp sách, mở khóa quest và giao dịch shop bền vững, có khóa idempotency và phục hồi sau restart.
+3. Cấu hình mới có default an toàn, validation, chú thích tiếng Việt/Anh và ID ổn định thay cho tên hiển thị.
+4. Không để người mới kẹt vì world/NPC chưa nạp hoặc inventory đầy; hiển thị bước tiếp theo và hướng dẫn world/portal.
+5. Giữ nguyên luật tử vong: không ban người chơi khi chết.
+
+### Phase A — Đại lục và onboarding người mới
+
+- Tạo registry đại lục có ID, tên/icon/mô tả, world ID, spawn, tutorial NPC ID và trạng thái khả dụng. Admin chỉ mở lựa chọn đã cấu hình hợp lệ; plugin không tự tạo world.
+- Lưu `selected_continent` và các bước onboarding theo UUID, độc lập với profile race/class hiện có. Migration giữ nguyên người chơi cũ, không tự mở GUI hoặc đổi class.
+- Đăng nhập lần đầu: sau khi dữ liệu đã tải mới mở GUI chọn đại lục; chống mở lặp khi reconnect/callback lặp. Nếu không có đại lục hợp lệ thì không giao quest hỏng, đồng thời log cấu hình thiếu.
+- Sau chọn đại lục, giao objective gặp đúng `tutorialNpcId`. Nếu ở world khác, hiện world đích; navigation theo tọa độ chỉ bật khi cùng world. NPC thiếu, world chưa nạp hoặc mapping sai phải giữ tiến trình và báo lỗi cụ thể.
+- Chỉ sau cuộc gặp mới mở chọn race rồi các class hợp lệ thuộc race đó. Lưu từng bước trước khi chuyển giao diện.
+- **Chấp nhận:** đúng thứ tự; reconnect không reset; profile cũ không bị đưa vào flow; không thể hoàn tất nhầm NPC ở world khác; thiếu world/NPC có thông báo cho player/admin.
+
+### Phase B — Nghề theo chủng tộc, sách đầu tiên và tiến chức
+
+- Dùng `classes.md` để chuẩn hóa các nghề cơ bản theo cặp race-class. Mở từng vertical slice có skill, sách, chỉ số, UI và hướng dẫn hoàn chỉnh; không mở class chỉ vì đã khai báo.
+- Thêm GUI quản trị ánh xạ `race ID + base class ID → starter skill-book ID`, preview nội dung và chặn lưu nếu class/sách không tồn tại hoặc bị tắt.
+- Cấp sách đúng một lần và đánh dấu bền vững. Nếu túi đầy, tạo claim/kho thư có ID duy nhất, không làm rơi sách hoặc nhân đôi khi reconnect.
+- Mô hình class cao cấp dạng node `parent-class-id`, điều kiện tiến chức, chỉ số cộng và skill mở mới. Kế thừa skill theo ID; chặn chu trình, parent thiếu, skill trùng và tiến chức lặp.
+- Lưu rõ class gốc, class tiến chức và nguồn skill đã học; migration class cũ phải có bảng ánh xạ và giữ skill.
+- **Chấp nhận:** mỗi tổ hợp race-class nhận đúng sách một lần; class cao dùng được skill kế thừa; điều kiện tiến chức đủ/thiếu và migration class cũ hoạt động.
+
+### Phase C — Quest tutorial nối tiếp
+
+- Bổ sung quest editor để chọn quest successor được tự giao sau khi quest trước hoàn thành. MVP giới hạn một successor để đơn giản, nhưng schema nên mở rộng được cho nhánh.
+- Hoàn thành objective, ghi reward và giao successor phải idempotent. Nếu chạm giới hạn 3 quest active, lưu successor ở trạng thái chờ nhận thay vì làm mất; khuyến nghị tự nhận tutorial khi còn chỗ, còn lại thông báo và giữ pending.
+- Validate successor tồn tại/đang bật, không tự trỏ hoặc tạo chu trình; xử lý quest bị tắt/xóa sau khi đã nhận.
+- **Chấp nhận:** callback lặp/restart không nhân quest/reward; giới hạn active không làm đứt chuỗi.
+
+### Phase D — Marker NPC theo người chơi
+
+- Hiện `!` vàng trên NPC có quest người chơi đủ điều kiện nhận: quest đang bật, đúng giver, đạt requirement, chưa nhận/chưa hoàn thành và còn slot.
+- Hiện `?` trên NPC có tutorial/story chưa đọc; lưu trạng thái đọc theo UUID và chapter/story ID. Chỉ đánh dấu đã đọc khi dialog kết thúc.
+- Nếu NPC có cả quest lẫn story, cấu hình thứ tự/marker tổng hợp để tránh chồng entity và tên.
+- Chọn cách hiển thị riêng viewer dựa trên API Paper/ProtocolLib; dọn marker khi chunk/entity/player unload, đổi world, đổi điều kiện hoặc plugin disable.
+- Cập nhật theo event quest/story và chu kỳ giới hạn, không quét mọi NPC/quest mỗi tick; đặt trần marker và đo chi phí.
+- **Chấp nhận:** hai người có trạng thái khác nhau thấy marker khác nhau; nhận quest/đọc chapter cập nhật đúng; không sinh marker/task rác sau unload/restart.
+
+### Phase E — Merchant và kinh tế VNCOIN
+
+#### E1. Custom merchant strict-scope
+
+- Custom merchant chỉ nhận buy-order thuộc chính NPC đó; item không cấu hình tại NPC thì không thể bán ở đó. Không global quote, không Material fallback.
+- Buy-order ghi chính xác item identity, số lượng giao và VNCOIN nhận; lần bán tiếp theo dùng cùng order, không phát sinh yêu cầu 64 ngoài cấu hình.
+- Log chẩn đoán order/NPC, số lượng yêu cầu/đang có, quote source, Material và RPG item ID/PDC fingerprint an toàn. Test item metadata, stack bị tách, bán hai lần, restart và click cạnh tranh.
+
+#### E2. System merchant và item RPG
+
+- Tạo `merchant-prices.yml` riêng, giá được biểu diễn là “số lượng giao → VNCOIN trả”, có chú thích VI/EN, bounds và default. Chỉ mua Material được allowlist; item không khai báo/tắt thì không mua, không dùng giá mặc định toàn cục cho mọi item.
+- Item RPG chỉ được system merchant mua theo `sell-value` trong định nghĩa item; default `0` nghĩa là không mua. Không lấy giá theo Material nền hoặc lore.
+- Thêm `sell-value: 0` vào mọi định nghĩa item RPG (sách, gear, nguyên liệu, boss/quest và item hệ thống). Admin chỉnh config; reload validate và giữ config cũ nếu file lỗi.
+- Nếu custom merchant có giá mua tốt hơn cho item chính xác đó, system merchant hỏi xác nhận và nêu NPC/tên/ID, world, lượng giao và X VNCOIN. Yes vẫn bán theo giá system; No quay lại. Chỉ cảnh báo nếu người chơi đủ lượng giao và so sánh cùng item identity/số lượng tương đương.
+- Thay giao dịch trừ item rồi mới ghi ví bằng intent/escrow bền vững, transaction ID idempotent và đối soát khi restart; không mất item hoặc cộng coin hai lần.
+
+#### E3. Bảng giá khởi điểm để cân bằng
+
+Các giá sau là đề xuất cấu hình ban đầu, chưa áp dụng. Mỗi hàng là tổng lượng item giao đổi lấy VNCOIN, không phải giá mỗi item.
+
+| Nhóm | Item | Lượng giao | VNCOIN | Ghi chú |
+|---|---|---:|---:|---|
+| Khoáng sản | `IRON_INGOT` | 10 | 1 | Mức thận trọng nếu iron farm vẫn hoạt động; cần chốt mâu thuẫn giá/farm trước khi triển khai. |
+| Khoáng sản | `DIAMOND` | 1 | 10 | Mốc người dùng yêu cầu. |
+| Nâng cấp | `NETHERITE_UPGRADE_SMITHING_TEMPLATE` | 1 | 500 | Mốc người dùng yêu cầu; kiểm thử dupe. |
+| Thịt sống | Các raw meat phổ biến | 64 | 10 | Mốc người dùng yêu cầu; cấu hình theo Material. |
+| Thịt chín | Các cooked meat phổ biến | 64 | 15 | Mốc người dùng yêu cầu. |
+| Khoáng farmable | `GOLD_INGOT` | 16 | 1 | Nguồn farm/trade có thể tạo cung lớn. |
+| Khoáng phổ biến | `COPPER_INGOT` | 32 | 1 | Có thể tích lũy lượng lớn. |
+| Khoáng phổ biến | `COAL` | 32 | 1 | Nguồn khai thác phổ biến. |
+| Khoáng phổ biến | `REDSTONE` | 64 | 1 | Dễ tích lũy/farm. |
+| Khoáng phổ biến | `LAPIS_LAZULI` | 32 | 1 | Giá trị thấp-trung bình. |
+| Villager/farm | `EMERALD` | 4 | 1 | Có thể farm qua trade. |
+| Khối farmable | Đá, cobblestone, đất, gỗ phổ thông | 64 | 1 | Giá thấp để hạn chế máy farm; cấu hình từng Material. |
+| Nông sản farmable | Lúa mì, cà rốt, khoai tây, củ dền, mía | 64 | 2 | Cần cân theo yield trên server. |
+| Mob farmable | Rotten flesh, bone, string, gunpowder | 32–64 | 1 | Giá thấp vì có thể farm AFK. |
+| Mob drop | Ender pearl, leather | 16 | 1 | Khởi đầu thấp, cân lại theo nguồn cung. |
+
+- Chỉ dùng allowlist từng Material, không wildcard bao trùm item chưa khảo sát; item không liệt kê không có quote. Bổ sung giá sau khi rà nguồn farm và vật phẩm thực tế của server.
+- **Cần làm rõ riêng về sắt:** yêu cầu mô tả 64 thỏi = 1 coin khi có farm, nhưng 10 thỏi = 1 coin nếu chặn farm; hai mức có vẻ ngược với logic hạn chế lạm phát. Đề xuất không phá cơ chế vanilla, dùng 10 thỏi = 1 coin khi farm còn tồn tại. Nếu thật sự chặn farm thì có thể điều chỉnh giá sau khi đo nguồn cung; không âm thầm sửa cơ chế golem/villager vì có thể ảnh hưởng gameplay khác.
+- **Chấp nhận:** custom merchant đúng phạm vi; system merchant chỉ mua allowlist vanilla và RPG item có giá >0; GUI hiện đúng lượng/tiền; warning Yes/No vẫn thanh toán system rate; giao dịch chịu được DB lỗi/restart mà không mất item hoặc nhân đôi coin.
+
+### Phase F — Migration, kiểm chứng và tài liệu
+
+- Kiểm thử profile cũ, onboarding dang dở, quest đang nhận, class ID cũ, NPC `npcs.yml` chưa có realm ID, buy-order cũ và YAML giá sai/thiếu. Có backup/rollback; không reset tiến trình.
+- Lập ma trận test: DB chậm/lỗi, đóng GUI/reconnect, túi đầy, world/NPC thiếu hoặc chưa nạp, qua portal, click nhanh, quest successor khi đầy slot, class/book mapping sai, item metadata không khớp, bán lặp và restart giữa transaction.
+- Log bước onboarding, successor, marker eligibility, quote/transaction với operation ID; không ghi secret.
+- Chạy unit/integration test và staging Paper trước phát hành; chỉ đánh dấu phase hoàn tất sau khi xác minh. Cập nhật README/CHANGELOG cùng lệnh, permission, ID và cấu hình khi tính năng được làm.
+
+### Thứ tự và tối ưu phạm vi
+
+1. Phase A trước vì đây là cổng vào hành trình.
+2. Phase B tiếp theo để người chơi được chọn đúng nghề và nhận đúng sách.
+3. Phase C rồi D vì marker phụ thuộc trạng thái quest ổn định.
+4. Phase E1 và crash-safe trước khi mở rộng; sau đó system price/config/confirmation.
+5. Phase F end-to-end trước phát hành.
+
+Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thiện một số vertical slice trước rồi mở nhánh tiếp theo. Gắn realm ID tường minh thay vì suy từ tên world để hỗ trợ một đại lục nhiều world. Chưa bật mua system cho item chưa định giá; `0` phải luôn là không mua. Chưa chặn iron farm trước khi có quyết định riêng. Danh sách nghề theo từng race, mapping sách, NPC/tutorial theo đại lục và danh mục giá vanilla đầy đủ cần được chốt từ cấu hình/server data trước khi code các phase tương ứng.
