@@ -685,7 +685,7 @@ startup rejects missing, cross-race, or cyclic parent links. Skill-tree display,
 book eligibility, learning, upgrading, quick-slot assignment, passive activation,
 and casting recognize skills from configured ancestors. Child classes stay out
 of character creation and appear under **Tiến chức class** in the skill tree
-only when they have an implemented skill. `required-level` controls the
+when their inheritance lineage has at least one implemented skill. `required-level` controls the
 minimum promotion level (default `1`, allowed `1..10000`). Promotion requires
 an explicit confirmation, keeps learned skills, and records each transition in
 SQLite schema v13. The current class is persisted in the profile. The optional

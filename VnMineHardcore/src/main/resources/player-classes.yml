@@ -14,8 +14,8 @@
 # [EN] `required-item` + `required-item-amount` are optional (default: none); Material must be valid and amount an integer 1-2304. Items must be carried but are not consumed.
 # [VI] `required-rpg-item-id` + `required-rpg-item-amount` tùy chọn; yêu cầu đúng ID nguyên liệu quest RPG (số lượng 1-2304), item không bị tiêu thụ.
 # [EN] `required-rpg-item-id` + `required-rpg-item-amount` are optional; require the exact RPG quest item ID (amount 1-2304), and items are not consumed.
-# [VI] Ví dụ class con: parent-class-id: swordsman; required-level: 20; required-quest-id: trial-of-steel; required-npc-id: class-trainer; required-item: BLAZE_ROD; required-item-amount: 3; required-rpg-item-id: ancient-core; required-rpg-item-amount: 2. Cần skill đã triển khai để hiện trong GUI.
-# [EN] Child example: parent-class-id: swordsman; required-level: 20; required-quest-id: trial-of-steel; required-npc-id: class-trainer; required-item: BLAZE_ROD; required-item-amount: 3; required-rpg-item-id: ancient-core; required-rpg-item-amount: 2. It needs an implemented skill to appear in the GUI.
+# [VI] Ví dụ class con: parent-class-id: swordsman; required-level: 20; required-quest-id: trial-of-steel; required-npc-id: class-trainer; required-item: BLAZE_ROD; required-item-amount: 3; required-rpg-item-id: ancient-core; required-rpg-item-amount: 2. Cần có skill hoạt động trong cây kế thừa để hiện trong GUI.
+# [EN] Child example: parent-class-id: swordsman; required-level: 20; required-quest-id: trial-of-steel; required-npc-id: class-trainer; required-item: BLAZE_ROD; required-item-amount: 3; required-rpg-item-id: ancient-core; required-rpg-item-amount: 2. Its lineage needs an implemented skill to appear in the GUI.
 classes:
   swordsman:
     # [VI] Trạng thái: available hiển thị nếu có skill hoạt động; locked/planned bị ẩn. Thiếu khóa sẽ tự dò (auto).

@@ -149,7 +149,7 @@ public final class CharacterSelectionManager implements Listener {
         return classesByRace.values().stream().flatMap(List::stream)
             .filter(candidate -> currentClassId.equals(parentClassById.get(candidate.id())))
             .filter(candidate -> ("available".equals(candidate.availability())
-                || "auto".equals(candidate.availability())) && playableClassIds.contains(candidate.id()))
+                || "auto".equals(candidate.availability())) && hasPlayableSkillInLineage(candidate.id()))
             .sorted(java.util.Comparator.comparing(ClassDefinition::name, String.CASE_INSENSITIVE_ORDER))
             .toList();
     }
@@ -188,7 +188,7 @@ public final class CharacterSelectionManager implements Listener {
         for (String classId : getClassIds()) {
             ClassDefinition definition = findClassForId(classId);
             if (definition != null && "available".equals(definition.availability())
-                    && !playableClassIds.contains(classId)) {
+                    && !hasPlayableSkillInLineage(classId)) {
                 plugin.getLogger().warning("[Character] Class '" + classId
                     + "' is marked available but hidden because no implemented RPG skill supports it.");
             } else if (definition != null && !"available".equals(definition.availability())) {
@@ -196,6 +196,10 @@ public final class CharacterSelectionManager implements Listener {
                     + " and hidden from character creation.");
             }
         }
+    }
+
+    private boolean hasPlayableSkillInLineage(String classId) {
+        return getInheritedClassIds(classId).stream().anyMatch(playableClassIds::contains);
     }
 
     public void openClassMenu(Player player, String raceId) {
