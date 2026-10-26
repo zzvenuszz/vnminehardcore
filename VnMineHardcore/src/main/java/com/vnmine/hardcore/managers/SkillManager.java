@@ -67,6 +67,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private final NamespacedKey bookIdKey;
     private final NamespacedKey skillIdKey;
     private final NamespacedKey rpgSellValueKey;
+    private final NamespacedKey classVisitedNpcsKey;
     private SkillDefinitionLoader.SkillRegistry registry;
     private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
     private final Map<UUID, Integer> battleFocusRanks = new HashMap<>();
@@ -86,6 +87,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         this.bookIdKey = new NamespacedKey(plugin, "skill_book_id");
         this.skillIdKey = new NamespacedKey(plugin, "rpg_skill_id");
         this.rpgSellValueKey = new NamespacedKey(plugin, "rpg_sell_value");
+        this.classVisitedNpcsKey = new NamespacedKey(plugin, "class_visited_npcs");
     }
 
     private String formatPercent(double fraction) {
@@ -572,6 +574,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                             "§7Cấp yêu cầu: §e" + requiredLevel));
                         String requiredQuest = classes.getPromotionRequiredQuest(candidate.id());
                         if (requiredQuest != null) requirements.add("§7Quest yêu cầu: §b" + requiredQuest);
+                        appendPromotionNpcRequirement(requirements, classes, candidate.id());
                         appendPromotionItemRequirement(requirements, classes, candidate.id());
                         requirements.add("§aNhấn để xem trước.");
                         inventory.setItem(slots[index], createSkillIcon(candidate.material(), "§d" + candidate.name(),
@@ -603,6 +606,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             "§7Class mới: §f" + target.id(),
             "§7Cấp yêu cầu: §e" + requiredLevel));
         if (requiredQuest != null) requirements.add("§7Quest yêu cầu: §b" + requiredQuest);
+        appendPromotionNpcRequirement(requirements, manager, target.id());
         appendPromotionItemRequirement(requirements, manager, target.id());
         requirements.add("§7Skill đã học sẽ được giữ nguyên.");
         requirements.add("§eNhấn xác nhận để đổi class.");
@@ -637,6 +641,13 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                 + ", target=" + targetClassId + ", reason=required-item-missing, item=" + requiredItem
                 + ", required=" + requiredItemAmount + ", found=" + countInventoryMaterial(player, requiredItem));
             player.sendMessage("§cBạn cần mang theo " + requiredItemAmount + " " + requiredItem + " để tiến chức.");
+            return;
+        }
+        String requiredNpcId = manager.getPromotionRequiredNpc(target.id());
+        if (requiredNpcId != null && !hasVisitedNpc(player, requiredNpcId)) {
+            debugFeature("[RPG-DEBUG][ClassProgression] promotion-rejected player=" + player.getName()
+                + ", target=" + targetClassId + ", reason=required-npc-not-visited, npc=" + requiredNpcId);
+            player.sendMessage("§cBạn cần gặp NPC §e" + requiredNpcId + "§c trước khi tiến chức.");
             return;
         }
         debugFeature("[RPG-DEBUG][ClassProgression] promotion-request player=" + player.getName()
@@ -674,6 +685,18 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         Material item = manager.getPromotionRequiredItem(classId);
         int amount = manager.getPromotionRequiredItemAmount(classId);
         if (item != null && amount > 0) lore.add("§7Cần mang theo: §e" + amount + " " + item);
+    }
+
+    private void appendPromotionNpcRequirement(List<String> lore, CharacterSelectionManager manager, String classId) {
+        String npcId = manager.getPromotionRequiredNpc(classId);
+        if (npcId != null) lore.add("§7Cần gặp NPC: §e" + npcId);
+    }
+
+    private boolean hasVisitedNpc(Player player, String npcId) {
+        String visited = player.getPersistentDataContainer().get(classVisitedNpcsKey, PersistentDataType.STRING);
+        if (visited == null || visited.isBlank()) return false;
+        for (String entry : visited.split(",")) if (npcId.equals(entry)) return true;
+        return false;
     }
 
     private int countInventoryMaterial(Player player, Material material) {

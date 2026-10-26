@@ -59,6 +59,7 @@ public final class CharacterSelectionManager implements Listener {
     private final Map<String, String> parentClassById = new LinkedHashMap<>();
     private final Map<String, Integer> promotionLevelByClass = new LinkedHashMap<>();
     private final Map<String, String> promotionQuestByClass = new LinkedHashMap<>();
+    private final Map<String, String> promotionNpcByClass = new LinkedHashMap<>();
     private final Map<String, Material> promotionItemByClass = new LinkedHashMap<>();
     private final Map<String, Integer> promotionItemAmountByClass = new LinkedHashMap<>();
     private final Map<String, String> starterBookMappings = new LinkedHashMap<>();
@@ -157,6 +158,10 @@ public final class CharacterSelectionManager implements Listener {
 
     public String getPromotionRequiredQuest(String classId) {
         return promotionQuestByClass.get(classId);
+    }
+
+    public String getPromotionRequiredNpc(String classId) {
+        return promotionNpcByClass.get(classId);
     }
 
     public Material getPromotionRequiredItem(String classId) {
@@ -1163,6 +1168,15 @@ public final class CharacterSelectionManager implements Listener {
                     continue;
                 }
             }
+            String promotionNpc = null;
+            if (section.contains("required-npc-id")) {
+                promotionNpc = readText(section, "required-npc-id", path);
+                if (promotionNpc == null || !DEFINITION_ID_PATTERN.matcher(promotionNpc).matches()) {
+                    plugin.getLogger().warning("[ClassProgression] Invalid required-npc-id at " + path
+                        + ".required-npc-id; expected a lowercase NPC ID. Class skipped.");
+                    continue;
+                }
+            }
             Material promotionItem = null;
             int promotionItemAmount = 0;
             if (section.contains("required-item") || section.contains("required-item-amount")) {
@@ -1197,6 +1211,7 @@ public final class CharacterSelectionManager implements Listener {
             if (parentClassId != null) parentClassById.put(id, parentClassId);
             if (parentClassId != null) promotionLevelByClass.put(id, promotionLevel);
             if (parentClassId != null && promotionQuest != null) promotionQuestByClass.put(id, promotionQuest);
+            if (parentClassId != null && promotionNpc != null) promotionNpcByClass.put(id, promotionNpc);
             if (parentClassId != null && promotionItem != null) {
                 promotionItemByClass.put(id, promotionItem);
                 promotionItemAmountByClass.put(id, promotionItemAmount);

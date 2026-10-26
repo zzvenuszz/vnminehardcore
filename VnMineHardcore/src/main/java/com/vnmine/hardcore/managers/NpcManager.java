@@ -9,9 +9,11 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -65,6 +67,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     private final VnMineHardcore plugin;
     private final File storageFile;
     private final NamespacedKey npcIdKey;
+    private final NamespacedKey classVisitedNpcsKey;
     private final Map<String, NpcDefinitionLoader.NpcDefinition> definitions;
     private final Map<String, NpcRecord> npcs = new LinkedHashMap<>();
     private final Map<String, LinkedHashMap<Integer, MerchantListing>> merchantListings = new LinkedHashMap<>();
@@ -78,6 +81,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         this.plugin = plugin;
         this.storageFile = new File(plugin.getDataFolder(), "npcs.yml");
         this.npcIdKey = new NamespacedKey(plugin, "npc_id");
+        this.classVisitedNpcsKey = new NamespacedKey(plugin, "class_visited_npcs");
         this.definitions = definitions;
         this.maxNpcs = configuredNpcLimit();
         loadNpcs();
@@ -582,6 +586,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             openNpcEditor(player, npc.id(), 0);
             return;
         }
+        recordClassProgressionNpcVisit(player, npc.id());
         if (plugin.getCharacterSelectionManager() != null
                 && plugin.getCharacterSelectionManager().recordTutorialNpcVisit(player, npc.id())) {
             return;
@@ -623,6 +628,21 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             return;
         }
         openNpcDialogue(player, npc, 0);
+    }
+
+    private void recordClassProgressionNpcVisit(Player player, String npcId) {
+        var container = player.getPersistentDataContainer();
+        String current = container.get(classVisitedNpcsKey, PersistentDataType.STRING);
+        Set<String> visited = new LinkedHashSet<>();
+        if (current != null && !current.isBlank()) {
+            for (String value : current.split(",")) if (!value.isBlank()) visited.add(value);
+        }
+        if (!visited.add(npcId)) return;
+        container.set(classVisitedNpcsKey, PersistentDataType.STRING, String.join(",", visited));
+        if (plugin.getConfig().getBoolean("logging.console-debug", false)) {
+            plugin.getLogger().info("[RPG-DEBUG][ClassProgression] npc-visited player=" + player.getName()
+                + ", npc=" + npcId + ", total=" + visited.size());
+        }
     }
 
     private void openNpcDialogue(Player player, NpcRecord npc, int actionPage) {
