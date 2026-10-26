@@ -567,9 +567,14 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                         CharacterSelectionManager.ClassDefinition candidate = candidates.get(index);
                         int requiredLevel = classes.getPromotionRequiredLevel(candidate.id());
                         holder.choices.put(slots[index], candidate.id());
+                        List<String> requirements = new java.util.ArrayList<>(List.of(
+                            "§7" + candidate.description(), "§8ID: " + candidate.id(),
+                            "§7Cấp yêu cầu: §e" + requiredLevel));
+                        String requiredQuest = classes.getPromotionRequiredQuest(candidate.id());
+                        if (requiredQuest != null) requirements.add("§7Quest yêu cầu: §b" + requiredQuest);
+                        requirements.add("§aNhấn để xem trước.");
                         inventory.setItem(slots[index], createSkillIcon(candidate.material(), "§d" + candidate.name(),
-                            List.of("§7" + candidate.description(), "§8ID: " + candidate.id(),
-                                "§7Cấp yêu cầu: §e" + requiredLevel, "§aNhấn để xem trước.")));
+                            requirements));
                     }
                 }
                 inventory.setItem(53, createSkillIcon(Material.ARROW,
@@ -591,15 +596,18 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             return;
         }
         int requiredLevel = manager.getPromotionRequiredLevel(target.id());
+        String requiredQuest = manager.getPromotionRequiredQuest(target.id());
+        List<String> requirements = new java.util.ArrayList<>(List.of(
+            "§7Class hiện tại: §f" + sourceClassId,
+            "§7Class mới: §f" + target.id(),
+            "§7Cấp yêu cầu: §e" + requiredLevel));
+        if (requiredQuest != null) requirements.add("§7Quest yêu cầu: §b" + requiredQuest);
+        requirements.add("§7Skill đã học sẽ được giữ nguyên.");
+        requirements.add("§eNhấn xác nhận để đổi class.");
         PromotionHolder holder = new PromotionHolder(player.getUniqueId(), sourceClassId, true, targetClassId);
         Inventory inventory = Bukkit.createInventory(holder, 27, "§dXác nhận tiến chức");
         holder.inventory = inventory;
-        inventory.setItem(13, createSkillIcon(target.material(), "§d" + target.name(), List.of(
-            "§7Class hiện tại: §f" + sourceClassId,
-            "§7Class mới: §f" + target.id(),
-            "§7Cấp yêu cầu: §e" + requiredLevel,
-            "§7Skill đã học sẽ được giữ nguyên.",
-            "§eNhấn xác nhận để đổi class.")));
+        inventory.setItem(13, createSkillIcon(target.material(), "§d" + target.name(), requirements));
         inventory.setItem(11, createSkillIcon(Material.LIME_CONCRETE, "§aXác nhận tiến chức", List.of(
             "§7Hồ sơ sẽ chuyển sang class mới.")));
         inventory.setItem(15, createSkillIcon(Material.RED_CONCRETE, "§cQuay lại", List.of("§7Không thay đổi hồ sơ.")));
@@ -618,11 +626,14 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         }
         UUID playerId = player.getUniqueId();
         int requiredLevel = manager.getPromotionRequiredLevel(target.id());
+        String requiredQuest = manager.getPromotionRequiredQuest(target.id());
         String changedAt = Instant.now().toString();
         debugFeature("[RPG-DEBUG][ClassProgression] promotion-request player=" + player.getName()
-            + ", from=" + sourceClassId + ", to=" + targetClassId + ", requiredLevel=" + requiredLevel);
+            + ", from=" + sourceClassId + ", to=" + targetClassId + ", requiredLevel=" + requiredLevel
+            + ", requiredQuest=" + (requiredQuest == null ? "none" : requiredQuest));
         database.executeGameplayDatabaseTask("class-promotion.commit player=" + player.getName(),
-            () -> database.promoteClass(playerId.toString(), sourceClassId, targetClassId, requiredLevel, changedAt))
+            () -> database.promoteClass(playerId.toString(), sourceClassId, targetClassId, requiredLevel,
+                requiredQuest, changedAt))
             .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (!player.isOnline()) return;
                 if (failure != null) {
@@ -640,7 +651,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                         if (manager != null) manager.refreshLoadedProfile(player);
                         refreshPassiveRanks(player);
                     }
-                    case REQUIREMENTS_NOT_MET -> player.sendMessage("§cBạn chưa đạt cấp " + requiredLevel + ".");
+                    case REQUIREMENTS_NOT_MET -> player.sendMessage("§cBạn chưa đáp ứng đủ cấp độ hoặc quest yêu cầu.");
                     case CLASS_CHANGED -> player.sendMessage("§cClass đã thay đổi hoặc bạn đã tiến chức rồi.");
                     case PROFILE_NOT_FOUND -> player.sendMessage("§cKhông tìm thấy hồ sơ RPG.");
                 }

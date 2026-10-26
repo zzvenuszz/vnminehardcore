@@ -6,8 +6,10 @@
 # [EN] `parent-class-id` is optional (default: absent); a child inherits skill IDs from a parent of the same race. The parent must exist and the graph must be acyclic.
 # [VI] `required-level` là cấp tối thiểu để tiến vào class con (mặc định 1, hợp lệ 1-10000); chỉ áp dụng khi có parent-class-id.
 # [EN] `required-level` is the minimum level for promotion into a child class (default 1, valid 1-10000); used only with parent-class-id.
-# [VI] Ví dụ class con: parent-class-id: swordsman; required-level: 20. Class con cần có skill đã triển khai để xuất hiện trong GUI.
-# [EN] Child example: parent-class-id: swordsman; required-level: 20. A child needs an implemented skill to appear in the GUI.
+# [VI] `required-quest-id` tùy chọn (mặc định: không yêu cầu), cần quest đã hoàn thành; ID dạng chữ thường, số và dấu gạch nối.
+# [EN] `required-quest-id` is optional (default: none), and requires a completed quest; ID uses lowercase letters, digits, and hyphens.
+# [VI] Ví dụ class con: parent-class-id: swordsman; required-level: 20; required-quest-id: trial-of-steel. Cần skill đã triển khai để hiện trong GUI.
+# [EN] Child example: parent-class-id: swordsman; required-level: 20; required-quest-id: trial-of-steel. It needs an implemented skill to appear in the GUI.
 classes:
   swordsman:
     # [VI] Trạng thái: available hiển thị nếu có skill hoạt động; locked/planned bị ẩn. Thiếu khóa sẽ tự dò (auto).

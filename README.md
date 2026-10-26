@@ -688,9 +688,10 @@ of character creation and appear under **Tiến chức class** in the skill tree
 only when they have an implemented skill. `required-level` controls the
 minimum promotion level (default `1`, allowed `1..10000`). Promotion requires
 an explicit confirmation, keeps learned skills, and records each transition in
-SQLite schema v13. The current class is persisted in the profile. Item/quest/NPC
-requirements, class stat modifiers, and a player-facing class-history screen
-are still pending.
+SQLite schema v13. The current class is persisted in the profile. The optional
+`required-quest-id` condition must refer to a completed quest. Item/NPC
+conditions, class stat modifiers, and a player-facing class-history screen are
+still pending.
 
 ### RPG NPCs
 

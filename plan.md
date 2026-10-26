@@ -499,7 +499,7 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - Thêm GUI quản trị ánh xạ `race ID + base class ID → starter skill-book ID`, preview nội dung và chặn lưu nếu class/sách không tồn tại hoặc bị tắt.
 - Cấp sách đúng một lần và đánh dấu bền vững. Nếu túi đầy, tạo claim/kho thư có ID duy nhất, không làm rơi sách hoặc nhân đôi khi reconnect.
 - [~] Nền tảng `parent-class-id` đã được nạp/kiểm tra: parent phải tồn tại, cùng race và không tạo chu trình; skill từ class cha được nhận diện xuyên cây skill, sách, học/nâng cấp, quick slot, passive và cast. Chưa có GUI/flow để người chơi tiến chức.
-- [~] GUI cây skill có mục tiến chức; hiển thị class con có skill hỗ trợ, cấp yêu cầu, preview và xác nhận. Promotion transaction kiểm tra class hiện tại/cấp trong SQLite rồi lưu class mới cùng lịch sử, giữ skill đã học.
+- [~] GUI cây skill có mục tiến chức; hiển thị class con có skill hỗ trợ, cấp/quest yêu cầu, preview và xác nhận. Promotion transaction kiểm tra class hiện tại/cấp/quest hoàn thành trong SQLite rồi lưu class mới cùng lịch sử, giữ skill đã học.
 - [ ] Mở rộng điều kiện tiến chức sang item/quest/NPC, chỉ số cộng và skill mở mới; quản lý chống skill trùng/tiến chức lặp qua chuỗi; thêm GUI lịch sử class.
 - Lưu rõ class gốc, class tiến chức và nguồn skill đã học; migration class cũ phải có bảng ánh xạ và giữ skill.
 - **Chấp nhận:** mỗi tổ hợp race-class nhận đúng sách một lần; class cao dùng được skill kế thừa; điều kiện tiến chức đủ/thiếu và migration class cũ hoạt động.
@@ -603,8 +603,8 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - [~] Quest tutorial được hoãn trong lúc sách còn pending; callback chỉ hoàn tất onboarding khi đúng transaction ID của sách starter đã được xác nhận và item còn trong inventory/ender chest. Callback không bị gọi nhầm khi một reconcile khác trả danh sách cũ/rỗng; callback được giữ qua lỗi/túi đầy, dedupe theo transaction, trạng thái PDC cho phép reconnect tiếp tục.
 - [~] Bổ sung `[RPG-DEBUG][Delivery]` cho đăng ký callback, số delivery chờ, transaction mục tiêu, hết chỗ, callback trì hoãn/hoàn tất; README hướng dẫn bật bằng `logging.console-debug`.
 - [~] Đã thêm khai báo parent tùy chọn vào class catalog; startup báo rõ cạnh kế thừa hợp lệ và từ chối parent thiếu/sai race/chu trình. DB skill operations đối chiếu tập class con kế thừa, còn GUI cây skill và passive cũng xét skill cha. Có debug logs cho graph load và log nghiệp vụ skill sẵn có.
-- [~] Đã thêm GUI preview/xác nhận tiến chức theo cấp, giữ skill đã học, trạng thái class mới lưu trong `selected_class`; SQLite schema v13 lưu lịch sử các chuyển đổi, migration tạo bảng có backup theo quy trình DB hiện tại. Debug log bao gồm lựa chọn candidates và request/result.
-- Chưa xác minh bằng compile/gameplay hoặc chạy migration trên bản sao DB. Chưa có yêu cầu item/quest/NPC, chỉ số class, skill unlock riêng, GUI lịch sử, explicit base-class field/nguồn học skill, quản trị đồ thị class bằng GUI, và kiểm tra end-to-end các luồng restart/chuyển chức đồng thời. Chưa mở class trong `classes.md` vì chưa có vertical slice hoàn chỉnh. Tiếp tục giữ phase ở trạng thái `[~]`.
+- [~] Đã thêm GUI preview/xác nhận tiến chức theo cấp và quest hoàn thành (`required-quest-id`), giữ skill đã học; trạng thái class mới lưu trong `selected_class`; SQLite schema v13 lưu lịch sử các chuyển đổi, migration tạo bảng có backup theo quy trình DB hiện tại. Debug log bao gồm lựa chọn candidates và request/result.
+- Chưa xác minh bằng compile/gameplay hoặc chạy migration trên bản sao DB. Chưa có yêu cầu vật phẩm/NPC, chỉ số class, skill unlock riêng, GUI lịch sử, explicit base-class field/nguồn học skill, quản trị đồ thị class bằng GUI, và kiểm tra end-to-end các luồng restart/chuyển chức đồng thời. Chưa mở class trong `classes.md` vì chưa có vertical slice hoàn chỉnh. Tiếp tục giữ phase ở trạng thái `[~]`.
 
 ### Trạng thái Phase C sau khi bắt đầu triển khai — 2026-10-26
 

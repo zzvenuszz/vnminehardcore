@@ -58,6 +58,7 @@ public final class CharacterSelectionManager implements Listener {
     private final Map<String, List<ClassDefinition>> classesByRace = new HashMap<>();
     private final Map<String, String> parentClassById = new LinkedHashMap<>();
     private final Map<String, Integer> promotionLevelByClass = new LinkedHashMap<>();
+    private final Map<String, String> promotionQuestByClass = new LinkedHashMap<>();
     private final Map<String, String> starterBookMappings = new LinkedHashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
     private final Set<UUID> profileLookupComplete = new java.util.HashSet<>();
@@ -150,6 +151,10 @@ public final class CharacterSelectionManager implements Listener {
 
     public int getPromotionRequiredLevel(String classId) {
         return promotionLevelByClass.getOrDefault(classId, 1);
+    }
+
+    public String getPromotionRequiredQuest(String classId) {
+        return promotionQuestByClass.get(classId);
     }
 
     public void setPlayableClassIds(Set<String> classIds) {
@@ -1139,6 +1144,15 @@ public final class CharacterSelectionManager implements Listener {
                 }
                 promotionLevel = number.intValue();
             }
+            String promotionQuest = null;
+            if (section.contains("required-quest-id")) {
+                promotionQuest = readText(section, "required-quest-id", path);
+                if (promotionQuest == null || !DEFINITION_ID_PATTERN.matcher(promotionQuest).matches()) {
+                    plugin.getLogger().warning("[ClassProgression] Invalid required-quest-id at " + path
+                        + ".required-quest-id; expected a lowercase quest ID. Class skipped.");
+                    continue;
+                }
+            }
             if (raceId == null || name == null || description == null || icon == null || availability == null) continue;
             if (!Set.of("auto", "available", "locked", "planned").contains(availability)) {
                 plugin.getLogger().warning("[Character] Invalid availability '" + availability
@@ -1153,6 +1167,7 @@ public final class CharacterSelectionManager implements Listener {
             classList.add(new ClassDefinition(raceId, id, name, icon, description, availability));
             if (parentClassId != null) parentClassById.put(id, parentClassId);
             if (parentClassId != null) promotionLevelByClass.put(id, promotionLevel);
+            if (parentClassId != null && promotionQuest != null) promotionQuestByClass.put(id, promotionQuest);
         }
 
         validateClassInheritance();

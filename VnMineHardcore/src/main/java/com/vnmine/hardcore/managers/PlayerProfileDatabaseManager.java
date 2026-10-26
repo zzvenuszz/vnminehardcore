@@ -565,7 +565,7 @@ public class PlayerProfileDatabaseManager {
     }
 
     public ClassPromotionResult promoteClass(String uuid, String expectedClass, String targetClass,
-                                              int requiredLevel, String changedAt) throws SQLException {
+                                              int requiredLevel, String requiredQuestId, String changedAt) throws SQLException {
         if (expectedClass == null || expectedClass.isBlank() || targetClass == null || targetClass.isBlank()
                 || expectedClass.equals(targetClass) || requiredLevel < 1 || changedAt == null) {
             throw new IllegalArgumentException("Class promotion request is invalid.");
@@ -584,6 +584,17 @@ public class PlayerProfileDatabaseManager {
                 }
             }
             if (level < requiredLevel) return ClassPromotionResult.REQUIREMENTS_NOT_MET;
+            if (requiredQuestId != null && !requiredQuestId.isBlank()) {
+                try (PreparedStatement questQuery = connection.prepareStatement(
+                        "SELECT 1 FROM player_quest_progress WHERE uuid = ? AND quest_id = ? " +
+                            "AND status = 'completed'")) {
+                    questQuery.setString(1, uuid);
+                    questQuery.setString(2, requiredQuestId);
+                    try (ResultSet questResult = questQuery.executeQuery()) {
+                        if (!questResult.next()) return ClassPromotionResult.REQUIREMENTS_NOT_MET;
+                    }
+                }
+            }
             try (PreparedStatement update = connection.prepareStatement(
                     "UPDATE player_profiles SET selected_class = ?, updated_at = ? " +
                         "WHERE uuid = ? AND selected_class = ? AND is_active = 1")) {
