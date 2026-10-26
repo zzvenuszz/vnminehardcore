@@ -572,6 +572,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                             "§7Cấp yêu cầu: §e" + requiredLevel));
                         String requiredQuest = classes.getPromotionRequiredQuest(candidate.id());
                         if (requiredQuest != null) requirements.add("§7Quest yêu cầu: §b" + requiredQuest);
+                        appendPromotionItemRequirement(requirements, classes, candidate.id());
                         requirements.add("§aNhấn để xem trước.");
                         inventory.setItem(slots[index], createSkillIcon(candidate.material(), "§d" + candidate.name(),
                             requirements));
@@ -602,6 +603,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             "§7Class mới: §f" + target.id(),
             "§7Cấp yêu cầu: §e" + requiredLevel));
         if (requiredQuest != null) requirements.add("§7Quest yêu cầu: §b" + requiredQuest);
+        appendPromotionItemRequirement(requirements, manager, target.id());
         requirements.add("§7Skill đã học sẽ được giữ nguyên.");
         requirements.add("§eNhấn xác nhận để đổi class.");
         PromotionHolder holder = new PromotionHolder(player.getUniqueId(), sourceClassId, true, targetClassId);
@@ -628,9 +630,19 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         int requiredLevel = manager.getPromotionRequiredLevel(target.id());
         String requiredQuest = manager.getPromotionRequiredQuest(target.id());
         String changedAt = Instant.now().toString();
+        Material requiredItem = manager.getPromotionRequiredItem(target.id());
+        int requiredItemAmount = manager.getPromotionRequiredItemAmount(target.id());
+        if (requiredItem != null && countInventoryMaterial(player, requiredItem) < requiredItemAmount) {
+            debugFeature("[RPG-DEBUG][ClassProgression] promotion-rejected player=" + player.getName()
+                + ", target=" + targetClassId + ", reason=required-item-missing, item=" + requiredItem
+                + ", required=" + requiredItemAmount + ", found=" + countInventoryMaterial(player, requiredItem));
+            player.sendMessage("§cBạn cần mang theo " + requiredItemAmount + " " + requiredItem + " để tiến chức.");
+            return;
+        }
         debugFeature("[RPG-DEBUG][ClassProgression] promotion-request player=" + player.getName()
             + ", from=" + sourceClassId + ", to=" + targetClassId + ", requiredLevel=" + requiredLevel
-            + ", requiredQuest=" + (requiredQuest == null ? "none" : requiredQuest));
+            + ", requiredQuest=" + (requiredQuest == null ? "none" : requiredQuest)
+            + ", requiredItem=" + (requiredItem == null ? "none" : requiredItem + "x" + requiredItemAmount));
         database.executeGameplayDatabaseTask("class-promotion.commit player=" + player.getName(),
             () -> database.promoteClass(playerId.toString(), sourceClassId, targetClassId, requiredLevel,
                 requiredQuest, changedAt))
@@ -656,6 +668,21 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                     case PROFILE_NOT_FOUND -> player.sendMessage("§cKhông tìm thấy hồ sơ RPG.");
                 }
             }));
+    }
+
+    private void appendPromotionItemRequirement(List<String> lore, CharacterSelectionManager manager, String classId) {
+        Material item = manager.getPromotionRequiredItem(classId);
+        int amount = manager.getPromotionRequiredItemAmount(classId);
+        if (item != null && amount > 0) lore.add("§7Cần mang theo: §e" + amount + " " + item);
+    }
+
+    private int countInventoryMaterial(Player player, Material material) {
+        int count = 0;
+        for (ItemStack item : player.getInventory().getStorageContents()) {
+            if (item == null || item.getType() != material) continue;
+            count += item.getAmount();
+        }
+        return count;
     }
 
     private Set<String> inheritedClasses(String classId) {

@@ -689,9 +689,11 @@ only when they have an implemented skill. `required-level` controls the
 minimum promotion level (default `1`, allowed `1..10000`). Promotion requires
 an explicit confirmation, keeps learned skills, and records each transition in
 SQLite schema v13. The current class is persisted in the profile. The optional
-`required-quest-id` condition must refer to a completed quest. Item/NPC
-conditions, class stat modifiers, and a player-facing class-history screen are
-still pending.
+`required-quest-id` condition must refer to a completed quest.
+`required-item` and `required-item-amount` can require a vanilla Material stack
+in the player's inventory; it is checked at confirmation and is not consumed.
+Exact RPG item IDs, NPC visit requirements, class stat modifiers, and a
+player-facing class-history screen are still pending.
 
 ### RPG NPCs
 
