@@ -25,6 +25,7 @@
 - Thêm GUI quản lý sách skill đầu tiên theo race/class qua `/vnskillbook config` và mục Quản trị → RPG; sách được giao bằng hàng đợi bền vững, quest tutorial chỉ bắt đầu khi đúng transaction của sách đã có trong túi/kho đồ, không cấp hồi tố cho profile cũ. Bổ sung debug log mapping, retry và đối soát. Cần compile và kiểm thử onboarding, cấu hình mapping và giao sách khi túi đầy.
 - Thêm liên kết quest successor trong GUI admin; khi hoàn thành, link được ghi bền vững cùng transaction reward và tự nhận khi đủ điều kiện/còn slot, có retry sau join/quest complete/abandon. Chặn self-link, cycle và xóa quest đang được tham chiếu; bổ sung log `[Quest][Successor]`. Chưa compile/gameplay test.
 - Thêm marker NPC ảo riêng theo từng người chơi: `!` quest có thể nhận, `?` story chưa đọc/NPC tutorial đang chờ; trạng thái story lưu trong PDC sau khi dialog hoàn tất. Thêm cấu hình khoảng cách/chu kỳ/bật tắt và log marker transition. Chưa compile/gameplay test.
+- Giới hạn shop merchant tùy chỉnh chỉ hiện và thu mua buy-order được cấu hình tại chính NPC đó; bỏ fallback giá từ NPC khác/giá mặc định cho item không được cấu hình. Kiểm tra lại order và log số lượng/PDC fingerprint an toàn trước khi bán; chưa compile/gameplay test.
 
 ## [v2.15.0] - 2026-10-25
 - Thêm lệnh `/vntext` để tạo, chỉnh sửa, di chuyển, xem và xóa text display cố định; hỗ trợ facing 6 hướng, màu tên/hex, scale và lưu entity bền vững qua chunk/restart.

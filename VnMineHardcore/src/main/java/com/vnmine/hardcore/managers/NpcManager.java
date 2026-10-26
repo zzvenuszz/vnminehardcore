@@ -163,6 +163,22 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return java.util.Optional.ofNullable(best);
     }
 
+    public java.util.Optional<MerchantBuyQuote> getMerchantBuyQuote(String merchantId, ItemStack item) {
+        if (merchantId == null || item == null || item.getType().isAir()) return java.util.Optional.empty();
+        LinkedHashMap<Integer, MerchantBuyOrder> orders = merchantBuyOrders.get(merchantId.toLowerCase(Locale.ROOT));
+        if (orders == null) return java.util.Optional.empty();
+        MerchantBuyQuote best = null;
+        for (Map.Entry<Integer, MerchantBuyOrder> entry : orders.entrySet()) {
+            MerchantBuyOrder order = entry.getValue();
+            if (!order.item().isSimilar(item)) continue;
+            MerchantBuyQuote quote = new MerchantBuyQuote(order.amount(), order.price(), merchantId);
+            if (best == null || (double) quote.price() / quote.amount() > (double) best.price() / best.amount()) {
+                best = quote;
+            }
+        }
+        return java.util.Optional.ofNullable(best);
+    }
+
     public void openAdminMenu(Player player) {
         if (!player.hasPermission(ADMIN_PERMISSION)) {
             player.sendMessage("§cBạn không có quyền quản lý NPC.");

@@ -526,6 +526,13 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - Buy-order ghi chính xác item identity, số lượng giao và VNCOIN nhận; lần bán tiếp theo dùng cùng order, không phát sinh yêu cầu 64 ngoài cấu hình.
 - Log chẩn đoán order/NPC, số lượng yêu cầu/đang có, quote source, Material và RPG item ID/PDC fingerprint an toàn. Test item metadata, stack bị tách, bán hai lần, restart và click cạnh tranh.
 
+##### Trạng thái E1 sau khi bắt đầu triển khai — 2026-10-26
+
+- [~] Shop custom bỏ quote từ merchant khác và giá fallback cho item không có buy-order tại NPC hiện tại; danh sách chỉ thêm đúng các order của NPC đó.
+- [~] Trước khi trừ item, xác minh buy-order còn tồn tại và số lượng/giá chưa đổi kể từ lúc mở GUI; log NPC, offer ID, Material, số lượng có/cần, giá, key PDC và 8 byte đầu của SHA-256 item serialization (không ghi giá trị PDC).
+- [~] README/CHANGELOG mô tả rõ phạm vi mua của custom shop. System merchant vẫn giữ logic cũ cho tới E2.
+- Chưa compile/gameplay test. Cần xác nhận item metadata khác nhau bị phân biệt đúng, số lượng cấu hình chính xác kể cả stack bị tách, bán liên tiếp, order bị admin sửa khi GUI đang mở, và không còn item không cấu hình trong custom shop trước khi coi E1 hoàn tất.
+
 #### E2. System merchant và item RPG
 
 - Tạo `merchant-prices.yml` riêng, giá được biểu diễn là “số lượng giao → VNCOIN trả”, có chú thích VI/EN, bounds và default. Chỉ mua Material được allowlist; item không khai báo/tắt thì không mua, không dùng giá mặc định toàn cục cho mọi item.

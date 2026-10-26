@@ -8,6 +8,7 @@ import com.comphenix.protocol.events.PacketEvent;
 import com.comphenix.protocol.wrappers.WrappedDataValue;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
 import com.vnmine.hardcore.VnMineHardcore;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -897,13 +898,31 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 .filter(value -> value.item().isSimilar(template))
                 .max(java.util.Comparator.comparingDouble(value -> (double) value.price() / value.amount()))
                 .orElse(null);
-            GroundSellQuote quote = configured == null && plugin.getNpcManager() != null
-                ? plugin.getNpcManager().getBestMerchantBuyQuote(template)
-                    .map(value -> new GroundSellQuote(value.amount(), value.price())).orElse(null)
-                : configured == null ? null : new GroundSellQuote(configured.amount(), configured.price());
-            if (quote == null) quote = groundItemSellQuote(stack);
+            boolean systemMerchant = "system-merchant".equals(source.merchantId);
+            if (configured == null && !systemMerchant) {
+                debug("[RPG-DEBUG][VNCOIN][Merchant] custom-quote-rejected player=" + player.getName()
+                    + ", npc=" + source.merchantId + ", item=" + template.getType()
+                    + ", pdc-keys=" + itemPdcFingerprint(template)
+                    + ", reason=no-order-at-this-npc");
+                continue;
+            }
+            GroundSellQuote quote;
+            if (configured != null) {
+                quote = new GroundSellQuote(configured.amount(), configured.price());
+            } else {
+                quote = plugin.getNpcManager() == null ? null
+                    : plugin.getNpcManager().getBestMerchantBuyQuote(template)
+                        .map(value -> new GroundSellQuote(value.amount(), value.price())).orElse(null);
+                if (quote == null) quote = groundItemSellQuote(stack);
+            }
             offers.add(new MerchantBuyOffer(source.merchantId + "-default-" + stack.getType().name(),
                 template, quote.amount(), quote.price(), itemName(template)));
+            debug("[RPG-DEBUG][VNCOIN][Merchant] sell-quote player=" + player.getName()
+                + ", npc=" + source.merchantId + ", scope=" + (systemMerchant ? "system" : "custom")
+                + ", item=" + template.getType() + ", available=" + countExactItem(player, template)
+                + ", required=" + quote.amount() + ", price=" + quote.price()
+                + ", pdc-keys=" + itemPdcFingerprint(template)
+                + ", source=" + (configured == null ? "system-default" : "npc-buy-order"));
         }
         source.buyOffers.stream().filter(order -> seen.stream().noneMatch(order.item()::isSimilar))
             .limit(Math.max(0, 45 - offers.size())).forEach(offers::add);
@@ -984,12 +1003,33 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
 
     private void sellMerchantBuyOrder(Player player, MerchantSellMenuHolder source, MerchantBuyOffer offer) {
         UUID playerId = player.getUniqueId();
+        String merchantId = source.source.merchantId;
+        int available = countExactItem(player, offer.item());
+        if (!"system-merchant".equals(merchantId)) {
+            var currentQuote = plugin.getNpcManager() == null ? java.util.Optional.<NpcManager.MerchantBuyQuote>empty()
+                : plugin.getNpcManager().getMerchantBuyQuote(merchantId, offer.item());
+            boolean stillConfigured = currentQuote.isPresent()
+                && currentQuote.get().amount() == offer.amount() && currentQuote.get().price() == offer.price();
+            debug("[RPG-DEBUG][VNCOIN][Merchant] custom-sale-validate player=" + player.getName()
+                + ", npc=" + merchantId + ", offer=" + offer.id() + ", item=" + offer.item().getType()
+                + ", available=" + available + ", required=" + offer.amount()
+                + ", pdc-keys=" + itemPdcFingerprint(offer.item()) + ", configured=" + stillConfigured);
+            if (!stillConfigured) {
+                player.sendMessage("§cGiá thu mua của NPC đã thay đổi hoặc vật phẩm không còn được cấu hình."
+                    + " Giao dịch chưa thực hiện.");
+                openMerchantSellInventory(player, source.source);
+                return;
+            }
+        }
         if (!pendingMerchantSales.add(playerId)) {
             player.sendMessage("§eĐang xử lý giao dịch trước đó, vui lòng chờ.");
             return;
         }
-        if (countExactItem(player, offer.item()) < offer.amount()) {
+        if (available < offer.amount()) {
             pendingMerchantSales.remove(playerId);
+            debug("[RPG-DEBUG][VNCOIN][Merchant] sale-rejected player=" + player.getName()
+                + ", npc=" + merchantId + ", offer=" + offer.id() + ", available=" + available
+                + ", required=" + offer.amount() + ", reason=insufficient-items");
             player.sendMessage("§cBạn không có đủ " + offer.amount() + " item cần giao.");
             openMerchantSellInventory(player, source.source);
             return;
@@ -1033,6 +1073,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                     return;
                 }
                 debug("[RPG-DEBUG][VNCOIN][Merchant] sell player=" + player.getName() + ", offer=" + offer.id()
+                    + ", npc=" + merchantId
                     + ", amount=" + offer.amount() + ", price=" + offer.price() + ", balance=" + result.balance()
                     + ", transaction=" + transactionId);
                 if (player.isOnline()) {
@@ -1110,6 +1151,19 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         ItemMeta meta = item.getItemMeta();
         return meta != null && meta.hasDisplayName() ? meta.getDisplayName()
             : item.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
+    private static String itemPdcFingerprint(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return "none";
+        String keys = item.getItemMeta().getPersistentDataContainer().getKeys().stream()
+            .map(key -> key.getNamespace() + ":" + key.getKey())
+            .sorted().collect(java.util.stream.Collectors.joining("|"));
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(item.serializeAsBytes());
+            return "keys=" + keys + ";sha256=" + java.util.HexFormat.of().formatHex(digest, 0, 8);
+        } catch (java.security.NoSuchAlgorithmException exception) {
+            return "keys=" + keys + ";sha256=unavailable";
+        }
     }
 
     private void openMerchantPurchaseConfirmation(Player player, Inventory returnInventory, MerchantOffer offer) {

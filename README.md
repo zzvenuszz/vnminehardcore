@@ -916,11 +916,14 @@ server confirms it. `system-merchant` NPCs use the shared catalog under
 `economy.merchant.offers`, while custom merchants use their saved per-NPC list.
 System and custom merchants show **Bán vật phẩm cho shop**. Players review the
 exact item count and VNCOIN, confirm the sale, then matching items are removed
-and the wallet ledger is credited. All inventory items can use the configured
-default/material rate; an exact RPG item buy order at a custom NPC takes priority.
-Ground item nameplates display a matching NPC buy order as `[quantity = VNCOIN]`; other drops use the default
-`64 = 1 VNCOIN`. Configure `economy.merchant.ground-item-default` or
-`ground-item-price-overrides` in `config.yml` for fallback values.
+and the wallet ledger is credited. A custom merchant only accepts RPG items
+with a buy order configured at that exact NPC; unconfigured items have no sale
+entry there. The system merchant still uses the current default/material rates
+and custom buy-order lookup while the dedicated system price-list phase is
+pending. Ground item nameplates display a matching NPC buy order as
+`[quantity = VNCOIN]`; other drops use the default `64 = 1 VNCOIN`. Configure
+`economy.merchant.ground-item-default` or `ground-item-price-overrides` in
+`config.yml` for fallback values.
 
 Admins can run `/vncoin stats` to see the total VNCOIN issued, spent, net change,
 and the busiest ledger sources for the configured reporting window. Set
