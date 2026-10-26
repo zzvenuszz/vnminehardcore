@@ -24,6 +24,9 @@ quests:
       # [VI] VNCOIN thưởng một lần; hợp lệ 1-1000000.
       # [EN] One-time VNCOIN reward; valid range 1-1000000.
       vncoin: 25
+      # [VI] Giá bán theo thứ tự reward.items; 0 nghĩa là system merchant không mua; hợp lệ 0-1000000 VNCOIN/item.
+      # [EN] Sell value aligned with reward.items; 0 disables system-merchant purchases; valid 0-1000000 VNCOIN/item.
+      item-sell-values: []
 
   hunter-skeleton-watch:
     # [VI] ID NPC nhận nhiệm vụ; phải trùng ID tạo bằng /vnnpc create.
@@ -46,6 +49,9 @@ quests:
       # [VI] VNCOIN thưởng một lần; hợp lệ 1-1000000.
       # [EN] One-time VNCOIN reward; valid range 1-1000000.
       vncoin: 30
+      # [VI] Giá bán theo thứ tự reward.items; 0 nghĩa là system merchant không mua; hợp lệ 0-1000000 VNCOIN/item.
+      # [EN] Sell value aligned with reward.items; 0 disables system-merchant purchases; valid 0-1000000 VNCOIN/item.
+      item-sell-values: []
 
   village-watch-spiders:
     # [VI] ID NPC nhận nhiệm vụ; phải trùng ID tạo bằng /vnnpc create.
@@ -68,6 +74,9 @@ quests:
       # [VI] VNCOIN thưởng một lần; hợp lệ 1-1000000.
       # [EN] One-time VNCOIN reward; valid range 1-1000000.
       vncoin: 20
+      # [VI] Giá bán theo thứ tự reward.items; 0 nghĩa là system merchant không mua; hợp lệ 0-1000000 VNCOIN/item.
+      # [EN] Sell value aligned with reward.items; 0 disables system-merchant purchases; valid 0-1000000 VNCOIN/item.
+      item-sell-values: []
 
   blacksmith-iron-shards:
     # [VI] ID NPC nhận nhiệm vụ; phải trùng ID tạo bằng /vnnpc create.
@@ -98,7 +107,13 @@ quests:
       # [VI] Tỉ lệ rơi mỗi lần quái phù hợp chết; hợp lệ 1-100 phần trăm.
       # [EN] Drop chance per matching mob death; valid range 1-100 percent.
       drop-chance-percent: 30
+      # [VI] Giá system merchant trả cho mỗi item RPG nhiệm vụ; mặc định 0, hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant value per generated quest RPG item; default 0, valid 0-1000000 VNCOIN.
+      sell-value: 0
     reward:
       # [VI] VNCOIN thưởng một lần; hợp lệ 1-1000000.
       # [EN] One-time VNCOIN reward; valid range 1-1000000.
       vncoin: 45
+      # [VI] Giá bán theo thứ tự reward.items; 0 nghĩa là system merchant không mua; hợp lệ 0-1000000 VNCOIN/item.
+      # [EN] Sell value aligned with reward.items; 0 disables system-merchant purchases; valid 0-1000000 VNCOIN/item.
+      item-sell-values: []

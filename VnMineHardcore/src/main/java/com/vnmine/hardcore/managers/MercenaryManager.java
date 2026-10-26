@@ -228,6 +228,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
    private final NamespacedKey tokenClassKey;
    private final NamespacedKey tokenLevelKey;
    private final NamespacedKey soldierGearKey;
+   private final NamespacedKey rpgSellValueKey;
    private final NamespacedKey soldierGearClassKey;
    private final NamespacedKey soldierGearMaterialKey;
    private final NamespacedKey soldierGearStarsKey;
@@ -305,6 +306,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
    private int experiencePerKill;
    private int experiencePerLevel;
    private int maxLevel;
+   private int generatedGearSellValue;
    private int recoverySeconds;
    private double skillPowerPerLevel;
    private double maxSkillPowerMultiplier;
@@ -502,6 +504,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       this.tokenClassKey = new NamespacedKey(plugin, "army_token_class");
       this.tokenLevelKey = new NamespacedKey(plugin, "army_token_level");
       this.soldierGearKey = new NamespacedKey(plugin, "army_soldier_gear");
+      this.rpgSellValueKey = new NamespacedKey(plugin, "rpg_sell_value");
       this.soldierGearClassKey = new NamespacedKey(plugin, "army_soldier_gear_class");
       this.soldierGearMaterialKey = new NamespacedKey(plugin, "army_soldier_gear_material");
       this.soldierGearStarsKey = new NamespacedKey(plugin, "army_soldier_gear_stars");
@@ -1813,6 +1816,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
          }
 
          this.settings = loaded;
+         this.generatedGearSellValue = this.readBoundedInt(loaded, "gear-system.sell-value", 0, 0, 1_000_000);
          this.enabled = loaded.getBoolean("enabled", true);
          this.ownerCommandedPvpEnabled = loaded.getBoolean("pvp.allow-owner-commanded-targets", true);
          this.maxUnits = this.readBoundedInt(loaded, "max-units-per-player", 10, 1, 100);
@@ -1845,7 +1849,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
          this.vexFollowIcon = this.readVexActionIcon(loaded, "follow", "\ud83d\udc3e");
          this.vexIdleIcon = this.readVexActionIcon(loaded, "idle", "•");
          this.maxLevel = configuredMaxLevel;
-         this.plugin.getLogger().info("[Army] Loaded " + this.getClassIds().size() + " class(es), enabled=" + this.enabled + ".");
+         this.plugin.getLogger().info("[Army] Loaded " + this.getClassIds().size() + " class(es), enabled="
+            + this.enabled + ", generated-gear-sell-value=" + this.generatedGearSellValue + " VNCOIN/item.");
       } else {
          throw new InvalidConfigurationException("armies.yml must define at least one class and one tier.");
       }
@@ -6953,6 +6958,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
          )
       );
       meta.getPersistentDataContainer().set(this.soldierGearKey, PersistentDataType.BYTE, (byte)1);
+      meta.getPersistentDataContainer().set(this.rpgSellValueKey, PersistentDataType.LONG,
+         (long)this.generatedGearSellValue);
       meta.getPersistentDataContainer().set(this.soldierGearClassKey, PersistentDataType.STRING, classId);
       meta.getPersistentDataContainer().set(this.soldierGearMaterialKey, PersistentDataType.STRING, material);
       meta.getPersistentDataContainer().set(this.soldierGearStarsKey, PersistentDataType.INTEGER, stars);
@@ -6961,6 +6968,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       item.setItemMeta(meta);
       lore.addAll(this.soldierGearLore(this.soldierGearItemStats(item)));
       lore.add("§8Item dành cho lính đánh thuê; người chơi không thể trang bị.");
+      lore.add("§8System merchant: " + this.generatedGearSellValue + " VNCOIN/item.");
       meta = item.getItemMeta();
       meta.setLore(lore);
       item.setItemMeta(meta);

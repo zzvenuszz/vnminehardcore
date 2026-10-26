@@ -537,7 +537,7 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 
 - Tạo `merchant-prices.yml` riêng, giá được biểu diễn là “số lượng giao → VNCOIN trả”, có chú thích VI/EN, bounds và default. Chỉ mua Material được allowlist; item không khai báo/tắt thì không mua, không dùng giá mặc định toàn cục cho mọi item. **Đã triển khai; chờ kiểm thử server.**
 - Item RPG chỉ được system merchant mua theo `sell-value` trong định nghĩa item; default `0` nghĩa là không mua. Không lấy giá theo Material nền hoặc lore.
-- Thêm `sell-value: 0` vào mọi định nghĩa item RPG (sách, gear, nguyên liệu, boss/quest và item hệ thống). Admin chỉnh config; reload validate và giữ config cũ nếu file lỗi.
+- Thêm `sell-value: 0` vào định nghĩa item RPG hiện có (sách, gear, nguyên liệu quest, từng item thưởng quest, boss loot/token và gear lính); mặc định an toàn, giới hạn 0-1000000, có mô tả VI/EN. Thay đổi config quest/army có hiệu lực sau restart; `/vnreload` áp dụng giá boss/merchant theo loader sẵn có.
 - Nếu custom merchant có giá mua tốt hơn cho item chính xác đó, system merchant hỏi xác nhận và nêu NPC/tên/ID, world, lượng giao và X VNCOIN. Yes vẫn bán theo giá system; No quay lại. Chỉ cảnh báo nếu người chơi đủ lượng giao và so sánh cùng item identity/số lượng tương đương.
 - Thay giao dịch trừ item rồi mới ghi ví bằng intent/escrow bền vững, transaction ID idempotent và đối soát khi restart; không mất item hoặc cộng coin hai lần. **Đã viết luồng SQLite intent, khóa PDC, lưu inventory, settlement idempotent, hoàn hàng qua delivery queue khi ví chạm giới hạn và recovery khi join/mở `/vncoin`; chưa compile/restart-test nên chưa xác nhận bảo đảm vận hành.**
 
@@ -546,14 +546,15 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - [~] Thêm `merchant-prices.yml` làm allowlist strict theo Material; giá thiếu/Material không hợp lệ không tự nhận giá mặc định. Loader kiểm tra schema/duplicate/bounds atomically, giữ bảng hợp lệ trước đó khi reload file lỗi; `/vnreload` nạp lại file.
 - [~] Đưa mốc giá sắt, kim cương, khuôn Netherite, thịt sống/chín vào allowlist, cộng giá thận trọng cho một số tài nguyên farmable. Đã bỏ universal ground-item fallback khỏi luồng quote; nhãn item đất báo không có giá khi cả system lẫn custom merchant đều không nhận.
 - [~] Bắt đầu `sell-value` (0 mặc định, 0-1000000 VNCOIN) cho skill book, drop boss thường, drop theo level, armor set, token boss và gear lính do boss thả; giá được gắn PDC để phân biệt với vanilla cùng Material. Unknown plugin-tagged RPG item không dùng giá Material. Skill-book registry nạp khi khởi động; boss definitions được đọc lại qua `/vnreload`.
+- [~] Bổ sung `objective.sell-value` cho item quest RPG, `reward.item-sell-values` theo thứ tự các stack thưởng và `gear-system.sell-value` cho gear lính tạo ngoài loot boss; mọi giá mặc định 0 và gắn vào item bằng PDC. File quest cũ tự được thêm trường mặc định lúc khởi động, GUI xem thưởng hiển thị giá từng món, thay item trong rương admin giữ giá theo item khớp chính xác. Chưa compile/gameplay test.
 - [~] System merchant cảnh báo khi người chơi đủ số lượng để bán cùng item chính xác tại custom NPC có tỷ lệ trả/đơn vị cao hơn; Yes vẫn dùng giá system. Đối chiếu lại giá và cảnh báo lúc xác nhận. Bổ sung log quote/reject/validate kèm NPC, Material, số lượng, nguồn và hash rút gọn item serialization.
 - [~] Thêm SQLite intent/escrow khi bán, trạng thái PREPARED/TAGGED, khóa item bằng PDC, transaction ID idempotent, đối soát sau join hoặc mở `/vncoin`, và hoàn item qua hàng đợi giao bền vững nếu ví chạm giới hạn. Chặn di chuyển/sử dụng và ngăn death drops cho item escrow; log các bước, lỗi và khôi phục. Đây mới là triển khai mã, chưa xác minh crash/restart trên server.
-- Chưa triển khai `sell-value` cho quest-generated items/rewards, mercenary item tự tạo ngoài loot boss, và các item RPG khác chưa có catalog trung tâm.
+- Unknown plugin-tagged items vẫn bị từ chối nếu chưa có `rpg_sell_value`; cần tiếp tục rà soát các nguồn item hệ thống khác ngoài skill book, boss loot, quest, token và gear lính để xác nhận không bỏ sót catalog.
 - Chưa compile/gameplay test. Cần kiểm tra migration schema 11→12, restart tại từng trạng thái intent, reconnect, thao tác inventory/death, đủ/thiếu item, balance limit, DB lỗi, exact PDC identity, cảnh báo custom khác world, reload khi GUI đang mở, và không fallback cho item RPG giá 0 trước khi hoàn tất E2.
 
 #### E3. Bảng giá khởi điểm để cân bằng
 
-Các giá sau là đề xuất cấu hình ban đầu, chưa áp dụng. Mỗi hàng là tổng lượng item giao đổi lấy VNCOIN, không phải giá mỗi item.
+**Cập nhật 2026-10-26:** các mức trong bảng dưới đã được đưa vào `merchant-prices.yml` làm giá khởi điểm có thể chỉnh. Mỗi hàng là tổng lượng item giao đổi lấy VNCOIN, không phải giá từng item. Chưa xác minh nguồn cung thực tế và lạm phát trên server.
 
 | Nhóm | Item | Lượng giao | VNCOIN | Ghi chú |
 |---|---|---:|---:|---|
@@ -573,8 +574,9 @@ Các giá sau là đề xuất cấu hình ban đầu, chưa áp dụng. Mỗi h
 | Mob farmable | Rotten flesh, bone, string, gunpowder | 32–64 | 1 | Giá thấp vì có thể farm AFK. |
 | Mob drop | Ender pearl, leather | 16 | 1 | Khởi đầu thấp, cân lại theo nguồn cung. |
 
-- Chỉ dùng allowlist từng Material, không wildcard bao trùm item chưa khảo sát; item không liệt kê không có quote. Bổ sung giá sau khi rà nguồn farm và vật phẩm thực tế của server.
-- **Cần làm rõ riêng về sắt:** yêu cầu mô tả 64 thỏi = 1 coin khi có farm, nhưng 10 thỏi = 1 coin nếu chặn farm; hai mức có vẻ ngược với logic hạn chế lạm phát. Đề xuất không phá cơ chế vanilla, dùng 10 thỏi = 1 coin khi farm còn tồn tại. Nếu thật sự chặn farm thì có thể điều chỉnh giá sau khi đo nguồn cung; không âm thầm sửa cơ chế golem/villager vì có thể ảnh hưởng gameplay khác.
+- Chỉ dùng allowlist từng Material, không wildcard bao trùm item chưa khảo sát; item không liệt kê không có quote. Cấu hình hiện có các nhóm trong bảng, nhưng vẫn cần đối chiếu với vật phẩm thực tế và nguồn farm trên server.
+- **Sắt:** hiện giữ 10 thỏi = 1 VNCOIN như yêu cầu khi farm còn hoạt động. Chưa chặn iron farm: lọc spawn golem hoặc villager toàn cục có thể phá cơ chế phòng thủ làng và gameplay; chỉ cân nhắc giới hạn riêng khi có rule rõ theo world/chunk và xác minh trên staging.
+- Chưa gameplay test bảng giá, tốc độ kiếm tiền và độ phù hợp của mức nông sản/mob drop; cân chỉnh sau khi nhận dữ liệu kinh tế từ server thật.
 - **Chấp nhận:** custom merchant đúng phạm vi; system merchant chỉ mua allowlist vanilla và RPG item có giá >0; GUI hiện đúng lượng/tiền; warning Yes/No vẫn thanh toán system rate; giao dịch chịu được DB lỗi/restart mà không mất item hoặc nhân đôi coin.
 
 ### Phase F — Migration, kiểm chứng và tài liệu

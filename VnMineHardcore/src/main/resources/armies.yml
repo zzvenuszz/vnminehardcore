@@ -147,6 +147,9 @@ skills:
 # [VI] Cân bằng và set vật phẩm riêng cho lính; bonus chỉ áp dụng cho item có metadata lính.
 # [EN] Mercenary-only gear balance and sets; bonuses apply only to items tagged as mercenary gear.
 gear-system:
+  # [VI] Giá system merchant trả cho mỗi món gear do hệ thống tạo; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per generated mercenary gear item; default 0 (not purchasable), valid 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Hệ số vật liệu; mặc định da 1.0, đồng 1.1, sắt 1.22, vàng 1.3, kim cương 1.45, netherite 1.6; hợp lệ 0.1-5.
   # [EN] Material multipliers; defaults leather 1.0, copper 1.1, iron 1.22, gold 1.3, diamond 1.45, netherite 1.6; valid 0.1-5.
   material-multipliers:

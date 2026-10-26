@@ -55,9 +55,12 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private final VnMineHardcore plugin;
     private final File definitionsFile;
     private final NamespacedKey questItemKey;
+    private final NamespacedKey rpgSellValueKey;
     private final NamespacedKey waypointParticlesKey;
     private final Map<String, QuestDefinition> definitions = new LinkedHashMap<>();
     private final Map<String, QuestDialogRefs> questDialogs = new LinkedHashMap<>();
+    private final Map<String, Long> questItemSellValues = new LinkedHashMap<>();
+    private final Map<String, List<Long>> questRewardSellValues = new LinkedHashMap<>();
     private final Map<UUID, Map<String, PlayerProfileDatabaseManager.QuestProgress>> activeByPlayer =
         new ConcurrentHashMap<>();
     private final Map<UUID, java.util.Set<String>> completedByPlayer = new ConcurrentHashMap<>();
@@ -72,6 +75,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     public QuestCatalogManager(VnMineHardcore plugin) throws IOException {
         this.plugin = plugin;
         this.questItemKey = new NamespacedKey(plugin, "quest_item_id");
+        this.rpgSellValueKey = new NamespacedKey(plugin, "rpg_sell_value");
         this.waypointParticlesKey = new NamespacedKey(plugin, "quest_waypoint_particles");
         File directory = new File(plugin.getDataFolder(), "quests");
         if (!directory.isDirectory() && !directory.mkdirs()) {
@@ -254,9 +258,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         List<String> lore = new java.util.ArrayList<>();
         lore.add("§e" + quest.vncoinReward() + " VNCOIN");
         lore.add("§b" + quest.experienceReward() + " EXP");
-        for (ItemStack reward : quest.itemRewards()) {
+        List<Long> sellValues = questRewardSellValues.getOrDefault(quest.id(),
+            zeroSellValues(quest.itemRewards().size()));
+        for (int index = 0; index < quest.itemRewards().size(); index++) {
+            ItemStack reward = quest.itemRewards().get(index);
             lore.add("§f" + (reward.hasItemMeta() && reward.getItemMeta().hasDisplayName()
-                ? reward.getItemMeta().getDisplayName() : reward.getType().name()) + " × " + reward.getAmount());
+                ? reward.getItemMeta().getDisplayName() : reward.getType().name()) + " × " + reward.getAmount()
+                + " §8• §6Giá bán: " + sellValues.get(index) + " VNCOIN/item");
         }
         return lore;
     }
@@ -376,9 +384,17 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             "§eNhấn để quản lý điều kiện.")));
         menu.setItem(19, adminItem(Material.IRON_SWORD, "§bMục tiêu quest", List.of(
             "§7Số bước: §f" + quest.objectives().size(), "§7Bước đầu: " + objectiveDescription(quest.objectives().getFirst()),
+            quest.objectiveType() == ObjectiveType.COLLECT_RPG_ITEM
+                ? "§7Giá item nhiệm vụ: §6" + questItemSellValues.getOrDefault(quest.id(), 0L) + " VNCOIN/item"
+                : "§7Item RPG không có giá sẽ mặc định không bán được.",
+            "§8Có thể chỉnh sell-value trong quests/quest-definitions.yml; restart để áp dụng.",
             "§eNhấn để quản lý chuỗi mục tiêu.")));
         menu.setItem(21, adminItem(Material.CHEST, "§6Item thưởng", List.of(
-            "§7Số stack: §f" + quest.itemRewards().size(), "§eNhấn để mở rương cấu hình.")));
+            "§7Số stack: §f" + quest.itemRewards().size(),
+            "§7Giá từng stack: " + questRewardSellValues.getOrDefault(quest.id(),
+                zeroSellValues(quest.itemRewards().size())),
+            "§8Chỉnh reward.item-sell-values trong quests/quest-definitions.yml.",
+            "§eNhấn để mở rương cấu hình.")));
         menu.setItem(23, adminItem(Material.REDSTONE, "§cXóa quest", List.of("§7Xóa định nghĩa và gỡ khỏi danh sách.")));
         QuestDefinition successor = quest.successorQuestId() == null ? null : definitions.get(quest.successorQuestId());
         menu.setItem(25, adminItem(Material.CHAIN,
@@ -1323,17 +1339,63 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     private void replaceDefinition(QuestDefinition old, QuestDefinition updated) {
         definitions.put(old.id(), updated);
-        if (!saveDefinitions()) definitions.put(old.id(), old);
+        List<Long> oldSellValues = questRewardSellValues.get(old.id());
+        List<Long> updatedSellValues = remapRewardSellValues(old.itemRewards(),
+            oldSellValues == null ? defaultRewardSellValues(old.itemRewards()) : oldSellValues,
+            updated.itemRewards());
+        questRewardSellValues.put(old.id(), updatedSellValues);
+        if (!saveDefinitions()) {
+            definitions.put(old.id(), old);
+            if (oldSellValues == null) questRewardSellValues.remove(old.id());
+            else questRewardSellValues.put(old.id(), oldSellValues);
+        }
     }
 
     private void deleteDefinition(QuestDefinition quest) {
         if (hasActiveQuest(quest.id()) || hasSuccessorReferences(quest.id())) return;
         definitions.remove(quest.id());
         QuestDialogRefs oldRefs = questDialogs.remove(quest.id());
+        Long oldItemSellValue = questItemSellValues.remove(quest.id());
+        List<Long> oldRewardSellValues = questRewardSellValues.remove(quest.id());
         if (!saveDefinitions()) {
             definitions.put(quest.id(), quest);
             if (oldRefs != null) questDialogs.put(quest.id(), oldRefs);
+            if (oldItemSellValue != null) questItemSellValues.put(quest.id(), oldItemSellValue);
+            if (oldRewardSellValues != null) questRewardSellValues.put(quest.id(), oldRewardSellValues);
         }
+    }
+
+    private List<Long> remapRewardSellValues(List<ItemStack> oldItems, List<Long> oldValues,
+            List<ItemStack> newItems) {
+        boolean[] claimed = new boolean[oldItems.size()];
+        List<Long> mapped = new java.util.ArrayList<>(newItems.size());
+        for (ItemStack next : newItems) {
+            long value = defaultRewardSellValues(List.of(next)).getFirst();
+            for (int index = 0; index < oldItems.size(); index++) {
+                if (!claimed[index] && oldItems.get(index).isSimilar(next)) {
+                    claimed[index] = true;
+                    if (index < oldValues.size()) value = oldValues.get(index);
+                    break;
+                }
+            }
+            mapped.add(value);
+        }
+        return List.copyOf(mapped);
+    }
+
+    private static List<Long> zeroSellValues(int size) {
+        return java.util.Collections.nCopies(size, 0L);
+    }
+
+    private List<Long> defaultRewardSellValues(List<ItemStack> items) {
+        List<Long> values = new java.util.ArrayList<>(items.size());
+        for (ItemStack item : items) {
+            ItemMeta meta = item.getItemMeta();
+            Long configured = meta == null ? null
+                : meta.getPersistentDataContainer().get(rpgSellValueKey, PersistentDataType.LONG);
+            values.add(configured != null && configured >= 0 && configured <= 1_000_000L ? configured : 0L);
+        }
+        return List.copyOf(values);
     }
 
     private boolean hasActiveQuest(String questId) {
@@ -1346,6 +1408,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     private boolean saveDefinitions() {
         YamlConfiguration yaml = new YamlConfiguration();
+        yaml.options().parseComments(true);
         try {
             yaml.load(definitionsFile);
         } catch (IOException | InvalidConfigurationException exception) {
@@ -1379,6 +1442,12 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             });
             yaml.set(base + ".objective.entity", quest.targetEntity().name());
             yaml.set(base + ".objective.amount", quest.target());
+            if (quest.objectiveType() == ObjectiveType.COLLECT_RPG_ITEM) {
+                yaml.set(base + ".objective.sell-value", questItemSellValues.getOrDefault(quest.id(), 0L));
+                yaml.setComments(base + ".objective.sell-value", List.of(
+                    "[VI] Giá system merchant trả cho mỗi item RPG nhiệm vụ; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.",
+                    "[EN] System-merchant value per generated quest RPG item; default 0 (not purchasable), valid 0-1000000 VNCOIN."));
+            }
             if (quest.objectiveType() == ObjectiveType.KILL_BOSS) {
                 yaml.set(base + ".objective.boss-id", quest.itemId());
             } else if (quest.objectiveType() == ObjectiveType.COLLECT_RPG_ITEM) {
@@ -1414,6 +1483,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             yaml.set(base + ".reward.vncoin", quest.vncoinReward());
             yaml.set(base + ".reward.character-exp", quest.experienceReward());
             yaml.set(base + ".reward.items", quest.itemRewards().stream().map(ItemStack::serialize).toList());
+            yaml.set(base + ".reward.item-sell-values", questRewardSellValues.getOrDefault(quest.id(),
+                zeroSellValues(quest.itemRewards().size())));
+            yaml.setComments(base + ".reward.item-sell-values", List.of(
+                "[VI] Giá VNCOIN cho từng stack item thưởng, cùng thứ tự với reward.items; 0 nghĩa là system merchant không mua; hợp lệ 0-1000000.",
+                "[EN] VNCOIN sell value per reward stack, in the same order as reward.items; 0 disables system-merchant purchases; valid 0-1000000."));
             yaml.setComments(base + ".reward.character-exp", List.of("[VI] EXP nhân vật thưởng; hợp lệ 0-100000.",
                 "[EN] Character EXP reward; valid range 0-100000."));
             yaml.setComments(base + ".reward.items", List.of("[VI] ItemStack thưởng đã cấu hình trong giao diện; tối đa 45 stack.",
@@ -1558,6 +1632,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         if (section == null || section.getKeys(false).size() > 100) {
             throw new IOException("Quest definitions may contain 0-100 entries.");
         }
+        boolean needsSellValueDefaults = false;
         for (String id : section.getKeys(false)) {
             ConfigurationSection quest = section.getConfigurationSection(id);
             if (quest == null) throw new IOException("Quest '" + id + "' must be a configuration section.");
@@ -1566,11 +1641,21 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             String successorQuestId = quest.getString("successor-quest-id", "").trim();
             if (successorQuestId.isEmpty()) successorQuestId = null;
             String type = quest.getString("objective.type", "").trim().toLowerCase(Locale.ROOT);
+            if ("collect-rpg-item".equals(type) && !quest.contains("objective.sell-value"))
+                needsSellValueDefaults = true;
+            if (!quest.contains("reward.item-sell-values")) needsSellValueDefaults = true;
+            long objectiveSellValue = parseSellValue(quest.get("objective.sell-value"),
+                "quests." + id + ".objective.sell-value");
             String entityText = quest.getString("objective.entity", "ZOMBIE").trim().toUpperCase(Locale.ROOT);
             int target = quest.getInt("objective.amount", 0);
             int reward = quest.getInt("reward.vncoin", 0);
             int experienceReward = quest.getInt("reward.character-exp", 0);
             List<ItemStack> itemRewards = parseItemRewards(quest.getList("reward.items", List.of()), id);
+            Object rawRewardSellValues = quest.get("reward.item-sell-values");
+            if (rawRewardSellValues != null && !(rawRewardSellValues instanceof List<?>))
+                throw new IOException("Quest '" + id + "' reward.item-sell-values must be a list.");
+            List<Long> rewardSellValues = parseRewardSellValues(
+                rawRewardSellValues instanceof List<?> values ? values : List.of(), itemRewards, id);
             EntityType entityType;
             try {
                 entityType = EntityType.valueOf(entityText);
@@ -1604,6 +1689,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                         && !entityType.isAlive())
                     || target < 1 || target > 100_000 || reward < 0 || reward > 1_000_000
                     || experienceReward < 0 || experienceReward > 100_000
+                    || objectiveType == ObjectiveType.COLLECT_RPG_ITEM
+                        && (objectiveSellValue < 0 || objectiveSellValue > 1_000_000L)
                     || (objectiveType == ObjectiveType.KILL_BOSS
                         && (!quest.getString("objective.boss-id", "").matches("[a-z0-9]+(?:-[a-z0-9]+)*")
                             || !plugin.getConfigManager().bossConfigs.containsKey(
@@ -1621,6 +1708,12 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     ? quest.getString("objective.boss-id", "") : itemId, itemMaterial, itemName, dropChance,
                 quest.getBoolean("enabled", true), requirements, experienceReward, itemRewards,
                 additionalObjectives, successorQuestId));
+            questRewardSellValues.put(id, rewardSellValues);
+            if (objectiveType == ObjectiveType.COLLECT_RPG_ITEM)
+                questItemSellValues.put(id, objectiveSellValue);
+            debugQuest("merchant-values-loaded quest=" + id
+                + ", objective=" + questItemSellValues.getOrDefault(id, 0L)
+                + ", reward-items=" + rewardSellValues.size() + ", reward-values=" + rewardSellValues);
             ConfigurationSection dialogs = quest.getConfigurationSection("dialogs");
             if (dialogs != null) {
                 questDialogs.put(id, new QuestDialogRefs(
@@ -1631,7 +1724,40 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
         }
         validateSuccessorGraph();
+        if (needsSellValueDefaults) {
+            if (saveDefinitions()) {
+                plugin.getLogger().info("[Quest][Merchant] Added default sell-value fields to quest configuration; "
+                    + "all new RPG item values default to 0 VNCOIN.");
+            } else {
+                plugin.getLogger().warning("[Quest][Merchant] Could not persist default sell-value fields; "
+                    + "in-memory fallback remains 0 VNCOIN.");
+            }
+        }
         plugin.getLogger().info("[Quest] Loaded " + definitions.size() + " NPC quest definitions.");
+    }
+
+    private List<Long> parseRewardSellValues(List<?> rawValues, List<ItemStack> rewardItems, String questId)
+            throws IOException {
+        if (rawValues.isEmpty()) return defaultRewardSellValues(rewardItems);
+        if (rawValues.size() != rewardItems.size())
+            throw new IOException("Quest '" + questId + "' reward.item-sell-values must match reward.items length.");
+        List<Long> values = new java.util.ArrayList<>(rawValues.size());
+        for (Object raw : rawValues) {
+            if (!(raw instanceof Number number))
+                throw new IOException("Quest '" + questId + "' has a non-numeric reward item sell value.");
+            values.add(parseSellValue(number, "quests." + questId + ".reward.item-sell-values"));
+        }
+        return List.copyOf(values);
+    }
+
+    private long parseSellValue(Object raw, String path) throws IOException {
+        if (raw == null) return 0L;
+        if (!(raw instanceof Number number))
+            throw new IOException(path + " must be an integer from 0 to 1000000.");
+        long value = number.longValue();
+        if (number.doubleValue() != (double)value || value < 0 || value > 1_000_000L)
+            throw new IOException(path + " must be an integer from 0 to 1000000.");
+        return value;
     }
 
     private void validateSuccessorGraph() throws IOException {
@@ -2259,17 +2385,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private void dropQuestItem(Location location, QuestDefinition quest) {
+        long sellValue = questItemSellValues.getOrDefault(quest.id(), 0L);
         ItemStack stack = new ItemStack(quest.itemMaterial());
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) return;
         meta.setDisplayName("§6" + quest.itemName());
         meta.setLore(List.of("§7Nguyên liệu nhiệm vụ RPG", "§8Mã: " + quest.itemId()));
         meta.getPersistentDataContainer().set(questItemKey, PersistentDataType.STRING, quest.itemId());
+        meta.getPersistentDataContainer().set(rpgSellValueKey, PersistentDataType.LONG, sellValue);
         stack.setItemMeta(meta);
         var dropped = location.getWorld().dropItemNaturally(location, stack);
         dropped.setCustomName("§6" + quest.itemName());
         dropped.setCustomNameVisible(true);
-        debugQuest("item-drop quest=" + quest.id() + ", item=" + quest.itemId()
+        debugQuest("item-drop quest=" + quest.id() + ", item=" + quest.itemId() + ", sell-value=" + sellValue
             + ", entity=" + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
     }
 
@@ -2297,8 +2425,21 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                                 quest.id(), expectedStep, nextStep, Instant.now().toString()))
                         .thenApply(advanced -> new ProgressResult(result, false, advanced));
                 }
-                List<byte[]> serializedItems = quest.itemRewards().stream()
-                    .map(ItemStack::serializeAsBytes).toList();
+                List<Long> rewardSellValues = questRewardSellValues.getOrDefault(quest.id(),
+                    zeroSellValues(quest.itemRewards().size()));
+                List<byte[]> serializedItems = new java.util.ArrayList<>(quest.itemRewards().size());
+                for (int rewardIndex = 0; rewardIndex < quest.itemRewards().size(); rewardIndex++) {
+                    ItemStack reward = quest.itemRewards().get(rewardIndex).clone();
+                    ItemMeta rewardMeta = reward.getItemMeta();
+                    if (rewardMeta != null) {
+                        rewardMeta.getPersistentDataContainer().set(rpgSellValueKey, PersistentDataType.LONG,
+                            rewardSellValues.get(rewardIndex));
+                        reward.setItemMeta(rewardMeta);
+                    }
+                    serializedItems.add(reward.serializeAsBytes());
+                }
+                debugQuest("reward-item-prices quest=" + quest.id() + ", stacks=" + serializedItems.size()
+                    + ", values=" + rewardSellValues);
                 return database.executeGameplayDatabaseTask("quest.complete player=" + player.getName()
                         + " quest=" + quest.id(), () -> database.completeQuestAndAwardRewards(
                             playerId.toString(), quest.id(), "complete", quest.experienceReward(),

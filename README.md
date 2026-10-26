@@ -935,13 +935,22 @@ allowlist includes the requested rates (10 iron ingots = 1 VNCOIN, 1 diamond =
 VNCOIN, and a stack of cooked meat = 15 VNCOIN), plus conservative values for
 selected farmable items. Use `/vnreload` (`vnmine.command.reload`) to reload the
 allowlist. A malformed file leaves the last valid price table active. RPG skill
-books and configured boss drops read their per-item `sell-value`; `0` means the
-system merchant will not buy them. Restart after changing `skills/skill-books.yml`;
-boss sell values are reloaded by `/vnreload`. A system-merchant quote warns when the player
+books, configured boss drops, quest-generated RPG drops/rewards, and generated
+mercenary gear use per-item `sell-value`; `0` means the system merchant will
+not buy them, and plugin-created items never fall back to their base Material
+price. Restart after changing `skills/skill-books.yml`, quest definitions, or
+`armies.yml`; boss sell values are reloaded by `/vnreload`. In
+`quests/quest-definitions.yml`, set `objective.sell-value` for a
+`collect-rpg-item` objective. For reward stacks, `reward.item-sell-values` is a
+list aligned with `reward.items`, where each value is VNCOIN per item; existing
+quest files receive default zero values automatically at startup. In
+`armies.yml`, `gear-system.sell-value` controls generated mercenary gear, while
+boss gear continues to use the per-boss `mercenary-gear-drops.sell-value`. A
+system-merchant quote warns when the player
 has enough of the same exact RPG item to satisfy a custom NPC's better per-item
 rate. Confirming still sells at the system rate; cancel to use the named NPC and
-world shown in the warning. Other generated RPG items default to not purchasable
-until they receive an explicit sell-value definition.
+world shown in the warning. Any other plugin-tagged item without a valid
+explicit value remains unavailable to the system merchant.
 
 Ground item nameplates display the best matching configured merchant rate as
 `[quantity = VNCOIN]`; items with no configured sale rate show “Không có giá thu mua” instead of implying a universal fallback price.
