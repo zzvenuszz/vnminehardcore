@@ -48,6 +48,23 @@ public final class HumanRealmDefinitionLoader {
         String displayName = readRequiredText(configuration, "display-name", file, logger);
         String worldName = readRequiredText(configuration, "world-name", file, logger);
         String fallbackWorldName = readRequiredText(configuration, "fallback-world-name", file, logger);
+        Object rawTutorialNpcId = configuration.get("tutorial-npc-id");
+        String tutorialNpcId = rawTutorialNpcId == null
+            ? ("human-realm".equals(id) ? "tutorial-guide" : "tutorial-" + id)
+            : rawTutorialNpcId instanceof String value ? value.trim() : null;
+        if (tutorialNpcId == null || !ID_PATTERN.matcher(tutorialNpcId).matches()) {
+            logger.warning("[World] Invalid tutorial NPC ID at " + file.getName()
+                + ".tutorial-npc-id; use lowercase letters, numbers, and single hyphens between segments.");
+            valid = false;
+        }
+        Object rawStartingSelectable = configuration.get("starting-selectable");
+        boolean startingSelectable = rawStartingSelectable == null
+            ? "default".equals(configuration.getString("access.type", "default"))
+            : rawStartingSelectable instanceof Boolean value && value;
+        if (rawStartingSelectable != null && !(rawStartingSelectable instanceof Boolean)) {
+            logger.warning("[World] Invalid boolean at " + file.getName() + ".starting-selectable.");
+            valid = false;
+        }
 
         ConfigurationSection accessSection = configuration.getConfigurationSection("access");
         String accessType = accessSection == null ? "default"
@@ -105,7 +122,8 @@ public final class HumanRealmDefinitionLoader {
             valid = false;
         }
 
-        if (id == null || displayName == null || worldName == null || fallbackWorldName == null || access == null
+        if (id == null || displayName == null || worldName == null || fallbackWorldName == null
+                || access == null
                 || useWorldSpawn == null || yawValue == null || pitchValue == null
                 || safeZoneEnabled == null || safeZoneRadius == null
                 || (!useWorldSpawn && (x == null || y == null || z == null))) {
@@ -114,7 +132,7 @@ public final class HumanRealmDefinitionLoader {
         if (!valid) return Optional.empty();
 
         return Optional.of(new HumanRealmDefinition(
-            id, displayName, worldName, fallbackWorldName,
+            id, displayName, worldName, fallbackWorldName, tutorialNpcId, startingSelectable,
             access,
             new Spawn(useWorldSpawn, x, y, z, yawValue.floatValue(), pitchValue.floatValue()),
             new SafeZone(safeZoneEnabled, safeZoneRadius)
@@ -177,6 +195,8 @@ public final class HumanRealmDefinitionLoader {
         String displayName,
         String worldName,
         String fallbackWorldName,
+        String tutorialNpcId,
+        boolean startingSelectable,
         AccessCondition access,
         Spawn spawn,
         SafeZone safeZone

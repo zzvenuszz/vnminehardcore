@@ -37,6 +37,19 @@ menus:
 # [VI] Cài đặt tạo nhân vật RPG; mặc định được bật.
 # [EN] RPG character-creation settings; enabled by default.
 rpg:
+  onboarding:
+    # [VI] Bật flow chọn đại lục và gặp NPC tutorial trước khi tạo nhân vật; mặc định true.
+    # [EN] Require continent selection and a tutorial NPC visit before character creation; defaults to true.
+    enabled: true
+    # [VI] Vẽ đường particle navigation khi người chơi cùng world với NPC; mặc định true.
+    # [EN] Render navigation particles when the player is in the NPC's world; defaults to true.
+    navigation-enabled: true
+    # [VI] Chu kỳ cập nhật navigation tính bằng tick; mặc định 20, giới hạn 10..100.
+    # [EN] Navigation refresh interval in ticks; defaults to 20, valid range 10..100.
+    navigation-interval-ticks: 20
+    # [VI] Khoảng cách particle tối đa; mặc định 48 block, giới hạn 8..64.
+    # [EN] Maximum particle rendering distance; defaults to 48 blocks, valid range 8..64.
+    navigation-range-blocks: 48
   progression:
     # [VI] Cấp nhân vật tối đa; mặc định 30, hợp lệ 2-100.
     # [EN] Maximum character level; defaults to 30, valid range 2-100.

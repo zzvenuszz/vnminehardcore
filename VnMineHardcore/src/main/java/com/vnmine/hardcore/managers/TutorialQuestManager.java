@@ -90,6 +90,11 @@ public final class TutorialQuestManager implements Listener {
     }
 
     public List<String> getQuestSidebarLines(Player player) {
+        CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+        if (characters != null) {
+            List<String> onboardingLines = characters.getOnboardingSidebarLines(player);
+            if (!onboardingLines.isEmpty()) return onboardingLines;
+        }
         if (definition == null || !definition.enabled()
                 || !activeQuestSessions.containsKey(player.getUniqueId())) return List.of();
         return List.of("§d§lNHIỆM VỤ", "§fTới: Nhân giới", "§7Mục tiêu: Đi tới spawn");
@@ -286,10 +291,23 @@ public final class TutorialQuestManager implements Listener {
             player.sendMessage("§cKhông thể tải nhiệm vụ hướng dẫn lúc này. Tiến trình của bạn vẫn được giữ.");
             return;
         }
+        String tutorialTargetWorld = plugin.getRpgWorldManager() == null ? null
+            : plugin.getRpgWorldManager().getDefinitions().containsKey(quest.objective().realmId())
+                ? plugin.getRpgWorldManager().getDefinitions().get(quest.objective().realmId()).worldName() : null;
+        String playerName = player.getName();
+        boolean debugEnabled = plugin.getConfig().getBoolean("logging.console-debug", false);
         database.executeGameplayDatabaseTask("quest.initialize player=" + player.getName(), () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
                 database.getPlayerProfile(playerId.toString());
             if (profile.isEmpty() || !profile.get().active()) return null;
+            if (tutorialTargetWorld != null && profile.get().homeWorld() != null
+                    && !profile.get().homeWorld().isBlank()
+                    && !tutorialTargetWorld.equals(profile.get().homeWorld())) {
+                if (debugEnabled) plugin.getLogger().info("[RPG-DEBUG][Quest] initialize-skip player=" + playerName
+                    + ", quest=" + quest.id() + ", reason=starting-world-mismatch, homeWorld="
+                    + profile.get().homeWorld() + ", questWorld=" + tutorialTargetWorld);
+                return null;
+            }
 
             Optional<PlayerProfileDatabaseManager.QuestProgress> progress =
                 database.getQuestProgress(playerId.toString(), quest.id());

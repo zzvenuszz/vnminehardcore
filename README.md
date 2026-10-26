@@ -579,9 +579,39 @@ spawns, and block/environmental damage handled by spawn protection. The existing
 does not bypass combat or hostile-spawn protection. No new permission or
 command is required.
 
+### New-player onboarding
+
+With `rpg.onboarding.enabled: true`, an account without an RPG profile is asked
+to choose a starting continent after profile data loads. The realm is offered
+only when its configured world and spawn are available and its tutorial NPC
+exists in that same world. Configure `tutorial-npc-id` and
+`starting-selectable` in each `plugins/VnMineHardcore/worlds/*.yml` file, then
+create the matching runtime NPC in the configured world, for example:
+
+```text
+/vnnpc create tutorial-guide tutorial Người dẫn đường
+```
+
+The player sees a world hint while in a different world and receives ground
+navigation particles after entering the tutorial NPC's world. Interacting with
+that exact NPC opens race/class selection. The chosen realm ID is saved on the
+player data and its world is stored as the profile's starting world. Existing
+profiles skip onboarding. If no realm is correctly configured, character
+creation remains gated and the player/admin receives a setup message; set
+`rpg.onboarding.enabled: false` to temporarily restore the previous direct
+character-selection flow.
+
+The Human Realm defaults to selectable and expects `tutorial-guide` in `world`.
+The Yêu Realm defaults to not selectable because it is quest-locked and expects
+`tutorial-yeu-realm` in `yeu_realm`; its world must already be loaded and the
+runtime NPC must be created before an admin enables `starting-selectable`.
+The onboarding objective appears in the quest scoreboard. The legacy first-step
+spawn quest is not started for a profile whose configured starting world differs
+from the quest's target world.
+
 ### Tutorial Quest
 
-The first tutorial quest is configured in
+The legacy first tutorial quest is configured in
 `plugins/VnMineHardcore/quests/tutorial/first-steps.yml`. It starts automatically
 for active character profiles and guides players to the resolved Human Realm
 spawn. The only supported objective type in this slice is

@@ -17,6 +17,7 @@ import java.util.logging.Level;
 import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -30,6 +31,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitTask;
 import org.yaml.snakeyaml.error.YAMLException;
 
 public final class CharacterSelectionManager implements Listener {
@@ -42,6 +45,8 @@ public final class CharacterSelectionManager implements Listener {
     };
 
     private final VnMineHardcore plugin;
+    private final NamespacedKey onboardingStageKey;
+    private final NamespacedKey onboardingContinentKey;
     private final Map<String, RaceDefinition> races = new LinkedHashMap<>();
     private final Map<String, List<ClassDefinition>> classesByRace = new HashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
@@ -49,9 +54,15 @@ public final class CharacterSelectionManager implements Listener {
     private final Set<UUID> pendingProfileCreates = new java.util.HashSet<>();
     private Set<String> playableClassIds = Set.of();
     private boolean definitionsAvailable;
+    private BukkitTask onboardingNavigationTask;
+    private long onboardingTick;
+    private long lastNavigationRunTick;
+    private final Map<UUID, Long> lastCrossWorldHintTick = new HashMap<>();
 
     public CharacterSelectionManager(VnMineHardcore plugin) {
         this.plugin = plugin;
+        this.onboardingStageKey = new NamespacedKey(plugin, "onboarding_stage");
+        this.onboardingContinentKey = new NamespacedKey(plugin, "onboarding_continent");
         try {
             loadDefinitions();
             definitionsAvailable = true;
@@ -62,11 +73,16 @@ public final class CharacterSelectionManager implements Listener {
                 "[Character] Character creation is disabled because its race/class configuration is invalid.",
                 exception);
         }
+        onboardingNavigationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickOnboardingNavigation, 20L, 10L);
     }
 
     public void openRaceMenu(Player player) {
         if (!isCreationAvailable(player)) return;
         if (hasExistingProfile(player)) return;
+        if (isOnboardingEnabled() && !"ready-for-character".equals(onboardingStage(player))) {
+            continueOnboarding(player);
+            return;
+        }
         CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(), "race", null, null, new HashMap<>());
         Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Chọn chủng tộc");
         holder.inventory = inventory;
@@ -191,6 +207,13 @@ public final class CharacterSelectionManager implements Listener {
             return;
         }
 
+        if ("continent".equals(holder.type)) {
+            String continentId = holder.choices.get(slot);
+            if (continentId != null) selectStartingContinent(player, continentId);
+            else if (slot == 49) player.closeInventory();
+            return;
+        }
+
         if ("confirm".equals(holder.type)) {
             if (slot == 11) {
                 finalizeSelection(player, holder.raceId, holder.classId);
@@ -247,10 +270,12 @@ public final class CharacterSelectionManager implements Listener {
                 debugProfile("load-result player=" + playerName + ", source=join, found=" + profile.isPresent());
                 if (profile.isEmpty()) {
                     loadedProfiles.remove(playerId);
+                    continueOnboarding(player);
                     return;
                 }
                 PlayerProfileDatabaseManager.PlayerProfile loadedProfile = profile.get();
                 loadedProfiles.put(playerId, loadedProfile);
+                if (!"complete".equals(onboardingStage(player))) setOnboarding(player, "complete", null);
                 if (!races.containsKey(loadedProfile.selectedRace())
                         || findClass(loadedProfile.selectedRace(), loadedProfile.selectedClass()) == null) {
                     plugin.getLogger().warning("[Profile] Stored race/class definition is missing for player " +
@@ -264,6 +289,7 @@ public final class CharacterSelectionManager implements Listener {
         UUID playerId = event.getPlayer().getUniqueId();
         loadedProfiles.remove(playerId);
         profileLookupComplete.remove(playerId);
+        lastCrossWorldHintTick.remove(playerId);
     }
 
     public Optional<PlayerProfileDatabaseManager.PlayerProfile> getLoadedProfile(UUID playerId) {
@@ -305,16 +331,221 @@ public final class CharacterSelectionManager implements Listener {
                     openProfileMenu(player, profile.get());
                 } else {
                     loadedProfiles.remove(playerId);
-                    openRaceMenu(player);
+                    continueOnboarding(player);
                 }
             }));
+    }
+
+    private boolean isOnboardingEnabled() {
+        return plugin.getConfig().getBoolean("rpg.onboarding.enabled", true);
+    }
+
+    private String onboardingStage(Player player) {
+        return player.getPersistentDataContainer().get(onboardingStageKey, PersistentDataType.STRING);
+    }
+
+    private String onboardingContinent(Player player) {
+        return player.getPersistentDataContainer().get(onboardingContinentKey, PersistentDataType.STRING);
+    }
+
+    private void setOnboarding(Player player, String stage, String continentId) {
+        if (continentId == null || continentId.isBlank()) {
+            player.getPersistentDataContainer().remove(onboardingContinentKey);
+        } else {
+            player.getPersistentDataContainer().set(onboardingContinentKey, PersistentDataType.STRING, continentId);
+        }
+        player.getPersistentDataContainer().set(onboardingStageKey, PersistentDataType.STRING, stage);
+        player.saveData();
+        BossLeaderboardManager leaderboard = plugin.getBossLeaderboardManager();
+        if (leaderboard != null) leaderboard.refreshPlayerBoard(player);
+        debugProfile("onboarding-update player=" + player.getName() + ", stage=" + stage
+            + ", continent=" + (continentId == null ? "none" : continentId));
+    }
+
+    public List<String> getOnboardingSidebarLines(Player player) {
+        if (!isOnboardingEnabled() || "complete".equals(onboardingStage(player))) return List.of();
+        String stage = onboardingStage(player);
+        if ("awaiting-tutorial".equals(stage)) {
+            String continentId = onboardingContinent(player);
+            HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null
+                || plugin.getRpgWorldManager() == null ? null
+                : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+            if (realm != null) return List.of("§d§lNHIỆM VỤ", "§fGặp NPC hướng dẫn: 0/1",
+                "§7" + realm.tutorialNpcId() + " • " + realm.worldName());
+        }
+        if ("ready-for-character".equals(stage)) {
+            return List.of("§d§lNHIỆM VỤ", "§fChọn chủng tộc và class: 0/1");
+        }
+        return List.of("§d§lNHIỆM VỤ", "§fChọn đại lục khởi đầu: 0/1");
+    }
+
+    private void continueOnboarding(Player player) {
+        if (!isOnboardingEnabled()) {
+            openRaceMenu(player);
+            return;
+        }
+        String stage = onboardingStage(player);
+        if ("complete".equals(stage)) {
+            // Recover if the profile database was restored without this player's profile.
+            setOnboarding(player, "needs-continent", null);
+            stage = "needs-continent";
+        }
+        if ("ready-for-character".equals(stage)) {
+            openRaceMenu(player);
+            return;
+        }
+        if ("awaiting-tutorial".equals(stage) && onboardingContinent(player) != null) {
+            player.sendMessage("§eHãy tìm NPC hướng dẫn của đại lục bạn đã chọn.");
+            return;
+        }
+        openContinentMenu(player);
+    }
+
+    private void openContinentMenu(Player player) {
+        if (plugin.getRpgWorldManager() == null || plugin.getNpcManager() == null) {
+            player.sendMessage("§cDanh sách đại lục chưa sẵn sàng. Hãy báo quản trị viên.");
+            return;
+        }
+        CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(),
+            "continent", null, null, new HashMap<>());
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Chọn đại lục khởi đầu");
+        holder.inventory = inventory;
+        int index = 0;
+        for (HumanRealmDefinitionLoader.HumanRealmDefinition realm
+                : plugin.getRpgWorldManager().getDefinitions().values()) {
+            if (!isStartingRealmAvailable(realm)) continue;
+            if (index >= MENU_SLOTS.length) break;
+            int slot = MENU_SLOTS[index++];
+            holder.choices.put(slot, realm.id());
+            inventory.setItem(slot, createActionItem(Material.END_PORTAL_FRAME, "§6" + realm.displayName(), List.of(
+                "§7World: §f" + realm.worldName(),
+                "§7NPC hướng dẫn: §e" + realm.tutorialNpcId(),
+                "", "§aNhấn để bắt đầu tại đại lục này.")));
+        }
+        inventory.setItem(49, createActionItem(Material.BARRIER, "§cĐóng", List.of(
+            "§7Bạn cần chọn đại lục để bắt đầu.")));
+        if (holder.choices.isEmpty()) {
+            player.sendMessage("§cChưa có đại lục khởi đầu sẵn sàng. Hãy báo quản trị viên kiểm tra world và NPC tutorial.");
+            plugin.getLogger().warning("[Onboarding] No valid starting realm is available for " + player.getName() + ".");
+            return;
+        }
+        player.openInventory(inventory);
+    }
+
+    private boolean isStartingRealmAvailable(HumanRealmDefinitionLoader.HumanRealmDefinition realm) {
+        if (realm == null || !realm.startingSelectable()) return false;
+        var spawn = plugin.getRpgWorldManager().resolveSpawn(realm.id());
+        var target = plugin.getNpcManager().getNpcTarget(realm.tutorialNpcId());
+        boolean available = spawn.isPresent() && spawn.get().location().getWorld() != null
+            && spawn.get().location().getWorld().getName().equals(realm.worldName())
+            && target.isPresent() && target.get().location() != null
+            && target.get().world().equals(realm.worldName())
+            && plugin.getNpcManager().getNpcType(realm.tutorialNpcId()).filter("tutorial"::equals).isPresent();
+        if (!available) {
+            plugin.getLogger().warning("[Onboarding] Realm '" + realm.id()
+                + "' is unavailable: require loaded world '" + realm.worldName()
+                + "', valid spawn, and tutorial NPC '" + realm.tutorialNpcId()
+                + "' in that world.");
+        }
+        return available;
+    }
+
+    private void selectStartingContinent(Player player, String continentId) {
+        if (!profileLookupComplete.contains(player.getUniqueId()) || loadedProfiles.containsKey(player.getUniqueId())
+                || (onboardingStage(player) != null && !"needs-continent".equals(onboardingStage(player)))) {
+            player.sendMessage("§eTrạng thái onboarding đã thay đổi; hãy mở lại menu nhân vật nếu cần.");
+            return;
+        }
+        HumanRealmDefinitionLoader.HumanRealmDefinition realm = plugin.getRpgWorldManager() == null ? null
+            : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+        if (!isStartingRealmAvailable(realm)) {
+            player.sendMessage("§cĐại lục này chưa sẵn sàng. Không có dữ liệu nào bị thay đổi.");
+            openContinentMenu(player);
+            return;
+        }
+        setOnboarding(player, "awaiting-tutorial", realm.id());
+        player.closeInventory();
+        player.sendMessage("§aBạn đã chọn §6" + realm.displayName() + "§a. Hãy gặp NPC hướng dẫn §e"
+            + realm.tutorialNpcId() + "§a tại world §f" + realm.worldName() + "§a.");
+        if (player.getWorld().getName().equals(realm.worldName())) {
+            player.sendMessage("§7Navigation đã bật và sẽ dẫn bạn tới NPC.");
+        } else {
+            player.sendMessage("§eBạn đang ở world khác. Hãy đi tới §f" + realm.worldName()
+                + "§e trước; navigation cụ thể sẽ hiện khi bạn tới đúng world.");
+        }
+    }
+
+    /** Called by the runtime NPC manager before normal dialogue handling. */
+    public boolean recordTutorialNpcVisit(Player player, String npcId) {
+        if (!isOnboardingEnabled() || !"awaiting-tutorial".equals(onboardingStage(player))) return false;
+        String continentId = onboardingContinent(player);
+        HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null || plugin.getRpgWorldManager() == null
+            ? null : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+        if (realm == null || !realm.tutorialNpcId().equalsIgnoreCase(npcId)) return false;
+        var target = plugin.getNpcManager().getNpcTarget(npcId);
+        if (target.isEmpty() || target.get().location() == null
+                || !target.get().world().equals(realm.worldName())
+                || !player.getWorld().getName().equals(target.get().world())) {
+            player.sendMessage("§cNPC hướng dẫn chưa được cấu hình đúng world. Hãy báo quản trị viên.");
+            plugin.getLogger().warning("[Onboarding] Tutorial NPC validation failed: player=" + player.getName()
+                + ", npc=" + npcId + ", realm=" + realm.id() + ", expectedWorld=" + realm.worldName());
+            return true;
+        }
+        setOnboarding(player, "ready-for-character", realm.id());
+        lastCrossWorldHintTick.remove(player.getUniqueId());
+        player.sendMessage("§aBạn đã gặp người hướng dẫn. Bây giờ hãy chọn chủng tộc và class.");
+        openRaceMenu(player);
+        return true;
+    }
+
+    private void tickOnboardingNavigation() {
+        onboardingTick += 10L;
+        int interval = Math.max(10, Math.min(100,
+            plugin.getConfig().getInt("rpg.onboarding.navigation-interval-ticks", 20)));
+        if (onboardingTick - lastNavigationRunTick < interval || !isOnboardingEnabled()
+                || !plugin.getConfig().getBoolean("rpg.onboarding.navigation-enabled", true)) return;
+        lastNavigationRunTick = onboardingTick;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!"awaiting-tutorial".equals(onboardingStage(player))) continue;
+            String continentId = onboardingContinent(player);
+            HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null || plugin.getRpgWorldManager() == null
+                ? null : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+            var target = realm == null || plugin.getNpcManager() == null
+                ? java.util.Optional.<NpcManager.NpcTarget>empty()
+                : plugin.getNpcManager().getNpcTarget(realm.tutorialNpcId());
+            if (target.isEmpty()) continue;
+            if (!player.getWorld().getName().equals(target.get().world())) {
+                long lastHint = lastCrossWorldHintTick.getOrDefault(player.getUniqueId(), 0L);
+                if (onboardingTick - lastHint >= 100L) {
+                    player.sendActionBar("§eĐi tới world §f" + target.get().world()
+                        + " §eđể bắt đầu navigation tới NPC hướng dẫn.");
+                    lastCrossWorldHintTick.put(player.getUniqueId(), onboardingTick);
+                }
+            } else if (target.get().location() != null) {
+                double range = Math.max(8.0, Math.min(64.0,
+                    plugin.getConfig().getDouble("rpg.onboarding.navigation-range-blocks", 48.0)));
+                QuestWaypointRenderer.render(player, target.get().location(), range, true);
+            }
+        }
+    }
+
+    public void stopOnboardingNavigation() {
+        if (onboardingNavigationTask != null) onboardingNavigationTask.cancel();
+        onboardingNavigationTask = null;
     }
 
     static List<String> buildProfileLore(PlayerProfileDatabaseManager.PlayerProfile profile,
                                          String raceName, String className,
                                          CharacterProgression.Rules progressionRules) {
-        String homeWorld = profile.homeWorld() == null || profile.homeWorld().isBlank()
-            ? "Chưa thiết lập" : profile.homeWorld();
+        return buildProfileLore(profile, raceName, className, progressionRules, profile.homeWorld());
+    }
+
+    static List<String> buildProfileLore(PlayerProfileDatabaseManager.PlayerProfile profile,
+                                         String raceName, String className,
+                                         CharacterProgression.Rules progressionRules,
+                                         String startingContinent) {
+        String homeWorld = startingContinent == null || startingContinent.isBlank()
+            ? "Chưa thiết lập" : startingContinent;
         int experienceRequired = progressionRules.experienceRequiredForNextLevel(profile.level());
         String experienceProgress = experienceRequired == 0
             ? profile.exp() + " (đã đạt cấp tối đa)"
@@ -337,6 +568,12 @@ public final class CharacterSelectionManager implements Listener {
         ClassDefinition selectedClass = findClass(profile.selectedRace(), profile.selectedClass());
         String raceName = race == null ? String.valueOf(profile.selectedRace()) : race.name();
         String className = selectedClass == null ? String.valueOf(profile.selectedClass()) : selectedClass.name();
+        String selectedContinentId = onboardingContinent(player);
+        HumanRealmDefinitionLoader.HumanRealmDefinition startRealm = selectedContinentId == null
+            || plugin.getRpgWorldManager() == null ? null
+            : plugin.getRpgWorldManager().getDefinitions().get(selectedContinentId);
+        String startingContinent = startRealm == null ? profile.homeWorld()
+            : startRealm.displayName() + " (§7" + startRealm.worldName() + "§f)";
         CharacterMenuHolder holder = new CharacterMenuHolder(
             player.getUniqueId(), "profile", null, null, new HashMap<>());
         Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Hồ sơ nhân vật");
@@ -345,7 +582,7 @@ public final class CharacterSelectionManager implements Listener {
             List.of("§7Số dư đơn vị tiền tệ của máy chủ.")));
         inventory.setItem(13, createActionItem(Material.PLAYER_HEAD, "§dHồ sơ RPG",
             buildProfileLore(profile, raceName, className,
-                plugin.getPlayerProfileDatabaseManager().getCharacterProgressionRules())));
+                plugin.getPlayerProfileDatabaseManager().getCharacterProgressionRules(), startingContinent)));
         if (plugin.getConfig().getBoolean("rpg.quest-journal.enabled", true)) {
             inventory.setItem(15, createActionItem(Material.WRITABLE_BOOK, "§bNhật ký nhiệm vụ", List.of(
                 "§7Theo dõi nhiệm vụ tutorial.")));
@@ -397,6 +634,11 @@ public final class CharacterSelectionManager implements Listener {
 
     public void finalizeSelection(Player player, String raceId, String classId) {
         if (!isCreationAvailable(player)) return;
+        if (isOnboardingEnabled() && !"ready-for-character".equals(onboardingStage(player))) {
+            player.sendMessage("§cBạn cần chọn đại lục và gặp NPC hướng dẫn trước khi tạo nhân vật.");
+            continueOnboarding(player);
+            return;
+        }
         RaceDefinition race = races.get(raceId);
         ClassDefinition selectedClass = findClass(raceId, classId);
         if (race == null || !isClassSelectable(selectedClass)) {
@@ -414,12 +656,17 @@ public final class CharacterSelectionManager implements Listener {
         }
         if (!pendingProfileCreates.add(playerId)) return;
         String playerName = player.getName();
+        String continentId = onboardingContinent(player);
+        HumanRealmDefinitionLoader.HumanRealmDefinition startingRealm = continentId == null
+            || plugin.getRpgWorldManager() == null ? null
+            : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+        String homeWorld = startingRealm == null ? null : startingRealm.worldName();
         debugProfile("create-start player=" + playerName + ", race=" + raceId + ", class=" + classId);
         String now = Instant.now().toString();
         plugin.getPlayerProfileDatabaseManager().executeGameplayDatabaseTask(
                 "profile.create player=" + playerName, () ->
                 plugin.getPlayerProfileDatabaseManager().createPlayerProfile(
-                    playerId.toString(), playerName, raceId, classId, 1, 0, null, now))
+                    playerId.toString(), playerName, raceId, classId, 1, 0, homeWorld, now))
             .whenComplete((created, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
             pendingProfileCreates.remove(playerId);
             if (!player.isOnline()) return;
@@ -431,9 +678,10 @@ public final class CharacterSelectionManager implements Listener {
             }
             if (created) {
                 PlayerProfileDatabaseManager.PlayerProfile profile = new PlayerProfileDatabaseManager.PlayerProfile(
-                    playerId.toString(), playerName, raceId, classId, 1, 0, null, now, now, true);
+                    playerId.toString(), playerName, raceId, classId, 1, 0, homeWorld, now, now, true);
                 loadedProfiles.put(playerId, profile);
                 profileLookupComplete.add(playerId);
+                if (isOnboardingEnabled()) setOnboarding(player, "complete", continentId);
                 debugProfile("create-result player=" + playerName + ", created=true");
                 player.sendMessage("§aĐã tạo nhân vật: §6" + race.name() + " §7- §b" + selectedClass.name());
                 player.closeInventory();

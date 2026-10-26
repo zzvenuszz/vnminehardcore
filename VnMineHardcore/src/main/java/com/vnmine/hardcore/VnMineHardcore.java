@@ -322,6 +322,7 @@ public final class VnMineHardcore extends JavaPlugin {
     @Override
     public void onDisable() {
         if (profileDatabaseBackupTask != null) profileDatabaseBackupTask.cancel();
+        if (characterSelectionManager != null) characterSelectionManager.stopOnboardingNavigation();
         if (portalManager != null) portalManager.stop();
         if (thirstManager != null) thirstManager.stop();
         if (deathPenaltyManager != null) deathPenaltyManager.stop();

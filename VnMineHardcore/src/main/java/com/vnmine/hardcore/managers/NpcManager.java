@@ -103,6 +103,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return npc == null ? java.util.Optional.empty() : java.util.Optional.of(npc.displayName());
     }
 
+    public java.util.Optional<String> getNpcType(String npcId) {
+        NpcRecord npc = npcId == null ? null : npcs.get(npcId.toLowerCase(Locale.ROOT));
+        return npc == null ? java.util.Optional.empty() : java.util.Optional.of(npc.type());
+    }
+
     public boolean hasNpc(String npcId) {
         return npcId != null && npcs.containsKey(npcId.toLowerCase(Locale.ROOT));
     }
@@ -522,6 +527,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         if (player.isSneaking() && player.hasPermission(ADMIN_PERMISSION)
                 && ("story".equals(npc.type()) || "quest-giver".equals(npc.type()))) {
             openNpcEditor(player, npc.id(), 0);
+            return;
+        }
+        if (plugin.getCharacterSelectionManager() != null
+                && plugin.getCharacterSelectionManager().recordTutorialNpcVisit(player, npc.id())) {
             return;
         }
         if (plugin.getQuestCatalogManager() != null) {

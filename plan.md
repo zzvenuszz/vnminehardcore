@@ -567,6 +567,14 @@ Các giá sau là đề xuất cấu hình ban đầu, chưa áp dụng. Mỗi h
 - Log bước onboarding, successor, marker eligibility, quote/transaction với operation ID; không ghi secret.
 - Chạy unit/integration test và staging Paper trước phát hành; chỉ đánh dấu phase hoàn tất sau khi xác minh. Cập nhật README/CHANGELOG cùng lệnh, permission, ID và cấu hình khi tính năng được làm.
 
+### Trạng thái Phase A sau khi bắt đầu triển khai — 2026-10-26
+
+- [~] Đã thêm cấu hình `tutorial-npc-id` và `starting-selectable` vào loader đại lục; thiếu khóa ở YAML cũ dùng giá trị suy ra tương thích. Human Realm được chọn mặc định; Yêu Realm vẫn khóa theo cấu hình đến khi admin có world/NPC phù hợp.
+- [~] Đã thêm GUI chọn đại lục cho người chưa có profile; lựa chọn và bước onboarding được lưu trên PersistentDataContainer của người chơi. Hồ sơ cũ không bị đưa vào flow mới; world khởi đầu được ghi vào `home_world` khi tạo profile.
+- [~] NPC tutorial chỉ hoàn tất bước onboarding khi ID và world trùng với realm đã chọn; sau đó mở GUI race/class. Scoreboard hiển thị mục tiêu gặp NPC; hướng dẫn world khác và particle navigation cùng world được cập nhật theo tick.
+- [~] Quest legacy hướng tới spawn chỉ khởi chạy khi world khởi đầu của profile không xung đột với world đích của quest.
+- Chưa xác minh bằng compile, test tự động, Paper integration hoặc gameplay; chưa đánh dấu Phase A hoàn tất. Cần kiểm tra GUI join, đóng/reconnect, PDC persistence, ID/world NPC sai, chunk/world chưa nạp, lựa chọn Yêu Realm và particle navigation; sau kiểm thử cần sửa các lỗi phát hiện trước khi hoàn tất phase.
+
 ### Thứ tự và tối ưu phạm vi
 
 1. Phase A trước vì đây là cổng vào hành trình.

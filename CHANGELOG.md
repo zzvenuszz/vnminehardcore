@@ -20,6 +20,8 @@
 - Thêm `story-chapter-id` bền vững cho NPC story và dùng hội thoại trước khi nhận quest hoặc nộp vật phẩm.
 
 ## [Unreleased]
+- Thêm flow onboarding lưu theo người chơi: chọn đại lục, xác minh NPC tutorial nằm đúng world, hướng dẫn khác world và navigation particle trong cùng world trước khi mở chọn race/class.
+- Lưu world khởi đầu vào hồ sơ; hiển thị bước onboarding trên scoreboard và không khởi chạy quest spawn Nhân giới khi người chơi bắt đầu ở world khác. Cần compile và kiểm thử Paper/gameplay trước phát hành.
 
 ## [v2.15.0] - 2026-10-25
 - Thêm lệnh `/vntext` để tạo, chỉnh sửa, di chuyển, xem và xóa text display cố định; hỗ trợ facing 6 hướng, màu tên/hex, scale và lưu entity bền vững qua chunk/restart.
