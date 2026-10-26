@@ -1,5 +1,8 @@
 # Changelog
 
+## [v2.20.0] - 2026-10-26
+- Mở rộng picker `/vnplayeradmin` thành danh mục phân trang gồm nguyên liệu quest, sách skill đang được triển khai, item drop/giáp boss cấu hình, item shop NPC, gear và token lính đánh thuê; cấp item offline hoặc khi túi đầy bằng hàng đợi giao nhận bền vững, giữ nguyên PDC.
+
 ## [v2.17.1] - 2026-10-25
 - Chuẩn hóa metadata không mang dữ liệu RPG của các item block rơi ra để chúng stack với item vanilla; giữ nguyên item có PDC, tên, lore, enchant hoặc metadata đặc biệt.
 - Thêm nút bật/tắt theo dõi riêng cho từng quest ngay trong nhật ký và nút bật/tắt particle có trạng thái rõ ràng, lưu bền.

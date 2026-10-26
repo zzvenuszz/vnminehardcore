@@ -227,7 +227,11 @@ The player administration GUI supports ban/unban, kick, permanent or timed
 mute, clearing an online player's inventory, restoring one of their ten most
 recent death inventories through the durable delivery queue, completed quest
 history/reset, quest/skill/race/class/profile resets, and RPG EXP/level or
-configured quest RPG item grants. Offline player search accepts names already
+RPG item grants. The paginated item registry includes quest materials,
+implemented skill books, configured boss drops and armor, merchant shop items,
+plus mercenary gear and summon tokens; grants preserve each item's system metadata. Offline player
+grants use the durable delivery queue, including when the target inventory is
+full. Offline player search accepts names already
 cached by Paper; chat prompts show an example and accept `!cancel`. A full RPG
 profile reset preserves the VNCOIN wallet and starts character onboarding again.
 Quest history is paginated. Moderation and reset actions are logged with actor,

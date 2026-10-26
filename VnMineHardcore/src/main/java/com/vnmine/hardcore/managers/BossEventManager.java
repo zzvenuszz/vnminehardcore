@@ -211,6 +211,115 @@ public class BossEventManager implements Listener {
          );
    }
 
+   public List<AdminBossRpgItem> getAdminRpgItems() {
+      List<AdminBossRpgItem> result = new ArrayList<>();
+      for (Entry<String, ConfigManager.BossConfig> bossEntry : this.config.bossConfigs.entrySet().stream()
+            .sorted(Entry.comparingByKey(String.CASE_INSENSITIVE_ORDER)).toList()) {
+         String bossId = bossEntry.getKey();
+         ConfigManager.BossConfig boss = bossEntry.getValue();
+         for (Entry<String, ConfigManager.DropConfig> dropEntry : boss.drops.entrySet().stream()
+               .sorted(Entry.comparingByKey(String.CASE_INSENSITIVE_ORDER)).toList()) {
+            ConfigManager.DropConfig drop = dropEntry.getValue();
+            if (!Double.isFinite(drop.chance) || drop.chance < 0 || drop.chance > 1) continue;
+            Material material = Material.matchMaterial(dropEntry.getKey());
+            if (material == null || material.isAir()) continue;
+            String itemName = drop.name;
+            List<String> lore = drop.lore;
+            if (material == Material.ENCHANTED_BOOK) {
+               if (itemName == null || itemName.isBlank()) itemName = boss.displayName + " §dBí Kíp";
+               if (lore == null || lore.isEmpty()) lore = List.of("§7Sách enchant dùng lên đồ.");
+            }
+            ItemStack item = buildAdminBossDrop(material, itemName, lore, drop.sellValue,
+               Map.of(), drop.bookEnchantments, material == Material.ENCHANTED_BOOK && drop.bookEnchantments.isEmpty());
+            result.add(new AdminBossRpgItem("boss/" + bossId + "/drop/" + dropEntry.getKey().toLowerCase(Locale.ROOT),
+               visibleItemName(item, dropEntry.getKey()), material, item));
+         }
+         for (Entry<Integer, List<ConfigManager.ConfiguredItem>> levelEntry : boss.levelDrops.entrySet().stream()
+               .sorted(Entry.comparingByKey()).toList()) {
+            List<ConfigManager.ConfiguredItem> drops = levelEntry.getValue();
+            for (int index = 0; index < drops.size(); index++) {
+               ConfigManager.ConfiguredItem drop = drops.get(index);
+               if (!Double.isFinite(drop.chance) || drop.chance < 0 || drop.chance > 1) continue;
+               Material material = Material.matchMaterial(drop.material);
+               if (material == null || material.isAir()) continue;
+               ItemStack item = buildAdminBossDrop(material, drop.name, drop.lore, drop.sellValue,
+                  drop.enchantments, drop.bookEnchantments, false);
+               result.add(new AdminBossRpgItem("boss/" + bossId + "/level-" + levelEntry.getKey() + "/" + index,
+                  visibleItemName(item, material.name()), material, item));
+            }
+         }
+         addAdminBossArmorItems(result, bossId, boss);
+      }
+      return List.copyOf(result);
+   }
+
+   private void addAdminBossArmorItems(List<AdminBossRpgItem> result, String bossId,
+         ConfigManager.BossConfig boss) {
+      ConfigManager.BossArmorSetConfig armorSet = boss.armorSet;
+      if (armorSet == null || !armorSet.enabled || armorSet.storyId == null || armorSet.storyId.isBlank()) return;
+      String[][] pieces = {{"HELMET", "Mũ"}, {"CHESTPLATE", "Áo Giáp"},
+         {"LEGGINGS", "Quần Giáp"}, {"BOOTS", "Ủng"}};
+      for (Entry<Integer, String> tier : armorSet.materialTiers.entrySet().stream()
+            .sorted(Entry.comparingByKey()).toList()) {
+         int level = tier.getKey();
+         String tierMaterial = tier.getValue();
+         List<String> fallbackLore = this.config.getBossItemStory(armorSet.storyId, level);
+         for (String[] piece : pieces) {
+            String slot = piece[0].toLowerCase(Locale.ROOT);
+            ConfigManager.BossArmorPieceStory story = this.config.getBossArmorPieceStory(armorSet.storyId, slot, level);
+            List<String> lore = story != null && !story.lore.isEmpty() ? story.lore : fallbackLore;
+            if (lore.isEmpty()) continue;
+            Material material = Material.matchMaterial(tierMaterial + "_" + piece[0]);
+            if (material == null || material.isAir()) continue;
+            String configuredName = story != null && story.itemName != null
+               ? story.itemName : armorSet.pieceNames.getOrDefault(piece[0], piece[1]);
+            ItemStack item = new ItemStack(material);
+            BossLeaderboardManager.applyMetadata(item, configuredName + " · Cấp " + level, lore, null, null);
+            ItemMeta meta = item.getItemMeta();
+            meta.getPersistentDataContainer().set(this.bossArmorSetKey, PersistentDataType.STRING, armorSet.storyId);
+            item.setItemMeta(meta);
+            this.applyRpgSellValue(item, armorSet.sellValue);
+            List<String> enchants = armorSet.enchantmentsBySlot.getOrDefault(piece[0], this.armorEnchantments(piece[0]));
+            int enchantCount = Math.min(4, level == 1 ? 2 : (level == 2 ? 3 : 4));
+            for (int index = 0; index < Math.min(enchantCount, enchants.size()); index++) {
+               String enchantment = enchants.get(index);
+               this.addArmorEnchantment(item, enchantment, this.armorEnchantmentLevel(enchantment, slot, index, level));
+            }
+            markAsRpgSystemItem(item);
+            result.add(new AdminBossRpgItem("boss/" + bossId + "/armor/" + level + "/" + slot,
+               configuredName + " · Cấp " + level, material, item));
+         }
+      }
+   }
+
+   private ItemStack buildAdminBossDrop(Material material, String name, List<String> lore, long sellValue,
+         Map<String, Integer> enchantments, Map<String, Integer> bookEnchantments, boolean defaultBookEnchant) {
+      ItemStack item = new ItemStack(material);
+      BossLeaderboardManager.applyMetadata(item, name, lore, null, null);
+      if (defaultBookEnchant) this.addConfiguredEnchantment(item, "unbreaking", 1, true);
+      for (Entry<String, Integer> enchantment : enchantments.entrySet())
+         this.addConfiguredEnchantment(item, enchantment.getKey(), enchantment.getValue(), false);
+      for (Entry<String, Integer> enchantment : bookEnchantments.entrySet())
+         this.addConfiguredEnchantment(item, enchantment.getKey(), enchantment.getValue(), true);
+      this.applyRpgSellValue(item, sellValue);
+      markAsRpgSystemItem(item);
+      return item;
+   }
+
+   private void markAsRpgSystemItem(ItemStack item) {
+      ItemMeta meta = item.getItemMeta();
+      if (meta == null) return;
+      meta.getPersistentDataContainer().set(this.rpgSystemItemKey, PersistentDataType.BYTE, (byte) 1);
+      item.setItemMeta(meta);
+   }
+
+   private static String visibleItemName(ItemStack item, String fallback) {
+      return item.hasItemMeta() && item.getItemMeta().hasDisplayName()
+         ? item.getItemMeta().getDisplayName() : fallback;
+   }
+
+   public record AdminBossRpgItem(String id, String name, Material material, ItemStack item) { }
+
    private void keepBossChunkLoaded() {
       if (this.currentBoss != null && this.currentBoss.isValid()) {
          Location location = this.currentBoss.getLocation();

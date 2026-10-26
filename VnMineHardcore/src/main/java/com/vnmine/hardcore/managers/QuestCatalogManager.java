@@ -152,14 +152,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     public List<AdminRpgItem> getAdminRpgItems() {
-        return definitions.values().stream()
-            .filter(quest -> quest.objectiveType() == ObjectiveType.COLLECT_RPG_ITEM)
-            .filter(quest -> quest.itemId() != null && !quest.itemId().isBlank())
-            .sorted(java.util.Comparator.comparing(QuestDefinition::id))
-            .collect(java.util.stream.Collectors.toMap(QuestDefinition::itemId,
-                quest -> new AdminRpgItem(quest.itemId(), quest.itemName(), quest.itemMaterial()),
-                (first, ignored) -> first, LinkedHashMap::new))
-            .values().stream().toList();
+        Map<String, AdminRpgItem> items = new LinkedHashMap<>();
+        definitions.values().stream().sorted(java.util.Comparator.comparing(QuestDefinition::id)).forEach(quest -> {
+            for (QuestObjective objective : quest.objectives()) {
+                if (objective.type() != ObjectiveType.COLLECT_RPG_ITEM || objective.itemId() == null
+                        || objective.itemId().isBlank() || objective.itemMaterial() == null
+                        || !objective.itemMaterial().isItem()) continue;
+                ItemStack item = createQuestItem(objective.itemId(), objective.itemMaterial(), objective.itemName(),
+                    questItemSellValues.getOrDefault(quest.id(), 0L));
+                items.putIfAbsent(objective.itemId(), new AdminRpgItem(objective.itemId(),
+                    objective.itemName(), objective.itemMaterial(), item));
+            }
+        });
+        return List.copyOf(items.values());
     }
 
     public boolean giveAdminRpgItem(Player admin, UUID targetId, String questItemId) {
@@ -222,7 +227,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         return true;
     }
 
-    public record AdminRpgItem(String id, String name, Material material) { }
+    public record AdminRpgItem(String id, String name, Material material, ItemStack item) { }
 
     private void confirmAdminQuestReset(Player admin, UUID targetId, String questId) {
         QuestDefinition quest = definitions.get(questId);
@@ -2672,13 +2677,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private ItemStack createQuestItem(QuestDefinition quest) {
-        long sellValue = questItemSellValues.getOrDefault(quest.id(), 0L);
-        ItemStack stack = new ItemStack(quest.itemMaterial());
+        return createQuestItem(quest.itemId(), quest.itemMaterial(), quest.itemName(),
+            questItemSellValues.getOrDefault(quest.id(), 0L));
+    }
+
+    private ItemStack createQuestItem(String itemId, Material material, String itemName, long sellValue) {
+        if (itemId == null || material == null || material.isAir()) return null;
+        ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) return null;
-        meta.setDisplayName("§6" + quest.itemName());
-        meta.setLore(List.of("§7Nguyên liệu nhiệm vụ RPG", "§8Mã: " + quest.itemId()));
-        meta.getPersistentDataContainer().set(questItemKey, PersistentDataType.STRING, quest.itemId());
+        meta.setDisplayName("§6" + itemName);
+        meta.setLore(List.of("§7Nguyên liệu nhiệm vụ RPG", "§8Mã: " + itemId));
+        meta.getPersistentDataContainer().set(questItemKey, PersistentDataType.STRING, itemId);
         meta.getPersistentDataContainer().set(rpgSellValueKey, PersistentDataType.LONG, sellValue);
         stack.setItemMeta(meta);
         return stack;

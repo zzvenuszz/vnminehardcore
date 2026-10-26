@@ -1119,6 +1119,33 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 && !key.getKey().startsWith("vncoin_") && !key.getKey().equals("merchant_offer_id"));
     }
 
+    public List<AdminNpcRpgItem> getAdminRpgItems() {
+        List<AdminNpcRpgItem> result = new ArrayList<>();
+        for (Map.Entry<String, LinkedHashMap<Integer, MerchantListing>> merchant : merchantListings.entrySet()) {
+            for (Map.Entry<Integer, MerchantListing> offer : merchant.getValue().entrySet()) {
+                ItemStack item = offer.getValue().item().clone();
+                if (!isSystemCreatedItem(item)) continue;
+                String name = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
+                    ? item.getItemMeta().getDisplayName() : item.getType().name();
+                result.add(new AdminNpcRpgItem("merchant/" + merchant.getKey() + "/offer/" + offer.getKey(),
+                    merchant.getKey() + " • " + name, item.getType(), item));
+            }
+        }
+        for (Map.Entry<String, LinkedHashMap<Integer, MerchantBuyOrder>> merchant : merchantBuyOrders.entrySet()) {
+            for (Map.Entry<Integer, MerchantBuyOrder> order : merchant.getValue().entrySet()) {
+                ItemStack item = order.getValue().item().clone();
+                if (!isSystemCreatedItem(item)) continue;
+                String name = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
+                    ? item.getItemMeta().getDisplayName() : item.getType().name();
+                result.add(new AdminNpcRpgItem("merchant/" + merchant.getKey() + "/buy-order/" + order.getKey(),
+                    merchant.getKey() + " • " + name, item.getType(), item));
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    public record AdminNpcRpgItem(String id, String name, Material material, ItemStack item) { }
+
     private int configuredMerchantMaxOffers() {
         int configured = plugin.getConfig().getInt("economy.merchant.custom.max-offers", 45);
         return configured >= 1 && configured <= 45 ? configured : 45;

@@ -7,11 +7,11 @@
 - [x] Xóa inventory online có xác nhận; duyệt tối đa 10 snapshot chết và phục hồi vào hàng đợi giao item bền vững, kể cả inventory đầy hoặc người chơi offline.
 - [x] Tra cứu có phân trang quest hoàn thành online/offline và đánh dấu một quest chưa hoàn thành; đồng bộ lại cache khi người chơi online, attempt thưởng mới dùng transaction ID riêng.
 - [x] Có thao tác reset toàn bộ quest, skill/quick slot, race/class (giữ quest) và toàn bộ hồ sơ RPG (giữ VNCOIN); hồ sơ reset race/class được phép đi lại luồng tạo nhân vật.
-- [~] Cấp level/EXP qua GUI tiến trình hiện có; picker item cấp được item RPG nhiệm vụ có PDC hợp lệ. Registry picker hiện chưa bao phủ mọi loại item RPG trong plugin.
+- [x] Cấp level/EXP qua GUI tiến trình hiện có; picker item phân trang nay tổng hợp nguyên liệu quest ở mọi objective, sách skill đang được triển khai, loot/giáp boss theo config, item shop NPC, gear và token lính đánh thuê; giữ item factory/PDC gốc, cấp offline/túi đầy qua hàng đợi giao nhận bền vững.
 - [x] Quest editor có công tắc repeatable ON/OFF, nút tăng/giảm lượt/ngày 0–10; 0 không giới hạn. Lượt/ngày và source ID lưu SQLite, giới hạn được kiểm tra trong transaction completion.
-- [x] **Biên dịch/đóng gói:** Maven `clean package` thành công với Java 25; toàn bộ 55 file Java biên dịch được. Bộ test được bỏ qua (`-DskipTests`), không xem đây là kiểm thử gameplay.
+- [x] **Biên dịch/đóng gói:** Maven `clean package` thành công với Java 25 cho bản 2.20.0 lúc 2026-10-26 23:35 UTC; biên dịch 55 file Java, bộ test bỏ qua (`-DskipTests`), không xem đây là kiểm thử gameplay. JAR: `VnMineHardcore/target/VnMineHardcore-2.20.0.jar` (2,226,174 byte), SHA-256 `59afce5a638292d7db35c4b80ec9b66c172c224abdaf62f9c2a487816e6a7948`; kiểm tra plugin.yml là 2.20.0 và SQLite native chỉ có Linux x86_64.
 - [ ] **Chấp nhận vận hành:** kiểm thử Paper/gameplay admin online/offline, chat cancel, target đổi trạng thái, death restore khi túi đầy, reset/cache sau relog, repeat 1/10/unlimited qua ngày và restart/crash không trả thưởng trùng.
-- [ ] Mở rộng picker item admin từ các RPG item dùng cho quest sang toàn bộ registry item RPG của plugin.
+- [ ] **Chấp nhận vận hành:** kiểm tra từng loại item, PDC và khả năng dùng/trang bị, phân trang khi registry lớn, giao nhận offline/túi đầy và đối soát sau relog. Bản 2.20.0 đã build; gameplay trên Paper chưa được kiểm chứng trong lượt này.
 
 > Tài liệu này ghi nhận các vấn đề và đề xuất từ đợt rà soát mã nguồn, đồng thời xác định lộ trình hoàn thiện plugin cho server Minecraft RPG hardcore. Đây là kế hoạch triển khai; các hạng mục dưới đây không được coi là đã có trong mã hiện tại nếu chưa được triển khai và kiểm chứng.
 

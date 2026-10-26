@@ -873,6 +873,13 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             .sorted(Comparator.comparing(SkillDefinitionLoader.SkillBookDefinition::id)).toList();
     }
 
+    public List<AdminSkillBookItem> getAdminSkillBookItems() {
+        return getSkillBooks().stream().map(book -> new AdminSkillBookItem(
+            book.id(), book.displayName(), book.material(), createSkillBook(book))).toList();
+    }
+
+    public record AdminSkillBookItem(String id, String name, Material material, ItemStack item) { }
+
     public List<SkillDefinitionLoader.SkillBookDefinition> getSkillBooksForClass(String classId) {
         if (classId == null || classId.isBlank()) return List.of();
         Set<String> inherited = inheritedClasses(classId);

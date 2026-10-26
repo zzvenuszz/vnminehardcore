@@ -6987,6 +6987,50 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       return item;
    }
 
+   public List<AdminMercenaryItem> getAdminRpgItems() {
+      ConfigurationSection classes = settings.getConfigurationSection("classes");
+      if (classes == null) return List.of();
+      List<AdminMercenaryItem> result = new ArrayList<>();
+      for (String classId : classes.getKeys(false).stream().sorted(String.CASE_INSENSITIVE_ORDER).toList()) {
+         for (String setId : gearSetIds(classId)) {
+            for (String material : GEAR_MATERIALS) {
+               for (int stars = 1; stars <= 5; stars++) {
+                  for (EquipmentSlot slot : SOLDIER_GEAR_SLOTS) {
+                     ItemStack item;
+                     try {
+                        item = createSoldierGearItem(classId, material, stars, setId, slot);
+                     } catch (IllegalArgumentException exception) {
+                        plugin.getLogger().warning("[PlayerAdmin] Skip invalid mercenary item class="
+                           + classId + ", material=" + material + ", stars=" + stars + ", set=" + setId
+                           + ", slot=" + slot + ": " + exception.getMessage());
+                        continue;
+                     }
+                     String id = "army-gear/" + classId + "/" + setId + "/" + material + "/" + stars
+                        + "/" + slot.name().toLowerCase(Locale.ROOT);
+                     String name = gearSlotDisplayName(slot) + " • " + gearMaterialDisplay(material) + " "
+                        + "★".repeat(stars) + " • " + classDisplay(classId);
+                     result.add(new AdminMercenaryItem(id, name, item.getType(), item, "Lính đánh thuê • gear"));
+                  }
+               }
+            }
+         }
+      }
+      for (int tier : getTierIds().stream().map(MercenaryManager::parsePositiveInt).toList()) {
+         result.add(new AdminMercenaryItem("army-token/any/" + tier,
+            "Lệnh Triệu Hồi Lính Đánh Thuê • Tier " + tier, Material.PAPER, createToken("any", tier),
+            "Lính đánh thuê • token"));
+         for (String classId : classes.getKeys(false).stream().sorted(String.CASE_INSENSITIVE_ORDER).toList()) {
+            ItemStack token = createToken(classId, tier);
+            result.add(new AdminMercenaryItem("army-token/" + classId + "/" + tier,
+               "Lệnh Triệu Hồi " + classDisplay(classId) + " • Tier " + tier,
+               Material.PAPER, token, "Lính đánh thuê • token"));
+         }
+      }
+      return List.copyOf(result);
+   }
+
+   public record AdminMercenaryItem(String id, String name, Material material, ItemStack item, String category) { }
+
    public List<ItemStack> createRandomBossGearSet(String material, int stars) {
       String normalizedMaterial = this.normalizeGearMaterial(material);
       if (normalizedMaterial != null && stars >= 1 && stars <= 5) {

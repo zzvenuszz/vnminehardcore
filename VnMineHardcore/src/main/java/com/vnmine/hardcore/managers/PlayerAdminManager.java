@@ -215,11 +215,11 @@ public final class PlayerAdminManager implements Listener {
         }
         if ("rpg-items".equals(holder.screen)) {
             if (slot == 49) openTarget(admin, holder.target);
-            else if (holder.choices.containsKey(slot) && plugin.getQuestCatalogManager() != null) {
-                boolean given = plugin.getQuestCatalogManager().giveAdminRpgItem(admin, holder.target,
-                    holder.choices.get(slot));
-                if (!given) admin.sendMessage("§cKhông tìm thấy item RPG hợp lệ.");
-            }
+            else if (slot == 45 && holder.page > 0)
+                openRpgItemPicker(admin, holder.target, holder.rpgItemList, holder.page - 1);
+            else if (slot == 53)
+                openRpgItemPicker(admin, holder.target, holder.rpgItemList, holder.page + 1);
+            else if (holder.rpgChoices.containsKey(slot)) giveAdminRpgItem(admin, holder.target, holder.rpgChoices.get(slot));
             return;
         }
         if ("death-snapshots".equals(holder.screen)) {
@@ -281,24 +281,124 @@ public final class PlayerAdminManager implements Listener {
     }
 
     private void openRpgItemPicker(Player admin, UUID targetId) {
-        if (plugin.getQuestCatalogManager() == null) {
-            admin.sendMessage("§cDanh mục item RPG chưa sẵn sàng.");
+        openRpgItemPicker(admin, targetId, 0);
+    }
+
+    private void openRpgItemPicker(Player admin, UUID targetId, int requestedPage) {
+        openRpgItemPicker(admin, targetId, getAdminRpgItems(), requestedPage);
+    }
+
+    private void openRpgItemPicker(Player admin, UUID targetId, List<AdminItemChoice> items, int requestedPage) {
+        int pageCount = Math.max(1, (items.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        AdminHolder holder = new AdminHolder(admin.getUniqueId(), "rpg-items", page);
+        holder.target = targetId;
+        holder.rpgItemList = items;
+        Inventory menu = Bukkit.createInventory(holder, 54, "Give item RPG • " + (page + 1) + "/" + pageCount);
+        holder.inventory = menu;
+        for (int slot = 0; slot < Math.min(45, items.size() - page * 45); slot++) {
+            AdminItemChoice choice = items.get(page * 45 + slot);
+            holder.rpgChoices.put(slot, choice);
+            ItemStack icon = choice.item().clone();
+            ItemMeta meta = icon.getItemMeta();
+            meta.setDisplayName("§6" + choice.name());
+            List<String> lore = new ArrayList<>();
+            lore.add("§dLoại: §f" + choice.category());
+            lore.add("§7ID: §f" + choice.id());
+            lore.add("§eNhấn để cấp một vật phẩm.");
+            meta.setLore(lore);
+            icon.setItemMeta(meta);
+            icon.setAmount(1);
+            menu.setItem(slot, icon);
+        }
+        if (items.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có item RPG trong registry", List.of()));
+        if (page > 0) menu.setItem(45, item(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(49, item(Material.ARROW, "§eQuay lại hồ sơ", List.of()));
+        if (page + 1 < pageCount) menu.setItem(53, item(Material.ARROW, "§eTrang sau", List.of()));
+        admin.openInventory(menu);
+    }
+
+    private List<AdminItemChoice> getAdminRpgItems() {
+        List<AdminItemChoice> result = new ArrayList<>();
+        if (plugin.getQuestCatalogManager() != null) {
+            plugin.getQuestCatalogManager().getAdminRpgItems().forEach(entry -> result.add(
+                new AdminItemChoice("quest/" + entry.id(), "Nguyên liệu quest • " + entry.name(),
+                    "Nguyên liệu quest", entry.material(), entry.item().clone())));
+        }
+        if (plugin.getSkillManager() != null) {
+            plugin.getSkillManager().getAdminSkillBookItems().forEach(entry -> result.add(
+                new AdminItemChoice("skillbook/" + entry.id(), "Sách kỹ năng • " + entry.name(),
+                    "Sách kỹ năng", entry.material(), entry.item().clone())));
+        }
+        if (plugin.getBossEventManager() != null) {
+            plugin.getBossEventManager().getAdminRpgItems().forEach(entry -> result.add(
+                new AdminItemChoice(entry.id(), "Boss • " + entry.name(), "Vật phẩm boss",
+                    entry.material(), entry.item().clone())));
+        }
+        if (plugin.getMercenaryManager() != null) {
+            plugin.getMercenaryManager().getAdminRpgItems().forEach(entry -> result.add(
+                new AdminItemChoice(entry.id(), entry.name(), entry.category(),
+                    entry.material(), entry.item().clone())));
+        }
+        if (plugin.getNpcManager() != null) {
+            plugin.getNpcManager().getAdminRpgItems().forEach(entry -> result.add(
+                new AdminItemChoice(entry.id(), "Shop NPC • " + entry.name(), "Item trong shop NPC",
+                    entry.material(), entry.item().clone())));
+        }
+        result.sort(Comparator.comparing(AdminItemChoice::category, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(AdminItemChoice::name, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(AdminItemChoice::id));
+        return List.copyOf(result);
+    }
+
+    private void giveAdminRpgItem(Player admin, UUID targetId, AdminItemChoice choice) {
+        PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+        String transaction = "admin-rpg-item:" + UUID.randomUUID();
+        ItemStack item = choice.item().clone();
+        item.setAmount(1);
+        Player target = Bukkit.getPlayer(targetId);
+        if (target == null) {
+            database.executeGameplayDatabaseTask("player-admin.give-rpg-item actor=" + admin.getName()
+                    + " target=" + targetId + " item=" + choice.id(), () -> {
+                database.enqueueMerchantDeliveries(targetId.toString(), transaction,
+                    List.of(item.serializeAsBytes()), java.time.Instant.now().toString());
+                return true;
+            }).whenComplete((ignored, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[PlayerAdmin] Could not queue RPG item delivery.", failure);
+                    admin.sendMessage("§cKhông thể xếp item vào kho nhận.");
+                } else {
+                    audit(admin, Bukkit.getOfflinePlayer(targetId).getName(), "give-rpg-item:" + choice.id());
+                    admin.sendMessage("§aĐã xếp §f" + choice.name() + "§a vào kho nhận offline.");
+                }
+            }));
             return;
         }
-        List<QuestCatalogManager.AdminRpgItem> items = plugin.getQuestCatalogManager().getAdminRpgItems();
-        AdminHolder holder = new AdminHolder(admin.getUniqueId(), "rpg-items", 0);
-        holder.target = targetId;
-        Inventory menu = Bukkit.createInventory(holder, 54, "Give item RPG");
-        holder.inventory = menu;
-        for (int index = 0; index < Math.min(45, items.size()); index++) {
-            QuestCatalogManager.AdminRpgItem choice = items.get(index);
-            holder.choices.put(index, choice.id());
-            menu.setItem(index, item(choice.material(), "§6" + choice.name(), List.of(
-                "§7ID: " + choice.id(), "§eNhấn để cấp một item.")));
+        Map<Integer, ItemStack> leftover = target.getInventory().addItem(item);
+        if (leftover.isEmpty()) {
+            target.saveData();
+            audit(admin, target.getName(), "give-rpg-item:" + choice.id());
+            admin.sendMessage("§aĐã cấp §f" + choice.name() + "§a cho " + target.getName() + ".");
+            return;
         }
-        if (items.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có item RPG nhiệm vụ", List.of()));
-        menu.setItem(49, item(Material.ARROW, "§eQuay lại hồ sơ", List.of()));
-        admin.openInventory(menu);
+        List<byte[]> overflow = leftover.values().stream().map(ItemStack::serializeAsBytes).toList();
+        database.executeGameplayDatabaseTask("player-admin.give-rpg-overflow actor=" + admin.getName()
+                + " target=" + targetId + " item=" + choice.id(), () -> {
+            database.enqueueMerchantDeliveries(targetId.toString(), transaction, overflow,
+                java.time.Instant.now().toString());
+            return true;
+        }).whenComplete((ignored, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "[PlayerAdmin] Could not queue RPG item overflow.", failure);
+                admin.sendMessage("§cKhông thể lưu phần item tràn vào kho nhận; hãy kiểm tra console.");
+            } else {
+                if (target.isOnline()) target.saveData();
+                audit(admin, target.getName(), "give-rpg-item:" + choice.id() + ":queued");
+                admin.sendMessage("§aĐã cấp item; phần tồn kho được xếp vào hàng đợi bền vững.");
+                if (target.isOnline() && plugin.getEconomyManager() != null)
+                    plugin.getEconomyManager().reconcileMerchantDeliveries(target);
+            }
+        }));
     }
 
     private void promptMuteDuration(Player admin, UUID target) {
@@ -524,6 +624,8 @@ public final class PlayerAdminManager implements Listener {
         private final int page;
         private final Map<Integer, UUID> targets = new LinkedHashMap<>();
         private final Map<Integer, String> choices = new LinkedHashMap<>();
+        private final Map<Integer, AdminItemChoice> rpgChoices = new LinkedHashMap<>();
+        private List<AdminItemChoice> rpgItemList = List.of();
         private UUID target;
         private String action;
         private Inventory inventory;
@@ -533,5 +635,6 @@ public final class PlayerAdminManager implements Listener {
         @Override public Inventory getInventory() { return inventory; }
     }
 
+    private record AdminItemChoice(String id, String name, String category, Material material, ItemStack item) { }
     private record PendingInput(String type, UUID target) { }
 }
