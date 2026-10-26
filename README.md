@@ -679,6 +679,14 @@ skills. The bundled catalog currently enables `swordsman`, `guardian`, and
 `mage`; the other listed classes are marked `planned` until their skills and
 player-facing setup are complete.
 
+Class entries may optionally declare `parent-class-id: <class-id>` to describe
+an advanced class lineage. The parent must exist and belong to the same race;
+startup rejects missing, cross-race, or cyclic parent links. Skill-tree display,
+book eligibility, learning, upgrading, quick-slot assignment, passive activation,
+and casting recognize skills from configured ancestors. This is inheritance
+support only: player-facing promotion choices, promotion requirements, and
+persistent base/current-class history are not enabled yet.
+
 ### RPG NPCs
 
 NPC dialogue templates are defined in

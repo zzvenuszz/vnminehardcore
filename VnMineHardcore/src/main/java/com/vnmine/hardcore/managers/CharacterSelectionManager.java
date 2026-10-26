@@ -56,6 +56,7 @@ public final class CharacterSelectionManager implements Listener {
     private final File starterBookMappingsFile;
     private final Map<String, RaceDefinition> races = new LinkedHashMap<>();
     private final Map<String, List<ClassDefinition>> classesByRace = new HashMap<>();
+    private final Map<String, String> parentClassById = new LinkedHashMap<>();
     private final Map<String, String> starterBookMappings = new LinkedHashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
     private final Set<UUID> profileLookupComplete = new java.util.HashSet<>();
@@ -117,6 +118,22 @@ public final class CharacterSelectionManager implements Listener {
         return classesByRace.values().stream()
             .flatMap(List::stream)
             .map(ClassDefinition::id)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /** Returns this class and configured ancestors, nearest parent first. */
+    public Set<String> getInheritedClassIds(String classId) {
+        if (classId == null || classId.isBlank()) return Set.of();
+        java.util.LinkedHashSet<String> result = new java.util.LinkedHashSet<>();
+        String current = classId;
+        while (current != null && result.add(current)) current = parentClassById.get(current);
+        return Set.copyOf(result);
+    }
+
+    /** Returns classes that may use skills originally defined by the supplied class. */
+    public Set<String> getClassesInheritingFrom(String classId) {
+        if (classId == null || classId.isBlank()) return Set.of();
+        return getClassIds().stream().filter(candidate -> getInheritedClassIds(candidate).contains(classId))
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
@@ -1094,6 +1111,8 @@ public final class CharacterSelectionManager implements Listener {
             Material icon = readMaterial(section, "icon", path);
             String availability = section.contains("availability")
                 ? readText(section, "availability", path) : "auto";
+            String parentClassId = section.contains("parent-class-id")
+                ? readText(section, "parent-class-id", path) : null;
             if (raceId == null || name == null || description == null || icon == null || availability == null) continue;
             if (!Set.of("auto", "available", "locked", "planned").contains(availability)) {
                 plugin.getLogger().warning("[Character] Invalid availability '" + availability
@@ -1106,7 +1125,10 @@ public final class CharacterSelectionManager implements Listener {
                 continue;
             }
             classList.add(new ClassDefinition(raceId, id, name, icon, description, availability));
+            if (parentClassId != null) parentClassById.put(id, parentClassId);
         }
+
+        validateClassInheritance();
 
         races.entrySet().removeIf(entry -> {
             List<ClassDefinition> classList = classesByRace.get(entry.getKey());
@@ -1127,6 +1149,31 @@ public final class CharacterSelectionManager implements Listener {
         if (races.size() > MENU_SLOTS.length) {
             throw new IllegalStateException("Too many race definitions; maximum supported in the selection menu is " +
                 MENU_SLOTS.length + ".");
+        }
+    }
+
+    private void validateClassInheritance() {
+        Map<String, ClassDefinition> definitions = new HashMap<>();
+        classesByRace.values().forEach(list -> list.forEach(definition -> definitions.put(definition.id(), definition)));
+        for (Map.Entry<String, String> entry : parentClassById.entrySet()) {
+            ClassDefinition child = definitions.get(entry.getKey());
+            ClassDefinition parent = definitions.get(entry.getValue());
+            if (parent == null || child == null || !child.raceId().equals(parent.raceId())) {
+                throw new IllegalStateException("Invalid class parent '" + entry.getValue() + "' for '"
+                    + entry.getKey() + "'; parent must exist and belong to the same race.");
+            }
+            java.util.HashSet<String> visited = new java.util.HashSet<>();
+            String cursor = entry.getKey();
+            while (cursor != null) {
+                if (!visited.add(cursor)) {
+                    throw new IllegalStateException("Class inheritance cycle detected at '" + cursor + "'.");
+                }
+                cursor = parentClassById.get(cursor);
+            }
+        }
+        for (Map.Entry<String, String> entry : parentClassById.entrySet()) {
+            plugin.getLogger().info("[ClassProgression] inheritance-loaded child=" + entry.getKey()
+                + ", parent=" + entry.getValue() + ", inherited=" + getInheritedClassIds(entry.getKey()));
         }
     }
 

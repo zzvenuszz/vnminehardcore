@@ -498,7 +498,8 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - Dùng `classes.md` để chuẩn hóa các nghề cơ bản theo cặp race-class. Mở từng vertical slice có skill, sách, chỉ số, UI và hướng dẫn hoàn chỉnh; không mở class chỉ vì đã khai báo.
 - Thêm GUI quản trị ánh xạ `race ID + base class ID → starter skill-book ID`, preview nội dung và chặn lưu nếu class/sách không tồn tại hoặc bị tắt.
 - Cấp sách đúng một lần và đánh dấu bền vững. Nếu túi đầy, tạo claim/kho thư có ID duy nhất, không làm rơi sách hoặc nhân đôi khi reconnect.
-- Mô hình class cao cấp dạng node `parent-class-id`, điều kiện tiến chức, chỉ số cộng và skill mở mới. Kế thừa skill theo ID; chặn chu trình, parent thiếu, skill trùng và tiến chức lặp.
+- [~] Nền tảng `parent-class-id` đã được nạp/kiểm tra: parent phải tồn tại, cùng race và không tạo chu trình; skill từ class cha được nhận diện xuyên cây skill, sách, học/nâng cấp, quick slot, passive và cast. Chưa có GUI/flow để người chơi tiến chức.
+- [ ] Hoàn thiện node class cao cấp với điều kiện level/quest/item/NPC, chỉ số cộng và skill mở mới; chặn skill trùng, tiến chức lặp, đồng thời cung cấp GUI xem điều kiện/xác nhận.
 - Lưu rõ class gốc, class tiến chức và nguồn skill đã học; migration class cũ phải có bảng ánh xạ và giữ skill.
 - **Chấp nhận:** mỗi tổ hợp race-class nhận đúng sách một lần; class cao dùng được skill kế thừa; điều kiện tiến chức đủ/thiếu và migration class cũ hoạt động.
 
@@ -600,7 +601,8 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - [~] Sau khi tạo profile qua onboarding, sách khởi đầu được đưa vào durable delivery queue bằng transaction ID cố định theo UUID. Inventory đầy thì delivery chờ; marker PDC cho phép thử lại sau lỗi/restart; profile cũ không nhận sách hồi tố.
 - [~] Quest tutorial được hoãn trong lúc sách còn pending; callback chỉ hoàn tất onboarding khi đúng transaction ID của sách starter đã được xác nhận và item còn trong inventory/ender chest. Callback không bị gọi nhầm khi một reconcile khác trả danh sách cũ/rỗng; callback được giữ qua lỗi/túi đầy, dedupe theo transaction, trạng thái PDC cho phép reconnect tiếp tục.
 - [~] Bổ sung `[RPG-DEBUG][Delivery]` cho đăng ký callback, số delivery chờ, transaction mục tiêu, hết chỗ, callback trì hoãn/hoàn tất; README hướng dẫn bật bằng `logging.console-debug`.
-- Chưa xác minh bằng compile hoặc gameplay. Phần class advancement (parent/skill inheritance/điều kiện chuyển chức) vẫn chưa triển khai; chưa mở thêm các class trong `classes.md` vì hiện không có skill handler/vertical slice tương ứng. Cần kiểm tra mapping invalid/missing, cấp đúng sách, inventory đầy, restart ở các điểm giao dịch và bảo đảm không tạo sách trùng trước khi coi Phase B hoàn tất.
+- [~] Đã thêm khai báo parent tùy chọn vào class catalog; startup báo rõ cạnh kế thừa hợp lệ và từ chối parent thiếu/sai race/chu trình. DB skill operations đối chiếu tập class con kế thừa, còn GUI cây skill và passive cũng xét skill cha. Có debug logs cho graph load và log nghiệp vụ skill sẵn có.
+- Chưa xác minh bằng compile hoặc gameplay. Chưa triển khai GUI/điều kiện để tiến chức, base/current class bền vững, chỉ số class, nguồn skill đã học, kiểm tra skill trùng và bảng ánh xạ migration class cũ. Chưa mở các class trong `classes.md` vì chưa có vertical slice hoàn chỉnh. Cần hoàn tất các phần này và kiểm tra starter mapping, inventory đầy, restart/đối soát giao sách trước khi coi Phase B hoàn tất.
 
 ### Trạng thái Phase C sau khi bắt đầu triển khai — 2026-10-26
 

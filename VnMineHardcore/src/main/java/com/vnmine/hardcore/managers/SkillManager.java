@@ -292,7 +292,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             case "fortify" -> fortifyRanks;
             default -> manaFlowRanks;
         };
-        if (!classId.equals(selectedClass)) {
+        if (!inheritedClasses(selectedClass).contains(classId)) {
             cache.remove(playerId);
             if (skillId.equals("fortify")) fortifyStates.remove(playerId);
             if (skillId.equals("mana-flow")) manaFlowLastCastAt.remove(playerId);
@@ -461,7 +461,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         Map<String, Integer> ranks = new HashMap<>();
         learned.forEach(skill -> ranks.put(skill.skillId(), skill.rank()));
         List<SkillDefinitionLoader.SkillDefinition> classSkills = registry.skills().values().stream()
-            .filter(skill -> skill.classId().equals(profile.selectedClass()))
+            .filter(skill -> inheritedClasses(profile.selectedClass()).contains(skill.classId()))
             .filter(this::isSkillSupported)
             .sorted(Comparator.comparingInt(SkillDefinitionLoader.SkillDefinition::requiredLevel)
                 .thenComparing(SkillDefinitionLoader.SkillDefinition::id))
@@ -510,6 +510,18 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             inventory.setItem(index, icon);
         }
         player.openInventory(inventory);
+    }
+
+    private Set<String> inheritedClasses(String classId) {
+        if (classId == null || classId.isBlank()) return Set.of();
+        CharacterSelectionManager manager = plugin.getCharacterSelectionManager();
+        return manager == null ? Set.of(classId) : manager.getInheritedClassIds(classId);
+    }
+
+    private Set<String> classesEligibleForSkill(String skillClassId) {
+        if (skillClassId == null || skillClassId.isBlank()) return Set.of();
+        CharacterSelectionManager manager = plugin.getCharacterSelectionManager();
+        return manager == null ? Set.of(skillClassId) : manager.getClassesInheritingFrom(skillClassId);
     }
 
     public void openSkillTreeFromNpc(Player player) {
@@ -565,9 +577,10 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
 
     public List<SkillDefinitionLoader.SkillBookDefinition> getSkillBooksForClass(String classId) {
         if (classId == null || classId.isBlank()) return List.of();
+        Set<String> inherited = inheritedClasses(classId);
         return getSkillBooks().stream().filter(book -> {
             SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(book.skillId());
-            return skill != null && classId.equals(skill.classId());
+            return skill != null && inherited.contains(skill.classId());
         }).toList();
     }
 
@@ -704,9 +717,13 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             player.sendMessage("§eĐang xử lý nâng cấp kỹ năng. Vui lòng chờ một chút.");
             return;
         }
+        debugFeature("[RPG-DEBUG][ClassProgression] skill-upgrade player=" + player.getName()
+            + ", skill=" + skillId + ", sourceClass=" + skill.classId()
+            + ", eligibleClasses=" + classesEligibleForSkill(skill.classId()));
         database.executeGameplayDatabaseTask("skill.upgrade player=" + player.getName()
                 + " skill=" + skillId, () -> database.upgradeSkill(
-                playerId.toString(), skillId, skill.classId(), skill.requiredLevel(), skill.maxRank()))
+                playerId.toString(), skillId, classesEligibleForSkill(skill.classId()),
+                skill.requiredLevel(), skill.maxRank()))
             .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
             pendingSkillUpgrades.remove(playerId);
             if (!player.isOnline()) return;
@@ -813,7 +830,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         UUID playerId = player.getUniqueId();
         database.executeGameplayDatabaseTask("skill.quick-slot-assign player=" + player.getName()
                 + " slot=" + slot + " skill=" + skillId, () -> database.assignQuickSkill(
-                playerId.toString(), slot, skill.id(), skill.classId()))
+                playerId.toString(), slot, skill.id(), classesEligibleForSkill(skill.classId())))
             .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (!player.isOnline()) return;
             if (failure != null) {
@@ -920,7 +937,8 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         long databaseSubmittedAt = System.nanoTime();
         database.executeGameplayDatabaseTask("skill.cast-spend player=" + player.getName() + " skill=" + skillId,
                 () -> database.spendManaForSkillCast(
-                playerId.toString(), skill.id(), skill.classId(), skill.manaCost(), config.rpgMaxMana,
+                playerId.toString(), skill.id(), classesEligibleForSkill(skill.classId()),
+                skill.manaCost(), config.rpgMaxMana,
                 config.rpgManaRegenerationPerSecond, System.currentTimeMillis()))
             .whenComplete((castState, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (failure != null) {
@@ -1415,6 +1433,9 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             return;
         }
         UUID playerId = player.getUniqueId();
+        debugFeature("[RPG-DEBUG][ClassProgression] skill-learn player=" + player.getName()
+            + ", skill=" + skill.id() + ", sourceClass=" + skill.classId()
+            + ", eligibleClasses=" + classesEligibleForSkill(skill.classId()));
         if (!pendingBookUses.add(playerId)) {
             debugFeature("[RPG-DEBUG][SkillBook] use-skipped player=" + player.getName()
                 + ", skill=" + skill.id() + ", reason=already-pending");
@@ -1424,7 +1445,8 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             + ", skill=" + skill.id() + ", book=" + book.id());
         database.executeGameplayDatabaseTask("skill.book-learn player=" + player.getName()
                 + " skill=" + skill.id(), () -> database.learnSkill(
-                playerId.toString(), skill.id(), skill.classId(), skill.requiredLevel(), Instant.now().toString()))
+                playerId.toString(), skill.id(), classesEligibleForSkill(skill.classId()),
+                skill.requiredLevel(), Instant.now().toString()))
             .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
             pendingBookUses.remove(playerId);
             if (failure != null) {

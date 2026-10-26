@@ -560,9 +560,9 @@ public class PlayerProfileDatabaseManager {
         }
     }
 
-    public SkillLearnResult learnSkill(String uuid, String skillId, String requiredClass,
+    public SkillLearnResult learnSkill(String uuid, String skillId, Set<String> eligibleClasses,
                                        int requiredLevel, String learnedAt) throws SQLException {
-        if (requiredLevel < 1) {
+        if (requiredLevel < 1 || eligibleClasses == null || eligibleClasses.isEmpty()) {
             throw new IllegalArgumentException("requiredLevel must be at least 1.");
         }
         return executeWriteTransaction(connection -> {
@@ -573,7 +573,7 @@ public class PlayerProfileDatabaseManager {
                     if (!resultSet.next()) {
                         return SkillLearnResult.PROFILE_NOT_FOUND;
                     }
-                    if (!requiredClass.equals(resultSet.getString("selected_class"))
+                    if (!eligibleClasses.contains(resultSet.getString("selected_class"))
                             || resultSet.getInt("level") < requiredLevel) {
                         return SkillLearnResult.REQUIREMENTS_NOT_MET;
                     }
@@ -636,8 +636,8 @@ public class PlayerProfileDatabaseManager {
     }
 
     public QuickSlotResult assignQuickSkill(String uuid, int slot, String skillId,
-                                            String requiredClass) throws SQLException {
-        if (slot < 1 || slot > 9) {
+                                            Set<String> eligibleClasses) throws SQLException {
+        if (slot < 1 || slot > 9 || eligibleClasses == null || eligibleClasses.isEmpty()) {
             throw new IllegalArgumentException("slot must be between 1 and 9.");
         }
         return executeWriteTransaction(connection -> {
@@ -646,7 +646,7 @@ public class PlayerProfileDatabaseManager {
                 profileQuery.setString(1, uuid);
                 try (ResultSet resultSet = profileQuery.executeQuery()) {
                     if (!resultSet.next()) return QuickSlotResult.PROFILE_NOT_FOUND;
-                    if (!requiredClass.equals(resultSet.getString("selected_class"))) {
+                    if (!eligibleClasses.contains(resultSet.getString("selected_class"))) {
                         return QuickSlotResult.REQUIREMENTS_NOT_MET;
                     }
                 }
@@ -695,9 +695,10 @@ public class PlayerProfileDatabaseManager {
         });
     }
 
-    public SkillUpgradeResult upgradeSkill(String uuid, String skillId, String requiredClass,
+    public SkillUpgradeResult upgradeSkill(String uuid, String skillId, Set<String> eligibleClasses,
                                            int requiredLevel, int maxRank) throws SQLException {
-        if (requiredLevel < 1 || maxRank < 1 || maxRank > 5) {
+        if (requiredLevel < 1 || maxRank < 1 || maxRank > 5
+                || eligibleClasses == null || eligibleClasses.isEmpty()) {
             throw new IllegalArgumentException("Skill upgrade requirements are invalid.");
         }
         return executeWriteTransaction(connection -> {
@@ -709,7 +710,7 @@ public class PlayerProfileDatabaseManager {
                 profileQuery.setString(1, uuid);
                 try (ResultSet resultSet = profileQuery.executeQuery()) {
                     if (!resultSet.next()) return SkillUpgradeResult.PROFILE_NOT_FOUND;
-                    if (!requiredClass.equals(resultSet.getString("selected_class"))) {
+                    if (!eligibleClasses.contains(resultSet.getString("selected_class"))) {
                         return SkillUpgradeResult.REQUIREMENTS_NOT_MET;
                     }
                     playerLevel = resultSet.getInt("level");
@@ -778,10 +779,10 @@ public class PlayerProfileDatabaseManager {
         });
     }
 
-    public SkillCastResult spendManaForSkillCast(String uuid, String skillId, String classId, int cost,
+    public SkillCastResult spendManaForSkillCast(String uuid, String skillId, Set<String> eligibleClasses, int cost,
                                                  int maxMana, int regenerationPerSecond, long nowMillis)
         throws SQLException {
-        if (cost < 0 || cost > 1000) {
+        if (cost < 0 || cost > 1000 || eligibleClasses == null || eligibleClasses.isEmpty()) {
             throw new IllegalArgumentException("Mana cost must be between 0 and 1000.");
         }
         validateManaSettings(maxMana, regenerationPerSecond, nowMillis);
@@ -803,7 +804,7 @@ public class PlayerProfileDatabaseManager {
                     if (result.wasNull()) rank = 0;
                 }
             }
-            if (!classId.equals(selectedClass)) {
+            if (!eligibleClasses.contains(selectedClass)) {
                 return new SkillCastResult(SkillCastStatus.CLASS_MISMATCH, 0, null);
             }
             if (rank < 1) {
