@@ -695,9 +695,9 @@ in the player's inventory; it is checked at confirmation and is not consumed.
 `required-rpg-item-id` and `required-rpg-item-amount` check an exact RPG quest
 item ID from the player's inventory, also without consuming it.
 `required-npc-id` can require a prior interaction with a configured NPC; the
-visited-ID set is saved in the player's persistent data. Boss/system item IDs,
-class stat modifiers, and a player-facing class-history screen are still
-pending.
+visited-ID set is saved in the player's persistent data. The promotion menu
+also shows the base class and chronological promotion history. Boss/system item
+IDs and class stat modifiers are still pending.
 
 ### RPG NPCs
 

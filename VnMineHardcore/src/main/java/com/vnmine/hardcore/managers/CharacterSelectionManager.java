@@ -1348,6 +1348,10 @@ public final class CharacterSelectionManager implements Listener {
             .filter(klass -> klass.id().equals(classId)).findFirst().orElse(null);
     }
 
+    public ClassDefinition getClassDefinition(String classId) {
+        return classId == null ? null : findClassForId(classId);
+    }
+
     private boolean isClassSelectable(ClassDefinition klass) {
         return klass != null && ("available".equals(klass.availability())
                 || "auto".equals(klass.availability()))

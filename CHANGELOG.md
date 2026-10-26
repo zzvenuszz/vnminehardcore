@@ -20,6 +20,7 @@
 - Thêm `story-chapter-id` bền vững cho NPC story và dùng hội thoại trước khi nhận quest hoặc nộp vật phẩm.
 
 ## [Unreleased]
+- Bổ sung GUI lịch sử tiến chức: xem class gốc, class hiện tại và từng lần chuyển class theo thời gian trong menu tiến chức.
 - Thêm GUI tiến chức class từ cây kỹ năng: class con có skill đã triển khai được liệt kê, hiển thị cấp/quest/NPC/vật phẩm yêu cầu, cần xác nhận trước khi đổi; giữ skill đã học. Lưu lịch sử chuyển class bằng SQLite schema v13; hỗ trợ điều kiện level, quest, NPC, Material và RPG quest-item theo ID, log các lần kiểm tra.
 - Thêm nền tảng kế thừa skill cho class nâng cao bằng `parent-class-id`: kiểm tra parent tồn tại/cùng race/không tạo chu trình; skill cha được xét trong cây skill, sách, học/nâng cấp, quick slot, passive và cast. Có log `[ClassProgression]`; điều kiện item/quest/NPC, chỉ số class và GUI lịch sử vẫn đang làm.
 - Thêm flow onboarding lưu theo người chơi: chọn đại lục, xác minh NPC tutorial nằm đúng world, hướng dẫn khác world và navigation particle trong cùng world trước khi mở chọn race/class.

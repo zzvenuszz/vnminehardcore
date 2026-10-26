@@ -142,7 +142,9 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             event.setCancelled(true);
             if (!promotionHolder.viewer.equals(player.getUniqueId())
                     || event.getClickedInventory() != event.getView().getTopInventory()) return;
-            if (promotionHolder.confirmation) {
+            if (promotionHolder.history) {
+                if (event.getSlot() == 53) openClassPromotionMenu(player);
+            } else if (promotionHolder.confirmation) {
                 if (event.getSlot() == 11) confirmClassPromotion(player, promotionHolder.sourceClassId,
                     promotionHolder.targetClassId);
                 else if (event.getSlot() == 15) openClassPromotionMenu(player);
@@ -150,6 +152,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                 String targetId = promotionHolder.choices.get(event.getSlot());
                 if (targetId != null) openClassPromotionConfirmation(player,
                     promotionHolder.sourceClassId, targetId);
+                else if (event.getSlot() == 49) openClassHistory(player);
                 else if (event.getSlot() == 53) openSkillTree(player);
             }
             return;
@@ -586,6 +589,8 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                 }
                 inventory.setItem(53, createSkillIcon(Material.ARROW,
                     "§eQuay lại cây kỹ năng", List.of("§7Quay lại cây kỹ năng.")));
+                inventory.setItem(49, createSkillIcon(Material.WRITABLE_BOOK, "§bLịch sử class",
+                    List.of("§7Xem class gốc và các lần tiến chức.")));
                 player.openInventory(inventory);
                 debugFeature("[RPG-DEBUG][ClassProgression] candidates player=" + player.getName()
                     + ", current=" + profile.get().selectedClass() + ", count=" + candidates.size());
@@ -623,6 +628,66 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         inventory.setItem(15, createSkillIcon(Material.RED_CONCRETE, "§cQuay lại", List.of("§7Không thay đổi hồ sơ.")));
         player.openInventory(inventory);
     }
+
+    private void openClassHistory(Player player) {
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("class-promotion.history player=" + player.getName(), () -> {
+            Optional<PlayerProfileDatabaseManager.PlayerProfile> profile = database.getPlayerProfile(playerId.toString());
+            if (profile.isEmpty() || !profile.get().active()) return null;
+            return new ClassHistoryView(profile.get(), database.getClassHistory(playerId.toString()));
+        }).whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (failure != null) {
+                plugin.getLogger().log(Level.SEVERE, "Could not load class history for " + player.getName() + ".", failure);
+                player.sendMessage("§cKhông thể tải lịch sử class.");
+                return;
+            }
+            if (data == null) {
+                player.sendMessage("§cKhông tìm thấy hồ sơ RPG đang hoạt động.");
+                return;
+            }
+            String baseClassId = data.history().isEmpty()
+                ? data.profile().selectedClass() : data.history().get(0).fromClass();
+            debugFeature("[RPG-DEBUG][ClassProgression] history-view player=" + player.getName()
+                + ", base=" + baseClassId + ", current=" + data.profile().selectedClass()
+                + ", transitions=" + data.history().size());
+            CharacterSelectionManager manager = plugin.getCharacterSelectionManager();
+            CharacterSelectionManager.ClassDefinition base = manager == null ? null
+                : manager.getClassDefinition(baseClassId);
+            CharacterSelectionManager.ClassDefinition current = manager == null ? null
+                : manager.getClassDefinition(data.profile().selectedClass());
+            PromotionHolder holder = new PromotionHolder(playerId, data.profile().selectedClass(), false, null, true);
+            Inventory inventory = Bukkit.createInventory(holder, 54, "§bLịch sử class");
+            holder.inventory = inventory;
+            inventory.setItem(4, createSkillIcon(Material.PLAYER_HEAD, "§dClass hiện tại: §f"
+                + (current == null ? data.profile().selectedClass() : current.name()), List.of(
+                "§7Class gốc: §e" + (base == null ? baseClassId : base.name()),
+                "§7Số lần tiến chức: §e" + data.history().size())));
+            if (data.history().isEmpty()) {
+                inventory.setItem(22, createSkillIcon(Material.PAPER, "§7Chưa có lần tiến chức",
+                    List.of("§7Đây là class ban đầu của nhân vật.")));
+            } else {
+                for (int index = 0; index < data.history().size() && index < 35; index++) {
+                    PlayerProfileDatabaseManager.ClassHistoryEntry entry = data.history().get(index);
+                    CharacterSelectionManager.ClassDefinition from = manager == null ? null
+                        : manager.getClassDefinition(entry.fromClass());
+                    CharacterSelectionManager.ClassDefinition to = manager == null ? null
+                        : manager.getClassDefinition(entry.toClass());
+                    String fromName = from == null ? entry.fromClass() : from.name();
+                    String toName = to == null ? entry.toClass() : to.name();
+                    inventory.setItem(10 + index, createSkillIcon(Material.EXPERIENCE_BOTTLE,
+                        "§eLần " + (index + 1) + ": §f" + toName,
+                        List.of("§7Từ: §f" + fromName, "§7Đến: §f" + toName,
+                            "§8Thời gian: " + entry.changedAt())));
+                }
+            }
+            inventory.setItem(53, createSkillIcon(Material.ARROW, "§eQuay lại tiến chức", List.of("§7Trở về danh sách class.")));
+            player.openInventory(inventory);
+        }));
+    }
+
+    private record ClassHistoryView(PlayerProfileDatabaseManager.PlayerProfile profile,
+                                    List<PlayerProfileDatabaseManager.ClassHistoryEntry> history) { }
 
     private void confirmClassPromotion(Player player, String sourceClassId, String targetClassId) {
         CharacterSelectionManager manager = plugin.getCharacterSelectionManager();
@@ -1916,14 +1981,21 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         private final String sourceClassId;
         private final boolean confirmation;
         private final String targetClassId;
+        private final boolean history;
         private final Map<Integer, String> choices = new HashMap<>();
         private Inventory inventory;
 
         private PromotionHolder(UUID viewer, String sourceClassId, boolean confirmation, String targetClassId) {
+            this(viewer, sourceClassId, confirmation, targetClassId, false);
+        }
+
+        private PromotionHolder(UUID viewer, String sourceClassId, boolean confirmation, String targetClassId,
+                                boolean history) {
             this.viewer = viewer;
             this.sourceClassId = sourceClassId;
             this.confirmation = confirmation;
             this.targetClassId = targetClassId;
+            this.history = history;
         }
 
         @Override

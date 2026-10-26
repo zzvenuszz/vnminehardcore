@@ -498,9 +498,10 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - Dùng `classes.md` để chuẩn hóa các nghề cơ bản theo cặp race-class. Mở từng vertical slice có skill, sách, chỉ số, UI và hướng dẫn hoàn chỉnh; không mở class chỉ vì đã khai báo.
 - Thêm GUI quản trị ánh xạ `race ID + base class ID → starter skill-book ID`, preview nội dung và chặn lưu nếu class/sách không tồn tại hoặc bị tắt.
 - Cấp sách đúng một lần và đánh dấu bền vững. Nếu túi đầy, tạo claim/kho thư có ID duy nhất, không làm rơi sách hoặc nhân đôi khi reconnect.
-- [~] Nền tảng `parent-class-id` đã được nạp/kiểm tra: parent phải tồn tại, cùng race và không tạo chu trình; skill từ class cha được nhận diện xuyên cây skill, sách, học/nâng cấp, quick slot, passive và cast. Chưa có GUI/flow để người chơi tiến chức.
+- [~] Nền tảng `parent-class-id` đã được nạp/kiểm tra: parent phải tồn tại, cùng race và không tạo chu trình; skill từ class cha được nhận diện xuyên cây skill, sách, học/nâng cấp, quick slot, passive và cast.
 - [~] GUI cây skill có mục tiến chức; hiển thị class con có skill hỗ trợ, cấp/quest/NPC/vật phẩm yêu cầu, preview và xác nhận. Kiểm tra class hiện tại/cấp/quest hoàn thành trong SQLite; Material hoặc RPG quest-item theo ID phải có trong túi, NPC phải từng được gặp; lưu class mới cùng lịch sử, giữ skill đã học.
-- [ ] Hỗ trợ ID item boss/system khác quest-item và tiêu thụ nguyên liệu bền vững; thêm chỉ số class và skill mở mới; quản lý chống skill trùng/tiến chức lặp qua chuỗi; thêm GUI lịch sử class.
+- [~] GUI lịch sử class hiển thị base/current class và các lần tiến chức theo thời gian.
+- [ ] Hỗ trợ ID item boss/system và tiêu thụ nguyên liệu bền vững; thêm chỉ số class và skill mở mới; quản lý chống skill trùng/tiến chức lặp qua chuỗi.
 - Lưu rõ class gốc, class tiến chức và nguồn skill đã học; migration class cũ phải có bảng ánh xạ và giữ skill.
 - **Chấp nhận:** mỗi tổ hợp race-class nhận đúng sách một lần; class cao dùng được skill kế thừa; điều kiện tiến chức đủ/thiếu và migration class cũ hoạt động.
 
@@ -603,8 +604,8 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - [~] Quest tutorial được hoãn trong lúc sách còn pending; callback chỉ hoàn tất onboarding khi đúng transaction ID của sách starter đã được xác nhận và item còn trong inventory/ender chest. Callback không bị gọi nhầm khi một reconcile khác trả danh sách cũ/rỗng; callback được giữ qua lỗi/túi đầy, dedupe theo transaction, trạng thái PDC cho phép reconnect tiếp tục.
 - [~] Bổ sung `[RPG-DEBUG][Delivery]` cho đăng ký callback, số delivery chờ, transaction mục tiêu, hết chỗ, callback trì hoãn/hoàn tất; README hướng dẫn bật bằng `logging.console-debug`.
 - [~] Đã thêm khai báo parent tùy chọn vào class catalog; startup báo rõ cạnh kế thừa hợp lệ và từ chối parent thiếu/sai race/chu trình. DB skill operations đối chiếu tập class con kế thừa, còn GUI cây skill và passive cũng xét skill cha. Có debug logs cho graph load và log nghiệp vụ skill sẵn có.
-- [~] Đã thêm GUI preview/xác nhận tiến chức theo cấp, quest hoàn thành, tương tác NPC ghi trong PDC, Material và RPG quest-item chính xác trong túi (item không tiêu thụ); giữ skill đã học. `selected_class` lưu class hiện tại; SQLite schema v13 lưu lịch sử chuyển đổi, migration tạo bảng có backup. Debug log bao gồm lựa chọn candidates, điều kiện, request/result và NPC visit.
-- Chưa xác minh bằng compile/gameplay hoặc chạy migration trên bản sao DB. Chưa có ID RPG chính xác/tiêu thụ item crash-safe, chỉ số class, skill unlock riêng, GUI lịch sử, explicit base-class field/nguồn học skill, quản trị đồ thị class bằng GUI, và kiểm tra end-to-end luồng restart/chuyển chức đồng thời. Chưa mở class trong `classes.md` vì chưa có vertical slice hoàn chỉnh. Giữ phase ở trạng thái `[~]`.
+- [~] Đã thêm GUI preview/xác nhận tiến chức theo cấp, quest hoàn thành, tương tác NPC ghi trong PDC, Material và RPG quest-item chính xác trong túi (item không tiêu thụ); giữ skill đã học. GUI lịch sử hiển thị base/current class và các chuyển đổi. `selected_class` lưu class hiện tại; SQLite schema v13 lưu lịch sử, migration tạo bảng có backup. Debug log bao gồm candidates, điều kiện, request/result và NPC visit.
+- Chưa xác minh bằng compile/gameplay hoặc chạy migration trên bản sao DB. Chưa có ID item boss/system/tiêu thụ item crash-safe, chỉ số class, skill unlock riêng, explicit base-class field/nguồn học skill, quản trị đồ thị class bằng GUI, và kiểm tra end-to-end luồng restart/chuyển chức đồng thời. Chưa mở class trong `classes.md` vì chưa có vertical slice hoàn chỉnh. Giữ phase ở trạng thái `[~]`.
 
 ### Trạng thái Phase C sau khi bắt đầu triển khai — 2026-10-26
 
