@@ -7,7 +7,7 @@
 disaster-id: eclipse
 enabled: true
 chance: 5
-name: "§0§l📉 Nhật Thực"
+name: "§5§l📉 Nhật Thực"
 # [VI] Mô tả tác động và gợi ý phòng tránh hiển thị trong chat; giá trị bên dưới là mặc định.
 # [EN] Effect and prevention summary shown in chat; the value below is the default.
 chat-description: "Thời gian Overworld chuyển về đêm, bóng tối bao phủ và quái xuất hiện ngoài trời. Ở trong nhà để tránh quái."
@@ -21,7 +21,7 @@ conditions:
   worlds: ["overworld"]
   min-players-online: 1
 
-start-title: "§0§l📉 Nhật Thực"
+start-title: "§5§l📉 Nhật Thực"
 start-subtitle: "Mặt trời biến mất!"
 start-sound: ENTITY_WITHER_SPAWN
 start-sound-volume: 1.0
@@ -70,7 +70,7 @@ actions:
     targets:
       all_players:
         weight: 100
-    message: "§0§l📉 Nhật thực! Bóng tối bao trùm!"
+    message: "§5§l📉 Nhật thực! Bóng tối bao trùm!"
 
 on-end:
   - type: set_time

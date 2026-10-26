@@ -397,7 +397,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             "§eNhấn để mở rương cấu hình.")));
         menu.setItem(23, adminItem(Material.REDSTONE, "§cXóa quest", List.of("§7Xóa định nghĩa và gỡ khỏi danh sách.")));
         QuestDefinition successor = quest.successorQuestId() == null ? null : definitions.get(quest.successorQuestId());
-        menu.setItem(25, adminItem(Material.CHAIN,
+        menu.setItem(25, adminItem(Material.IRON_CHAIN,
             "§bQuest tự giao tiếp theo",
             List.of("§7Hiện tại: §f" + (successor == null ? "Không có"
                 : successor.title() + " (" + successor.id() + ")"),

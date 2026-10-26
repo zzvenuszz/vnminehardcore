@@ -115,7 +115,7 @@ public final class TutorialQuestDefinitionLoader {
             file, "quest.objective", logger);
         Boolean targetMarkerEnabled = readOptionalBoolean(objective, "target-marker-enabled", true,
             file, "quest.objective", logger);
-        Integer waypointUpdateIntervalTicks = readOptionalInteger(objective, "waypoint-update-interval-ticks", 10,
+        Integer waypointUpdateIntervalTicks = readOptionalInteger(objective, "waypoint-update-interval-ticks", 20,
             file, "quest.objective", logger);
         if (waypointUpdateIntervalTicks != null
                 && (waypointUpdateIntervalTicks < 5 || waypointUpdateIntervalTicks > 200)) {

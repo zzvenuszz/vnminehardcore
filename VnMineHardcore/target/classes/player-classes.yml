@@ -1,9 +1,26 @@
-# [VI] Class có thể chọn. Khóa dưới 'classes' là ID ổn định, không đổi sau phát hành.
-# [EN] Selectable classes. Keys under 'classes' are stable IDs and must not change after release.
+# [VI] Danh mục class RPG và trạng thái triển khai. Khóa dưới 'classes' là ID ổn định.
+# [EN] RPG class catalog and implementation status. Keys under 'classes' are stable IDs.
 # [VI] Mỗi chủng tộc hỗ trợ tối đa 28 class trong GUI; mỗi class chỉ thuộc một race.
 # [EN] Each race supports up to 28 classes in the GUI; each class belongs to one race.
+# [VI] `parent-class-id` là khóa tùy chọn (mặc định: không có); class con kế thừa skill theo ID từ class cha cùng race. Parent phải tồn tại và không tạo chu trình.
+# [EN] `parent-class-id` is optional (default: absent); a child inherits skill IDs from a parent of the same race. The parent must exist and the graph must be acyclic.
+# [VI] `required-level` là cấp tối thiểu để tiến vào class con (mặc định 1, hợp lệ 1-10000); chỉ áp dụng khi có parent-class-id.
+# [EN] `required-level` is the minimum level for promotion into a child class (default 1, valid 1-10000); used only with parent-class-id.
+# [VI] `required-quest-id` tùy chọn (mặc định: không yêu cầu), cần quest đã hoàn thành; ID dạng chữ thường, số và dấu gạch nối.
+# [EN] `required-quest-id` is optional (default: none), and requires a completed quest; ID uses lowercase letters, digits, and hyphens.
+# [VI] `required-npc-id` tùy chọn (mặc định: không yêu cầu), cần người chơi đã tương tác NPC ID này ít nhất một lần.
+# [EN] `required-npc-id` is optional (default: none), and requires the player to have interacted with this NPC ID at least once.
+# [VI] `required-item` + `required-item-amount` tùy chọn (mặc định: không yêu cầu); Material phải hợp lệ, số lượng nguyên 1-2304. Item chỉ cần có trong túi, chưa bị tiêu thụ.
+# [EN] `required-item` + `required-item-amount` are optional (default: none); Material must be valid and amount an integer 1-2304. Items must be carried but are not consumed.
+# [VI] `required-rpg-item-id` + `required-rpg-item-amount` tùy chọn; yêu cầu đúng ID nguyên liệu quest RPG (số lượng 1-2304), item không bị tiêu thụ.
+# [EN] `required-rpg-item-id` + `required-rpg-item-amount` are optional; require the exact RPG quest item ID (amount 1-2304), and items are not consumed.
+# [VI] Ví dụ class con: parent-class-id: swordsman; required-level: 20; required-quest-id: trial-of-steel; required-npc-id: class-trainer; required-item: BLAZE_ROD; required-item-amount: 3; required-rpg-item-id: ancient-core; required-rpg-item-amount: 2. Cần có skill hoạt động trong cây kế thừa để hiện trong GUI.
+# [EN] Child example: parent-class-id: swordsman; required-level: 20; required-quest-id: trial-of-steel; required-npc-id: class-trainer; required-item: BLAZE_ROD; required-item-amount: 3; required-rpg-item-id: ancient-core; required-rpg-item-amount: 2. Its lineage needs an implemented skill to appear in the GUI.
 classes:
   swordsman:
+    # [VI] Trạng thái: available hiển thị nếu có skill hoạt động; locked/planned bị ẩn. Thiếu khóa sẽ tự dò (auto).
+    # [EN] Status: available shows only with a working skill; locked/planned stay hidden. Missing status auto-detects.
+    availability: available
     # [VI] ID chủng tộc trong races.yml mà class này dành cho; bắt buộc.
     # [EN] Race ID from races.yml this class belongs to; required.
     race: human
@@ -17,6 +34,9 @@ classes:
     # [EN] Short description shown in the GUI; required and must not be blank.
     description: "Chống chịu tốt, cận chiến bền bỉ."
   guardian:
+    # [VI] Trạng thái: available hiển thị nếu có skill hoạt động; locked/planned bị ẩn. Thiếu khóa sẽ tự dò (auto).
+    # [EN] Status: available shows only with a working skill; locked/planned stay hidden. Missing status auto-detects.
+    availability: available
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: human
@@ -30,6 +50,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Phòng thủ mạnh, giữ đội hình."
   ranger:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: human
@@ -43,6 +66,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Sát thương xa, di chuyển linh hoạt."
   assassin:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: elf
@@ -56,6 +82,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Tấn công nhanh, né va tốt."
   archer:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: elf
@@ -69,6 +98,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Gây sát thương xa cao."
   mage:
+    # [VI] Trạng thái: available hiển thị nếu có skill hoạt động; locked/planned bị ẩn. Thiếu khóa sẽ tự dò (auto).
+    # [EN] Status: available shows only with a working skill; locked/planned stay hidden. Missing status auto-detects.
+    availability: available
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: elf
@@ -82,6 +114,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Gây sát thương phép và kiểm soát."
   knight:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: dwarf
@@ -95,6 +130,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Gánh đòn, bảo vệ đồng đội."
   smith:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: dwarf
@@ -108,6 +146,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Tập trung vào giáp và khả năng trụ vững."
   brute:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: dwarf
@@ -121,6 +162,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Đánh mạnh, chịu đòn tốt."
   berserker:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: demon
@@ -134,6 +178,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Sức tấn công bùng nổ."
   warlock:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: demon
@@ -147,6 +194,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Dùng phép thuật áp chế mục tiêu."
   cultist:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: demon
@@ -160,6 +210,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Hỗ trợ và gây ảnh hưởng lên giao tranh."
   sage:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: spirit
@@ -173,6 +226,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Hỗ trợ và hồi phục."
   seer:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: spirit
@@ -186,6 +242,9 @@ classes:
     # [EN] Default description; must be a non-empty string.
     description: "Định vị và cảm nhận nguy hiểm."
   spirit-blade:
+    # [VI] Trạng thái class trong lộ trình; class chưa hoàn thiện được giữ ở planned và ẩn khỏi tạo nhân vật.
+    # [EN] Class roadmap status; incomplete classes stay planned and hidden from character creation.
+    availability: planned
     # [VI] Race mặc định; phải tham chiếu tới ID có trong races.yml.
     # [EN] Default race; must reference an ID defined in races.yml.
     race: spirit

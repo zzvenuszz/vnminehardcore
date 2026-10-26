@@ -20,12 +20,12 @@ quest:
   description: "Hãy tìm điểm an toàn đầu tiên tại Nhân giới."
 
   reward:
-    # [VI] Loại phần thưởng; chỉ hỗ trợ character-exp để lưu và trao nguyên tử trong SQLite.
-    # [EN] Reward type; only character-exp is supported for atomic SQLite persistence and delivery.
+    # [VI] Loại thưởng: character-exp (XP RPG) hoặc vncoin; mặc định character-exp.
+    # [EN] Reward type: character-exp (RPG XP) or vncoin; defaults to character-exp.
     type: character-exp
 
-    # [VI] Số XP nhân vật được cộng khi hoàn thành; mặc định 25, giới hạn 0..100000.
-    # [EN] Character XP granted on completion; defaults to 25, valid range 0..100000.
+    # [VI] Số thưởng khi hoàn thành; character-exp hợp lệ 0..100000, vncoin hợp lệ 1..1000000.
+    # [EN] Completion reward amount; character-exp allows 0..100000, vncoin allows 1..1000000.
     amount: 25
 
   objective:
@@ -44,6 +44,26 @@ quest:
     # [VI] Bán kính để tính đã tới spawn; mặc định 8 block, giới hạn 1..64.
     # [EN] Radius that counts as reaching the spawn; defaults to 8 blocks, valid range 1..64.
     radius-blocks: 8
+
+    # [VI] Bật/tắt tracking particle cấp server cho quest; người chơi có thể tự tắt trong GUI, mặc định bật.
+    # [EN] Master switch for quest tracking particles; players may toggle them in the GUI, defaults to true.
+    waypoint-enabled: true
+
+    # [VI] Trạng thái tracking ban đầu cho người chưa lưu lựa chọn; mặc định bật.
+    # [EN] Initial tracking state for players without a saved choice; defaults to enabled.
+    tracking-enabled-by-default: true
+
+    # [VI] Vẽ vòng marker xanh sáng và cột particle tại đích; mặc định bật.
+    # [EN] Draw a bright green ring and particle beam at the destination; defaults to enabled.
+    target-marker-enabled: true
+
+    # [VI] Khoảng cập nhật đường tracking; mặc định 20 tick, giới hạn 5..200 tick.
+    # [EN] Tracking path update interval; defaults to 20 ticks, valid range 5..200 ticks.
+    waypoint-update-interval-ticks: 20
+
+    # [VI] Tầm tối đa vẽ particle; mặc định 48 block, giới hạn 8..64 block.
+    # [EN] Maximum distance for drawing particles; defaults to 48 blocks, valid range 8..64 blocks.
+    waypoint-particle-range-blocks: 48
 
     # [VI] Hướng dẫn khi quest tự bắt đầu; mặc định chỉ người chơi tới điểm spawn, không cần lệnh.
     # [EN] Guidance shown when the quest auto-starts; defaults to visiting the spawn, no command required.

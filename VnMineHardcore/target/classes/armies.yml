@@ -144,6 +144,191 @@ skills:
   # [EN] Owner damage reduction when SHIELD_OWNER triggers; default 20%, valid range 0-0.9.
   owner-damage-reduction: 0.2
 
+# [VI] Cân bằng và set vật phẩm riêng cho lính; bonus chỉ áp dụng cho item có metadata lính.
+# [EN] Mercenary-only gear balance and sets; bonuses apply only to items tagged as mercenary gear.
+gear-system:
+  # [VI] Giá system merchant trả cho mỗi món gear do hệ thống tạo; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per generated mercenary gear item; default 0 (not purchasable), valid 0-1000000 VNCOIN.
+  sell-value: 0
+  # [VI] Hệ số vật liệu; mặc định da 1.0, đồng 1.1, sắt 1.22, vàng 1.3, kim cương 1.45, netherite 1.6; hợp lệ 0.1-5.
+  # [EN] Material multipliers; defaults leather 1.0, copper 1.1, iron 1.22, gold 1.3, diamond 1.45, netherite 1.6; valid 0.1-5.
+  material-multipliers:
+    # [VI] Hệ số da; mặc định 1.0, hợp lệ 0.1-5.0.
+    # [EN] Leather multiplier; default 1.0, valid 0.1-5.0.
+    leather: 1.0
+    # [VI] Hệ số đồng; mặc định 1.1, hợp lệ 0.1-5.0.
+    # [EN] Copper multiplier; default 1.1, valid 0.1-5.0.
+    copper: 1.1
+    # [VI] Hệ số sắt; mặc định 1.22, hợp lệ 0.1-5.0.
+    # [EN] Iron multiplier; default 1.22, valid 0.1-5.0.
+    iron: 1.22
+    # [VI] Hệ số vàng; mặc định 1.3, hợp lệ 0.1-5.0.
+    # [EN] Gold multiplier; default 1.3, valid 0.1-5.0.
+    gold: 1.3
+    # [VI] Hệ số kim cương; mặc định 1.45, hợp lệ 0.1-5.0.
+    # [EN] Diamond multiplier; default 1.45, valid 0.1-5.0.
+    diamond: 1.45
+    # [VI] Hệ số netherite; mặc định 1.6, hợp lệ 0.1-5.0.
+    # [EN] Netherite multiplier; default 1.6, valid 0.1-5.0.
+    netherite: 1.6
+  # [VI] Hệ số sao 1-5; mặc định lần lượt 1.0, 1.08, 1.16, 1.25, 1.35; hợp lệ 0.1-5.
+  # [EN] Star multipliers 1-5; defaults 1.0, 1.08, 1.16, 1.25, 1.35; valid 0.1-5.
+  star-multipliers:
+    # [VI] Hệ số 1 sao; mặc định 1.0, hợp lệ 0.1-5.0.
+    # [EN] 1-star multiplier; default 1.0, valid 0.1-5.0.
+    1: 1.0
+    # [VI] Hệ số 2 sao; mặc định 1.08, hợp lệ 0.1-5.0.
+    # [EN] 2-star multiplier; default 1.08, valid 0.1-5.0.
+    2: 1.08
+    # [VI] Hệ số 3 sao; mặc định 1.16, hợp lệ 0.1-5.0.
+    # [EN] 3-star multiplier; default 1.16, valid 0.1-5.0.
+    3: 1.16
+    # [VI] Hệ số 4 sao; mặc định 1.25, hợp lệ 0.1-5.0.
+    # [EN] 4-star multiplier; default 1.25, valid 0.1-5.0.
+    4: 1.25
+    # [VI] Hệ số 5 sao; mặc định 1.35, hợp lệ 0.1-5.0.
+    # [EN] 5-star multiplier; default 1.35, valid 0.1-5.0.
+    5: 1.35
+  # [VI] Trần bonus cộng dồn của trang bị; giảm hồi chiêu tối đa 20%, tầm đánh 1.5 block, minion +1.
+  # [EN] Aggregate gear-bonus caps; cooldown reduction max 20%, range 1.5 blocks, minions +1.
+  caps:
+    # [VI] Trần HP bonus trang bị; mặc định 20 HP, hợp lệ 0-100.
+    # [EN] Maximum gear HP bonus; default 20, valid 0-100.
+    health: 20.0
+    # [VI] Trần điểm giáp bonus trang bị; mặc định 4, hợp lệ 0-20.
+    # [EN] Maximum gear armor bonus; default 4, valid 0-20.
+    armor: 4.0
+    # [VI] Trần sát thương đòn đánh; mặc định 15%, hợp lệ 0-100.
+    # [EN] Maximum attack damage bonus; default 15%, valid 0-100.
+    damage-percent: 15.0
+    # [VI] Trần sát thương hỏa; mặc định 15%, hợp lệ 0-100.
+    # [EN] Maximum fire damage bonus; default 15%, valid 0-100.
+    fire-damage-percent: 15.0
+    # [VI] Trần sát thương băng; mặc định 15%, hợp lệ 0-100.
+    # [EN] Maximum frost damage bonus; default 15%, valid 0-100.
+    frost-damage-percent: 15.0
+    # [VI] Trần giảm hồi chiêu; mặc định 20%, hợp lệ 0-80.
+    # [EN] Maximum cooldown reduction; default 20%, valid 0-80.
+    cooldown-reduction-percent: 20.0
+    # [VI] Trần tầm đánh cộng thêm; mặc định 1.5 block, hợp lệ 0-10.
+    # [EN] Maximum added attack range; default 1.5 blocks, valid 0-10.
+    attack-range-blocks: 1.5
+    # [VI] Trần xác suất hiệu ứng cộng thêm; mặc định 10%, hợp lệ 0-100.
+    # [EN] Maximum added status-effect chance; default 10%, valid 0-100.
+    effect-chance-percent: 10.0
+    # [VI] Trần thời lượng hiệu ứng cộng thêm; mặc định 1 giây, hợp lệ 0-30.
+    # [EN] Maximum added effect duration; default 1 second, valid 0-30.
+    effect-duration-seconds: 1.0
+    # [VI] Trần minion cộng thêm; mặc định 1, hợp lệ 0-10.
+    # [EN] Maximum additional minions; default 1, valid 0-10.
+    minions: 1.0
+    # [VI] Trần lượng hồi máu; mặc định 15%, hợp lệ 0-100.
+    # [EN] Maximum healing bonus; default 15%, valid 0-100.
+    healing-percent: 15.0
+    # [VI] Trần sát thương tự nhiên; mặc định 15%, hợp lệ 0-100.
+    # [EN] Maximum nature damage bonus; default 15%, valid 0-100.
+    nature-damage-percent: 15.0
+  # [VI] Bonus mặc định tại mốc 2/4/6 món cùng class, vật liệu, sao và ID set.
+  # [EN] Default bonuses at 2/4/6 pieces matching class, material, stars, and set ID.
+  default-set-bonuses:
+    # [VI] Mốc đủ 2 món; cộng +1 HP mặc định, giá trị bonus mỗi thuộc tính 0-100.
+    # [EN] 2-piece threshold; default +1 HP; individual stat bonuses valid 0-100.
+    2:
+      # [VI] HP bonus ở mốc 2 món; mặc định 1, hợp lệ 0-20.
+      # [EN] HP bonus at 2 pieces; default 1, valid 0-20.
+      health: 1.0
+    # [VI] Mốc đủ 4 món; cộng +2% sát thương mặc định, giá trị bonus mỗi thuộc tính 0-100.
+    # [EN] 4-piece threshold; default +2% damage; individual stat bonuses valid 0-100.
+    4:
+      # [VI] Sát thương bonus ở mốc 4 món; mặc định 2%, hợp lệ 0-15.
+      # [EN] Damage bonus at 4 pieces; default 2%, valid 0-15.
+      damage-percent: 2.0
+    # [VI] Mốc đủ 6 món; giảm hồi chiêu +1% và minion bonus tối đa +1; giá trị mỗi thuộc tính 0-100.
+    # [EN] 6-piece threshold; +1% cooldown reduction and up to +1 minion; each stat bonus valid 0-100.
+    6:
+      # [VI] Giảm hồi chiêu bonus ở mốc 6 món; mặc định 1%, hợp lệ 0-20.
+      # [EN] Cooldown bonus at 6 pieces; default 1%, valid 0-20.
+      cooldown-reduction-percent: 1.0
+      # [VI] Minion bonus ở mốc 6 món; mặc định 0.5 trước hệ số vật liệu/sao, hợp lệ 0-1.
+      # [EN] Minion bonus at 6 pieces; default 0.5 before material/star scaling, valid 0-1.
+      minions: 0.5
+  # [VI] Thời gian chờ nội bộ giữa các lần kích hoạt hiệu ứng item; mặc định 5 giây, hợp lệ 0-120.
+  # [EN] Internal cooldown between gear effect procs; default 5 seconds, valid 0-120.
+  effect-internal-cooldown-seconds: 5.0
+  # [VI] Mỗi class có set standard mặc định; có thể thêm set với ID chữ thường gồm a-z, 0-9, _ hoặc -, dài 1-32 ký tự.
+  # [EN] Each class has a default standard set; add sets with lowercase IDs using a-z, 0-9, _ or -, 1-32 characters.
+  sets:
+    # [VI] Khai báo class Xạ Thủ; mặc định có set standard.
+    # [EN] Archer sets; the default set ID is standard.
+    archer:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Xạ Thủ, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Archer, valid length 1-64 characters.
+        display-name: "Xạ Thủ"
+    # [VI] Khai báo class Vệ Binh; mặc định có set standard.
+    # [EN] Guardian sets; the default set ID is standard.
+    guardian:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Vệ Binh, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Guardian, valid length 1-64 characters.
+        display-name: "Vệ Binh"
+    # [VI] Khai báo class Y Sư; mặc định có set standard.
+    # [EN] Medic sets; the default set ID is standard.
+    medic:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Y Sư, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Medic, valid length 1-64 characters.
+        display-name: "Y Sư"
+    # [VI] Khai báo class Chiến binh (ID berserker); mặc định có set standard.
+    # [EN] Warrior (berserker ID) sets; the default set ID is standard.
+    berserker:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Chiến binh, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Warrior, valid length 1-64 characters.
+        display-name: "Chiến binh"
+    # [VI] Khai báo class Trinh Sát; mặc định có set standard.
+    # [EN] Ranger sets; the default set ID is standard.
+    ranger:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Trinh Sát, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Ranger, valid length 1-64 characters.
+        display-name: "Trinh Sát"
+    # [VI] Khai báo class Kỵ sĩ; mặc định có set standard.
+    # [EN] Paladin sets; the default set ID is standard.
+    paladin:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Kỵ sĩ, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Paladin, valid length 1-64 characters.
+        display-name: "Kỵ sĩ"
+    # [VI] Khai báo class Pháp Sư Lửa; mặc định có set standard.
+    # [EN] Pyromancer sets; the default set ID is standard.
+    pyromancer:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Hỏa Linh, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Fire Spirit, valid length 1-64 characters.
+        display-name: "Hỏa Linh"
+    # [VI] Khai báo class Tu sĩ rừng; mặc định có set standard.
+    # [EN] Druid sets; the default set ID is standard.
+    druid:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Tu sĩ rừng, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Forest Druid, valid length 1-64 characters.
+        display-name: "Tu sĩ rừng"
+    # [VI] Khai báo class Sát Thủ; mặc định có set standard.
+    # [EN] Assassin sets; the default set ID is standard.
+    assassin:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Sát Thủ, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Assassin, valid length 1-64 characters.
+        display-name: "Sát Thủ"
+    # [VI] Khai báo class Pháp Sư Băng; mặc định có set standard.
+    # [EN] Frost Mage sets; the default set ID is standard.
+    frost_mage:
+      standard:
+        # [VI] Tên set trong GUI; mặc định Băng Linh, hợp lệ 1-64 ký tự.
+        # [EN] Set name in the GUI; default Ice Spirit, valid length 1-64 characters.
+        display-name: "Băng Linh"
+
 # [VI] Các lớp lính; entity-type phải là mob có Bukkit AI.
 # [EN] Mercenary classes; entity-type must be a Bukkit AI mob.
 classes:
@@ -160,6 +345,21 @@ classes:
     # [VI] Máu cấp 1; mặc định 20, phải lớn hơn 0.
     # [EN] Level-1 health; default 20, must be positive.
     base-health: 20
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +2, sát thương +4%, tầm +0.5 block, giảm hồi chiêu 3%.
+      # [EN] Full leather 1-star set baseline; +2 HP, +4% damage, +0.5 range, 3% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 2, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 2, valid 0-100.
+      health: 2.0
+      # [VI] Sát thương đòn đánh; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Attack damage; default 4%, valid 0-100%.
+      damage-percent: 4.0
+      # [VI] Tầm đánh; mặc định 0.5 block, hợp lệ 0-10.
+      # [EN] Attack range; default 0.5 blocks, valid 0-10.
+      attack-range-blocks: 0.5
+      # [VI] Giảm hồi chiêu; mặc định 3%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 3%, valid 0-100%.
+      cooldown-reduction-percent: 3.0
     # [VI] Máu thêm mỗi cấp; mặc định 3, phải không âm.
     # [EN] Health per level; default 3, must be nonnegative.
     health-per-level: 3
@@ -180,8 +380,8 @@ classes:
     menu-icon: BOW
     # [VI] Skill Xạ Thủ; có thể bật/tắt bằng cách thêm/xóa ID skill.
     # [EN] Archer skills; enable/disable skills by adding/removing skill IDs.
-    # [VI] ID hợp lệ còn gồm: ATTACK, RANGED_ATTACK, HEAL_OWNER, HEAL_ALLIES, BUFF_OWNER, BUFF_ALLIES, SHIELD_OWNER, VOLLEY, POWER_STRIKE, TAUNT, CLEANSE_OWNER, FIRE_BOLT, ROOT_TARGET, LIFESTEAL, BERSERK, ILLUMINATION, FLAME_BOLT, IGNITE, FLAME_NOVA, FIRE_WALL, METEOR_STRIKE, PHOENIX_REBIRTH, ICE_SPIKE, BLIZZARD, FROST_NOVA, ICE_WALL, FROST_SHIELD, FROST_STEP, FROST_WALKER, ICE_AGE.
-    # [EN] Valid IDs also include: ATTACK, RANGED_ATTACK, HEAL_OWNER, HEAL_ALLIES, BUFF_OWNER, BUFF_ALLIES, SHIELD_OWNER, VOLLEY, POWER_STRIKE, TAUNT, CLEANSE_OWNER, FIRE_BOLT, ROOT_TARGET, LIFESTEAL, BERSERK, ILLUMINATION, FLAME_BOLT, IGNITE, FLAME_NOVA, FIRE_WALL, METEOR_STRIKE, PHOENIX_REBIRTH, ICE_SPIKE, BLIZZARD, FROST_NOVA, ICE_WALL, FROST_SHIELD, FROST_STEP, FROST_WALKER, ICE_AGE.
+    # [VI] ID hợp lệ còn gồm: ATTACK, RANGED_ATTACK, HEAL_OWNER, HEAL_ALLIES, BUFF_OWNER, BUFF_ALLIES, SHIELD_OWNER, VOLLEY, POWER_STRIKE, TAUNT, CLEANSE_OWNER, FIRE_BOLT, GUARDIAN_LINK, GUARDIAN_CHARGE, GUARDIAN_SHIELD, GUARDIAN_QUAKE, GUARDIAN_ULTIMATE, ROOT_TARGET, LIFESTEAL, BERSERK, ILLUMINATION, FLAME_BOLT, IGNITE, FLAME_NOVA, FIRE_WALL, METEOR_STRIKE, PHOENIX_REBIRTH, ICE_SPIKE, BLIZZARD, FROST_NOVA, ICE_WALL, FROST_SHIELD, FROST_STEP, FROST_WALKER, ICE_AGE.
+    # [EN] Valid IDs also include: ATTACK, RANGED_ATTACK, HEAL_OWNER, HEAL_ALLIES, BUFF_OWNER, BUFF_ALLIES, SHIELD_OWNER, VOLLEY, POWER_STRIKE, TAUNT, CLEANSE_OWNER, FIRE_BOLT, GUARDIAN_LINK, GUARDIAN_CHARGE, GUARDIAN_SHIELD, GUARDIAN_QUAKE, GUARDIAN_ULTIMATE, ROOT_TARGET, LIFESTEAL, BERSERK, ILLUMINATION, FLAME_BOLT, IGNITE, FLAME_NOVA, FIRE_WALL, METEOR_STRIKE, PHOENIX_REBIRTH, ICE_SPIKE, BLIZZARD, FROST_NOVA, ICE_WALL, FROST_SHIELD, FROST_STEP, FROST_WALKER, ICE_AGE.
     skills: [ATTACK, RANGED_ATTACK, BUFF_OWNER, VOLLEY]
     # [VI] Vũ khí mặc định khi thuê; mặc định BOW, phải là Material hợp lệ.
     # [EN] Starting weapon on hire; default BOW, must be a valid material.
@@ -243,34 +443,67 @@ classes:
     display-name: "Vệ Binh"
     # [VI] Mô tả chức năng hiện trong GUI.
     # [EN] Short role description shown in the GUI.
-    description: "Chiến đấu cận chiến và bảo vệ chủ nhân."
+    description: "Tanker cận chiến, tạo giáp và bảo vệ chủ nhân."
     # [VI] Entity; mặc định HUSK để model hiển thị item ở cả hai tay.
     # [EN] Entity type; default HUSK so the model displays items in both hands.
     entity-type: HUSK
     # [VI] Máu cấp 1; mặc định 32, phải lớn hơn 0.
     # [EN] Level-1 health; default 32, must be positive.
     base-health: 32
-    # [VI] Máu thêm mỗi cấp; mặc định 5, phải không âm.
-    # [EN] Health per level; default 5, must be nonnegative.
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +6, giáp +2, sát thương +3%, giảm hồi chiêu 2%.
+      # [EN] Full leather 1-star set baseline; +6 HP, +2 armor, +3% damage, 2% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 6, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 6, valid 0-100.
+      health: 6.0
+      # [VI] Giáp nền cho set hoàn chỉnh; mặc định 2, hợp lệ 0-20.
+      # [EN] Full-set base armor; default 2, valid 0-20.
+      armor: 2.0
+      # [VI] Sát thương đòn đánh; mặc định 3%, hợp lệ 0-100%.
+      # [EN] Attack damage; default 3%, valid 0-100%.
+      damage-percent: 3.0
+      # [VI] Giảm hồi chiêu; mặc định 2%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 2%, valid 0-100%.
+      cooldown-reduction-percent: 2.0
+    # [VI] Máu cộng mỗi Bậc sau Bậc 1; mặc định 6 HP, hợp lệ 0-100.
+    # [EN] Health added per tier after tier 1; default 6 HP, valid range 0-100.
+    health-per-tier: 6.0
+    # [VI] Máu cộng mỗi Level sau Level 1; mặc định 5 HP, hợp lệ 0-100.
+    # [EN] Health added per level after level 1; default 5 HP, valid range 0-100.
     health-per-level: 5
     # [VI] Sát thương cơ bản; mặc định 7, phải không âm.
     # [EN] Base damage; default 7, must be nonnegative.
     base-damage: 7
+    # [VI] Sát thương cộng mỗi Bậc sau Bậc 1; mặc định 0.75, hợp lệ 0-10.
+    # [EN] Damage added per tier after tier 1; default 0.75, valid range 0-10.
+    damage-per-tier: 0.75
     # [VI] Giáp cấp đầu tiên; mặc định 0, hợp lệ 0-100.
     # [EN] Base armor at the initial rank; default 0, valid range 0-100.
     base-armor: 0
-    # [VI] Giáp tăng mỗi bậc tổng hợp; mặc định 0, hợp lệ 0-100.
-    # [EN] Armor gained per combined rank; default 0, valid range 0-100.
-    armor-per-level: 0
-    # [VI] Sát thương thêm mỗi cấp; mặc định 0.75, phải không âm.
-    # [EN] Damage per level; default 0.75, must be nonnegative.
+    # [VI] Giáp cộng mỗi Bậc sau Bậc 1; mặc định 0.5, hợp lệ 0-10.
+    # [EN] Armor added per tier after tier 1; default 0.5, valid range 0-10.
+    armor-per-tier: 0.5
+    # [VI] Số Level giữa mỗi mốc tăng giáp; mặc định 5, hợp lệ 1-30.
+    # [EN] Levels between armor-growth steps; default 5, valid range 1-30.
+    armor-level-step-levels: 5
+    # [VI] Giáp cộng mỗi mốc Level; mặc định 0.5, hợp lệ 0-10.
+    # [EN] Armor added per level-growth step; default 0.5, valid range 0-10.
+    armor-per-level-step: 0.5
+    # [VI] Sát thương cộng mỗi Level sau Level 1; mặc định 0.75, hợp lệ 0-10.
+    # [EN] Damage added per level after level 1; default 0.75, valid range 0-10.
     damage-per-level: 0.75
+    # [VI] Hệ số sát thương tổng khi cầm vũ khí tay chính; mặc định 1.1 lần (+10%), hợp lệ 1-3.
+    # [EN] Total damage multiplier while holding a main-hand weapon; default 1.1x (+10%), valid range 1-3.
+    sword-damage-multiplier: 1.1
+    # [VI] HP cộng khi đang cầm khiên tay phụ; mặc định 8, hợp lệ 0-100.
+    # [EN] Health added while holding a shield in the offhand; default 8, valid range 0-100.
+    shield-offhand-health-bonus: 8.0
     # [VI] Biểu tượng trong GUI; mặc định SHIELD, phải là Material Bukkit hợp lệ.
     # [EN] GUI icon; default SHIELD, must be a valid Bukkit Material.
     menu-icon: SHIELD
-    # [VI] Skill Vệ Binh; danh sách ID hợp lệ giống mô tả của Xạ Thủ.
-    # [EN] Guardian skills; valid IDs are listed in the Archer description.
-    skills: [ATTACK, SHIELD_OWNER, HEAL_OWNER, POWER_STRIKE, TAUNT]
+    # [VI] Sáu kỹ năng tanker; tự kích hoạt theo tình huống chiến đấu và hồi chiêu.
+    # [EN] Six tank skills; automatically triggered by combat conditions and cooldowns.
+    skills: [ATTACK, GUARDIAN_LINK, GUARDIAN_CHARGE, GUARDIAN_SHIELD, GUARDIAN_QUAKE, GUARDIAN_ULTIMATE]
     # [VI] Kiếm mặc định khi không có kiếm phù hợp; mặc định WOODEN_SWORD.
     # [EN] Default sword when no compatible sword is available; WOODEN_SWORD.
     starting-weapon: WOODEN_SWORD
@@ -286,37 +519,132 @@ classes:
     # [VI] Tầm tìm mục tiêu; mặc định 20 block, hợp lệ 4-64.
     # [EN] Target acquisition range; default 20 blocks, valid range 4-64.
     target-radius-blocks: 20.0
-    # [VI] Tùy chỉnh khiên; cooldown giây 1-3600, tầm 1-32 block, giảm sát thương 0-0.9.
-    # [EN] Shield tuning; cooldown seconds 1-3600, range 1-32 blocks, damage reduction 0-0.9.
+    # [VI] Cấu hình riêng sáu kỹ năng; thời gian tính bằng giây trừ khi tên khóa ghi khác.
+    # [EN] Configure the six skills; durations are seconds unless the key says otherwise.
     skill-settings:
       ATTACK:
-        # [VI] Thời gian hồi giữa các đòn tấn công; mặc định 3 giây, hợp lệ 1-3600.
-        # [EN] Cooldown between melee strikes; default 3 seconds, valid range 1-3600.
-        cooldown-seconds: 3
-      SHIELD_OWNER:
-        # [VI] Thời gian hồi; mặc định 8 giây, hợp lệ 1-3600.
-        # [EN] Cooldown; default 8 seconds, valid range 1-3600.
-        cooldown-seconds: 8
-        # [VI] Khoảng cách bảo vệ chủ; mặc định 8 block, hợp lệ 1-32.
-        # [EN] Owner protection radius; default 8 blocks, valid range 1-32.
-        radius-blocks: 8.0
-        # [VI] Phần sát thương bị giảm; mặc định 0.3, hợp lệ 0-0.9.
-        # [EN] Fraction of damage reduced; default 0.3, valid range 0-0.9.
-        damage-reduction: 0.3
-      POWER_STRIKE:
-        # [VI] Thời gian hồi cường kích; mặc định 10 giây, hợp lệ 1-3600.
-        # [EN] Power Strike cooldown; default 10 seconds, valid range 1-3600.
-        cooldown-seconds: 10
-        # [VI] Sát thương cộng thêm; mặc định 8, hợp lệ 0-100.
-        # [EN] Bonus strike damage; default 8, valid range 0-100.
-        damage: 8.0
-      TAUNT:
-        # [VI] Thời gian hồi khiêu khích; mặc định 20 giây, hợp lệ 1-3600.
-        # [EN] Taunt cooldown; default 20 seconds, valid range 1-3600.
-        cooldown-seconds: 20
-        # [VI] Bán kính kéo quái khỏi chủ; mặc định 8 block, hợp lệ 1-32.
-        # [EN] Radius to draw hostile mobs off the owner; default 8 blocks, valid range 1-32.
-        radius-blocks: 8.0
+        # [VI] Tỉ lệ max HP Vệ Binh cộng vào sát thương mỗi đòn thứ ba; mặc định 5%, hợp lệ 0-1.
+        # [EN] Fraction of Guardian max health added every third hit; default 5%, valid range 0-1.
+        third-hit-max-health-damage: 0.05
+        # [VI] Thời gian làm chậm phía trước; mặc định 2 giây, hợp lệ 1-10.
+        # [EN] Slowness duration for enemies in front; default 2 seconds, valid range 1-10.
+        slowness-duration-seconds: 2
+        # [VI] Cấp Slowness; mặc định 0, hợp lệ 0-4.
+        # [EN] Slowness amplifier; default 0, valid range 0-4.
+        slowness-amplifier: 0
+        # [VI] Bán kính ngang làm chậm; mặc định 4 block, hợp lệ 1-12.
+        # [EN] Horizontal radius for frontal Slowness; default 4 blocks, valid range 1-12.
+        frontal-radius-blocks: 4.0
+        # [VI] Bán kính dọc làm chậm; mặc định 2 block, hợp lệ 1-8.
+        # [EN] Vertical radius for frontal Slowness; default 2 blocks, valid range 1-8.
+        frontal-height-blocks: 2.0
+        # [VI] Ngưỡng dot của góc hình nón; mặc định 0.7, hợp lệ 0-1.
+        # [EN] Dot-product threshold for the frontal cone; default 0.7, valid range 0-1.
+        cone-dot-threshold: 0.7
+      GUARDIAN_LINK:
+        # [VI] Khoảng cách tối đa bảo vệ chủ; mặc định 5 block, hợp lệ 1-16.
+        # [EN] Maximum owner-protection distance; default 5 blocks, valid range 1-16.
+        radius-blocks: 5.0
+        # [VI] Phần sát thương Vệ Binh nhận thay chủ; mặc định 40%, hợp lệ 0-0.9.
+        # [EN] Fraction of owner damage taken by the Guardian; default 40%, valid range 0-0.9.
+        redirected-damage-fraction: 0.4
+      GUARDIAN_CHARGE:
+        # [VI] Cooldown Xung Phong; mặc định 15 giây, hợp lệ 1-3600.
+        # [EN] Charge cooldown; default 15 seconds, valid range 1-3600.
+        cooldown-seconds: 15
+        # [VI] Cự ly kích hoạt tối thiểu; mặc định 4 block, hợp lệ 1-16.
+        # [EN] Minimum trigger distance; default 4 blocks, valid range 1-16.
+        minimum-range-blocks: 4.0
+        # [VI] Cự ly lao tối đa ban đầu; mặc định 8 block, hợp lệ 2-32.
+        # [EN] Base maximum charge distance; default 8 blocks, valid range 2-32.
+        maximum-range-blocks: 8.0
+        # [VI] Cự ly tối đa cộng thêm mỗi mốc Level; mặc định 1 block, hợp lệ 0-10.
+        # [EN] Maximum charge distance added per level step; default 1 block, valid range 0-10.
+        maximum-range-per-level-step-blocks: 1.0
+        # [VI] Số Level mỗi mốc tăng cự ly; mặc định 5 Level, hợp lệ 1-30.
+        # [EN] Levels per charge-distance increase; default 5, valid range 1-30.
+        maximum-range-step-levels: 5
+        # [VI] Vận tốc lao; mặc định 1.5, hợp lệ 0.1-4.
+        # [EN] Charge velocity; default 1.5, valid range 0.1-4.
+        speed: 1.5
+        # [VI] Thời gian lao tối đa; mặc định 20 tick, hợp lệ 1-100.
+        # [EN] Maximum charge duration; default 20 ticks, valid range 1-100.
+        duration-ticks: 20
+        # [VI] Bán kính càn quét; mặc định 2 block, hợp lệ 1-6.
+        # [EN] Knockback sweep radius; default 2 blocks, valid range 1-6.
+        sweep-radius-blocks: 2.0
+        # [VI] Lực hất ngang; mặc định 0.8, hợp lệ 0-4.
+        # [EN] Horizontal knockback strength; default 0.8, valid range 0-4.
+        knockback-strength: 0.8
+        # [VI] Lực hất dọc; mặc định 0.5, hợp lệ 0-2.
+        # [EN] Vertical knockback strength; default 0.5, valid range 0-2.
+        knockback-y: 0.5
+      GUARDIAN_SHIELD:
+        # [VI] Cooldown Thánh Thể; mặc định 25 giây, hợp lệ 1-3600.
+        # [EN] Holy Body cooldown; default 25 seconds, valid range 1-3600.
+        cooldown-seconds: 25
+        # [VI] Bán kính nhận khiên cho đồng đội; mặc định 10 block, hợp lệ 1-32.
+        # [EN] Shield radius for allies; default 10 blocks, valid range 1-32.
+        radius-blocks: 10.0
+        # [VI] Thời lượng lớp máu hấp thụ sát thương và kháng sát thương; mặc định 5 giây, hợp lệ 1-60.
+        # [EN] Duration of the damage-absorbing health and damage resistance; default 5 seconds, valid range 1-60.
+        duration-seconds: 5
+        # [VI] Lượng lớp máu hấp thụ sát thương nền cho Vệ Binh; mặc định 6 HP, hợp lệ 0-40.
+        # [EN] Guardian base damage-absorbing health; default 6 HP, valid range 0-40.
+        absorption-base: 6.0
+        # [VI] Lớp máu hấp thụ sát thương cộng mỗi Level; mặc định 0.5 HP, hợp lệ 0-2.
+        # [EN] Damage-absorbing health added per level; default 0.5 HP, valid range 0-2.
+        absorption-per-level: 0.5
+        # [VI] Lớp máu hấp thụ sát thương cộng mỗi điểm giáp; mặc định 0.5 HP, hợp lệ 0-2.
+        # [EN] Damage-absorbing health added per armor point; default 0.5 HP, valid range 0-2.
+        absorption-per-armor: 0.5
+        # [VI] Lớp máu hấp thụ sát thương cộng khi cầm khiên tay phụ; mặc định 4 HP, hợp lệ 0-20.
+        # [EN] Damage-absorbing health added while holding an offhand shield; default 4 HP, valid range 0-20.
+        shield-absorption-bonus: 4.0
+        # [VI] Tỉ lệ lớp máu hấp thụ sát thương của chủ/đồng đội so với Vệ Binh; mặc định 0.5, hợp lệ 0-1.
+        # [EN] Owner/ally damage-absorbing health ratio relative to the Guardian; default 0.5, valid range 0-1.
+        ally-absorption-ratio: 0.5
+        # [VI] Cấp kháng sát thương; mỗi cấp giảm thêm 20%, mặc định cấp 1 (20%), hợp lệ 0-4.
+        # [EN] Damage resistance level; each level reduces 20% more damage, default level I (20%), valid range 0-4.
+        resistance-amplifier: 0
+      GUARDIAN_QUAKE:
+        # [VI] Cooldown Địa Chấn; mặc định 35 giây, hợp lệ 1-3600.
+        # [EN] Quake cooldown; default 35 seconds, valid range 1-3600.
+        cooldown-seconds: 35
+        # [VI] Bán kính vòng địa chấn; mặc định 3 block, hợp lệ 1-8.
+        # [EN] Quake ring radius; default 3 blocks, valid range 1-8.
+        radius-blocks: 3.0
+        # [VI] Thời gian hiển thị block giả; mặc định 5 giây, hợp lệ 1-15.
+        # [EN] Fake-block display duration; default 5 seconds, valid range 1-15.
+        duration-seconds: 5
+        # [VI] Vật liệu block giả hiển thị; mặc định COBBLESTONE, phải là vật liệu rắn.
+        # [EN] Fake display block material; default COBBLESTONE, must be solid.
+        fake-block-material: COBBLESTONE
+        # [VI] Thời gian Slowness phía server; mặc định 3 giây, hợp lệ 1-10.
+        # [EN] Server-side Slowness duration; default 3 seconds, valid range 1-10.
+        slowness-duration-seconds: 3
+        # [VI] Cấp Slowness; mặc định 4, hợp lệ 0-10.
+        # [EN] Slowness amplifier; default 4, valid range 0-10.
+        slowness-amplifier: 4
+      GUARDIAN_ULTIMATE:
+        # [VI] Cooldown Hộ Giá; mặc định 90 giây, hợp lệ 1-3600.
+        # [EN] Ultimate cooldown; default 90 seconds, valid range 1-3600.
+        cooldown-seconds: 90
+        # [VI] Tỉ lệ HP chủ nhân kích hoạt Hộ Giá; mặc định 50%, hợp lệ 1-99%.
+        # [EN] Owner health threshold for ultimate; default 50%, valid range 1-99%.
+        owner-health-threshold-percent: 50.0
+        # [VI] Bán kính tìm và khiêu khích quái; mặc định 8 block, hợp lệ 1-32.
+        # [EN] Radius for finding and taunting hostile mobs; default 8 blocks, valid range 1-32.
+        taunt-radius-blocks: 8.0
+        # [VI] Thời gian miễn sát thương cho chủ; mặc định 3 giây, hợp lệ 1-10.
+        # [EN] Owner invulnerability duration; default 3 seconds, valid range 1-10.
+        protection-duration-seconds: 3
+        # [VI] Lực hất ngang; mặc định 1.8, hợp lệ 0-5.
+        # [EN] Horizontal knockback strength; default 1.8, valid range 0-5.
+        knockback-strength: 1.8
+        # [VI] Lực hất dọc; mặc định 0.65, hợp lệ 0-2.
+        # [EN] Vertical knockback strength; default 0.65, valid range 0-2.
+        knockback-y: 0.65
     # [VI] Chi phí vật phẩm cho nút nâng bậc trong GUI; khóa là bậc đích (2-13), số lượng 0-1000000.
     # [EN] Item costs for the GUI tier-upgrade button; keys are target tiers (2-13), amounts 0-1000000.
     tier-upgrades:
@@ -345,6 +673,18 @@ classes:
     # [VI] Máu cấp 1; mặc định 24, phải lớn hơn 0.
     # [EN] Level-1 health; default 24, must be positive.
     base-health: 24
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +2, hồi máu +4%, giảm hồi chiêu 5%.
+      # [EN] Full leather 1-star set baseline; +2 HP, +4% healing, 5% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 2, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 2, valid 0-100.
+      health: 2.0
+      # [VI] Lượng hồi máu; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Healing amount; default 4%, valid 0-100%.
+      healing-percent: 4.0
+      # [VI] Giảm hồi chiêu; mặc định 5%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 5%, valid 0-100%.
+      cooldown-reduction-percent: 5.0
     # [VI] Máu thêm mỗi cấp; mặc định 3, phải không âm.
     # [EN] Health per level; default 3, must be nonnegative.
     health-per-level: 3
@@ -461,9 +801,9 @@ classes:
       13: {materials: {GOLD_INGOT: 104}}
 
   berserker:
-    # [VI] Tên hiển thị của class.
-    # [EN] Display name for this class.
-    display-name: "Cuồng Chiến"
+    # [VI] Tên hiển thị class; mặc định Chiến binh, khóa berserker giữ nguyên để tương thích dữ liệu cũ.
+    # [EN] Class display name; defaults to Warrior; internal berserker ID remains unchanged for saved data.
+    display-name: "Chiến binh"
     # [VI] Mô tả chức năng hiện trong GUI.
     # [EN] Short role description shown in the GUI.
     description: "Áp sát, gây sát thương lớn và kéo quái khỏi chủ nhân."
@@ -473,6 +813,21 @@ classes:
     # [VI] Máu cấp 1; mặc định 36, phải lớn hơn 0.
     # [EN] Level-1 health; default 36, must be positive.
     base-health: 36
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +4, giáp +1, sát thương +5%, giảm hồi chiêu 2%.
+      # [EN] Full leather 1-star set baseline; +4 HP, +1 armor, +5% damage, 2% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 4, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 4, valid 0-100.
+      health: 4.0
+      # [VI] Giáp nền cho set hoàn chỉnh; mặc định 1, hợp lệ 0-20.
+      # [EN] Full-set base armor; default 1, valid 0-20.
+      armor: 1.0
+      # [VI] Sát thương đòn đánh; mặc định 5%, hợp lệ 0-100%.
+      # [EN] Attack damage; default 5%, valid 0-100%.
+      damage-percent: 5.0
+      # [VI] Giảm hồi chiêu; mặc định 2%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 2%, valid 0-100%.
+      cooldown-reduction-percent: 2.0
     # [VI] Máu thêm mỗi cấp; mặc định 3, không âm.
     # [EN] Health per level; default 3, must be nonnegative.
     health-per-level: 3
@@ -567,6 +922,27 @@ classes:
     # [VI] Máu cấp 1; mặc định 22, phải lớn hơn 0.
     # [EN] Level-1 health; default 22, must be positive.
     base-health: 22
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +1, sát thương +4%, tầm +0.5 block, giảm hồi chiêu 4%.
+      # [EN] Full leather 1-star set baseline; +1 HP, +4% damage, +0.5 range, 4% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 1, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 1, valid 0-100.
+      health: 1.0
+      # [VI] Sát thương đòn đánh; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Attack damage; default 4%, valid 0-100%.
+      damage-percent: 4.0
+      # [VI] Tầm đánh; mặc định 0.5 block, hợp lệ 0-10.
+      # [EN] Attack range; default 0.5 blocks, valid 0-10.
+      attack-range-blocks: 0.5
+      # [VI] Giảm hồi chiêu; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 4%, valid 0-100%.
+      cooldown-reduction-percent: 4.0
+      # [VI] Tỉ lệ gây làm chậm khi đánh trúng; mặc định 2%, hợp lệ 0-100%.
+      # [EN] Chance to slow on hit; default 2%, valid 0-100%.
+      effect-chance-percent: 2.0
+      # [VI] Thời lượng làm chậm cộng thêm; mặc định 0.25 giây, hợp lệ 0-10.
+      # [EN] Added slow duration; default 0.25 seconds, valid 0-10.
+      effect-duration-seconds: 0.25
     # [VI] Máu thêm mỗi cấp; mặc định 2.5, không âm.
     # [EN] Health per level; default 2.5, must be nonnegative.
     health-per-level: 2.5
@@ -707,6 +1083,24 @@ classes:
     # [VI] Máu cấp 1; mặc định 40, phải lớn hơn 0.
     # [EN] Level-1 health; default 40, must be positive.
     base-health: 40
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +4, giáp +1, sát thương +4%, tầm +0.5 block, giảm hồi chiêu 2%.
+      # [EN] Full leather 1-star set baseline; +4 HP, +1 armor, +4% damage, +0.5 range, 2% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 4, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 4, valid 0-100.
+      health: 4.0
+      # [VI] Giáp nền cho set hoàn chỉnh; mặc định 1, hợp lệ 0-20.
+      # [EN] Full-set base armor; default 1, valid 0-20.
+      armor: 1.0
+      # [VI] Sát thương đòn đánh; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Attack damage; default 4%, valid 0-100%.
+      damage-percent: 4.0
+      # [VI] Tầm đánh; mặc định 0.5 block, hợp lệ 0-10.
+      # [EN] Attack range; default 0.5 blocks, valid 0-10.
+      attack-range-blocks: 0.5
+      # [VI] Giảm hồi chiêu; mặc định 2%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 2%, valid 0-100%.
+      cooldown-reduction-percent: 2.0
     # [VI] Máu tối đa của ngựa Kỵ sĩ; mặc định 50 HP, hợp lệ 1-1024.
     # [EN] Maximum health of the Paladin's horse; default 50 HP, valid range 1-1024.
     horse-health: 50.0
@@ -836,6 +1230,24 @@ classes:
     # [VI] Máu cấp 1; mặc định 24, phải lớn hơn 0.
     # [EN] Level-1 health; default 24, must be positive.
     base-health: 24
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +2, sát thương hỏa +4%, giảm hồi chiêu 4%.
+      # [EN] Full leather 1-star set baseline; +2 HP, +4% fire damage, 4% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 2, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 2, valid 0-100.
+      health: 2.0
+      # [VI] Sát thương hỏa; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Fire damage; default 4%, valid 0-100%.
+      fire-damage-percent: 4.0
+      # [VI] Giảm hồi chiêu; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 4%, valid 0-100%.
+      cooldown-reduction-percent: 4.0
+      # [VI] Tỉ lệ gây bỏng khi đánh trúng; mặc định 3%, hợp lệ 0-100%.
+      # [EN] Chance to burn on hit; default 3%, valid 0-100%.
+      effect-chance-percent: 3.0
+      # [VI] Thời lượng bỏng cộng thêm; mặc định 0.25 giây, hợp lệ 0-10.
+      # [EN] Added burn duration; default 0.25 seconds, valid 0-10.
+      effect-duration-seconds: 0.25
     # [VI] Máu thêm mỗi cấp; mặc định 2.5, không âm.
     # [EN] Health per level; default 2.5, must be nonnegative.
     health-per-level: 2.5
@@ -1134,6 +1546,18 @@ classes:
     # [VI] Máu cấp 1; mặc định 28, phải lớn hơn 0.
     # [EN] Level-1 health; default 28, must be positive.
     base-health: 28
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +2, sát thương tự nhiên +4%, giảm hồi chiêu 4%.
+      # [EN] Full leather 1-star set baseline; +2 HP, +4% nature damage, 4% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 2, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 2, valid 0-100.
+      health: 2.0
+      # [VI] Sát thương tự nhiên; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Nature damage; default 4%, valid 0-100%.
+      nature-damage-percent: 4.0
+      # [VI] Giảm hồi chiêu; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 4%, valid 0-100%.
+      cooldown-reduction-percent: 4.0
     # [VI] Máu thêm mỗi cấp; mặc định 3, không âm.
     # [EN] Health per level; default 3, must be nonnegative.
     health-per-level: 3
@@ -1275,6 +1699,24 @@ classes:
     # [VI] Máu cấp 1; mặc định 24, phải lớn hơn 0.
     # [EN] Level-1 health; default 24, must be positive.
     base-health: 24
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +1, sát thương +5%, giảm hồi chiêu 4%.
+      # [EN] Full leather 1-star set baseline; +1 HP, +5% damage, 4% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 1, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 1, valid 0-100.
+      health: 1.0
+      # [VI] Sát thương đòn đánh; mặc định 5%, hợp lệ 0-100%.
+      # [EN] Attack damage; default 5%, valid 0-100%.
+      damage-percent: 5.0
+      # [VI] Tỉ lệ gây suy yếu khi đánh trúng; mặc định 2%, hợp lệ 0-100%.
+      # [EN] Chance to apply weakness on hit; default 2%, valid 0-100%.
+      effect-chance-percent: 2.0
+      # [VI] Thời lượng suy yếu cộng thêm; mặc định 0.25 giây, hợp lệ 0-10.
+      # [EN] Added weakness duration; default 0.25 seconds, valid 0-10.
+      effect-duration-seconds: 0.25
+      # [VI] Giảm hồi chiêu; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 4%, valid 0-100%.
+      cooldown-reduction-percent: 4.0
     # [VI] Máu thêm mỗi cấp; mặc định 2.5, không âm.
     # [EN] Health per level; default 2.5, must be nonnegative.
     health-per-level: 2.5
@@ -1372,6 +1814,24 @@ classes:
     # [VI] Máu cấp 1; mặc định 26, phải lớn hơn 0.
     # [EN] Level-1 health; default 26, must be positive.
     base-health: 26
+    gear-stats:
+      # [VI] Bonus toàn set da 1 sao; HP +2, sát thương băng +4%, giảm hồi chiêu 4%.
+      # [EN] Full leather 1-star set baseline; +2 HP, +4% frost damage, 4% cooldown reduction.
+      # [VI] HP nền cho set hoàn chỉnh; mặc định 2, hợp lệ 0-100.
+      # [EN] Full-set base HP; default 2, valid 0-100.
+      health: 2.0
+      # [VI] Sát thương băng; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Frost damage; default 4%, valid 0-100%.
+      frost-damage-percent: 4.0
+      # [VI] Tỉ lệ làm chậm khi đánh trúng; mặc định 3%, hợp lệ 0-100%.
+      # [EN] Chance to slow on hit; default 3%, valid 0-100%.
+      effect-chance-percent: 3.0
+      # [VI] Thời lượng làm chậm cộng thêm; mặc định 0.25 giây, hợp lệ 0-10.
+      # [EN] Added slow duration; default 0.25 seconds, valid 0-10.
+      effect-duration-seconds: 0.25
+      # [VI] Giảm hồi chiêu; mặc định 4%, hợp lệ 0-100%.
+      # [EN] Cooldown reduction; default 4%, valid 0-100%.
+      cooldown-reduction-percent: 4.0
     # [VI] Máu thêm mỗi cấp; mặc định 3, không âm.
     # [EN] Health per level; default 3, must be nonnegative.
     health-per-level: 3

@@ -8,15 +8,18 @@ display-name: "§9§lWitch Boss"
 # [VI] Class lính của token boss; bậc token theo level boss.
 # [EN] Mercenary class for this boss token; token tier follows the boss level.
 army-token-class: druid
+# [VI] Giá bán token lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+# [EN] System-merchant sell value for this boss summon token; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+army-token-sell-value: 0
 hp: 1150
 damage-multiplier: 2.0
 # [VI] EXP thưởng cơ bản level 1; mặc định 350, hợp lệ 1-1000000; level boss nhân theo _settings.yml.
 # [EN] Base XP reward at level 1; default 350, valid range 1-1000000; boss level scaling is in _settings.yml.
 experience: 350
 chance: 10
-# [VI] Thời gian boss tồn tại mặc định sau khi xuất hiện (giây); 1200 = 20 phút.
-# [EN] Default boss lifetime after spawning (seconds); 1200 = 20 minutes.
-duration-seconds: 1200
+# [VI] Thời gian boss tồn tại mặc định sau khi xuất hiện (giây); 1800 = 30 phút.
+# [EN] Default boss lifetime after spawning (seconds); 1800 = 30 minutes.
+duration-seconds: 1800
 warning-seconds: 45
 activity-radius: 100 # Max horizontal distance from this boss's spawn location (blocks).
 
@@ -87,45 +90,75 @@ immunities:
 
 drops:
   POTION:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 15
-    chance: 0.8
+    chance: 0.30
   GLOWSTONE_DUST:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 10
     max-amount: 25
-    chance: 0.8
+    chance: 0.30
   DIAMOND:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 3
     max-amount: 6
-    chance: 0.35
+    chance: 0.30
   IRON_INGOT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 8
     max-amount: 15
-    chance: 0.5
+    chance: 0.30
   EMERALD:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 10
     max-amount: 20
-    chance: 0.6
+    chance: 0.30
   REDSTONE:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 15
     max-amount: 30
-    chance: 0.7
+    chance: 0.30
   ENCHANTED_BOOK:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 2
-    chance: 0.3
+    chance: 0.30
   SUGAR:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 10
-    chance: 0.4
+    chance: 0.30
   SPIDER_EYE:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 3
     max-amount: 8
-    chance: 0.4
+    chance: 0.30
   GUNPOWDER:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 10
-    chance: 0.4
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -142,6 +175,9 @@ drops:
 # [VI] Tạo bộ giáp bốn món cho boss này; vật liệu và enchant tự tăng theo level.
 # [EN] Generate this boss's four-piece armor set; materials and enchants scale by level.
 armor-set:
+  # [VI] Giá bán mỗi món giáp boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss armor piece; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Bật/tắt bộ giáp; mặc định true.
   # [EN] Enable or disable the armor set; default true.
   enabled: true
@@ -161,14 +197,20 @@ armor-set:
 level-drops:
   1:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư · Cấp 1"
       story-id: witch-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lSổ Dược Thư · Cấp 1"
       story-id: witch-codex-common
       min-amount: 1
@@ -179,15 +221,21 @@ level-drops:
 
   2:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư · Cấp 2"
       story-id: witch-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 2
         sharpness: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lSổ Dược Thư · Cấp 2"
       story-id: witch-codex-common
       min-amount: 1
@@ -199,16 +247,22 @@ level-drops:
 
   3:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư Trăng Máu · Cấp 3"
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 3
         sharpness: 4
         fire_aspect: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lMật Lục Dược Thư Trăng Máu · Cấp 3"
       story-id: witch-codex
       min-amount: 1
@@ -221,17 +275,23 @@ level-drops:
 
   4:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư Trăng Máu · Cấp 4"
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 4
         sharpness: 5
         fire_aspect: 2
         mending: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lMật Lục Dược Thư Trăng Máu · Cấp 4"
       story-id: witch-codex
       min-amount: 1
@@ -244,11 +304,14 @@ level-drops:
         mending: 1
   5:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư Trăng Máu · Cấp 5"
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 5
         sharpness: 6
@@ -256,6 +319,9 @@ level-drops:
         mending: 1
         unbreaking: 4
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lMật Lục Dược Thư Trăng Máu · Cấp 5"
       story-id: witch-codex
       min-amount: 1
@@ -270,11 +336,14 @@ level-drops:
 
   6:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư Trăng Máu · Cấp 6"
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 6
         sharpness: 7
@@ -283,6 +352,9 @@ level-drops:
         unbreaking: 5
         looting: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lMật Lục Dược Thư Trăng Máu · Cấp 6"
       story-id: witch-codex
       min-amount: 1
@@ -298,11 +370,14 @@ level-drops:
 
   7:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư Trăng Máu · Cấp 7"
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 6
         sharpness: 7
@@ -312,6 +387,9 @@ level-drops:
         looting: 5
         fortune: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lMật Lục Dược Thư Trăng Máu · Cấp 7"
       story-id: witch-codex
       min-amount: 1
@@ -328,11 +406,14 @@ level-drops:
 
   8:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư Trăng Máu · Cấp 8"
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 7
         sharpness: 8
@@ -343,6 +424,9 @@ level-drops:
         fortune: 6
         efficiency: 8
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lMật Lục Dược Thư Trăng Máu · Cấp 8"
       story-id: witch-codex
       min-amount: 1
@@ -360,11 +444,14 @@ level-drops:
 
   9:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư Trăng Máu · Cấp 9"
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 8
         sharpness: 9
@@ -376,6 +463,9 @@ level-drops:
         efficiency: 9
         feather_falling: 8
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lMật Lục Dược Thư Trăng Máu · Cấp 9"
       story-id: witch-codex
       min-amount: 1
@@ -394,11 +484,14 @@ level-drops:
 
   10:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lDược Thư Trăng Máu · Cấp 10"
       story-id: witch-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       book-enchantments:
         protection: 9
         sharpness: 10
@@ -411,6 +504,9 @@ level-drops:
         feather_falling: 9
         vanishing_curse: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§d§lMật Lục Dược Thư Trăng Máu · Cấp 10"
       story-id: witch-codex
       min-amount: 1

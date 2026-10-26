@@ -623,6 +623,17 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - [~] Log state transition `[RPG-DEBUG][NPCMarker]`, đọc chapter `[RPG-DEBUG][NPC]`; packet send error có giới hạn log 30 giây/người chơi.
 - Chưa compile/gameplay test. Cần xác nhận metadata TextDisplay trên ProtocolLib/server đích, kiểm tra marker riêng hai người chơi, quest requirements/slot, story complete/interrupt/restart, tutorial đúng đại lục, world/chunk/NPC unload/reload, config disable, packet cleanup và chi phí với NPC/player gần giới hạn trước khi hoàn tất Phase D.
 
+## Build & deploy 2.18.0 — 2026-10-26 (ca trực tiếp)
+
+- Build `mvn clean package` **kèm unit test** thành công bằng JDK 25 lúc 2026-10-26 03:30 UTC; 104/104 test đạt, không lỗi/skip. Đây là lần compile đầu tiên của các commit Phase A/B/C/D + E1/E2 (trước đó chỉ chạy `-Dmaven.test.skip=true`).
+- Sửa lỗi compile phát hiện khi build: biến `characters` trùng khai báo trong `TutorialQuestManager.initializePlayer`; `Material.CHAIN` không tồn tại trên Paper API 26.3 → đổi icon successor quest sang `Material.IRON_CHAIN`.
+- Đồng bộ mặc định `waypoint-update-interval-ticks` về 20 (loader + `first-steps.yml`) theo kỳ vọng test backward-compatible.
+- `findDialogueDefinition`: ưu tiên definition khớp cả ID lẫn role; chỉ fallback theo role, nếu không có thì mới dùng definition lệch role (đúng hợp đồng test).
+- Test `NpcDefinitionLoaderTest`: cập nhật số NPC bundled 3→7 theo `npc-definitions.yml` hiện hành.
+- Test DB: thay hằng schema cũ cứng bằng `SCHEMA_VERSION`; case "DB mới hơn" tạo fixture ở `SCHEMA_VERSION + 1`.
+- Tăng version `2.17.1` → `2.18.0`. JAR: `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.18.0.jar`, 2,181,440 bytes; SHA-256 `7a9e4be6e6d29985b1c8be737b0d572999237b39ac291ef948de167dc8fd6252`. Đã kiểm tra native SQLite `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so` + `META-INF/services/java.sql.Driver`.
+- Bản `2.17.1` đã chuyển vào `plugins/.old-builds`. Server cổng 25565 đang chạy code cũ; cần restart để nạp 2.18.0. Gameplay/migration test trên server vẫn chưa chạy.
+
 ### Thứ tự và tối ưu phạm vi
 
 1. Phase A trước vì đây là cổng vào hành trình.

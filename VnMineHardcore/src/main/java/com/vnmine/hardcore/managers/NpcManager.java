@@ -1159,13 +1159,14 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
 
     static NpcDefinitionLoader.NpcDefinition findDialogueDefinition(
             String npcId, String type, Map<String, NpcDefinitionLoader.NpcDefinition> definitions) {
-        NpcDefinitionLoader.NpcDefinition exact = definitions.get(npcId);
         // An ID-specific definition is authoritative even when its configured role differs.
-        if (exact != null) return exact;
-        return definitions.values().stream()
+        NpcDefinitionLoader.NpcDefinition exact = definitions.get(npcId);
+        if (exact != null && exact.type().equals(type)) return exact;
+        NpcDefinitionLoader.NpcDefinition byRole = definitions.values().stream()
             .filter(definition -> definition.type().equals(type))
             .findFirst()
             .orElse(null);
+        return byRole != null ? byRole : exact;
     }
 
     private static NpcDefinitionLoader.NpcDefinition createFallbackDialogueDefinition(NpcRecord npc) {

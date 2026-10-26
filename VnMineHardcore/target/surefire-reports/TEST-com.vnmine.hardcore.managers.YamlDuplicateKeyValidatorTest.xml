@@ -1,123 +1,64 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest" time="0.003" tests="3" errors="0" skipped="0" failures="0">
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuite tests="3" failures="0" name="com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest" time="0.006" errors="0" skipped="0">
   <properties>
-    <property name="java.specification.version" value="25"/>
-    <property name="sun.jnu.encoding" value="UTF-8"/>
-    <property name="java.class.path" value="/workspaces/vnminehardcore/VnMineHardcore/target/test-classes:/workspaces/vnminehardcore/VnMineHardcore/target/classes:/home/codespace/.m2/repository/io/papermc/paper/paper-api/26.3.build.175-stable/paper-api-26.3.build.175-stable.jar:/home/codespace/.m2/repository/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar:/home/codespace/.m2/repository/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar:/home/codespace/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar:/home/codespace/.m2/repository/com/google/errorprone/error_prone_annotations/2.47.0/error_prone_annotations-2.47.0.jar:/home/codespace/.m2/repository/com/google/j2objc/j2objc-annotations/3.1/j2objc-annotations-3.1.jar:/home/codespace/.m2/repository/com/google/code/gson/gson/2.14.0/gson-2.14.0.jar:/home/codespace/.m2/repository/org/joml/joml/1.10.9/joml-1.10.9.jar:/home/codespace/.m2/repository/it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar:/home/codespace/.m2/repository/org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar:/home/codespace/.m2/repository/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar:/home/codespace/.m2/repository/com/mojang/brigadier/1.3.11/brigadier-1.3.11.jar:/home/codespace/.m2/repository/net/md-5/bungeecord-chat/1.21-R0.2-deprecated+build.21/bungeecord-chat-1.21-R0.2-deprecated+build.21.jar:/home/codespace/.m2/repository/org/apache/maven/maven-resolver-provider/3.9.6/maven-resolver-provider-3.9.6.jar:/home/codespace/.m2/repository/org/apache/maven/maven-model/3.9.6/maven-model-3.9.6.jar:/home/codespace/.m2/repository/org/apache/maven/maven-model-builder/3.9.6/maven-model-builder-3.9.6.jar:/home/codespace/.m2/repository/org/codehaus/plexus/plexus-interpolation/1.26/plexus-interpolation-1.26.jar:/home/codespace/.m2/repository/org/apache/maven/maven-artifact/3.9.6/maven-artifact-3.9.6.jar:/home/codespace/.m2/repository/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar:/home/codespace/.m2/repository/org/apache/maven/maven-builder-support/3.9.6/maven-builder-support-3.9.6.jar:/home/codespace/.m2/repository/org/eclipse/sisu/org.eclipse.sisu.inject/0.9.0.M2/org.eclipse.sisu.inject-0.9.0.M2.jar:/home/codespace/.m2/repository/org/apache/maven/maven-repository-metadata/3.9.6/maven-repository-metadata-3.9.6.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-api/1.9.18/maven-resolver-api-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-spi/1.9.18/maven-resolver-spi-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-util/1.9.18/maven-resolver-util-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-impl/1.9.18/maven-resolver-impl-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-named-locks/1.9.18/maven-resolver-named-locks-1.9.18.jar:/home/codespace/.m2/repository/org/codehaus/plexus/plexus-utils/3.5.1/plexus-utils-3.5.1.jar:/home/codespace/.m2/repository/javax/inject/javax.inject/1/javax.inject-1.jar:/home/codespace/.m2/repository/net/kyori/adventure-api/5.2.0/adventure-api-5.2.0.jar:/home/codespace/.m2/repository/org/jetbrains/annotations/26.1.0/annotations-26.1.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-key/5.2.0/adventure-key-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-minimessage/5.2.0/adventure-text-minimessage-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-gson/5.2.0/adventure-text-serializer-gson-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-json/5.2.0/adventure-text-serializer-json-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/option/1.1.0/option-1.1.0.jar:/home/codespace/.m2/repository/com/google/auto/service/auto-service-annotations/1.1.1/auto-service-annotations-1.1.1.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-commons/5.2.0/adventure-text-serializer-commons-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-legacy/5.2.0/adventure-text-serializer-legacy-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-plain/5.2.0/adventure-text-serializer-plain-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-logger-slf4j/5.2.0/adventure-text-logger-slf4j-5.2.0.jar:/home/codespace/.m2/repository/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar:/home/codespace/.m2/repository/org/checkerframework/checker-qual/4.2.3/checker-qual-4.2.3.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-connector-basic/1.9.18/maven-resolver-connector-basic-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-transport-http/1.9.18/maven-resolver-transport-http-1.9.18.jar:/home/codespace/.m2/repository/org/apache/httpcomponents/httpclient/4.5.14/httpclient-4.5.14.jar:/home/codespace/.m2/repository/org/apache/httpcomponents/httpcore/4.4.16/httpcore-4.4.16.jar:/home/codespace/.m2/repository/commons-codec/commons-codec/1.16.0/commons-codec-1.16.0.jar:/home/codespace/.m2/repository/org/slf4j/jcl-over-slf4j/1.7.36/jcl-over-slf4j-1.7.36.jar:/home/codespace/.m2/repository/net/dmulloy2/ProtocolLib/5.4.0/ProtocolLib-5.4.0.jar:/home/codespace/.m2/repository/net/bytebuddy/byte-buddy/1.17.5/byte-buddy-1.17.5.jar:/home/codespace/.m2/repository/org/yaml/snakeyaml/2.2/snakeyaml-2.2.jar:/home/codespace/.m2/repository/org/xerial/sqlite-jdbc/3.46.1.0/sqlite-jdbc-3.46.1.0.jar:/home/codespace/.m2/repository/junit/junit/4.13.2/junit-4.13.2.jar:/home/codespace/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:"/>
-    <property name="java.vm.vendor" value="Microsoft"/>
-    <property name="sun.arch.data.model" value="64"/>
-    <property name="java.vendor.url" value="https://www.microsoft.com"/>
-    <property name="user.timezone" value="Etc/UTC"/>
-    <property name="os.name" value="Linux"/>
-    <property name="java.vm.specification.version" value="25"/>
+    <property name="jansi.mode" value="force"/>
+    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
+    <property name="java.vm.version" value="25.0.4.1+1-1-24.04.4-Ubuntu"/>
+    <property name="sun.boot.library.path" value="/usr/lib/jvm/java-25-openjdk-arm64/lib"/>
+    <property name="maven.multiModuleProjectDirectory" value="/home/ubuntu/DATA/projects/vnminehardcore/VnMineHardcore"/>
+    <property name="java.vm.vendor" value="Ubuntu"/>
+    <property name="java.vendor.url" value="https://ubuntu.com/"/>
+    <property name="guice.disable.misplaced.annotation.check" value="true"/>
+    <property name="path.separator" value=":"/>
+    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
-    <property name="sun.boot.library.path" value="/usr/local/sdkman/candidates/java/25.0.4+1-ms/lib"/>
-    <property name="sun.java.command" value="/workspaces/vnminehardcore/VnMineHardcore/target/surefire/surefirebooter-20261022092923600_3.jar /workspaces/vnminehardcore/VnMineHardcore/target/surefire 2026-10-22T09-29-23_468-jvmRun1 surefire-20261022092923600_1tmp surefire_0-20261022092923600_2tmp"/>
+    <property name="stdin.encoding" value="UTF-8"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="user.dir" value="/home/ubuntu/DATA/projects/vnminehardcore/VnMineHardcore"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="java.runtime.version" value="25.0.4.1+1-1-24.04.4-Ubuntu"/>
+    <property name="os.arch" value="aarch64"/>
+    <property name="java.io.tmpdir" value="/tmp"/>
+    <property name="line.separator" value="
+"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="stderr.encoding" value="UTF-8"/>
+    <property name="os.name" value="Linux"/>
+    <property name="classworlds.conf" value="/usr/share/maven/bin/m2.conf"/>
+    <property name="sun.jnu.encoding" value="UTF-8"/>
+    <property name="stdout.encoding" value="UTF-8"/>
+    <property name="java.library.path" value="/usr/java/packages/lib:/usr/lib/aarch64-linux-gnu/jni:/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:/usr/lib/jni:/lib:/usr/lib"/>
+    <property name="maven.conf" value="/usr/share/maven/conf"/>
     <property name="jdk.debug" value="release"/>
-    <property name="surefire.test.class.path" value="/workspaces/vnminehardcore/VnMineHardcore/target/test-classes:/workspaces/vnminehardcore/VnMineHardcore/target/classes:/home/codespace/.m2/repository/io/papermc/paper/paper-api/26.3.build.175-stable/paper-api-26.3.build.175-stable.jar:/home/codespace/.m2/repository/com/google/guava/guava/33.6.0-jre/guava-33.6.0-jre.jar:/home/codespace/.m2/repository/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar:/home/codespace/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar:/home/codespace/.m2/repository/com/google/errorprone/error_prone_annotations/2.47.0/error_prone_annotations-2.47.0.jar:/home/codespace/.m2/repository/com/google/j2objc/j2objc-annotations/3.1/j2objc-annotations-3.1.jar:/home/codespace/.m2/repository/com/google/code/gson/gson/2.14.0/gson-2.14.0.jar:/home/codespace/.m2/repository/org/joml/joml/1.10.9/joml-1.10.9.jar:/home/codespace/.m2/repository/it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar:/home/codespace/.m2/repository/org/apache/logging/log4j/log4j-api/2.26.0/log4j-api-2.26.0.jar:/home/codespace/.m2/repository/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar:/home/codespace/.m2/repository/com/mojang/brigadier/1.3.11/brigadier-1.3.11.jar:/home/codespace/.m2/repository/net/md-5/bungeecord-chat/1.21-R0.2-deprecated+build.21/bungeecord-chat-1.21-R0.2-deprecated+build.21.jar:/home/codespace/.m2/repository/org/apache/maven/maven-resolver-provider/3.9.6/maven-resolver-provider-3.9.6.jar:/home/codespace/.m2/repository/org/apache/maven/maven-model/3.9.6/maven-model-3.9.6.jar:/home/codespace/.m2/repository/org/apache/maven/maven-model-builder/3.9.6/maven-model-builder-3.9.6.jar:/home/codespace/.m2/repository/org/codehaus/plexus/plexus-interpolation/1.26/plexus-interpolation-1.26.jar:/home/codespace/.m2/repository/org/apache/maven/maven-artifact/3.9.6/maven-artifact-3.9.6.jar:/home/codespace/.m2/repository/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar:/home/codespace/.m2/repository/org/apache/maven/maven-builder-support/3.9.6/maven-builder-support-3.9.6.jar:/home/codespace/.m2/repository/org/eclipse/sisu/org.eclipse.sisu.inject/0.9.0.M2/org.eclipse.sisu.inject-0.9.0.M2.jar:/home/codespace/.m2/repository/org/apache/maven/maven-repository-metadata/3.9.6/maven-repository-metadata-3.9.6.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-api/1.9.18/maven-resolver-api-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-spi/1.9.18/maven-resolver-spi-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-util/1.9.18/maven-resolver-util-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-impl/1.9.18/maven-resolver-impl-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-named-locks/1.9.18/maven-resolver-named-locks-1.9.18.jar:/home/codespace/.m2/repository/org/codehaus/plexus/plexus-utils/3.5.1/plexus-utils-3.5.1.jar:/home/codespace/.m2/repository/javax/inject/javax.inject/1/javax.inject-1.jar:/home/codespace/.m2/repository/net/kyori/adventure-api/5.2.0/adventure-api-5.2.0.jar:/home/codespace/.m2/repository/org/jetbrains/annotations/26.1.0/annotations-26.1.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-key/5.2.0/adventure-key-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-minimessage/5.2.0/adventure-text-minimessage-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-gson/5.2.0/adventure-text-serializer-gson-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-json/5.2.0/adventure-text-serializer-json-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/option/1.1.0/option-1.1.0.jar:/home/codespace/.m2/repository/com/google/auto/service/auto-service-annotations/1.1.1/auto-service-annotations-1.1.1.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-commons/5.2.0/adventure-text-serializer-commons-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-legacy/5.2.0/adventure-text-serializer-legacy-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-serializer-plain/5.2.0/adventure-text-serializer-plain-5.2.0.jar:/home/codespace/.m2/repository/net/kyori/adventure-text-logger-slf4j/5.2.0/adventure-text-logger-slf4j-5.2.0.jar:/home/codespace/.m2/repository/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar:/home/codespace/.m2/repository/org/checkerframework/checker-qual/4.2.3/checker-qual-4.2.3.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-connector-basic/1.9.18/maven-resolver-connector-basic-1.9.18.jar:/home/codespace/.m2/repository/org/apache/maven/resolver/maven-resolver-transport-http/1.9.18/maven-resolver-transport-http-1.9.18.jar:/home/codespace/.m2/repository/org/apache/httpcomponents/httpclient/4.5.14/httpclient-4.5.14.jar:/home/codespace/.m2/repository/org/apache/httpcomponents/httpcore/4.4.16/httpcore-4.4.16.jar:/home/codespace/.m2/repository/commons-codec/commons-codec/1.16.0/commons-codec-1.16.0.jar:/home/codespace/.m2/repository/org/slf4j/jcl-over-slf4j/1.7.36/jcl-over-slf4j-1.7.36.jar:/home/codespace/.m2/repository/net/dmulloy2/ProtocolLib/5.4.0/ProtocolLib-5.4.0.jar:/home/codespace/.m2/repository/net/bytebuddy/byte-buddy/1.17.5/byte-buddy-1.17.5.jar:/home/codespace/.m2/repository/org/yaml/snakeyaml/2.2/snakeyaml-2.2.jar:/home/codespace/.m2/repository/org/xerial/sqlite-jdbc/3.46.1.0/sqlite-jdbc-3.46.1.0.jar:/home/codespace/.m2/repository/junit/junit/4.13.2/junit-4.13.2.jar:/home/codespace/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:"/>
-    <property name="sun.cpu.endian" value="little"/>
-    <property name="user.home" value="/home/codespace"/>
+    <property name="java.class.version" value="69.0"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="os.version" value="7.0.0-1013-oracle"/>
+    <property name="library.jansi.path" value="/usr/share/maven/lib/jansi-native"/>
+    <property name="user.home" value="/home/ubuntu"/>
+    <property name="user.timezone" value="Etc/UTC"/>
+    <property name="file.encoding" value="UTF-8"/>
+    <property name="java.specification.version" value="25"/>
+    <property name="user.name" value="ubuntu"/>
+    <property name="java.class.path" value="/usr/share/maven/boot/plexus-classworlds-2.x.jar"/>
+    <property name="java.vm.specification.version" value="25"/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher clean package"/>
+    <property name="java.home" value="/usr/lib/jvm/java-25-openjdk-arm64"/>
     <property name="user.language" value="en"/>
     <property name="java.specification.vendor" value="Oracle Corporation"/>
-    <property name="java.version.date" value="2026-08-18"/>
-    <property name="java.home" value="/usr/local/sdkman/candidates/java/25.0.4+1-ms"/>
-    <property name="file.separator" value="/"/>
-    <property name="basedir" value="/workspaces/vnminehardcore/VnMineHardcore"/>
-    <property name="java.vm.compressedOopsMode" value="32-bit"/>
-    <property name="line.separator" value="&#10;"/>
-    <property name="java.specification.name" value="Java Platform API Specification"/>
-    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
-    <property name="surefire.real.class.path" value="/workspaces/vnminehardcore/VnMineHardcore/target/surefire/surefirebooter-20261022092923600_3.jar"/>
-    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
-    <property name="java.runtime.version" value="25.0.4.1+1-LTS"/>
-    <property name="user.name" value="codespace"/>
-    <property name="stdout.encoding" value="UTF-8"/>
-    <property name="path.separator" value=":"/>
-    <property name="os.version" value="6.8.0-1064-azure"/>
-    <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
-    <property name="file.encoding" value="UTF-8"/>
-    <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
-    <property name="java.vendor.version" value="Microsoft-14951822"/>
-    <property name="localRepository" value="/home/codespace/.m2/repository"/>
-    <property name="java.vendor.url.bug" value="https://github.com/microsoft/openjdk/issues"/>
-    <property name="java.io.tmpdir" value="/tmp"/>
-    <property name="java.version" value="25.0.4.1"/>
-    <property name="user.dir" value="/workspaces/vnminehardcore/VnMineHardcore"/>
-    <property name="os.arch" value="amd64"/>
-    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
-    <property name="native.encoding" value="UTF-8"/>
-    <property name="java.library.path" value="/usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib"/>
     <property name="java.vm.info" value="mixed mode, sharing"/>
-    <property name="stderr.encoding" value="UTF-8"/>
-    <property name="java.vendor" value="Microsoft"/>
-    <property name="java.vm.version" value="25.0.4.1+1-LTS"/>
-    <property name="stdin.encoding" value="UTF-8"/>
+    <property name="java.version" value="25.0.4.1"/>
+    <property name="native.encoding" value="UTF-8"/>
+    <property name="java.vendor" value="Ubuntu"/>
+    <property name="maven.home" value="/usr/share/maven"/>
+    <property name="file.separator" value="/"/>
+    <property name="java.version.date" value="2026-08-18"/>
+    <property name="java.vendor.url.bug" value="https://bugs.launchpad.net/ubuntu/+source/openjdk-25"/>
     <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
-    <property name="java.class.version" value="69.0"/>
+    <property name="sun.cpu.endian" value="little"/>
   </properties>
-  <testcase name="chapterLoaderRejectsDuplicateChapterIds" classname="com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest" time="0.002">
-    <system-err><![CDATA[Oct 22, 2026 9:29:25 AM com.vnmine.hardcore.managers.StoryChapterLoader load
-SEVERE: [Story] Could not load duplicate.yml.
-while constructing a mapping
- in 'reader', line 3, column 3:
-      chapter-one:
-      ^
-found duplicate key chapter-one
- in 'reader', line 7, column 3:
-      chapter-one:
-      ^
-
-	at org.yaml.snakeyaml.constructor.SafeConstructor.processDuplicateKeys(SafeConstructor.java:126)
-	at org.yaml.snakeyaml.constructor.SafeConstructor.flattenMapping(SafeConstructor.java:78)
-	at org.yaml.snakeyaml.constructor.SafeConstructor.flattenMapping(SafeConstructor.java:73)
-	at org.yaml.snakeyaml.constructor.SafeConstructor.constructMapping2ndStep(SafeConstructor.java:209)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.constructMapping(BaseConstructor.java:552)
-	at org.yaml.snakeyaml.constructor.SafeConstructor$ConstructYamlMap.construct(SafeConstructor.java:597)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.constructObjectNoCheck(BaseConstructor.java:264)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.constructObject(BaseConstructor.java:247)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.constructMapping2ndStep(BaseConstructor.java:576)
-	at org.yaml.snakeyaml.constructor.SafeConstructor.constructMapping2ndStep(SafeConstructor.java:210)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.constructMapping(BaseConstructor.java:552)
-	at org.yaml.snakeyaml.constructor.SafeConstructor$ConstructYamlMap.construct(SafeConstructor.java:597)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.constructObjectNoCheck(BaseConstructor.java:264)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.constructObject(BaseConstructor.java:247)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.constructDocument(BaseConstructor.java:201)
-	at org.yaml.snakeyaml.constructor.BaseConstructor.getSingleData(BaseConstructor.java:185)
-	at org.yaml.snakeyaml.Yaml.loadFromReader(Yaml.java:493)
-	at org.yaml.snakeyaml.Yaml.load(Yaml.java:446)
-	at com.vnmine.hardcore.managers.YamlDuplicateKeyValidator.validateNoDuplicateKeys(YamlDuplicateKeyValidator.java:21)
-	at com.vnmine.hardcore.managers.StoryChapterLoader.load(StoryChapterLoader.java:27)
-	at com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest.chapterLoaderRejectsDuplicateChapterIds(YamlDuplicateKeyValidatorTest.java:64)
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
-	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
-	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
-	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
-	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
-	at org.junit.rules.ExternalResource$1.evaluate(ExternalResource.java:54)
-	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
-	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
-	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
-	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
-	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
-	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
-	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
-	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
-	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
-	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
-	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
-	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
-	at org.apache.maven.surefire.junit4.JUnit4Provider.execute(JUnit4Provider.java:316)
-	at org.apache.maven.surefire.junit4.JUnit4Provider.executeWithRerun(JUnit4Provider.java:240)
-	at org.apache.maven.surefire.junit4.JUnit4Provider.executeTestSet(JUnit4Provider.java:214)
-	at org.apache.maven.surefire.junit4.JUnit4Provider.invoke(JUnit4Provider.java:155)
-	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
-	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
-	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
-	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
-
-]]></system-err>
-  </testcase>
-  <testcase name="rejectsDuplicateArtifactIdsBeforeConfigurationCanOverwriteThem" classname="com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest" time="0.0"/>
-  <testcase name="permitsSameKeyInSeparateSections" classname="com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest" time="0.0"/>
+  <testcase classname="com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest" name="chapterLoaderRejectsDuplicateChapterIds" time="0.002"/>
+  <testcase classname="com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest" name="rejectsDuplicateArtifactIdsBeforeConfigurationCanOverwriteThem" time="0.003"/>
+  <testcase classname="com.vnmine.hardcore.managers.YamlDuplicateKeyValidatorTest" name="permitsSameKeyInSeparateSections" time="0.001"/>
 </testsuite>

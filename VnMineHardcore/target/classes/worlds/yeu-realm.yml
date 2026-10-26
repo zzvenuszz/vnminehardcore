@@ -14,6 +14,14 @@ display-name: "Yêu giới"
 # [EN] Paper world name that admins must create/load; defaults to yeu_realm. The plugin never creates worlds.
 world-name: yeu_realm
 
+# [VI] ID NPC loại tutorial đặt tại đại lục này; mặc định tutorial-yeu-realm. NPC phải được tạo trong đúng world-name.
+# [EN] ID of the tutorial NPC placed in this continent; defaults to tutorial-yeu-realm. The NPC must be in world-name.
+tutorial-npc-id: tutorial-yeu-realm
+
+# [VI] Cho phép bắt đầu trực tiếp tại đại lục này; mặc định false vì realm đang có khóa quest.
+# [EN] Allow players to start directly in this realm; defaults to false because this realm is quest-locked.
+starting-selectable: false
+
 # [VI] World dự phòng chỉ để hiển thị trạng thái điểm đến khi world chính chưa nạp; mặc định world đã có.
 # [EN] Fallback world used only to display a destination when the main world is absent; defaults to existing world.
 fallback-world-name: world

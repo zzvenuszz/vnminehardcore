@@ -8,15 +8,18 @@ display-name: "§6§lKhổng Lồ"
 # [VI] Class lính của token boss; bậc token theo level boss.
 # [EN] Mercenary class for this boss token; token tier follows the boss level.
 army-token-class: berserker
+# [VI] Giá bán token lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+# [EN] System-merchant sell value for this boss summon token; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+army-token-sell-value: 0
 hp: 1500
 damage-multiplier: 2.5
 # [VI] EXP thưởng cơ bản level 1; mặc định 1000, hợp lệ 1-1000000; level boss nhân theo _settings.yml.
 # [EN] Base XP reward at level 1; default 1000, valid range 1-1000000; boss level scaling is in _settings.yml.
 experience: 1000
 chance: 3
-# [VI] Thời gian boss tồn tại mặc định sau khi xuất hiện (giây); 1200 = 20 phút.
-# [EN] Default boss lifetime after spawning (seconds); 1200 = 20 minutes.
-duration-seconds: 1200
+# [VI] Thời gian boss tồn tại mặc định sau khi xuất hiện (giây); 1800 = 30 phút.
+# [EN] Default boss lifetime after spawning (seconds); 1800 = 30 minutes.
+duration-seconds: 1800
 warning-seconds: 60
 activity-radius: 100 # Max horizontal distance from this boss's spawn location (blocks).
 
@@ -76,13 +79,19 @@ immunities:
 
 drops:
   ROTTEN_FLESH:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 20
     max-amount: 50
-    chance: 1.0
+    chance: 0.30
   DIAMOND:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 2
     max-amount: 6
-    chance: 0.6
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -99,6 +108,9 @@ drops:
 # [VI] Tạo bộ giáp bốn món cho boss này; vật liệu và enchant tự tăng theo level.
 # [EN] Generate this boss's four-piece armor set; materials and enchants scale by level.
 armor-set:
+  # [VI] Giá bán mỗi món giáp boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss armor piece; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Bật/tắt bộ giáp; mặc định true.
   # [EN] Enable or disable the armor set; default true.
   enabled: true
@@ -132,14 +144,20 @@ armor-set:
 level-drops:
   1:
     - material: IRON_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch · Cấp 1"
       story-id: giant-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lSổ Địa Mạch · Cấp 1"
       story-id: giant-codex-common
       min-amount: 1
@@ -150,15 +168,21 @@ level-drops:
 
   2:
     - material: IRON_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch · Cấp 2"
       story-id: giant-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 3
         smite: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lSổ Địa Mạch · Cấp 2"
       story-id: giant-codex-common
       min-amount: 1
@@ -170,16 +194,22 @@ level-drops:
 
   3:
     - material: DIAMOND_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch Cự Nhân · Cấp 3"
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 4
         smite: 4
         bane_of_arthropods: 4
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lMật Lục Rìu Địa Mạch Cự Nhân · Cấp 3"
       story-id: giant-codex
       min-amount: 1
@@ -192,17 +222,23 @@ level-drops:
 
   4:
     - material: DIAMOND_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch Cự Nhân · Cấp 4"
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 5
         smite: 5
         bane_of_arthropods: 5
         efficiency: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lMật Lục Rìu Địa Mạch Cự Nhân · Cấp 4"
       story-id: giant-codex
       min-amount: 1
@@ -215,11 +251,14 @@ level-drops:
         efficiency: 5
   5:
     - material: DIAMOND_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch Cự Nhân · Cấp 5"
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 6
         smite: 6
@@ -227,6 +266,9 @@ level-drops:
         efficiency: 6
         silk_touch: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lMật Lục Rìu Địa Mạch Cự Nhân · Cấp 5"
       story-id: giant-codex
       min-amount: 1
@@ -241,11 +283,14 @@ level-drops:
 
   6:
     - material: NETHERITE_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch Cự Nhân · Cấp 6"
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 7
         smite: 7
@@ -254,6 +299,9 @@ level-drops:
         silk_touch: 1
         fortune: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lMật Lục Rìu Địa Mạch Cự Nhân · Cấp 6"
       story-id: giant-codex
       min-amount: 1
@@ -269,11 +317,14 @@ level-drops:
 
   7:
     - material: NETHERITE_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch Cự Nhân · Cấp 7"
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 7
         smite: 7
@@ -283,6 +334,9 @@ level-drops:
         fortune: 5
         unbreaking: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lMật Lục Rìu Địa Mạch Cự Nhân · Cấp 7"
       story-id: giant-codex
       min-amount: 1
@@ -299,11 +353,14 @@ level-drops:
 
   8:
     - material: NETHERITE_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch Cự Nhân · Cấp 8"
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 8
         smite: 8
@@ -314,6 +371,9 @@ level-drops:
         unbreaking: 6
         mending: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lMật Lục Rìu Địa Mạch Cự Nhân · Cấp 8"
       story-id: giant-codex
       min-amount: 1
@@ -331,11 +391,14 @@ level-drops:
 
   9:
     - material: NETHERITE_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch Cự Nhân · Cấp 9"
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 9
         smite: 9
@@ -347,6 +410,9 @@ level-drops:
         mending: 1
         fire_aspect: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lMật Lục Rìu Địa Mạch Cự Nhân · Cấp 9"
       story-id: giant-codex
       min-amount: 1
@@ -365,11 +431,14 @@ level-drops:
 
   10:
     - material: NETHERITE_AXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lRìu Địa Mạch Cự Nhân · Cấp 10"
       story-id: giant-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         sharpness: 10
         smite: 10
@@ -382,6 +451,9 @@ level-drops:
         fire_aspect: 2
         vanishing_curse: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§6§lMật Lục Rìu Địa Mạch Cự Nhân · Cấp 10"
       story-id: giant-codex
       min-amount: 1

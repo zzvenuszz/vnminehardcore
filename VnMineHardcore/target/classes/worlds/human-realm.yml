@@ -14,9 +14,22 @@ display-name: "Nhân giới"
 # [EN] Name of an already loaded Paper world; defaults to world. The plugin never creates or deletes worlds.
 world-name: world
 
+# [VI] ID NPC loại tutorial đặt tại đại lục này; mặc định tutorial-guide. NPC phải được tạo trong đúng world-name.
+# [EN] ID of the tutorial NPC placed in this continent; defaults to tutorial-guide. The NPC must be in world-name.
+tutorial-npc-id: tutorial-guide
+
+# [VI] Cho phép người mới chọn đại lục này; mặc định true cho đại lục mở.
+# [EN] Allow new players to choose this as their starting continent; defaults to true for an open realm.
+starting-selectable: true
+
 # [VI] World dự phòng khi world chính chưa được nạp; mặc định world. Phải là world đang được server nạp.
 # [EN] Fallback world when the primary world is not loaded; defaults to world and must already be loaded.
 fallback-world-name: world
+
+access:
+  # [VI] Điều kiện truy cập: default mở sẵn hoặc completed-quest cần hoàn thành quest; mặc định default.
+  # [EN] Access rule: default is open, or completed-quest requires a completed quest; default is default.
+  type: default
 
 spawn:
   # [VI] Dùng điểm spawn do Paper/server cấu hình; mặc định true. Đặt false để dùng đủ x/y/z bên dưới.

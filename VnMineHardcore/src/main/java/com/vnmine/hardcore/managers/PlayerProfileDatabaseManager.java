@@ -357,6 +357,7 @@ public class PlayerProfileDatabaseManager {
             throw new SQLException("Player profile database schema version " + currentVersion
                 + " is newer than supported version " + SCHEMA_VERSION + ".");
         }
+        int configuredVersion = currentVersion;
         if (currentVersion == SCHEMA_VERSION) {
             return;
         }

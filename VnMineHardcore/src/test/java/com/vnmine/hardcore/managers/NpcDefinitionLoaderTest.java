@@ -25,7 +25,7 @@ public class NpcDefinitionLoaderTest {
         var definitions = NpcDefinitionLoader.load(Path.of(resource.toURI()).toFile(),
             Logger.getAnonymousLogger()).orElseThrow();
 
-        assertEquals(3, definitions.size());
+        assertEquals(7, definitions.size());
         assertEquals("tutorial", definitions.get("tutorial-guide").type());
         assertEquals("Người dẫn đường", definitions.get("tutorial-guide").displayName());
         assertEquals(2, definitions.get("tutorial-guide").dialogue().size());

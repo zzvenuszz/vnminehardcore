@@ -45,6 +45,134 @@ skill-cast-feedback:
 #      Default 50; valid range 0-100, and contribution must be strictly greater than the threshold.
 reward-damage-threshold-percent: 50
 
+# [VI] Sát thương tối đa mỗi hit boss gây lên người chơi, trước khi giáp xử lý; mặc định 6, hợp lệ 0-100.
+# [EN] Maximum damage per boss hit to a player before armor applies; default 6, valid range 0-100.
+max-player-hit-damage: 6.0
+
+# [VI] Thời gian tồn tại mặc định của boss; mặc định 1800 giây (30 phút), hợp lệ 60-86400.
+# [EN] Default boss lifetime; default 1800 seconds (30 minutes), valid range 60-86400.
+default-duration-seconds: 1800
+
+# [VI] HP boss được random theo level và áp dụng chung cho mọi boss; bật mặc định.
+#      Level 1 random 2000-4000 HP, level 10 random 45000-50000 HP; cấp giữa nội suy hai khoảng.
+#      Khi tắt, dùng hp-by-level/hp riêng trong từng file boss.
+# [EN] Randomized boss HP by level, shared by all bosses; enabled by default.
+#      Level 1 rolls 2000-4000 HP, level 10 rolls 45000-50000 HP; intermediate levels interpolate both ranges.
+#      When disabled, per-boss hp-by-level/hp values are used.
+boss-health:
+  # [VI] Bật/tắt random HP theo level; mặc định true.
+  # [EN] Enable/disable randomized HP by level; default true.
+  enabled: true
+  # [VI] HP tối thiểu level 1; mặc định 2000, hợp lệ 1 đến HP tối đa level 1.
+  # [EN] Level-1 minimum HP; default 2000, valid from 1 to level-1 maximum HP.
+  level-1-minimum: 2000
+  # [VI] HP tối đa level 1; mặc định 4000, không vượt HP tối thiểu level 10.
+  # [EN] Level-1 maximum HP; default 4000, must not exceed level-10 minimum HP.
+  level-1-maximum: 4000
+  # [VI] HP tối thiểu level 10; mặc định 45000, không thấp hơn HP tối đa level 1.
+  # [EN] Level-10 minimum HP; default 45000, must not be below level-1 maximum HP.
+  level-10-minimum: 45000
+  # [VI] HP tối đa level 10; mặc định 50000, hợp lệ tối đa 1000000.
+  # [EN] Level-10 maximum HP; default 50000, valid up to 1000000.
+  level-10-maximum: 50000
+
+# [VI] Bật log chẩn đoán sát thương boss nhện; ghi nguồn đòn đánh, tầm nhìn, vị trí và quyết định chặn damage; mặc định true.
+# [EN] Enable spider boss damage diagnostics; logs attack source, line of sight, positions, and damage decisions; default true.
+debug:
+  spider-boss-damage: true
+
+# [VI] Cấu hình phóng to boss có vóc dáng thường; mặc định bật và nhân kích thước x2.
+# [EN] Configure scaling for normally-sized bosses; enabled by default with a 2x scale.
+boss-size:
+  # [VI] Bật/tắt phóng to boss; mặc định true.
+  # [EN] Enable/disable boss scaling; default true.
+  enabled: true
+  # [VI] Hệ số kích thước; mặc định 2.0, hợp lệ 1-4.
+  # [EN] Size multiplier; default 2.0, valid range 1-4.
+  multiplier: 2.0
+  # [VI] Danh sách loại boss được phóng to; mặc định chỉ gồm boss vóc dáng thường.
+  # [EN] Entity types to scale; defaults to normally-sized bosses only.
+  entity-types:
+    - ZOMBIE
+    - SKELETON
+    - SPIDER
+    - CREEPER
+    - ENDERMAN
+    - WITCH
+    - VINDICATOR
+    - PHANTOM
+
+# [VI] Giới hạn độ cao bay của boss so với mặt đất ngay bên dưới; kiểm tra mỗi 10 tick (0.5 giây).
+# [EN] Limit flying boss height relative to the ground directly below; checked every 10 ticks (0.5 seconds).
+boss-flight-height:
+  # [VI] Bật/tắt giới hạn độ cao bay; mặc định true.
+  # [EN] Enable/disable the flight-height limit; default true.
+  enabled: true
+  # [VI] Độ cao tối đa trên mặt đất; mặc định 30 block, hợp lệ 1-256.
+  # [EN] Maximum height above ground; default 30 blocks, valid range 1-256.
+  max-height-above-ground: 30
+  # [VI] Tầm quét mục tiêu theo phương ngang từ mặt đất ngay dưới boss; mặc định 30 block, hợp lệ 1-128.
+  # [EN] Horizontal target scan range from the ground point directly below the boss; default 30 blocks, valid range 1-128.
+  target-range-horizontal: 30
+  # [VI] Khoảng cách boss bay ưu tiên giữ với mục tiêu tầm xa; mặc định 12 block, vùng giữ khoảng cách ±2, hợp lệ 4-30.
+  # [EN] Preferred distance flying bosses keep from ranged targets; default 12 blocks, hold band ±2, valid range 4-30.
+  preferred-combat-distance: 12
+  # [VI] Danh sách loại boss áp dụng giới hạn độ cao.
+  # [EN] Entity types affected by the flight-height limit.
+  entity-types:
+    - WITHER
+    - ENDER_DRAGON
+    - GHAST
+    - PHANTOM
+
+# [VI] Cải thiện lựa chọn mục tiêu, chọn skill, di chuyển, né đạn và phối hợp lính; không thay đổi HP/sát thương.
+# [EN] Improve target selection, skill choice, movement, projectile dodging, and minion coordination; does not change HP/damage.
+boss-ai:
+  # [VI] Bật/tắt các hành vi AI bổ sung; mặc định true.
+  # [EN] Enable/disable enhanced AI behaviors; default true.
+  enabled: true
+  targeting:
+    # [VI] Trọng số sát thương người chơi đã gây lên boss; mặc định 60, hợp lệ 0-100.
+    # [EN] Weight for damage a player has dealt to the boss; default 60, valid 0-100.
+    damage-weight: 60
+    # [VI] Trọng số mục tiêu ở gần boss; mặc định 25, hợp lệ 0-100.
+    # [EN] Weight for target proximity; default 25, valid 0-100.
+    proximity-weight: 25
+    # [VI] Trọng số ưu tiên mục tiêu ít máu; mặc định 15, hợp lệ 0-100.
+    # [EN] Weight for prioritizing low-health targets; default 15, valid 0-100.
+    low-health-weight: 15
+    # [VI] Điểm chênh lệch tối đa để giữ mục tiêu hiện tại, tránh đổi mục tiêu liên tục; mặc định 8, hợp lệ 0-100.
+    # [EN] Maximum score gap for retaining the current target to avoid frequent retargeting; default 8, valid 0-100.
+    retarget-score-margin: 8
+  movement:
+    # [VI] Tốc độ tìm đường của boss đi bộ; mặc định 1.1, hợp lệ 0.5-2.0.
+    # [EN] Pathfinding speed for ground bosses; default 1.1, valid 0.5-2.0.
+    ground-pathfinding-speed: 1.1
+  dodge-projectiles:
+    # [VI] Boss né đạn/đạn bay do người chơi bắn; mặc định true.
+    # [EN] Bosses dodge incoming projectiles fired by players; default true.
+    enabled: true
+    # [VI] Tầm phát hiện đạn; mặc định 10 block, hợp lệ 4-20.
+    # [EN] Projectile detection range; default 10 blocks, valid 4-20.
+    range: 10
+    # [VI] Thời gian hồi né; mặc định 20 tick (1 giây), hợp lệ 5-200.
+    # [EN] Dodge cooldown; default 20 ticks (1 second), valid 5-200.
+    cooldown-ticks: 20
+  phases:
+    # [VI] Đổi ưu tiên chiến thuật theo phần trăm máu còn lại, không tăng sát thương; mặc định true.
+    # [EN] Change tactical priorities by remaining health percentage without increasing damage; default true.
+    enabled: true
+    # [VI] Bắt đầu phase 2 khi máu còn từ ngưỡng này trở xuống; mặc định 60%, hợp lệ 1-99.
+    # [EN] Start phase 2 when health reaches this percentage or lower; default 60%, valid 1-99.
+    phase-two-health-percent: 60
+    # [VI] Bắt đầu phase 3 khi máu còn từ ngưỡng này trở xuống; mặc định 30%, hợp lệ 0-98 và phải thấp hơn phase 2.
+    # [EN] Start phase 3 when health reaches this percentage or lower; default 30%, valid 0-98 and below phase 2.
+    phase-three-health-percent: 30
+  minion-coordination:
+    # [VI] Cho lính triệu hồi cùng tập trung vào mục tiêu hiện tại của boss; mặc định true.
+    # [EN] Have summoned minions focus the boss's current target; default true.
+    enabled: true
+
 # [VI] Cho phép boss rơi token class đã cấu hình trong file boss, bậc bằng level boss; mặc định bật.
 # [EN] Allow bosses to drop the class token configured in their boss file, at the boss level; default true.
 army-token-drop:
@@ -53,7 +181,7 @@ army-token-drop:
   enabled: true
   # [VI] Tỉ lệ rơi 1 token khi boss bị người chơi gây sát thương; mặc định 30%, hợp lệ 0-1.
   # [EN] Chance to drop 1 token when a player damages the boss; default 30%, valid range 0-1.
-  chance: 0.30
+  chance: 0.3
 
 # [VI] Tổng EXP boss được chia theo tỷ lệ sát thương; level 1 mặc định 50 EXP, level 10 mặc định 150 EXP.
 #      Hai mốc hợp lệ 1-1000000; giá trị level 1 phải nhỏ hơn hoặc bằng level 10, level giữa nội suy tuyến tính.
@@ -63,12 +191,44 @@ experience-pool:
   level-1: 50
   level-10: 150
 
+# [VI] Loot gear lính đánh thuê; mỗi lần boss bị hạ chọn ngẫu nhiên một class/set rồi roll từng ô trang bị hợp lệ.
+# [EN] Mercenary gear loot; each boss kill selects one random class/set, then rolls each valid equipment slot.
+mercenary-gear-drops:
+  # [VI] Giá bán mỗi món gear lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss mercenary gear item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
+  # [VI] Bật/tắt loot gear lính; mặc định true.
+  # [EN] Enable mercenary gear drops; default true.
+  enabled: true
+  # [VI] Tỉ lệ rơi riêng cho mỗi ô trang bị; mặc định 30% ở mọi cấp, hợp lệ 0-100.
+  # [EN] Independent drop chance for each equipment slot; defaults to 30% at every tier, valid range 0-100.
+  chance:
+    leather-1-star-percent: 30.0
+    netherite-5-star-percent: 30.0
+  # [VI] Bậc gear theo level boss (1-10); vật liệu hợp lệ leather/copper/iron/gold/diamond/netherite, sao hợp lệ 1-5.
+  # [EN] Gear tier by boss level (1-10); materials: leather/copper/iron/gold/diamond/netherite, stars: 1-5.
+  # [VI] Level thiếu hoặc sai sẽ dùng mốc hợp lệ gần nhất thấp hơn; boss-level 1 luôn bắt đầu da 1 sao.
+  # [EN] Missing/invalid levels use the nearest lower valid tier; boss-level 1 starts at leather 1-star.
+  # [VI] Mặc định level 1-10 lần lượt là da 1 sao, đồng 1 sao, sắt 1 sao, sắt 2 sao, vàng 2 sao, kim cương 2 sao, kim cương 3 sao, netherite 3-5 sao.
+  # [EN] Defaults for levels 1-10: leather 1-star, copper 1-star, iron 1-star, iron 2-star, gold 2-star, diamond 2-star, diamond 3-star, and netherite 3-5 stars.
+  level-tiers:
+    1: {material: leather, stars: 1}
+    2: {material: copper, stars: 1}
+    3: {material: iron, stars: 1}
+    4: {material: iron, stars: 2}
+    5: {material: gold, stars: 2}
+    6: {material: diamond, stars: 2}
+    7: {material: diamond, stars: 3}
+    8: {material: netherite, stars: 3}
+    9: {material: netherite, stars: 4}
+    10: {material: netherite, stars: 5}
+
 # [VI] Cấu hình chung cho bộ giáp boss; có thể ghi đè tỷ lệ trong armor-set của từng boss.
 # [EN] Shared boss armor reward settings; per-boss armor-set may override the drop chance.
 reward-items:
-  # [VI] Tỷ lệ rơi độc lập cho mỗi món giáp; mặc định 10%, hợp lệ 0-1.
-  # [EN] Independent drop chance for each armor piece; default 10%, valid range 0-1.
-  armor-piece-chance: 0.10
+  # [VI] Tỷ lệ rơi độc lập cho mỗi món giáp; mặc định 30%, hợp lệ 0-1.
+  # [EN] Independent drop chance for each armor piece; default 30%, valid range 0-1.
+  armor-piece-chance: 0.30
 
   # [VI] Cấp phù phép giáp level 1 thấp hơn mức tự nhiên; mặc định thấp hơn 2 cấp, hợp lệ 0-5.
   # [EN] Level-1 armor enchants start below vanilla maximum; default gap 2, valid range 0-5.
@@ -80,7 +240,7 @@ reward-items:
 
   # [VI] Trần enchant cấu hình cho giáp boss; mặc định V, hợp lệ 1-255.
   # [EN] Configured enchantment cap for boss armor; default V, valid range 1-255.
-  maximum-enchant-level: 5
+  maximum-enchant-level: 7
 
   # [VI] Cho phép enchant chính ngực/ủng vượt trần vanilla; chỉ áp dụng đến trần phía trên.
   # [EN] Allow primary chest/boot enchants above vanilla maximum, limited by the cap above.
@@ -98,15 +258,15 @@ level-progression:
   enabled: true
   thresholds:
     - {min-day: 0, min-level: 1, max-level: 1}
-    - {min-day: 25, min-level: 1, max-level: 2}
-    - {min-day: 50, min-level: 2, max-level: 3}
-    - {min-day: 100, min-level: 3, max-level: 4}
-    - {min-day: 150, min-level: 4, max-level: 5}
-    - {min-day: 200, min-level: 5, max-level: 6}
-    - {min-day: 250, min-level: 6, max-level: 7}
-    - {min-day: 300, min-level: 7, max-level: 8}
-    - {min-day: 350, min-level: 8, max-level: 9}
-    - {min-day: 400, min-level: 9, max-level: 10}
+    - {min-day: 100, min-level: 1, max-level: 2}
+    - {min-day: 200, min-level: 1, max-level: 3}
+    - {min-day: 400, min-level: 1, max-level: 4}
+    - {min-day: 600, min-level: 2, max-level: 5}
+    - {min-day: 900, min-level: 2, max-level: 6}
+    - {min-day: 1200, min-level: 2, max-level: 7}
+    - {min-day: 1500, min-level: 3, max-level: 8}
+    - {min-day: 1800, min-level: 3, max-level: 9}
+    - {min-day: 2500, min-level: 3, max-level: 10}
 
 # [VI] Tỉ lệ boss xuất hiện thành công theo ngày trong game.
 #      Đây là bước kiểm tra RIÊNG sau khi đã roll chọn loại boss theo `chance`
@@ -123,12 +283,12 @@ spawn-success-progression:
   default-percent: 15
   thresholds:
     - {min-day: 0, chance-percent: 15}
-    - {min-day: 25, chance-percent: 25}
-    - {min-day: 50, chance-percent: 35}
-    - {min-day: 100, chance-percent: 50}
-    - {min-day: 150, chance-percent: 65}
-    - {min-day: 200, chance-percent: 75}
-    - {min-day: 250, chance-percent: 85}
-    - {min-day: 300, chance-percent: 90}
-    - {min-day: 350, chance-percent: 95}
-    - {min-day: 400, chance-percent: 100}
+    - {min-day: 50, chance-percent: 25}
+    - {min-day: 100, chance-percent: 35}
+    - {min-day: 150, chance-percent: 50}
+    - {min-day: 200, chance-percent: 65}
+    - {min-day: 250, chance-percent: 75}
+    - {min-day: 300, chance-percent: 85}
+    - {min-day: 500, chance-percent: 90}
+    - {min-day: 700, chance-percent: 95}
+    - {min-day: 1000, chance-percent: 100}

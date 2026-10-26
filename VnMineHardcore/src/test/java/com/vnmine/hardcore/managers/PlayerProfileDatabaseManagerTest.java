@@ -16,6 +16,7 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -30,7 +31,7 @@ public class PlayerProfileDatabaseManagerTest {
 
         manager.initialize();
 
-        assertEquals(6, manager.getSchemaVersion());
+        assertEquals(PlayerProfileDatabaseManager.SCHEMA_VERSION, manager.getSchemaVersion());
         assertTrue(manager.tableExists("meta"));
         assertTrue(manager.tableExists("player_profiles"));
         assertTrue(columnExists(manager.getDatabaseFile(), "skill_points"));
@@ -50,7 +51,7 @@ public class PlayerProfileDatabaseManagerTest {
 
         manager.initialize();
 
-        assertEquals(6, manager.getSchemaVersion());
+        assertEquals(PlayerProfileDatabaseManager.SCHEMA_VERSION, manager.getSchemaVersion());
         assertTrue(columnExists(manager.getDatabaseFile(), "selected_class"));
         try (Connection connection = open(manager.getDatabaseFile());
              Statement statement = connection.createStatement();
@@ -70,7 +71,7 @@ public class PlayerProfileDatabaseManagerTest {
         manager.initialize();
 
         var profile = manager.getPlayerProfile("legacy-player").orElseThrow();
-        assertEquals(6, manager.getSchemaVersion());
+        assertEquals(PlayerProfileDatabaseManager.SCHEMA_VERSION, manager.getSchemaVersion());
         assertEquals(3, profile.level());
         assertEquals(125, profile.exp());
         assertEquals(2, profile.unspentSkillPoints());
@@ -173,12 +174,12 @@ public class PlayerProfileDatabaseManagerTest {
     @Test
     public void refusesDatabaseCreatedByNewerPluginVersion() throws Exception {
         PlayerProfileDatabaseManager manager = newManager();
-        createLegacyDatabase(manager.getDatabaseFile(), 7);
+        createLegacyDatabase(manager.getDatabaseFile(), PlayerProfileDatabaseManager.SCHEMA_VERSION + 1);
 
         SQLException exception = assertThrows(SQLException.class, manager::initialize);
 
         assertTrue(exception.getMessage().contains("newer than supported"));
-        assertEquals(7, manager.getSchemaVersion());
+        assertEquals(PlayerProfileDatabaseManager.SCHEMA_VERSION + 1, manager.getSchemaVersion());
     }
 
     @Test
@@ -250,17 +251,17 @@ public class PlayerProfileDatabaseManagerTest {
             "human-realm", "2026-10-21T00:00:00Z");
 
         assertEquals(PlayerProfileDatabaseManager.SkillLearnResult.REQUIREMENTS_NOT_MET,
-            manager.learnSkill(uuid, "shield-wall", "guardian", 1, "learned"));
+            manager.learnSkill(uuid, "shield-wall", Set.of("guardian"), 1, "learned"));
         assertEquals(PlayerProfileDatabaseManager.SkillLearnResult.REQUIREMENTS_NOT_MET,
-            manager.learnSkill(uuid, "battle-focus", "swordsman", 3, "learned"));
+            manager.learnSkill(uuid, "battle-focus", Set.of("swordsman"), 3, "learned"));
         assertEquals(PlayerProfileDatabaseManager.SkillLearnResult.LEARNED,
-            manager.learnSkill(uuid, "blade-flare", "swordsman", 1, "2026-10-21T00:01:00Z"));
+            manager.learnSkill(uuid, "blade-flare", Set.of("swordsman"), 1, "2026-10-21T00:01:00Z"));
         assertEquals(PlayerProfileDatabaseManager.SkillLearnResult.ALREADY_LEARNED,
-            manager.learnSkill(uuid, "blade-flare", "swordsman", 1, "2026-10-21T00:02:00Z"));
+            manager.learnSkill(uuid, "blade-flare", Set.of("swordsman"), 1, "2026-10-21T00:02:00Z"));
         assertEquals(List.of(new PlayerProfileDatabaseManager.SkillProgress(
             "blade-flare", 1, "2026-10-21T00:01:00Z")), manager.getLearnedSkills(uuid));
         assertEquals(PlayerProfileDatabaseManager.SkillLearnResult.PROFILE_NOT_FOUND,
-            manager.learnSkill("missing", "blade-flare", "swordsman", 1, "learned"));
+            manager.learnSkill("missing", "blade-flare", Set.of("swordsman"), 1, "learned"));
     }
 
     @Test
@@ -270,19 +271,19 @@ public class PlayerProfileDatabaseManagerTest {
         String uuid = "11111111-2222-3333-4444-555555666666";
         manager.createPlayerProfile(uuid, "Ares", "human", "swordsman", 2, 0,
             "human-realm", "2026-10-21T00:00:00Z");
-        manager.learnSkill(uuid, "blade-flare", "swordsman", 1, "learned");
-        manager.learnSkill(uuid, "guard-break", "swordsman", 2, "learned");
+        manager.learnSkill(uuid, "blade-flare", Set.of("swordsman"), 1, "learned");
+        manager.learnSkill(uuid, "guard-break", Set.of("swordsman"), 2, "learned");
 
         assertEquals(PlayerProfileDatabaseManager.QuickSlotResult.ASSIGNED,
-            manager.assignQuickSkill(uuid, 1, "blade-flare", "swordsman"));
+            manager.assignQuickSkill(uuid, 1, "blade-flare", Set.of("swordsman")));
         assertEquals(PlayerProfileDatabaseManager.QuickSlotResult.ALREADY_ASSIGNED,
-            manager.assignQuickSkill(uuid, 2, "blade-flare", "swordsman"));
+            manager.assignQuickSkill(uuid, 2, "blade-flare", Set.of("swordsman")));
         assertEquals(PlayerProfileDatabaseManager.QuickSlotResult.SKILL_NOT_LEARNED,
-            manager.assignQuickSkill(uuid, 2, "battle-focus", "swordsman"));
+            manager.assignQuickSkill(uuid, 2, "battle-focus", Set.of("swordsman")));
         assertEquals(PlayerProfileDatabaseManager.QuickSlotResult.ASSIGNED,
-            manager.assignQuickSkill(uuid, 1, "guard-break", "swordsman"));
+            manager.assignQuickSkill(uuid, 1, "guard-break", Set.of("swordsman")));
         assertEquals(PlayerProfileDatabaseManager.QuickSlotResult.ASSIGNED,
-            manager.assignQuickSkill(uuid, 9, "blade-flare", "swordsman"));
+            manager.assignQuickSkill(uuid, 9, "blade-flare", Set.of("swordsman")));
         assertEquals(Map.of(1, "guard-break", 9, "blade-flare"), manager.getQuickSkillSlots(uuid));
         assertTrue(manager.clearQuickSkillSlot(uuid, 1));
         assertFalse(manager.clearQuickSkillSlot(uuid, 1));
@@ -296,15 +297,15 @@ public class PlayerProfileDatabaseManagerTest {
         String uuid = "11111111-2222-3333-4444-555555666666";
         manager.createPlayerProfile(uuid, "Ares", "human", "swordsman", 1, 0,
             "human-realm", "2026-10-21T00:00:00Z");
-        manager.learnSkill(uuid, "blade-flare", "swordsman", 1, "learned");
+        manager.learnSkill(uuid, "blade-flare", Set.of("swordsman"), 1, "learned");
         assertEquals(PlayerProfileDatabaseManager.SkillUpgradeResult.REQUIREMENTS_NOT_MET,
-            manager.upgradeSkill(uuid, "blade-flare", "swordsman", 1, 3));
+            manager.upgradeSkill(uuid, "blade-flare", Set.of("swordsman"), 1, 3));
         manager.startQuestProgress(uuid, "training", "started", "2026-10-21T00:00:00Z");
         manager.completeQuestAndAwardExperience(uuid, "training", "done", 100,
             "2026-10-21T00:01:00Z");
 
         assertEquals(PlayerProfileDatabaseManager.SkillUpgradeResult.UPGRADED,
-            manager.upgradeSkill(uuid, "blade-flare", "swordsman", 1, 3));
+            manager.upgradeSkill(uuid, "blade-flare", Set.of("swordsman"), 1, 3));
         assertEquals(2, manager.getLearnedSkills(uuid).getFirst().rank());
         assertEquals(0, manager.getPlayerProfile(uuid).orElseThrow().unspentSkillPoints());
         try (Connection connection = open(manager.getDatabaseFile());
@@ -312,9 +313,9 @@ public class PlayerProfileDatabaseManagerTest {
             statement.execute("UPDATE player_profiles SET level = 3 WHERE uuid = '" + uuid + "'");
         }
         assertEquals(PlayerProfileDatabaseManager.SkillUpgradeResult.NO_SKILL_POINTS,
-            manager.upgradeSkill(uuid, "blade-flare", "swordsman", 1, 3));
+            manager.upgradeSkill(uuid, "blade-flare", Set.of("swordsman"), 1, 3));
         assertEquals(PlayerProfileDatabaseManager.SkillUpgradeResult.MAX_RANK,
-            manager.upgradeSkill(uuid, "blade-flare", "swordsman", 1, 2));
+            manager.upgradeSkill(uuid, "blade-flare", Set.of("swordsman"), 1, 2));
     }
 
     @Test
@@ -324,14 +325,14 @@ public class PlayerProfileDatabaseManagerTest {
         String uuid = "11111111-2222-3333-4444-555555666666";
         manager.createPlayerProfile(uuid, "Ares", "human", "swordsman", 3, 0,
             "human-realm", "2026-10-21T00:00:00Z");
-        manager.learnSkill(uuid, "battle-focus", "swordsman", 3, "learned");
+        manager.learnSkill(uuid, "battle-focus", Set.of("swordsman"), 3, "learned");
         try (Connection connection = open(manager.getDatabaseFile());
              Statement statement = connection.createStatement()) {
             statement.execute("UPDATE player_profiles SET skill_points = 1 WHERE uuid = '" + uuid + "'");
         }
 
         assertEquals(PlayerProfileDatabaseManager.SkillUpgradeResult.REQUIREMENTS_NOT_MET,
-            manager.upgradeSkill(uuid, "battle-focus", "swordsman", 3, 5));
+            manager.upgradeSkill(uuid, "battle-focus", Set.of("swordsman"), 3, 5));
         assertEquals(1, manager.getPlayerProfile(uuid).orElseThrow().unspentSkillPoints());
         try (Connection connection = open(manager.getDatabaseFile());
              Statement statement = connection.createStatement()) {
@@ -339,7 +340,7 @@ public class PlayerProfileDatabaseManagerTest {
         }
 
         assertEquals(PlayerProfileDatabaseManager.SkillUpgradeResult.UPGRADED,
-            manager.upgradeSkill(uuid, "battle-focus", "swordsman", 3, 5));
+            manager.upgradeSkill(uuid, "battle-focus", Set.of("swordsman"), 3, 5));
         assertEquals(2, manager.getLearnedSkills(uuid).getFirst().rank());
         assertEquals(0, manager.getPlayerProfile(uuid).orElseThrow().unspentSkillPoints());
     }
@@ -668,7 +669,7 @@ public class PlayerProfileDatabaseManagerTest {
         manager.migrateIfNeeded();
         manager.initialize();
 
-        assertEquals(6, manager.getSchemaVersion());
+        assertEquals(PlayerProfileDatabaseManager.SCHEMA_VERSION, manager.getSchemaVersion());
         assertFalse(manager.createPlayerProfile(uuid, "Ares", "demon", "berserker", 1, 0,
             "demon-realm", "2026-10-21T01:00:00Z"));
         try (Connection connection = open(manager.getDatabaseFile());

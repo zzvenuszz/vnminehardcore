@@ -1,0 +1,287 @@
+# [VI] Danh sách allowlist giá bán item vanilla cho system merchant; Material không có trong danh sách sẽ không được mua.
+# [EN] Vanilla item sell-price allowlist for the system merchant; Materials absent from this list are not purchased.
+# [VI] schema-version bắt buộc là 1; amount hợp lệ 1-100000, vncoin hợp lệ 1-1000000.
+# [EN] schema-version must be 1; amount range is 1-100000 and vncoin range is 1-1000000.
+schema-version: 1
+
+items:
+  IRON_INGOT:
+    # [VI] Số thỏi sắt cần giao; mặc định 10, hợp lệ 1-100000.
+    # [EN] Iron ingots required per sale; default 10, valid 1-100000.
+    amount: 10
+    # [VI] VNCOIN trả cho số lượng trên; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid for the amount above; default 1, valid 1-1000000.
+    vncoin: 1
+  DIAMOND:
+    # [VI] Số kim cương cần giao; mặc định 1, hợp lệ 1-100000.
+    # [EN] Diamonds required per sale; default 1, valid 1-100000.
+    amount: 1
+    # [VI] VNCOIN trả; mặc định 10, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 10, valid 1-1000000.
+    vncoin: 10
+  NETHERITE_UPGRADE_SMITHING_TEMPLATE:
+    # [VI] Số khuôn nâng cấp Netherite cần giao; mặc định 1, hợp lệ 1-100000.
+    # [EN] Netherite upgrade templates required; default 1, valid 1-100000.
+    amount: 1
+    # [VI] VNCOIN trả; mặc định 500, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 500, valid 1-1000000.
+    vncoin: 500
+  GOLD_INGOT:
+    # [VI] Số thỏi vàng cần giao; mặc định 16, hợp lệ 1-100000.
+    # [EN] Gold ingots required; default 16, valid 1-100000.
+    amount: 16
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  COPPER_INGOT:
+    # [VI] Số thỏi đồng cần giao; mặc định 32, hợp lệ 1-100000.
+    # [EN] Copper ingots required; default 32, valid 1-100000.
+    amount: 32
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  COAL:
+    # [VI] Số than cần giao; mặc định 32, hợp lệ 1-100000.
+    # [EN] Coal required; default 32, valid 1-100000.
+    amount: 32
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  REDSTONE:
+    # [VI] Số bụi redstone cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Redstone dust required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  LAPIS_LAZULI:
+    # [VI] Số lapis lazuli cần giao; mặc định 32, hợp lệ 1-100000.
+    # [EN] Lapis lazuli required; default 32, valid 1-100000.
+    amount: 32
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  EMERALD:
+    # [VI] Số emerald cần giao; mặc định 4, hợp lệ 1-100000.
+    # [EN] Emeralds required; default 4, valid 1-100000.
+    amount: 4
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  QUARTZ:
+    # [VI] Số quartz cần giao; mặc định 32, hợp lệ 1-100000.
+    # [EN] Quartz required; default 32, valid 1-100000.
+    amount: 32
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  AMETHYST_SHARD:
+    # [VI] Số mảnh amethyst cần giao; mặc định 16, hợp lệ 1-100000.
+    # [EN] Amethyst shards required; default 16, valid 1-100000.
+    amount: 16
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  RAW_IRON:
+    # [VI] Số raw iron cần giao; mặc định 32, hợp lệ 1-100000.
+    # [EN] Raw iron required; default 32, valid 1-100000.
+    amount: 32
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  BEEF:
+    # [VI] Số thịt bò sống cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Raw beef required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 10, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 10, valid 1-1000000.
+    vncoin: 10
+  PORKCHOP:
+    # [VI] Số thịt heo sống cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Raw porkchops required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 10, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 10, valid 1-1000000.
+    vncoin: 10
+  CHICKEN:
+    # [VI] Số thịt gà sống cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Raw chicken required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 10, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 10, valid 1-1000000.
+    vncoin: 10
+  COD:
+    # [VI] Số cá tuyết sống cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] VNCOIN paid for the raw cod quantity above; default 10, valid 1-1000000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 10, hợp lệ 1-1000000.
+    # [EN] Raw cod required; default 64, valid 1-100000.
+    vncoin: 10
+  SALMON:
+    # [VI] Số cá hồi sống cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Raw salmon required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 10, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 10, valid 1-1000000.
+    vncoin: 10
+  MUTTON:
+    # [VI] Số thịt cừu sống cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Raw mutton required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 10, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 10, valid 1-1000000.
+    vncoin: 10
+  RABBIT:
+    # [VI] Số thịt thỏ sống cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Raw rabbit required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 10, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 10, valid 1-1000000.
+    vncoin: 10
+  COOKED_BEEF:
+    # [VI] Số thịt bò chín cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Cooked beef required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 15, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 15, valid 1-1000000.
+    vncoin: 15
+  COOKED_PORKCHOP:
+    # [VI] Số thịt heo chín cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Cooked porkchops required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 15, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 15, valid 1-1000000.
+    vncoin: 15
+  COOKED_CHICKEN:
+    # [VI] Số thịt gà chín cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Cooked chicken required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 15, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 15, valid 1-1000000.
+    vncoin: 15
+  COOKED_COD:
+    # [VI] Số cá tuyết chín cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Cooked cod required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 15, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 15, valid 1-1000000.
+    vncoin: 15
+  COOKED_SALMON:
+    # [VI] Số cá hồi chín cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Cooked salmon required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 15, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 15, valid 1-1000000.
+    vncoin: 15
+  COOKED_MUTTON:
+    # [VI] Số thịt cừu chín cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Cooked mutton required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 15, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 15, valid 1-1000000.
+    vncoin: 15
+  COOKED_RABBIT:
+    # [VI] Số thịt thỏ chín cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Cooked rabbit required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 15, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 15, valid 1-1000000.
+    vncoin: 15
+  WHEAT:
+    # [VI] Số lúa mì cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Wheat required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 2, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 2, valid 1-1000000.
+    vncoin: 2
+  CARROT:
+    # [VI] Số cà rốt cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Carrots required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 2, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 2, valid 1-1000000.
+    vncoin: 2
+  POTATO:
+    # [VI] Số khoai tây cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Potatoes required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 2, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 2, valid 1-1000000.
+    vncoin: 2
+  BEETROOT:
+    # [VI] Số củ dền cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Beetroots required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 2, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 2, valid 1-1000000.
+    vncoin: 2
+  SUGAR_CANE:
+    # [VI] Số mía cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Sugar cane required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 2, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 2, valid 1-1000000.
+    vncoin: 2
+  ROTTEN_FLESH:
+    # [VI] Số rotten flesh cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Rotten flesh required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  BONE:
+    # [VI] Số xương cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Bones required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  STRING:
+    # [VI] Số tơ cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] String required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  GUNPOWDER:
+    # [VI] Số thuốc súng cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Gunpowder required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  ENDER_PEARL:
+    # [VI] Số ngọc Ender cần giao; mặc định 16, hợp lệ 1-100000.
+    # [EN] Ender pearls required; default 16, valid 1-100000.
+    amount: 16
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  LEATHER:
+    # [VI] Số da cần giao; mặc định 16, hợp lệ 1-100000.
+    # [EN] Leather required; default 16, valid 1-100000.
+    amount: 16
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  COBBLESTONE:
+    # [VI] Số cobblestone cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Cobblestone required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  DIRT:
+    # [VI] Số đất cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Dirt required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1
+  OAK_LOG:
+    # [VI] Số khúc gỗ sồi cần giao; mặc định 64, hợp lệ 1-100000.
+    # [EN] Oak logs required; default 64, valid 1-100000.
+    amount: 64
+    # [VI] VNCOIN trả; mặc định 1, hợp lệ 1-1000000.
+    # [EN] VNCOIN paid; default 1, valid 1-1000000.
+    vncoin: 1

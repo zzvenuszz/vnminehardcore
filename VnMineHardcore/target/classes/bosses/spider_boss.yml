@@ -4,19 +4,25 @@
 boss-id: spider_boss
 enabled: true
 entity-type: SPIDER
-display-name: "§0§lSpider Boss"
+display-name: "§5§lSpider Boss"
 # [VI] Class lính của token boss; bậc token theo level boss.
 # [EN] Mercenary class for this boss token; token tier follows the boss level.
 army-token-class: assassin
+# [VI] Giá bán token lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+# [EN] System-merchant sell value for this boss summon token; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+army-token-sell-value: 0
 hp: 900
 damage-multiplier: 1.8
+# [VI] Sát thương tối đa mỗi hit skill lên người chơi trước giảm giáp và hệ số combat chung; mặc định 5, hợp lệ 0-100.
+# [EN] Maximum skill damage per hit to players before armor and the global combat multiplier; default 5, valid 0-100.
+max-player-hit-damage: 5.0
 # [VI] EXP thưởng cơ bản level 1; mặc định 250, hợp lệ 1-1000000; level boss nhân theo _settings.yml.
 # [EN] Base XP reward at level 1; default 250, valid range 1-1000000; boss level scaling is in _settings.yml.
 experience: 250
 chance: 20
-# [VI] Thời gian boss tồn tại mặc định sau khi xuất hiện (giây); 1200 = 20 phút.
-# [EN] Default boss lifetime after spawning (seconds); 1200 = 20 minutes.
-duration-seconds: 1200
+# [VI] Thời gian boss tồn tại mặc định sau khi xuất hiện (giây); 1800 = 30 phút.
+# [EN] Default boss lifetime after spawning (seconds); 1800 = 30 minutes.
+duration-seconds: 1800
 warning-seconds: 45
 activity-radius: 100 # Max horizontal distance from this boss's spawn location (blocks).
 
@@ -97,37 +103,61 @@ immunities:
 
 drops:
   STRING:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 15
     max-amount: 35
-    chance: 0.9
+    chance: 0.30
   SPIDER_EYE:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 12
-    chance: 0.8
+    chance: 0.30
   DIAMOND:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 3
     max-amount: 6
-    chance: 0.35
+    chance: 0.30
   IRON_INGOT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 8
     max-amount: 15
-    chance: 0.5
+    chance: 0.30
   EMERALD:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 12
-    chance: 0.4
+    chance: 0.30
   COBWEB:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 3
     max-amount: 8
-    chance: 0.5
+    chance: 0.30
   ENCHANTED_BOOK:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 1
-    chance: 0.2
+    chance: 0.30
   FERMENTED_SPIDER_EYE:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 3
-    chance: 0.3
+    chance: 0.30
 
 # [VI] Loot quý theo level; level thiếu dùng mốc gần nhất thấp hơn. amount: 1-64, chance: 0.0-1.0.
 # [EN] Rare drops by level; missing tiers inherit the nearest lower tier. amount: 1-64, chance: 0.0-1.0.
@@ -144,12 +174,15 @@ drops:
 # [VI] Tạo bộ giáp bốn món cho boss này; vật liệu và enchant tự tăng theo level.
 # [EN] Generate this boss's four-piece armor set; materials and enchants scale by level.
 armor-set:
+  # [VI] Giá bán mỗi món giáp boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss armor piece; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Bật/tắt bộ giáp; mặc định true.
   # [EN] Enable or disable the armor set; default true.
   enabled: true
   # [VI] Tên bộ giáp dùng cho mũ, áo, quần và ủng.
   # [EN] Armor set name prefix used by the helmet, chestplate, leggings, and boots.
-  name: "§0§lGiáp Tơ Hoàng Hôn"
+  name: "§5§lGiáp Tơ Hoàng Hôn"
   # [VI] ID lore trong story.yml; phải trỏ tới một mục artifacts hợp lệ.
   # [EN] Lore ID in story.yml; must reference a valid artifacts entry.
   story-id: spider-armor
@@ -163,15 +196,21 @@ armor-set:
 level-drops:
   1:
     - material: IRON_BOOTS
-      name: "§0§lỦng Tơ Nhện · Cấp 1"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Nhện · Cấp 1"
       story-id: spider-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 2
     - material: ENCHANTED_BOOK
-      name: "§0§lSổ Tơ Nhện · Cấp 1"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lSổ Tơ Nhện · Cấp 1"
       story-id: spider-codex-common
       min-amount: 1
       max-amount: 1
@@ -181,16 +220,22 @@ level-drops:
 
   2:
     - material: IRON_BOOTS
-      name: "§0§lỦng Tơ Nhện · Cấp 2"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Nhện · Cấp 2"
       story-id: spider-relic-common
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 2
         feather_falling: 2
     - material: ENCHANTED_BOOK
-      name: "§0§lSổ Tơ Nhện · Cấp 2"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lSổ Tơ Nhện · Cấp 2"
       story-id: spider-codex-common
       min-amount: 1
       max-amount: 1
@@ -201,17 +246,23 @@ level-drops:
 
   3:
     - material: DIAMOND_BOOTS
-      name: "§0§lỦng Tơ Độc Hoàng Hôn · Cấp 3"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Độc Hoàng Hôn · Cấp 3"
       story-id: spider-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 3
         feather_falling: 3
         depth_strider: 2
     - material: ENCHANTED_BOOK
-      name: "§0§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 3"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 3"
       story-id: spider-codex
       min-amount: 1
       max-amount: 1
@@ -223,18 +274,24 @@ level-drops:
 
   4:
     - material: DIAMOND_BOOTS
-      name: "§0§lỦng Tơ Độc Hoàng Hôn · Cấp 4"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Độc Hoàng Hôn · Cấp 4"
       story-id: spider-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 4
         feather_falling: 4
         depth_strider: 3
         frost_walker: 2
     - material: ENCHANTED_BOOK
-      name: "§0§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 4"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 4"
       story-id: spider-codex
       min-amount: 1
       max-amount: 1
@@ -246,11 +303,14 @@ level-drops:
         frost_walker: 2
   5:
     - material: DIAMOND_BOOTS
-      name: "§0§lỦng Tơ Độc Hoàng Hôn · Cấp 5"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Độc Hoàng Hôn · Cấp 5"
       story-id: spider-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 5
         feather_falling: 5
@@ -258,7 +318,10 @@ level-drops:
         frost_walker: 2
         soul_speed: 4
     - material: ENCHANTED_BOOK
-      name: "§0§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 5"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 5"
       story-id: spider-codex
       min-amount: 1
       max-amount: 1
@@ -272,11 +335,14 @@ level-drops:
 
   6:
     - material: NETHERITE_BOOTS
-      name: "§0§lỦng Tơ Độc Hoàng Hôn · Cấp 6"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Độc Hoàng Hôn · Cấp 6"
       story-id: spider-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 6
         feather_falling: 6
@@ -285,7 +351,10 @@ level-drops:
         soul_speed: 5
         thorns: 5
     - material: ENCHANTED_BOOK
-      name: "§0§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 6"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 6"
       story-id: spider-codex
       min-amount: 1
       max-amount: 1
@@ -300,11 +369,14 @@ level-drops:
 
   7:
     - material: NETHERITE_BOOTS
-      name: "§0§lỦng Tơ Độc Hoàng Hôn · Cấp 7"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Độc Hoàng Hôn · Cấp 7"
       story-id: spider-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 6
         feather_falling: 6
@@ -314,7 +386,10 @@ level-drops:
         thorns: 5
         unbreaking: 5
     - material: ENCHANTED_BOOK
-      name: "§0§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 7"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 7"
       story-id: spider-codex
       min-amount: 1
       max-amount: 1
@@ -330,11 +405,14 @@ level-drops:
 
   8:
     - material: NETHERITE_BOOTS
-      name: "§0§lỦng Tơ Độc Hoàng Hôn · Cấp 8"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Độc Hoàng Hôn · Cấp 8"
       story-id: spider-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 7
         feather_falling: 7
@@ -345,7 +423,10 @@ level-drops:
         unbreaking: 6
         mending: 1
     - material: ENCHANTED_BOOK
-      name: "§0§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 8"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 8"
       story-id: spider-codex
       min-amount: 1
       max-amount: 1
@@ -362,11 +443,14 @@ level-drops:
 
   9:
     - material: NETHERITE_BOOTS
-      name: "§0§lỦng Tơ Độc Hoàng Hôn · Cấp 9"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Độc Hoàng Hôn · Cấp 9"
       story-id: spider-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 8
         feather_falling: 8
@@ -378,7 +462,10 @@ level-drops:
         mending: 1
         vanishing_curse: 1
     - material: ENCHANTED_BOOK
-      name: "§0§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 9"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 9"
       story-id: spider-codex
       min-amount: 1
       max-amount: 1
@@ -396,11 +483,14 @@ level-drops:
 
   10:
     - material: NETHERITE_BOOTS
-      name: "§0§lỦng Tơ Độc Hoàng Hôn · Cấp 10"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lỦng Tơ Độc Hoàng Hôn · Cấp 10"
       story-id: spider-relic
       min-amount: 1
       max-amount: 1
-      chance: 0.65
+      chance: 0.30
       enchantments:
         protection: 9
         feather_falling: 9
@@ -413,7 +503,10 @@ level-drops:
         vanishing_curse: 1
         binding_curse: 1
     - material: ENCHANTED_BOOK
-      name: "§0§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 10"
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
+      name: "§5§lMật Lục Ủng Tơ Độc Hoàng Hôn · Cấp 10"
       story-id: spider-codex
       min-amount: 1
       max-amount: 1

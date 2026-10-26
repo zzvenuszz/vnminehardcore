@@ -3,6 +3,8 @@
 universe:
   title: "Biên Niên Rạn Nứt"
   premise: "Một vết nứt cổ kết nối các lãnh địa boss; mỗi di vật lưu lại manh mối cho chương kế tiếp."
+  # [VI] Danh sách câu chuyện cũ được giữ lại; chapter có ID ổn định nằm trong story/chapters.yml.
+  # [EN] Legacy story text is retained; stable-ID chapters are defined in story/chapters.yml.
   chapters:
     - "Creeper đánh thức Cổng Vạn Giới bằng Lôi Tâm."
     - "Địa Mạch Cự Nhân làm rung đường tơ Hoàng Hôn."

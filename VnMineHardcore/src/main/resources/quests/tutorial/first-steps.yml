@@ -57,9 +57,9 @@ quest:
     # [EN] Draw a bright green ring and particle beam at the destination; defaults to enabled.
     target-marker-enabled: true
 
-    # [VI] Khoảng cập nhật đường tracking; mặc định 10 tick, giới hạn 5..200 tick.
-    # [EN] Tracking path update interval; defaults to 10 ticks, valid range 5..200 ticks.
-    waypoint-update-interval-ticks: 10
+    # [VI] Khoảng cập nhật đường tracking; mặc định 20 tick, giới hạn 5..200 tick.
+    # [EN] Tracking path update interval; defaults to 20 ticks, valid range 5..200 ticks.
+    waypoint-update-interval-ticks: 20
 
     # [VI] Tầm tối đa vẽ particle; mặc định 48 block, giới hạn 8..64 block.
     # [EN] Maximum distance for drawing particles; defaults to 48 blocks, valid range 8..64 blocks.

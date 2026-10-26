@@ -1,5 +1,5 @@
 name: VnMineHardcore
-version: 2.0.4
+version: 2.18.0
 main: com.vnmine.hardcore.VnMineHardcore
 depend: [ProtocolLib]
 api-version: '26.3'
@@ -118,15 +118,33 @@ commands:
     permission: vnmine.command.skills
   vnskillbook:
     description: Cấp sách kỹ năng cho người chơi (admin)
-    usage: /vnskillbook give <người_chơi> <book-id>
+    usage: /vnskillbook <give <người_chơi> <book-id>|config>
     permission: vnmine.command.skillbook.admin
   vnportal:
     description: Tạo và quản lý các portal dịch chuyển RPG
     usage: /vnportal <wand|pos1|pos2|create|setspawn|link|unlink|enable|disable|remove|info|list|validate>
     permission: vnmine.command.portal.admin
+  vnnpc:
+    description: Tạo và quản lý các NPC RPG
+    usage: /vnnpc <create|edit|rename|move|remove|info|list>
+    permission: vnmine.command.npc.admin
+  vntext:
+    description: Tạo, chỉnh sửa và quản lý text display cố định trong thế giới
+    usage: /vntext <create|edit|move|remove|info|list>
+    permission: vnmine.command.text.manage
+  vnquest:
+    description: Mở nhật ký quest hoặc giao diện quản trị quest RPG
+    usage: /vnquest <journal|detail <id>|admin>
+  vnquestdialog:
+    description: Mở giao diện quản lý hội thoại quest RPG
+    usage: /vnquestdialog admin
+    permission: vnmine.command.quest.admin
   vnmenu:
     description: Mở menu chức năng của VnMineHardcore
     usage: /vnmenu
+  vncoin:
+    description: Xem ví, lịch sử hoặc quản trị tiền tệ VNCOIN
+    usage: /vncoin [balance|history [người_chơi]|stats|give|take <người_chơi> <số> [lý_do]]
   quatanthu:
     description: Nhận túi quà tân thủ và chọn token triệu hồi bậc 1
     usage: /quatanthu
@@ -207,14 +225,32 @@ permissions:
   vnmine.command.army.admin:
     description: Cho phép cấp và quản lý lính của người chơi bằng /vnarmy
     default: op
+  vnmine.command.vncoin.admin:
+    description: Cho phép cộng hoặc trừ VNCOIN của người chơi
+    default: op
+  vnmine.command.vncoin.history.others:
+    description: Cho phép xem lịch sử giao dịch VNCOIN của người chơi khác
+    default: op
   vnmine.command.skills:
     description: Cho phép xem kỹ năng RPG đã học bằng /vnskills
     default: true
   vnmine.command.skillbook.admin:
-    description: Cho phép cấp sách kỹ năng bằng /vnskillbook
+    description: Cho phép cấp sách kỹ năng và quản lý sách khởi đầu race/class
+    default: op
+  vnmine.command.progression.admin:
+    description: Cho phép cấp EXP và level RPG cho người chơi từ menu admin
     default: op
   vnmine.command.portal.admin:
-    description: Cho phép tạo và quản lý portal RPG bằng /vnportal
+    description: Cho phép tạo và quản lý portal RPG
+    default: op
+  vnmine.command.npc.admin:
+    description: Cho phép tạo, đổi tên, di chuyển và xóa NPC RPG bằng /vnnpc
+    default: op
+  vnmine.command.text.manage:
+    description: Cho phép tạo, chỉnh sửa, di chuyển và xóa text display bằng /vntext
+    default: op
+  vnmine.command.quest.admin:
+    description: Cho phép tạo, sửa, bật tắt và xóa quest RPG
     default: op
   vnmine.spawnprotection.bypass:
     description: Cho phép người chơi phá hoặc đặt block trong vùng spawn protection

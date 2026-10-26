@@ -1,0 +1,120 @@
+# [VI] Phiên bản schema NPC; mặc định 1, chỉ hỗ trợ phiên bản 1.
+# [EN] NPC schema version; defaults to 1 and only version 1 is supported.
+schema-version: 1
+
+npc-definitions:
+  hunter:
+    # [VI] Vai trò NPC; hunter là người giao nhiệm vụ săn quái.
+    # [EN] NPC role; hunter gives monster-hunting quests.
+    type: hunter
+    # [VI] Tên hiển thị NPC; tối đa 64 ký tự.
+    # [EN] NPC display name; maximum 64 characters.
+    display-name: "Thợ săn"
+    # [VI] Đối thoại gồm 1-20 dòng, mỗi dòng tối đa 256 ký tự.
+    # [EN] Dialogue contains 1-20 lines, each at most 256 characters.
+    dialogue:
+      - "Quái vật đang áp sát khu định cư. Hãy giúp ta dọn đường."
+  village-watch:
+    # [VI] Vai trò NPC; quest-giver giao nhiệm vụ chung.
+    # [EN] NPC role; quest-giver gives general quests.
+    type: quest-giver
+    # [VI] Tên hiển thị NPC; tối đa 64 ký tự.
+    # [EN] NPC display name; maximum 64 characters.
+    display-name: "Đội trưởng tuần tra"
+    # [VI] Đối thoại gồm 1-20 dòng.
+    # [EN] Dialogue contains 1-20 lines.
+    dialogue:
+      - "Đám nhện giăng tơ quanh lối vào làng. Hãy xử lý chúng."
+  blacksmith:
+    # [VI] Vai trò NPC; blacksmith giao nhiệm vụ thu thập vật liệu RPG.
+    # [EN] NPC role; blacksmith gives RPG material collection quests.
+    type: blacksmith
+    # [VI] Tên hiển thị NPC; tối đa 64 ký tự.
+    # [EN] NPC display name; maximum 64 characters.
+    display-name: "Thợ rèn"
+    # [VI] Đối thoại gồm 1-20 dòng.
+    # [EN] Dialogue contains 1-20 lines.
+    dialogue:
+      - "Ta cần mảnh sắt cổ đại từ những golem lang thang. Hãy mang chúng về đây."
+  tutorial-guide:
+    # [VI] Loại NPC; một trong tutorial, quest-giver, hunter, blacksmith, alchemist, trainer, merchant, system-merchant, story, gatekeeper, healer.
+    # [EN] NPC role; one of tutorial, quest-giver, hunter, blacksmith, alchemist, trainer, merchant, system-merchant, story, gatekeeper, healer.
+    type: tutorial
+    # [VI] Tên hiển thị; bắt buộc, không rỗng, tối đa 64 ký tự.
+    # [EN] Display name; required, non-empty, maximum 64 characters.
+    display-name: "Người dẫn đường"
+    # [VI] Thoại GUI mẫu; cần từ 1 đến 20 dòng, mỗi dòng tối đa 256 ký tự.
+    # [EN] Sample GUI dialogue; requires 1 to 20 lines, each at most 256 characters.
+    dialogue:
+      - "Chào mừng đến với Nhân giới, lữ khách."
+      - "Hãy mở nhật ký nhiệm vụ và tìm điểm spawn an toàn để bắt đầu hành trình."
+    # [VI] Các nút GUI tùy chọn; mặc định không có, tối đa 4 hành động thuộc danh sách hỗ trợ.
+    # [EN] Optional GUI buttons; defaults to none, maximum 4 supported actions.
+    actions:
+      # [VI] Hành động: open-quest-journal, open-skill-tree, open-story, open-merchant, give-skill-book hoặc accept-quest.
+      # [EN] Action: open-quest-journal, open-skill-tree, open-story, open-merchant, give-skill-book, or accept-quest.
+      - type: open-quest-journal
+        # [VI] Nhãn nút; bắt buộc, từ 1 đến 32 ký tự.
+        # [EN] Button label; required, 1-32 characters.
+        label: "Mở nhật ký nhiệm vụ"
+
+  class-trainer:
+    # [VI] Loại vai trò NPC; giá trị hợp lệ được liệt kê trong phần hướng dẫn.
+    # [EN] NPC role; valid values are listed in the field documentation.
+    type: trainer
+    # [VI] Tên hiển thị; tối đa 64 ký tự.
+    # [EN] Display name; maximum 64 characters.
+    display-name: "Huấn luyện sư"
+    # [VI] Nội dung thoại; từ 1 đến 20 dòng, mỗi dòng tối đa 256 ký tự.
+    # [EN] Dialogue content; 1 to 20 lines, each at most 256 characters.
+    dialogue:
+      - "Muốn học kỹ năng, hãy tìm sách phù hợp với class của mình."
+      - "Dùng /vnskills tree để xem kỹ năng và phân bổ skill point."
+    # [VI] Các nút GUI tùy chọn; mặc định không có, tối đa 4 hành động thuộc danh sách hỗ trợ.
+    # [EN] Optional GUI buttons; defaults to none, maximum 4 supported actions.
+    actions:
+      # [VI] Loại hành động: open-quest-journal, open-skill-tree, open-merchant hoặc give-skill-book.
+      # [EN] Action type: open-quest-journal, open-skill-tree, open-merchant, or give-skill-book.
+      - type: open-skill-tree
+        # [VI] Nhãn nút; bắt buộc, từ 1 đến 32 ký tự.
+        # [EN] Button label; required, 1-32 characters.
+        label: "Xem skill tree"
+
+  coin-merchant:
+    # [VI] Merchant hệ thống bán danh sách vật phẩm chung trong economy.merchant.offers.
+    # [EN] System merchant sells the shared item list configured in economy.merchant.offers.
+    type: system-merchant
+    # [VI] Tên hiển thị; tối đa 64 ký tự.
+    # [EN] Display name; maximum 64 characters.
+    display-name: "Thương nhân lữ hành"
+    # [VI] Thoại trước khi giao dịch; từ 1 đến 20 dòng, mỗi dòng tối đa 256 ký tự.
+    # [EN] Dialogue before trading; 1-20 lines, each at most 256 characters.
+    dialogue:
+      - "Ta có vài vật dụng cần thiết cho chuyến đi."
+    # [VI] Nút mẫu mở cửa hàng hệ thống; NPC loại system-merchant cũng mở thẳng cửa hàng khi tương tác.
+    # [EN] Sample system-shop button; system-merchant NPCs also open the shop directly on interaction.
+    actions:
+      - type: open-merchant
+        # [VI] Nhãn nút; từ 1 đến 32 ký tự.
+        # [EN] Button label; 1-32 characters.
+        label: "Xem hàng hóa"
+
+  story-keeper:
+    # [VI] Loại vai trò NPC; giá trị hợp lệ được liệt kê trong phần hướng dẫn.
+    # [EN] NPC role; valid values are listed in the field documentation.
+    type: story
+    # [VI] Tên hiển thị; tối đa 64 ký tự.
+    # [EN] Display name; maximum 64 characters.
+    display-name: "Người giữ ký ức"
+    # [VI] Nội dung thoại; từ 1 đến 20 dòng, mỗi dòng tối đa 256 ký tự.
+    # [EN] Dialogue content; 1 to 20 lines, each at most 256 characters.
+    dialogue:
+      - "Mỗi cánh cổng đều dẫn tới một câu chuyện chưa kể."
+      - "Hãy ghi nhớ những gì đã xảy ra; lịch sử của đại lục nằm trong tay các ngươi."
+    # [VI] Nút mở danh mục chapter; nhấp chapter sẽ mở sách chứa toàn bộ nội dung.
+    # [EN] Button opens the chapter list; clicking a chapter opens its full book text.
+    actions:
+      - type: open-story
+        # [VI] Nhãn nút; từ 1 đến 32 ký tự.
+        # [EN] Button label; 1-32 characters.
+        label: "Đọc sổ truyện"

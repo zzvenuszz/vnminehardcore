@@ -362,9 +362,9 @@ public final class TutorialQuestManager implements Listener {
                 + ", rewardClaimedNow=" + data.rewardClaimedNow());
             if (data.rewardClaimedNow()) {
                 if ("character-exp".equals(quest.reward().type())) {
-                    CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
-                    if (characters != null && data.updatedProfile() != null) {
-                        characters.updateLoadedProfile(data.updatedProfile());
+                    CharacterSelectionManager characters2 = plugin.getCharacterSelectionManager();
+                    if (characters2 != null && data.updatedProfile() != null) {
+                        characters2.updateLoadedProfile(data.updatedProfile());
                     }
                     sendLevelUpFeedback(player, data.profile());
                     player.sendMessage("§aPhần thưởng nhiệm vụ đã được lưu: §e+"

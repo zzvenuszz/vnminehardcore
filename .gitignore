@@ -26,3 +26,4 @@ Paper/
 /TEST/server/plugins/VnMineHardcore/thirst-data.yml
 /VnMineHardcore/TEST/
 /.playit.toml
+.aider*
