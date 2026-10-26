@@ -194,6 +194,9 @@ experience-pool:
 # [VI] Loot gear lính đánh thuê; mỗi lần boss bị hạ chọn ngẫu nhiên một class/set rồi roll từng ô trang bị hợp lệ.
 # [EN] Mercenary gear loot; each boss kill selects one random class/set, then rolls each valid equipment slot.
 mercenary-gear-drops:
+  # [VI] Giá bán mỗi món gear lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss mercenary gear item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Bật/tắt loot gear lính; mặc định true.
   # [EN] Enable mercenary gear drops; default true.
   enabled: true

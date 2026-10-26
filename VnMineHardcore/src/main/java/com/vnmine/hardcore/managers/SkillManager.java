@@ -66,6 +66,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private final ConfigManager config;
     private final NamespacedKey bookIdKey;
     private final NamespacedKey skillIdKey;
+    private final NamespacedKey rpgSellValueKey;
     private SkillDefinitionLoader.SkillRegistry registry;
     private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
     private final Map<UUID, Integer> battleFocusRanks = new HashMap<>();
@@ -84,6 +85,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         this.config = config;
         this.bookIdKey = new NamespacedKey(plugin, "skill_book_id");
         this.skillIdKey = new NamespacedKey(plugin, "rpg_skill_id");
+        this.rpgSellValueKey = new NamespacedKey(plugin, "rpg_sell_value");
     }
 
     private String formatPercent(double fraction) {
@@ -1615,6 +1617,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         lore.add("§8Nhấp chuột phải để học");
         meta.setLore(lore);
         meta.getPersistentDataContainer().set(bookIdKey, PersistentDataType.STRING, book.id());
+        meta.getPersistentDataContainer().set(rpgSellValueKey, PersistentDataType.LONG, book.sellValue());
         item.setItemMeta(meta);
         return item;
     }

@@ -1005,6 +1005,19 @@ public class ConfigManager {
         return value;
     }
 
+    private long readRpgSellValue(ConfigurationSection section, String path, String context) {
+        Object raw = section.get(path);
+        if (raw == null) return 0L;
+        if (raw instanceof Number number && Double.isFinite(number.doubleValue())
+                && number.doubleValue() == number.longValue()
+                && number.longValue() >= 0L && number.longValue() <= 1_000_000L) {
+            return number.longValue();
+        }
+        plugin.getLogger().warning("[MerchantPrices] Invalid RPG sell-value at " + context + "." + path
+            + "; using 0 (not purchasable by system merchant).");
+        return 0L;
+    }
+
    /**
     * Load all disaster configurations from disasters/*.yml files
     * Now supports dynamic disaster IDs by scanning all .yml files
@@ -1444,6 +1457,7 @@ public class ConfigManager {
    private ConfigManager.BossMercenaryGearDropConfig copyBossMercenaryGearDropConfig(ConfigManager.BossMercenaryGearDropConfig source) {
       ConfigManager.BossMercenaryGearDropConfig copy = new ConfigManager.BossMercenaryGearDropConfig();
       copy.enabled = source.enabled;
+      copy.sellValue = source.sellValue;
       copy.leatherOneStarChancePercent = source.leatherOneStarChancePercent;
       copy.netheriteFiveStarChancePercent = source.netheriteFiveStarChancePercent;
       source.levelTiers.forEach((level, tier) -> copy.levelTiers.put(level, new ConfigManager.BossMercenaryGearTier(tier.material, tier.stars)));
@@ -1459,6 +1473,7 @@ public class ConfigManager {
       }
 
       result.enabled = section.getBoolean("enabled", result.enabled);
+      result.sellValue = this.readRpgSellValue(section, "sell-value", sourceName + ".mercenary-gear-drops");
       result.leatherOneStarChancePercent = this.readBoundedDouble(section, "chance.leather-1-star-percent", result.leatherOneStarChancePercent, 0.0, 100.0);
       result.netheriteFiveStarChancePercent = this.readBoundedDouble(
          section, "chance.netherite-5-star-percent", result.netheriteFiveStarChancePercent, 0.0, 100.0
@@ -1536,6 +1551,7 @@ public class ConfigManager {
                      this.plugin.getLogger().warning("[Boss] Invalid army-token-class in " + fileName + "; using guardian.");
                      bc.armyTokenClass = "guardian";
                   }
+                  bc.armyTokenSellValue = this.readRpgSellValue(section, "army-token-sell-value", fileName);
 
                   bc.mercenaryGearDrops = this.readBossMercenaryGearDropConfig(
                      section.getConfigurationSection("mercenary-gear-drops"),
@@ -1639,6 +1655,8 @@ public class ConfigManager {
                            dc.minAmount = dropSection.getInt("min-amount", 1);
                            dc.maxAmount = dropSection.getInt("max-amount", 1);
                            dc.chance = dropSection.getDouble("chance", 0.5);
+                           dc.sellValue = this.readRpgSellValue(dropSection, "sell-value",
+                              fileName + ".drops." + dropKey);
                            dc.name = EconomyManager.sanitizeVisibleName(dropSection.getString("name"));
                            dc.lore = dropSection.getStringList("lore");
                            ConfigurationSection bookEnchants = dropSection.getConfigurationSection("book-enchantments");
@@ -1664,6 +1682,8 @@ public class ConfigManager {
                   if (armorSetSection != null) {
                      ConfigManager.BossArmorSetConfig armorSet = new ConfigManager.BossArmorSetConfig();
                      armorSet.enabled = armorSetSection.getBoolean("enabled", true);
+                     armorSet.sellValue = this.readRpgSellValue(armorSetSection, "sell-value",
+                        fileName + ".armor-set");
                      armorSet.name = EconomyManager.sanitizeVisibleName(
                         armorSetSection.getString("name", bc.displayName + " Di Vật"));
                      armorSet.storyId = armorSetSection.getString("story-id");
@@ -1841,6 +1861,16 @@ public class ConfigManager {
                                  item.chance = number.doubleValue();
                               }
 
+                              if (itemMap.get("sell-value") instanceof Number number) {
+                                 item.sellValue = number.longValue();
+                                 if (number.doubleValue() != number.longValue()
+                                       || item.sellValue < 0 || item.sellValue > 1_000_000L) {
+                                    this.plugin.getLogger().warning("[Boss] Invalid level-drop sell-value in "
+                                       + fileName + " level " + level + "; using 0.");
+                                    item.sellValue = 0L;
+                                 }
+                              }
+
                               this.readEnchantments(itemMap.get("enchantments"), item.enchantments);
                               this.readEnchantments(itemMap.get("book-enchantments"), item.bookEnchantments);
                               if (item.minAmount >= 1
@@ -2010,6 +2040,7 @@ public class ConfigManager {
 
    public static class BossArmorSetConfig {
       public boolean enabled = true;
+      public long sellValue;
       public String name = "Di Vật";
       public String storyId;
       public double dropChance = 0.30;
@@ -2025,6 +2056,7 @@ public class ConfigManager {
       public String entityType = "WITHER";
       public String displayName = "§c§lBoss";
       public String armyTokenClass = "guardian";
+      public long armyTokenSellValue;
       public double hp = 100.0;
       public double damageMultiplier = 1.0;
       public double maxPlayerHitDamage = 10.0;
@@ -2053,6 +2085,7 @@ public class ConfigManager {
    public static class BossMercenaryGearDropConfig {
       private static final List<String> MATERIAL_ORDER = List.of("leather", "copper", "iron", "gold", "diamond", "netherite");
       public boolean enabled = true;
+      public long sellValue;
       public double leatherOneStarChancePercent = 30.0;
       public double netheriteFiveStarChancePercent = 30.0;
       public Map<Integer, ConfigManager.BossMercenaryGearTier> levelTiers = new HashMap<>();
@@ -2110,6 +2143,7 @@ public class ConfigManager {
       public int minAmount = 1;
       public int maxAmount = 1;
       public double chance;
+      public long sellValue;
       public Map<String, Integer> enchantments = new HashMap<>();
       public Map<String, Integer> bookEnchantments = new HashMap<>();
    }
@@ -2154,6 +2188,7 @@ public class ConfigManager {
       public int minAmount = 1;
       public int maxAmount = 1;
       public double chance = 0.5;
+      public long sellValue;
       public String name;
       public List<String> lore = new ArrayList<>();
       public Map<String, Integer> bookEnchantments = new HashMap<>();

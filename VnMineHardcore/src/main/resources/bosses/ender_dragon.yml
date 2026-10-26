@@ -8,6 +8,9 @@ display-name: "§5§lRồng Tử Thần"
 # [VI] Class lính của token boss; bậc token theo level boss.
 # [EN] Mercenary class for this boss token; token tier follows the boss level.
 army-token-class: paladin
+# [VI] Giá bán token lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+# [EN] System-merchant sell value for this boss summon token; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+army-token-sell-value: 0
 hp: 1700
 damage-multiplier: 3.0
 # [VI] EXP thưởng cơ bản level 1; mặc định 2000, hợp lệ 1-1000000; level boss nhân theo _settings.yml.
@@ -57,42 +60,72 @@ immunities:
 
 drops:
   DRAGON_EGG:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 1
     chance: 0.30
   ELYTRA:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 1
     chance: 0.30
   DIAMOND:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 8
     max-amount: 15
     chance: 0.30
   EMERALD:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 15
     max-amount: 25
     chance: 0.30
   IRON_INGOT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 20
     max-amount: 40
     chance: 0.30
   SHULKER_SHELL:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 2
     max-amount: 4
     chance: 0.30
   ENCHANTED_BOOK:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 3
     chance: 0.30
   END_CRYSTAL:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 3
     chance: 0.30
   CHORUS_FRUIT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 15
     chance: 0.30
   DRAGON_BREATH:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 3
     chance: 0.30
@@ -112,6 +145,9 @@ drops:
 # [VI] Tạo bộ giáp bốn món cho boss này; vật liệu và enchant tự tăng theo level.
 # [EN] Generate this boss's four-piece armor set; materials and enchants scale by level.
 armor-set:
+  # [VI] Giá bán mỗi món giáp boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss armor piece; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Bật/tắt bộ giáp; mặc định true.
   # [EN] Enable or disable the armor set; default true.
   enabled: true
@@ -145,6 +181,9 @@ armor-set:
 level-drops:
   1:
     - material: IRON_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Cổ · Cấp 1"
       story-id: dragon-relic-common
       min-amount: 1
@@ -153,6 +192,9 @@ level-drops:
       enchantments:
         sharpness: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm · Cấp 1"
       story-id: dragon-codex-common
       min-amount: 1
@@ -163,6 +205,9 @@ level-drops:
 
   2:
     - material: IRON_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Cổ · Cấp 2"
       story-id: dragon-relic-common
       min-amount: 1
@@ -172,6 +217,9 @@ level-drops:
         sharpness: 3
         smite: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm · Cấp 2"
       story-id: dragon-codex-common
       min-amount: 1
@@ -183,6 +231,9 @@ level-drops:
 
   3:
     - material: DIAMOND_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Hư Không · Cấp 3"
       story-id: dragon-relic
       min-amount: 1
@@ -193,6 +244,9 @@ level-drops:
         smite: 4
         bane_of_arthropods: 4
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm Hư Không · Cấp 3"
       story-id: dragon-codex
       min-amount: 1
@@ -205,6 +259,9 @@ level-drops:
 
   4:
     - material: DIAMOND_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Hư Không · Cấp 4"
       story-id: dragon-relic
       min-amount: 1
@@ -216,6 +273,9 @@ level-drops:
         bane_of_arthropods: 5
         knockback: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm Hư Không · Cấp 4"
       story-id: dragon-codex
       min-amount: 1
@@ -228,6 +288,9 @@ level-drops:
         knockback: 2
   5:
     - material: DIAMOND_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Hư Không · Cấp 5"
       story-id: dragon-relic
       min-amount: 1
@@ -240,6 +303,9 @@ level-drops:
         knockback: 2
         fire_aspect: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm Hư Không · Cấp 5"
       story-id: dragon-codex
       min-amount: 1
@@ -254,6 +320,9 @@ level-drops:
 
   6:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Hư Không · Cấp 6"
       story-id: dragon-relic
       min-amount: 1
@@ -267,6 +336,9 @@ level-drops:
         fire_aspect: 2
         looting: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm Hư Không · Cấp 6"
       story-id: dragon-codex
       min-amount: 1
@@ -282,6 +354,9 @@ level-drops:
 
   7:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Hư Không · Cấp 7"
       story-id: dragon-relic
       min-amount: 1
@@ -296,6 +371,9 @@ level-drops:
         looting: 5
         unbreaking: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm Hư Không · Cấp 7"
       story-id: dragon-codex
       min-amount: 1
@@ -312,6 +390,9 @@ level-drops:
 
   8:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Hư Không · Cấp 8"
       story-id: dragon-relic
       min-amount: 1
@@ -327,6 +408,9 @@ level-drops:
         unbreaking: 6
         mending: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm Hư Không · Cấp 8"
       story-id: dragon-codex
       min-amount: 1
@@ -344,6 +428,9 @@ level-drops:
 
   9:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Hư Không · Cấp 9"
       story-id: dragon-relic
       min-amount: 1
@@ -360,6 +447,9 @@ level-drops:
         mending: 1
         sweeping_edge: 7
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm Hư Không · Cấp 9"
       story-id: dragon-codex
       min-amount: 1
@@ -378,6 +468,9 @@ level-drops:
 
   10:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lLong Kiếm Hư Không · Cấp 10"
       story-id: dragon-relic
       min-amount: 1
@@ -395,6 +488,9 @@ level-drops:
         sweeping_edge: 8
         vanishing_curse: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Long Kiếm Hư Không · Cấp 10"
       story-id: dragon-codex
       min-amount: 1

@@ -8,6 +8,9 @@ display-name: "§a§lCreeper Boss"
 # [VI] Class lính của token boss; bậc token theo level boss.
 # [EN] Mercenary class for this boss token; token tier follows the boss level.
 army-token-class: berserker
+# [VI] Giá bán token lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+# [EN] System-merchant sell value for this boss summon token; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+army-token-sell-value: 0
 hp: 1200
 damage-multiplier: 3.0
 chance: 10
@@ -75,34 +78,58 @@ immunities: {}
 
 drops:
   GUNPOWDER:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 20
     max-amount: 50
     chance: 0.30
   DIAMOND:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 4
     max-amount: 8
     chance: 0.30
   IRON_INGOT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 10
     max-amount: 20
     chance: 0.30
   EMERALD:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 8
     max-amount: 16
     chance: 0.30
   TNT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 2
     max-amount: 6
     chance: 0.30
   ENCHANTED_BOOK:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 2
     chance: 0.30
   FIREWORK_ROCKET:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 15
     chance: 0.30
   CREEPER_HEAD:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 1
     chance: 0.30
@@ -122,6 +149,9 @@ drops:
 # [VI] Tạo bộ giáp bốn món cho boss này; vật liệu và enchant tự tăng theo level.
 # [EN] Generate this boss's four-piece armor set; materials and enchants scale by level.
 armor-set:
+  # [VI] Giá bán mỗi món giáp boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss armor piece; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Bật/tắt bộ giáp; mặc định true.
   # [EN] Enable or disable the armor set; default true.
   enabled: true
@@ -155,6 +185,9 @@ armor-set:
 level-drops:
   1:
     - material: IRON_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lKiếm Lôi Tâm · Cấp 1"
       story-id: creeper-relic-common
       min-amount: 1
@@ -163,6 +196,9 @@ level-drops:
       enchantments:
         sharpness: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm · Cấp 1"
       story-id: creeper-codex-common
       min-amount: 1
@@ -173,6 +209,9 @@ level-drops:
 
   2:
     - material: IRON_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lKiếm Lôi Tâm · Cấp 2"
       story-id: creeper-relic-common
       min-amount: 1
@@ -182,6 +221,9 @@ level-drops:
         sharpness: 3
         smite: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm · Cấp 2"
       story-id: creeper-codex-common
       min-amount: 1
@@ -193,6 +235,9 @@ level-drops:
 
   3:
     - material: DIAMOND_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lLôi Tâm Hủy Diệt · Cấp 3"
       story-id: creeper-relic
       min-amount: 1
@@ -203,6 +248,9 @@ level-drops:
         smite: 4
         bane_of_arthropods: 4
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm Hủy Diệt · Cấp 3"
       story-id: creeper-codex
       min-amount: 1
@@ -215,6 +263,9 @@ level-drops:
 
   4:
     - material: DIAMOND_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lLôi Tâm Hủy Diệt · Cấp 4"
       story-id: creeper-relic
       min-amount: 1
@@ -226,6 +277,9 @@ level-drops:
         bane_of_arthropods: 5
         knockback: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm Hủy Diệt · Cấp 4"
       story-id: creeper-codex
       min-amount: 1
@@ -238,6 +292,9 @@ level-drops:
         knockback: 2
   5:
     - material: DIAMOND_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lLôi Tâm Hủy Diệt · Cấp 5"
       story-id: creeper-relic
       min-amount: 1
@@ -250,6 +307,9 @@ level-drops:
         knockback: 2
         fire_aspect: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm Hủy Diệt · Cấp 5"
       story-id: creeper-codex
       min-amount: 1
@@ -264,6 +324,9 @@ level-drops:
 
   6:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lLôi Tâm Hủy Diệt · Cấp 6"
       story-id: creeper-relic
       min-amount: 1
@@ -277,6 +340,9 @@ level-drops:
         fire_aspect: 2
         looting: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm Hủy Diệt · Cấp 6"
       story-id: creeper-codex
       min-amount: 1
@@ -292,6 +358,9 @@ level-drops:
 
   7:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lLôi Tâm Hủy Diệt · Cấp 7"
       story-id: creeper-relic
       min-amount: 1
@@ -306,6 +375,9 @@ level-drops:
         looting: 5
         unbreaking: 5
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm Hủy Diệt · Cấp 7"
       story-id: creeper-codex
       min-amount: 1
@@ -322,6 +394,9 @@ level-drops:
 
   8:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lLôi Tâm Hủy Diệt · Cấp 8"
       story-id: creeper-relic
       min-amount: 1
@@ -337,6 +412,9 @@ level-drops:
         unbreaking: 6
         mending: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm Hủy Diệt · Cấp 8"
       story-id: creeper-codex
       min-amount: 1
@@ -354,6 +432,9 @@ level-drops:
 
   9:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lLôi Tâm Hủy Diệt · Cấp 9"
       story-id: creeper-relic
       min-amount: 1
@@ -370,6 +451,9 @@ level-drops:
         mending: 1
         sweeping_edge: 7
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm Hủy Diệt · Cấp 9"
       story-id: creeper-codex
       min-amount: 1
@@ -388,6 +472,9 @@ level-drops:
 
   10:
     - material: NETHERITE_SWORD
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lLôi Tâm Hủy Diệt · Cấp 10"
       story-id: creeper-relic
       min-amount: 1
@@ -405,6 +492,9 @@ level-drops:
         sweeping_edge: 8
         vanishing_curse: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§a§lMật Lục Lôi Tâm Hủy Diệt · Cấp 10"
       story-id: creeper-codex
       min-amount: 1

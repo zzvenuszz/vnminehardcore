@@ -117,6 +117,7 @@ public class BossEventManager implements Listener {
    private final NamespacedKey armyOwnerKey;
    private final NamespacedKey bossArmorSetKey;
    private final NamespacedKey rpgSystemItemKey;
+   private final NamespacedKey rpgSellValueKey;
    private final NamespacedKey rpgSystemBossKey;
    private final ConfigManager config;
    private final LogManager logManager;
@@ -186,6 +187,7 @@ public class BossEventManager implements Listener {
       this.armyOwnerKey = new NamespacedKey(plugin, "army_owner");
       this.bossArmorSetKey = new NamespacedKey(plugin, "boss_armor_set");
       this.rpgSystemItemKey = new NamespacedKey(plugin, "rpg_system_item");
+      this.rpgSellValueKey = new NamespacedKey(plugin, "rpg_sell_value");
       this.rpgSystemBossKey = new NamespacedKey(plugin, "rpg_system_boss_id");
       this.config = config;
       this.logManager = plugin.getLogManager();
@@ -3510,6 +3512,7 @@ public class BossEventManager implements Listener {
                      for (Entry<String, Integer> enchantment : dc.bookEnchantments.entrySet()) {
                         this.addConfiguredEnchantment(dropItem, enchantment.getKey(), enchantment.getValue(), true);
                      }
+                     this.applyRpgSellValue(dropItem, dc.sellValue);
 
                      if (this.currentBoss != null) {
                         this.dropItemsNaturally(this.currentBoss.getLocation(), dropItem, amount);
@@ -3537,6 +3540,7 @@ public class BossEventManager implements Listener {
                      for (Entry<String, Integer> enchantment : configuredItem.bookEnchantments.entrySet()) {
                         this.addConfiguredEnchantment(item, enchantment.getKey(), enchantment.getValue(), true);
                      }
+                     this.applyRpgSellValue(item, configuredItem.sellValue);
 
                      this.dropItemsNaturally(this.currentBoss.getLocation(), item, amount);
                   } else {
@@ -3551,7 +3555,8 @@ public class BossEventManager implements Listener {
       }
 
       if (this.currentBoss != null && this.bossDamageContributions.values().stream().anyMatch(damage -> damage > 0.0)) {
-         this.dropArmySummonToken(this.currentBoss.getLocation(), this.currentBossLevel, bc.armyTokenClass);
+         this.dropArmySummonToken(this.currentBoss.getLocation(), this.currentBossLevel,
+            bc.armyTokenClass, bc.armyTokenSellValue);
       }
 
       this.leaderboardManager.finishBoss(this.currentBossLevel, Map.copyOf(this.bossDamageContributions));
@@ -3665,6 +3670,7 @@ public class BossEventManager implements Listener {
 
                for (ItemStack item : gearItems) {
                   if (this.random.nextDouble() < chance) {
+                     this.applyRpgSellValue(item, gearDrops.sellValue);
                      this.dropItemsNaturally(this.currentBoss.getLocation(), item, 1);
                   }
                }
@@ -3685,13 +3691,14 @@ public class BossEventManager implements Listener {
       return selectedLevel < 0 ? null : gearDrops.levelTiers.get(selectedLevel);
    }
 
-   private void dropArmySummonToken(Location location, int level, String classId) {
+   private void dropArmySummonToken(Location location, int level, String classId, long sellValue) {
       if (this.config.bossArmyTokenDropEnabled && !(this.random.nextDouble() >= this.config.bossArmyTokenDropChance)) {
          if (this.plugin.getMercenaryManager() != null) {
             ItemStack token = this.plugin.getMercenaryManager().createBossSummonToken(classId, level);
             if (token == null) {
                this.logger.warning("[BossEvent] Invalid army-token-class '" + classId + "'; no token dropped.");
             } else {
+               this.applyRpgSellValue(token, sellValue);
                this.dropItemsNaturally(location, token, 1);
             }
          }
@@ -3732,6 +3739,7 @@ public class BossEventManager implements Listener {
                         ItemMeta meta = item.getItemMeta();
                         meta.getPersistentDataContainer().set(this.bossArmorSetKey, PersistentDataType.STRING, armorSet.storyId);
                         item.setItemMeta(meta);
+                        this.applyRpgSellValue(item, armorSet.sellValue);
                         List<String> enchants = armorSet.enchantmentsBySlot.getOrDefault(piece[0], this.armorEnchantments(piece[0]));
                         int enchantCount = Math.min(4, level == 1 ? 2 : (level == 2 ? 3 : 4));
 
@@ -3936,6 +3944,15 @@ public class BossEventManager implements Listener {
          location.getWorld().dropItemNaturally(location, stack);
          remaining -= stackAmount;
       }
+   }
+
+   private void applyRpgSellValue(ItemStack item, long sellValue) {
+      if (item == null || item.getType().isAir()) return;
+      ItemMeta meta = item.getItemMeta();
+      if (meta == null) return;
+      long safeValue = sellValue >= 0 && sellValue <= 1_000_000L ? sellValue : 0L;
+      meta.getPersistentDataContainer().set(this.rpgSellValueKey, PersistentDataType.LONG, safeValue);
+      item.setItemMeta(meta);
    }
 
    private void cleanup() {

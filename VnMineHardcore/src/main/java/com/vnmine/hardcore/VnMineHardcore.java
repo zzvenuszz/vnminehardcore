@@ -680,6 +680,11 @@ public final class VnMineHardcore extends JavaPlugin {
                     "[Economy] VNCOIN config is invalid; previous economy settings remain active.", exception);
                 sender.sendMessage("§cCấu hình VNCOIN không hợp lệ; thiết lập VNCOIN trước đó vẫn được giữ.");
             }
+            if (economyManager.reloadMerchantPrices()) {
+                sender.sendMessage("§aĐã tải lại allowlist giá bán system merchant.");
+            } else {
+                sender.sendMessage("§cKhông tải được merchant-prices.yml; bảng giá hợp lệ trước đó vẫn được giữ.");
+            }
             reloadProfileDatabaseMaintenance();
             timeControlManager.reload();
             hungerListener.reload();

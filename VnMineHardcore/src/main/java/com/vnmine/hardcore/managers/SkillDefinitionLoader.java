@@ -243,7 +243,15 @@ public final class SkillDefinitionLoader {
         String materialName = readText(section, "material", "books", id, file, logger);
         String rarity = readText(section, "rarity", "books", id, file, logger);
         List<String> lore = readTextList(section, "lore", "books", id, file, logger);
+        Object rawSellValue = section.get("sell-value");
+        long sellValue = rawSellValue == null ? 0L
+            : rawSellValue instanceof Number number && number.doubleValue() == number.longValue()
+                ? number.longValue() : -1L;
         Material material = materialName == null ? null : Material.matchMaterial(materialName);
+        if (sellValue < 0 || sellValue > 1_000_000L) {
+            logger.warning("[Skills] sell-value for book '" + id + "' must be an integer between 0 and 1000000.");
+            valid = false;
+        }
         if (skillId != null && !isValidId(skillId)) {
             logger.warning("[Skills] Invalid skill-id for book '" + id + "' in " + file.getName() + ".");
             valid = false;
@@ -261,7 +269,7 @@ public final class SkillDefinitionLoader {
             valid = false;
         }
         if (!valid) return null;
-        return new SkillBookDefinition(id, skillId, displayName, rarity, material, lore);
+        return new SkillBookDefinition(id, skillId, displayName, rarity, material, lore, sellValue);
     }
 
     private static String readText(ConfigurationSection section, String key, String root,
@@ -329,7 +337,7 @@ public final class SkillDefinitionLoader {
     }
 
     public record SkillBookDefinition(String id, String skillId, String displayName, String rarity,
-                                       Material material, List<String> lore) {
+                                       Material material, List<String> lore, long sellValue) {
         public SkillBookDefinition {
             lore = List.copyOf(lore);
         }

@@ -8,6 +8,9 @@ display-name: "§5§lEnderman Boss"
 # [VI] Class lính của token boss; bậc token theo level boss.
 # [EN] Mercenary class for this boss token; token tier follows the boss level.
 army-token-class: ranger
+# [VI] Giá bán token lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+# [EN] System-merchant sell value for this boss summon token; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+army-token-sell-value: 0
 hp: 1150
 damage-multiplier: 2.2
 # [VI] EXP thưởng cơ bản level 1; mặc định 300, hợp lệ 1-1000000; level boss nhân theo _settings.yml.
@@ -92,34 +95,58 @@ immunities:
 
 drops:
   ENDER_PEARL:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 8
     max-amount: 20
     chance: 0.30
   DIAMOND:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 4
     max-amount: 8
     chance: 0.30
   IRON_INGOT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 10
     max-amount: 18
     chance: 0.30
   EMERALD:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 8
     max-amount: 15
     chance: 0.30
   OBSIDIAN:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 15
     chance: 0.30
   ENDER_CHEST:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 1
     chance: 0.30
   ENCHANTED_BOOK:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 1
     chance: 0.30
   CHORUS_FRUIT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 5
     max-amount: 12
     chance: 0.30
@@ -139,6 +166,9 @@ drops:
 # [VI] Tạo bộ giáp bốn món cho boss này; vật liệu và enchant tự tăng theo level.
 # [EN] Generate this boss's four-piece armor set; materials and enchants scale by level.
 armor-set:
+  # [VI] Giá bán mỗi món giáp boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss armor piece; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Bật/tắt bộ giáp; mặc định true.
   # [EN] Enable or disable the armor set; default true.
   enabled: true
@@ -172,6 +202,9 @@ armor-set:
 level-drops:
   1:
     - material: IRON_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt End · Cấp 1"
       story-id: enderman-relic-common
       min-amount: 1
@@ -180,6 +213,9 @@ level-drops:
       enchantments:
         efficiency: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lGhi Chép Mắt End · Cấp 1"
       story-id: enderman-codex-common
       min-amount: 1
@@ -190,6 +226,9 @@ level-drops:
 
   2:
     - material: IRON_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt End · Cấp 2"
       story-id: enderman-relic-common
       min-amount: 1
@@ -199,6 +238,9 @@ level-drops:
         efficiency: 3
         fortune: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lGhi Chép Mắt End · Cấp 2"
       story-id: enderman-codex-common
       min-amount: 1
@@ -210,6 +252,9 @@ level-drops:
 
   3:
     - material: DIAMOND_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt Tận Cùng · Cấp 3"
       story-id: enderman-relic
       min-amount: 1
@@ -220,6 +265,9 @@ level-drops:
         fortune: 2
         silk_touch: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Cuốc Mắt Tận Cùng · Cấp 3"
       story-id: enderman-codex
       min-amount: 1
@@ -232,6 +280,9 @@ level-drops:
 
   4:
     - material: DIAMOND_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt Tận Cùng · Cấp 4"
       story-id: enderman-relic
       min-amount: 1
@@ -243,6 +294,9 @@ level-drops:
         silk_touch: 1
         unbreaking: 3
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Cuốc Mắt Tận Cùng · Cấp 4"
       story-id: enderman-codex
       min-amount: 1
@@ -255,6 +309,9 @@ level-drops:
         unbreaking: 3
   5:
     - material: DIAMOND_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt Tận Cùng · Cấp 5"
       story-id: enderman-relic
       min-amount: 1
@@ -267,6 +324,9 @@ level-drops:
         unbreaking: 4
         mending: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Cuốc Mắt Tận Cùng · Cấp 5"
       story-id: enderman-codex
       min-amount: 1
@@ -281,6 +341,9 @@ level-drops:
 
   6:
     - material: NETHERITE_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt Tận Cùng · Cấp 6"
       story-id: enderman-relic
       min-amount: 1
@@ -294,6 +357,9 @@ level-drops:
         mending: 1
         sharpness: 7
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Cuốc Mắt Tận Cùng · Cấp 6"
       story-id: enderman-codex
       min-amount: 1
@@ -309,6 +375,9 @@ level-drops:
 
   7:
     - material: NETHERITE_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt Tận Cùng · Cấp 7"
       story-id: enderman-relic
       min-amount: 1
@@ -323,6 +392,9 @@ level-drops:
         sharpness: 7
         smite: 7
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Cuốc Mắt Tận Cùng · Cấp 7"
       story-id: enderman-codex
       min-amount: 1
@@ -339,6 +411,9 @@ level-drops:
 
   8:
     - material: NETHERITE_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt Tận Cùng · Cấp 8"
       story-id: enderman-relic
       min-amount: 1
@@ -354,6 +429,9 @@ level-drops:
         smite: 8
         bane_of_arthropods: 8
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Cuốc Mắt Tận Cùng · Cấp 8"
       story-id: enderman-codex
       min-amount: 1
@@ -371,6 +449,9 @@ level-drops:
 
   9:
     - material: NETHERITE_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt Tận Cùng · Cấp 9"
       story-id: enderman-relic
       min-amount: 1
@@ -387,6 +468,9 @@ level-drops:
         bane_of_arthropods: 9
         fire_aspect: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Cuốc Mắt Tận Cùng · Cấp 9"
       story-id: enderman-codex
       min-amount: 1
@@ -405,6 +489,9 @@ level-drops:
 
   10:
     - material: NETHERITE_PICKAXE
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lCuốc Mắt Tận Cùng · Cấp 10"
       story-id: enderman-relic
       min-amount: 1
@@ -422,6 +509,9 @@ level-drops:
         fire_aspect: 2
         vanishing_curse: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§5§lMật Lục Cuốc Mắt Tận Cùng · Cấp 10"
       story-id: enderman-codex
       min-amount: 1

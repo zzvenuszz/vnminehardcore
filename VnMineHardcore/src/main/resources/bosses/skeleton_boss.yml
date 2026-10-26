@@ -8,6 +8,9 @@ display-name: "§8§lSkeleton Boss"
 # [VI] Class lính của token boss; bậc token theo level boss.
 # [EN] Mercenary class for this boss token; token tier follows the boss level.
 army-token-class: archer
+# [VI] Giá bán token lính boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+# [EN] System-merchant sell value for this boss summon token; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+army-token-sell-value: 0
 hp: 1000
 damage-multiplier: 2.0
 # [VI] EXP thưởng cơ bản level 1; mặc định 250, hợp lệ 1-1000000; level boss nhân theo _settings.yml.
@@ -52,38 +55,65 @@ immunities:
 
 drops:
   BONE:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 10
     max-amount: 25
     chance: 0.30
   ARROW:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 15
     max-amount: 40
     chance: 0.30
   DIAMOND:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 3
     max-amount: 7
     chance: 0.30
   IRON_INGOT:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 8
     max-amount: 18
     chance: 0.30
   EMERALD:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 8
     max-amount: 15
     chance: 0.30
   BOW:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 1
     chance: 0.30
   ENCHANTED_BOOK:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 1
     chance: 0.30
   FLINT_AND_STEEL:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 2
     chance: 0.30
   SKELETON_SKULL:
+    # [VI] Giá bán một đơn vị vật phẩm boss; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per boss drop; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+    sell-value: 0
     min-amount: 1
     max-amount: 2
     chance: 0.30
@@ -103,6 +133,9 @@ drops:
 # [VI] Tạo bộ giáp bốn món cho boss này; vật liệu và enchant tự tăng theo level.
 # [EN] Generate this boss's four-piece armor set; materials and enchants scale by level.
 armor-set:
+  # [VI] Giá bán mỗi món giáp boss qua system merchant; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+  # [EN] System-merchant sell value per boss armor piece; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+  sell-value: 0
   # [VI] Bật/tắt bộ giáp; mặc định true.
   # [EN] Enable or disable the armor set; default true.
   enabled: true
@@ -136,6 +169,9 @@ armor-set:
 level-drops:
   1:
     - material: BOW
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Lửa Vạn Cốt · Cấp 1"
       story-id: skeleton-relic-common
       min-amount: 1
@@ -150,6 +186,9 @@ level-drops:
         flame: 1
         infinity: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lSổ Xương · Cấp 1"
       story-id: skeleton-codex-common
       min-amount: 1
@@ -160,6 +199,9 @@ level-drops:
 
   2:
     - material: BOW
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Xương · Cấp 2"
       story-id: skeleton-relic-common
       min-amount: 1
@@ -169,6 +211,9 @@ level-drops:
         power: 3
         punch: 2
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lSổ Xương · Cấp 2"
       story-id: skeleton-codex-common
       min-amount: 1
@@ -180,6 +225,9 @@ level-drops:
 
   3:
     - material: BOW
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Vạn Cốt Câm Lặng · Cấp 3"
       story-id: skeleton-relic
       min-amount: 1
@@ -190,6 +238,9 @@ level-drops:
         punch: 2
         flame: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lMật Lục Cung Vạn Cốt Câm Lặng · Cấp 3"
       story-id: skeleton-codex
       min-amount: 1
@@ -202,6 +253,9 @@ level-drops:
 
   4:
     - material: BOW
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Vạn Cốt Câm Lặng · Cấp 4"
       story-id: skeleton-relic
       min-amount: 1
@@ -213,6 +267,9 @@ level-drops:
         flame: 1
         infinity: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lMật Lục Cung Vạn Cốt Câm Lặng · Cấp 4"
       story-id: skeleton-codex
       min-amount: 1
@@ -225,6 +282,9 @@ level-drops:
         infinity: 1
   5:
     - material: BOW
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Vạn Cốt Câm Lặng · Cấp 5"
       story-id: skeleton-relic
       min-amount: 1
@@ -237,6 +297,9 @@ level-drops:
         infinity: 1
         unbreaking: 4
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lMật Lục Cung Vạn Cốt Câm Lặng · Cấp 5"
       story-id: skeleton-codex
       min-amount: 1
@@ -251,6 +314,9 @@ level-drops:
 
   6:
     - material: BOW
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Vạn Cốt Câm Lặng · Cấp 6"
       story-id: skeleton-relic
       min-amount: 1
@@ -264,6 +330,9 @@ level-drops:
         unbreaking: 5
         mending: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lMật Lục Cung Vạn Cốt Câm Lặng · Cấp 6"
       story-id: skeleton-codex
       min-amount: 1
@@ -279,6 +348,9 @@ level-drops:
 
   7:
     - material: BOW
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Vạn Cốt Câm Lặng · Cấp 7"
       story-id: skeleton-relic
       min-amount: 1
@@ -293,6 +365,9 @@ level-drops:
         mending: 1
         vanishing_curse: 1
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lMật Lục Cung Vạn Cốt Câm Lặng · Cấp 7"
       story-id: skeleton-codex
       min-amount: 1
@@ -309,6 +384,9 @@ level-drops:
 
   8:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Vạn Cốt Câm Lặng · Cấp 8"
       story-id: skeleton-relic
       min-amount: 1
@@ -324,6 +402,9 @@ level-drops:
         vanishing_curse: 1
         protection: 7
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lMật Lục Cung Vạn Cốt Câm Lặng · Cấp 8"
       story-id: skeleton-codex
       min-amount: 1
@@ -341,6 +422,9 @@ level-drops:
 
   9:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Vạn Cốt Câm Lặng · Cấp 9"
       story-id: skeleton-relic
       min-amount: 1
@@ -357,6 +441,9 @@ level-drops:
         protection: 8
         thorns: 7
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lMật Lục Cung Vạn Cốt Câm Lặng · Cấp 9"
       story-id: skeleton-codex
       min-amount: 1
@@ -375,6 +462,9 @@ level-drops:
 
   10:
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lCung Vạn Cốt Câm Lặng · Cấp 10"
       story-id: skeleton-relic
       min-amount: 1
@@ -392,6 +482,9 @@ level-drops:
         thorns: 8
         looting: 8
     - material: ENCHANTED_BOOK
+      # [VI] Giá bán một vật phẩm boss cấp theo level; mặc định 0 (không mua), hợp lệ 0-1000000 VNCOIN.
+      # [EN] System-merchant sell value per level-scaled boss item; default 0 (not purchasable), valid range 0-1000000 VNCOIN.
+      sell-value: 0
       name: "§8§lMật Lục Cung Vạn Cốt Câm Lặng · Cấp 10"
       story-id: skeleton-codex
       min-amount: 1

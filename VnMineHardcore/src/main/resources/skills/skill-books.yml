@@ -18,6 +18,9 @@ books:
     material: ENCHANTED_BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Ghi chép của kiếm sĩ canh giữ cửa thành cổ."
       - "Kiếm khí khởi nguồn từ nhịp thở, rồi mới thành lưỡi kiếm vô hình."
@@ -37,6 +40,9 @@ books:
     material: ENCHANTED_BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Bản thảo mô tả cách nhận ra thế thủ đã mất cân bằng."
       - "Một nhát đánh đúng lúc mạnh hơn nhiều nhát đánh vội."
@@ -56,6 +62,9 @@ books:
     material: BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Nhật ký huấn luyện của một kiếm sĩ đã đi qua nhiều chiến trường."
       - "Giữ tâm trí sáng suốt khi giao tranh bắt đầu."
@@ -75,6 +84,9 @@ books:
     material: ENCHANTED_BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Lời thề của người hộ vệ được khắc lên mặt trong của tấm khiên."
       - "Bảo vệ đồng đội cũng là bảo vệ con đường trở về."
@@ -94,6 +106,9 @@ books:
     material: BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Lời khiêu chiến phải đủ vang để kéo mắt kẻ địch khỏi đồng đội."
       - "Người hộ vệ nhận lấy hiểm nguy trước khi nó chạm đến hàng ngũ."
@@ -113,6 +128,9 @@ books:
     material: BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Tư thế đúng biến từng nhịp thở thành một phần của áo giáp."
       - "Đừng chỉ chống đỡ; hãy học cách đứng vững."
@@ -132,6 +150,9 @@ books:
     material: ENCHANTED_BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Một trang cháy xém ghi lại phép lửa đầu tiên của học viện."
       - "Giữ ngọn lửa nhỏ cho đến khi bàn tay đã kiểm soát được nó."
@@ -151,6 +172,9 @@ books:
     material: ENCHANTED_BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Các ký hiệu ma lực mô tả ranh giới của một vùng ảnh hưởng."
       - "Hiểu phạm vi trước khi giải phóng phép thuật."
@@ -170,6 +194,9 @@ books:
     material: BOOK
     # [VI] Lore của sách; từ 1 đến 20 dòng không rỗng.
     # [EN] Book lore; 1 to 20 non-empty lines.
+    # [VI] Giá bán một cuốn qua system merchant; mặc định 0 nghĩa là không thu mua, hợp lệ 0-1000000 VNCOIN.
+    # [EN] System-merchant sell value per book; default 0 means not purchasable, valid range 0-1000000 VNCOIN.
+    sell-value: 0
     lore:
       - "Bản ghi chú dạy cách cảm nhận dòng ma lực giữa các lần niệm chú."
       - "Sự kiên nhẫn giữ cho phép thuật không cạn kiệt."

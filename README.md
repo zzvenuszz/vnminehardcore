@@ -918,12 +918,23 @@ System and custom merchants show **Bán vật phẩm cho shop**. Players review 
 exact item count and VNCOIN, confirm the sale, then matching items are removed
 and the wallet ledger is credited. A custom merchant only accepts RPG items
 with a buy order configured at that exact NPC; unconfigured items have no sale
-entry there. The system merchant still uses the current default/material rates
-and custom buy-order lookup while the dedicated system price-list phase is
-pending. Ground item nameplates display a matching NPC buy order as
-`[quantity = VNCOIN]`; other drops use the default `64 = 1 VNCOIN`. Configure
-`economy.merchant.ground-item-default` or `ground-item-price-overrides` in
-`config.yml` for fallback values.
+entry there. The system merchant only buys vanilla Materials listed in
+`merchant-prices.yml`; an unlisted Material is not purchasable. The initial
+allowlist includes the requested rates (10 iron ingots = 1 VNCOIN, 1 diamond =
+10 VNCOIN, 1 Netherite upgrade template = 500 VNCOIN, a stack of raw meat = 10
+VNCOIN, and a stack of cooked meat = 15 VNCOIN), plus conservative values for
+selected farmable items. Use `/vnreload` (`vnmine.command.reload`) to reload the
+allowlist. A malformed file leaves the last valid price table active. RPG skill
+books and configured boss drops read their per-item `sell-value`; `0` means the
+system merchant will not buy them. Restart after changing `skills/skill-books.yml`;
+boss sell values are reloaded by `/vnreload`. A system-merchant quote warns when the player
+has enough of the same exact RPG item to satisfy a custom NPC's better per-item
+rate. Confirming still sells at the system rate; cancel to use the named NPC and
+world shown in the warning. Other generated RPG items default to not purchasable
+until they receive an explicit sell-value definition.
+
+Ground item nameplates display the best matching configured merchant rate as
+`[quantity = VNCOIN]`; items with no configured sale rate show “Không có giá thu mua” instead of implying a universal fallback price.
 
 Admins can run `/vncoin stats` to see the total VNCOIN issued, spent, net change,
 and the busiest ledger sources for the configured reporting window. Set
