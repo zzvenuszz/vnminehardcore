@@ -53,6 +53,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private PermissionManager permissionManager;
     private PortalManager portalManager;
     private MercenaryManager mercenaryManager;
+    private PlayerAdminManager playerAdminManager;
     private TooltipManager tooltipManager;
     private VillagerDataManager villagerDataManager;
     private DeathListener deathListener;
@@ -183,6 +184,7 @@ public final class VnMineHardcore extends JavaPlugin {
             return;
         }
         this.mercenaryManager = new MercenaryManager(this);
+        this.playerAdminManager = new PlayerAdminManager(this);
         this.tooltipManager = new TooltipManager(this);
 
         // Create listeners (pass config)
@@ -193,6 +195,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(questCatalogManager, this);
         Bukkit.getPluginManager().registerEvents(skillManager, this);
         Bukkit.getPluginManager().registerEvents(economyManager, this);
+        Bukkit.getPluginManager().registerEvents(playerAdminManager, this);
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
         this.combatListener = new CombatListener(this, deathListener, configManager);
         this.environmentListener = new EnvironmentListener(this, configManager);
@@ -259,6 +262,11 @@ public final class VnMineHardcore extends JavaPlugin {
         registerCommand("vndeathhistory", deathHistoryManager, deathHistoryManager);
         registerCommand("vnportal", portalManager, portalManager);
         registerCommand("vncoin", economyManager, economyManager);
+        registerCommand("vnplayeradmin", (sender, command, label, args) -> {
+            if (sender instanceof Player player) return playerAdminManager.open(player);
+            sender.sendMessage("Lệnh này chỉ dùng trong game.");
+            return true;
+        }, (sender, command, alias, args) -> List.of());
         startProfileDatabaseBackupTask();
 
         getLogger().info("§a  VnMineHardcore enabled - Hell difficulty!");
@@ -1242,6 +1250,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public SpawnProtectionManager getSpawnProtectionManager() { return spawnProtectionManager; }
     public PermissionManager getPermissionManager() { return permissionManager; }
     public MercenaryManager getMercenaryManager() { return mercenaryManager; }
+    public PlayerAdminManager getPlayerAdminManager() { return playerAdminManager; }
 
     private void clearLegacyPluginBans() {
         int cleared = 0;

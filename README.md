@@ -220,7 +220,23 @@ enabled: false  # in plugins/VnMineHardcore/disasters/chorus-explosion.yml
 | `/vnquestdialog admin` | Open the reusable quest-dialog manager | `vnmine.command.quest.admin` |
 | `/vnquest journal` | Open active quests and completed quest history, with details, rewards, tracking, and cancel controls | No permission |
 | `/vnquest detail <id>` | Open details for an active or completed quest; also used to open a quest named on the scoreboard | No permission |
+| `/vnplayeradmin` | Open player administration for online players or search a previously joined offline player | `vnmine.command.playeradmin` |
 | `/quatanthu` | Nhận túi quà tân thủ và chọn 1 token triệu hồi lính đánh thuê bậc 1 | — |
+
+The player administration GUI supports ban/unban, kick, permanent or timed
+mute, clearing an online player's inventory, restoring one of their ten most
+recent death inventories through the durable delivery queue, completed quest
+history/reset, quest/skill/race/class/profile resets, and RPG EXP/level or
+configured quest RPG item grants. Offline player search accepts names already
+cached by Paper; chat prompts show an example and accept `!cancel`. A full RPG
+profile reset preserves the VNCOIN wallet and starts character onboarding again.
+Quest history is paginated. Moderation and reset actions are logged with actor,
+target, and action under `[PlayerAdmin]` / `[Quest][Admin]`.
+
+Use **Quản lý quest → Edit quest** to set `repeatable.enabled` and adjust
+`repeatable.daily-limit` from 0 to 10. A value of 0 means unlimited completed
+runs per UTC day. Each completion records a unique run and reward transaction
+in SQLite; the default for existing and newly created quests is disabled.
 
 ### `/vnevent` Usage
 
@@ -333,6 +349,7 @@ Operators and the console have all plugin permissions by default.
 | `vnmine.command.army.admin` | Grant summon tokens or mercenaries with `/vnarmy give` (default: op) |
 | `vnmine.command.skillbook.admin` | Give configured RPG skill books and configure race/class starter books (default: op) |
 | `vnmine.command.progression.admin` | Grant character RPG EXP/levels from the admin GUI (default: op) |
+| `vnmine.command.playeradmin` | Open player moderation, history, reset, inventory, and grant controls (default: op) |
 | `vnmine.command.npc.admin` | Create, rename, move, inspect, list, and remove RPG NPCs (default: op) |
 | `vnmine.command.text.manage` | Create, edit, move, list, inspect, and remove world text displays with `/vntext` (default: op) |
 | `vnmine.command.quest.admin` | Manage quest definitions and quest dialogs through `/vnquest admin` or `/vnquestdialog admin` (default: op) |
@@ -346,6 +363,13 @@ above. Migrate old permission assignments to the corresponding command nodes;
 ---
 
 ## ⚙️ Configuration
+
+`player-admin.enabled` controls the `/vnplayeradmin` GUI (default `true`);
+`player-admin.death-snapshot-limit` controls how many recent death inventories
+are shown (default `10`, range `1-10`); and
+`player-admin.mute.max-seconds` caps timed mutes (default `31536000`, range
+`1-31536000`). Quest repeatability and each quest's daily repeat limit are
+stored per definition in `quests/quest-definitions.yml`.
 
 ### Mercenaries
 
@@ -798,9 +822,9 @@ quest references that dialog. Bindings are stored in `quest-definitions.yml`.
 The completed dialog appears after an NPC item turn-in awards the quest and on
 later visits to the giver after completion. The unavailable dialog is used when
 the player does not meet quest requirements or has reached the active quest cap.
-The quest journal already supports reward previews; system-boss objectives and
-quest waypoint tracking are implemented. Generalized region/portal/crafting
-objectives, daily repeatable quests, and co-op reward attribution remain planned.
+The quest journal already supports reward previews; system-boss objectives,
+quest waypoint tracking, and per-quest daily repeatability are implemented.
+Generalized region/portal/crafting objectives and co-op reward attribution remain planned.
 In the active-quest journal, each quest has a separate on/off tracking button;
 the particle route has its own persistent toggle. Routes point to an NPC only
 while the current objective is to visit that NPC or submit items to the quest
@@ -914,8 +938,8 @@ configured. Block interaction, fishing, taming, enchanting, brewing, smelting,
 crafting, item consumption/breaking/mending, shearing, entity damage, and
 inventory-open objectives can use Paper events but are not implemented yet.
 Vote objectives need an external vote-plugin integration; custom/cuboid
-objectives need a stable extension API and region model. Daily repeatable quests
-and cross-player party credit outside boss contributions remain planned.
+objectives need a stable extension API and region model. Cross-player party
+credit outside boss contributions remains planned.
 
 Custom `merchant` NPCs can have an individual shop. Use `/vnnpc edit <id>` or
 Shift-right-click the NPC to open its editor. Shift-click a system-created RPG

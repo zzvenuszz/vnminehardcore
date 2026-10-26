@@ -9,6 +9,20 @@
 # ============================================================
 config-version: 2
 
+# [VI] Cấu hình GUI quản trị người chơi; quyền lệnh vẫn được kiểm soát bằng permission.
+# [EN] Player administration GUI settings; command access is still controlled by permissions.
+player-admin:
+  # [VI] Bật/tắt lệnh và GUI quản trị người chơi; mặc định bật.
+  # [EN] Enable or disable the player administration command and GUI; defaults to true.
+  enabled: true
+  # [VI] Giới hạn số inventory tử vong hiển thị để khôi phục; mặc định 10, hợp lệ 1-10.
+  # [EN] Maximum recent death inventories shown for restoration; defaults to 10, valid range 1-10.
+  death-snapshot-limit: 10
+  mute:
+    # [VI] Số giây mute tối đa admin có thể nhập; mặc định 31536000, hợp lệ 1-31536000.
+    # [EN] Maximum mute duration an admin can enter in seconds; defaults to 31536000, valid range 1-31536000.
+    max-seconds: 31536000
+
 # [VI] Menu tổng hợp và phím mở menu; mặc định bật, F sẽ mở menu thay vì đổi tay phụ.
 # [EN] Main menu and its hotkey; enabled by default, F opens the menu instead of swapping hands.
 menus:

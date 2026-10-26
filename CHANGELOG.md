@@ -19,6 +19,11 @@
 - Thêm trình quản lý quest-dialog riêng và gán hội thoại theo trạng thái quest: có thể nhận, đang làm, hoàn tất/nhận thưởng, hoặc chưa đủ điều kiện; quest đã hoàn thành dùng hội thoại hoàn tất.
 - Thêm `story-chapter-id` bền vững cho NPC story và dùng hội thoại trước khi nhận quest hoặc nộp vật phẩm.
 
+## [v2.19.0] - 2026-10-26
+- Thêm `/vnplayeradmin` và GUI quản trị người chơi online/offline: ban/unban, kick, mute theo thời hạn, xóa inventory, phục hồi tối đa 10 inventory tử vong bằng hàng đợi bền vững, xem/reset quest hoàn thành, reset quest/skill/race/class/hồ sơ, cấp level/EXP và item RPG nhiệm vụ; ghi audit log và thêm cấu hình VI/EN.
+- Thêm quest repeatable ON/OFF cùng số lượt/ngày 0-10 trong editor; 0 là không giới hạn. Lượt hoàn thành và mã giao thưởng được lưu SQLite theo ngày/attempt để chống callback phát thưởng trùng.
+- Mở lại luồng chọn race/class cho hồ sơ admin đã reset; reset race/class giữ quest, còn reset toàn hồ sơ xóa tiến trình RPG nhưng giữ ví VNCOIN và khởi động lại onboarding.
+
 ## [Unreleased]
 - Bổ sung GUI lịch sử tiến chức: xem class gốc, class hiện tại và từng lần chuyển class theo thời gian trong menu tiến chức.
 - Thêm GUI tiến chức class từ cây kỹ năng: class con kế thừa skill hoạt động trong lineage được liệt kê, hiển thị cấp/quest/NPC/vật phẩm yêu cầu, cần xác nhận trước khi đổi; giữ skill đã học. Lưu lịch sử chuyển class bằng SQLite schema v13; hỗ trợ điều kiện level, quest, NPC, Material và RPG quest-item theo ID, log các lần kiểm tra.

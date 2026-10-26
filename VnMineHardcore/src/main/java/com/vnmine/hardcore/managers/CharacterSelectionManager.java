@@ -372,10 +372,17 @@ public final class CharacterSelectionManager implements Listener {
                 } else if (isStarterTutorialPending(player)) {
                     reconcileStarterBookDelivery(player);
                 }
-                if (!races.containsKey(loadedProfile.selectedRace())
+                if (loadedProfile.selectedRace() == null || loadedProfile.selectedClass() == null) {
+                    debugProfile("incomplete-profile player=" + player.getName() + ", reopening character flow");
+                } else if (!races.containsKey(loadedProfile.selectedRace())
                         || findClass(loadedProfile.selectedRace(), loadedProfile.selectedClass()) == null) {
                     plugin.getLogger().warning("[Profile] Stored race/class definition is missing for player " +
                         player.getName() + "; profile data was preserved.");
+                }
+                if (loadedProfile.selectedRace() == null || loadedProfile.selectedClass() == null) {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (player.isOnline()) openRaceMenu(player);
+                    });
                 }
             }));
     }
@@ -1012,9 +1019,12 @@ public final class CharacterSelectionManager implements Listener {
                 } else if (profile.isPresent()) {
                     loadedProfiles.put(playerId, profile.get());
                     debugProfile("refresh-result player=" + player.getName() + ", found=true");
+                    if (profile.get().selectedRace() == null || profile.get().selectedClass() == null)
+                        openRaceMenu(player);
                 } else {
                     loadedProfiles.remove(playerId);
                     debugProfile("refresh-result player=" + player.getName() + ", found=false");
+                    continueOnboarding(player);
                 }
             }));
     }
@@ -1057,10 +1067,16 @@ public final class CharacterSelectionManager implements Listener {
         }
         debugProfile("create-start player=" + playerName + ", race=" + raceId + ", class=" + classId);
         String now = Instant.now().toString();
+        PlayerProfileDatabaseManager.PlayerProfile existingProfile = loadedProfiles.get(playerId);
+        boolean completingResetProfile = existingProfile != null
+            && existingProfile.selectedRace() == null && existingProfile.selectedClass() == null;
         plugin.getPlayerProfileDatabaseManager().executeGameplayDatabaseTask(
                 "profile.create player=" + playerName, () ->
-                plugin.getPlayerProfileDatabaseManager().createPlayerProfile(
-                    playerId.toString(), playerName, raceId, classId, 1, 0, homeWorld, now))
+                completingResetProfile
+                    ? plugin.getPlayerProfileDatabaseManager().updateResetPlayerSelection(
+                        playerId.toString(), playerName, raceId, classId, homeWorld, now)
+                    : plugin.getPlayerProfileDatabaseManager().createPlayerProfile(
+                        playerId.toString(), playerName, raceId, classId, 1, 0, homeWorld, now))
             .whenComplete((created, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
             pendingProfileCreates.remove(playerId);
             if (!player.isOnline()) return;
@@ -1079,7 +1095,8 @@ public final class CharacterSelectionManager implements Listener {
                 if (isOnboardingEnabled()) {
                     queueStarterBookGrant(player, raceId, classId);
                 }
-                debugProfile("create-result player=" + playerName + ", created=true");
+                debugProfile("create-result player=" + playerName + ", created=true, resetProfile="
+                    + completingResetProfile);
                 player.sendMessage("§aĐã tạo nhân vật: §6" + race.name() + " §7- §b" + selectedClass.name());
                 player.closeInventory();
             } else {
@@ -1114,7 +1131,8 @@ public final class CharacterSelectionManager implements Listener {
             player.sendMessage("§eĐang tải hồ sơ nhân vật. Hãy thử lại sau giây lát.");
             return true;
         }
-        if (loadedProfiles.containsKey(playerId)) {
+        PlayerProfileDatabaseManager.PlayerProfile profile = loadedProfiles.get(playerId);
+        if (profile != null && profile.selectedRace() != null && profile.selectedClass() != null) {
             player.sendMessage("§cTài khoản của bạn đã có nhân vật. Chức năng nhiều nhân vật chưa được hỗ trợ.");
             return true;
         }

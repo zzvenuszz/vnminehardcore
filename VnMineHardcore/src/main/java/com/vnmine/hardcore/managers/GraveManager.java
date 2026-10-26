@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -956,6 +957,41 @@ public class GraveManager implements Listener {
             if (grave != null) result.add(grave);
         }
         return result;
+    }
+
+    public List<GraveData> getRecentPlayerGraves(UUID playerUUID, int limit) {
+        return getPlayerGraves(playerUUID).stream().filter(grave -> !grave.isEmpty && !grave.items.isEmpty())
+            .sorted(java.util.Comparator.comparingLong((GraveData grave) -> grave.createdAt).reversed())
+            .limit(Math.max(0, Math.min(10, limit))).toList();
+    }
+
+    /** Queue a selected death inventory once, then remove its grave. Delivery IDs are stable across retries. */
+    public void queueAdminRestore(UUID ownerId, String graveId, java.util.function.Consumer<Boolean> completion) {
+        GraveData grave = getPlayerGraves(ownerId).stream()
+            .filter(candidate -> candidate.graveId.equals(graveId)).findFirst().orElse(null);
+        if (grave == null || grave.isEmpty || grave.items.isEmpty()) {
+            completion.accept(false);
+            return;
+        }
+        List<byte[]> items = grave.items.values().stream().map(ItemStack::serializeAsBytes).toList();
+        PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+        database.executeGameplayDatabaseTask("grave.admin-restore owner=" + ownerId + " grave=" + graveId, () -> {
+            database.enqueueMerchantDeliveries(ownerId.toString(), "admin-grave-restore:" + graveId,
+                items, java.time.Instant.now().toString());
+            return true;
+        }).whenComplete((queued, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (failure != null) {
+                logger.log(Level.SEVERE, "[Grave][Admin] Could not queue death inventory restore for grave "
+                    + graveId + ".", failure);
+                completion.accept(false);
+                return;
+            }
+            World world = Bukkit.getWorld(grave.worldName);
+            expireGrave(grave, world);
+            logger.info("[Grave][Admin] Queued restore owner=" + ownerId + ", grave=" + graveId
+                + ", items=" + items.size());
+            completion.accept(true);
+        }));
     }
 
     // ===== DISPLAY TASK =====

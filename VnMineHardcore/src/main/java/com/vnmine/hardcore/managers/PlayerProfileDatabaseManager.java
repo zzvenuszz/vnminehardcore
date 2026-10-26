@@ -37,7 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public class PlayerProfileDatabaseManager {
-    public static final int SCHEMA_VERSION = 13;
+    public static final int SCHEMA_VERSION = 14;
     public static final long MAX_WALLET_BALANCE = 2_147_483_647L;
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
         .withZone(ZoneOffset.UTC);
@@ -419,6 +419,10 @@ public class PlayerProfileDatabaseManager {
                     } else if (version == 12) {
                         migrateV12ToV13(connection);
                         version = 13;
+                        setSchemaVersion(connection, version);
+                    } else if (version == 13) {
+                        migrateV13ToV14(connection);
+                        version = 14;
                         setSchemaVersion(connection, version);
                     } else {
                         throw new SQLException("No player profile database migration exists from version "
@@ -1034,9 +1038,17 @@ public class PlayerProfileDatabaseManager {
 
     public QuestStartResult startQuestProgressWithLimit(String uuid, String questId, String currentStep,
             String startedAt, int activeLimit) throws SQLException {
+        return startQuestProgressWithLimit(uuid, questId, currentStep, startedAt, activeLimit,
+            false, 0, null);
+    }
+
+    public QuestStartResult startQuestProgressWithLimit(String uuid, String questId, String currentStep,
+            String startedAt, int activeLimit, boolean repeatable, int dailyLimit, String resetDate)
+            throws SQLException {
         if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank()
                 || currentStep == null || currentStep.isBlank() || startedAt == null || startedAt.isBlank()
-                || activeLimit < 1 || activeLimit > 3) {
+                || activeLimit < 1 || activeLimit > 3 || dailyLimit < 0 || dailyLimit > 10
+                || repeatable && !isDateValid(resetDate)) {
             throw new IllegalArgumentException("Quest start fields are invalid.");
         }
         return executeWriteTransaction(connection -> {
@@ -1047,11 +1059,16 @@ public class PlayerProfileDatabaseManager {
                 checkExisting.setString(2, questId);
                 try (ResultSet resultSet = checkExisting.executeQuery()) {
                     if (resultSet.next()) {
-                        if (!"abandoned".equals(resultSet.getString("status")))
+                        String status = resultSet.getString("status");
+                        if (!"abandoned".equals(status) && !(repeatable && "completed".equals(status)))
                             return QuestStartResult.ALREADY_EXISTS;
                         restartAbandoned = true;
                     }
                 }
+            }
+            if (repeatable && dailyLimit > 0
+                    && countDailyQuestRuns(connection, uuid, questId, resetDate) >= dailyLimit) {
+                return QuestStartResult.DAILY_LIMIT_REACHED;
             }
             try (PreparedStatement count = connection.prepareStatement(
                     "SELECT COUNT(*) FROM player_quest_progress WHERE uuid = ? AND status = 'active'")) {
@@ -1066,7 +1083,7 @@ public class PlayerProfileDatabaseManager {
                         "UPDATE player_quest_progress SET status = 'active', current_step = ?, " +
                         "started_at = ?, completed_at = NULL, reward_claimed = 0, " +
                         "objective_progress = 0, tracked = 0 WHERE uuid = ? AND quest_id = ? " +
-                        "AND status = 'abandoned'")) {
+                        "AND status IN ('abandoned', 'completed')")) {
                     restart.setString(1, currentStep);
                     restart.setString(2, startedAt);
                     restart.setString(3, uuid);
@@ -1252,6 +1269,113 @@ public class PlayerProfileDatabaseManager {
         }
     }
 
+    public boolean resetCompletedQuest(String uuid, String questId) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_quest_progress SET status = 'abandoned', completed_at = NULL, " +
+                        "reward_claimed = 0, current_step = '0', objective_progress = 0, tracked = 0 " +
+                        "WHERE uuid = ? AND quest_id = ? AND status = 'completed'")) {
+                statement.setString(1, uuid);
+                statement.setString(2, questId);
+                return statement.executeUpdate() == 1;
+            }
+        });
+    }
+
+    public int resetAllQuestProgress(String uuid) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement pending = connection.prepareStatement(
+                    "DELETE FROM player_quest_successors_pending WHERE uuid = ?")) {
+                pending.setString(1, uuid);
+                pending.executeUpdate();
+            }
+            try (PreparedStatement runs = connection.prepareStatement(
+                    "DELETE FROM player_daily_quest_runs WHERE uuid = ?")) {
+                runs.setString(1, uuid);
+                runs.executeUpdate();
+            }
+            try (PreparedStatement quests = connection.prepareStatement(
+                    "DELETE FROM player_quest_progress WHERE uuid = ?")) {
+                quests.setString(1, uuid);
+                return quests.executeUpdate();
+            }
+        });
+    }
+
+    public int clearLearnedSkills(String uuid) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            int cleared;
+            try (PreparedStatement skills = connection.prepareStatement(
+                    "DELETE FROM player_skill_progress WHERE uuid = ?")) {
+                skills.setString(1, uuid);
+                cleared = skills.executeUpdate();
+            }
+            try (PreparedStatement slots = connection.prepareStatement(
+                    "DELETE FROM player_skill_slots WHERE uuid = ?")) {
+                slots.setString(1, uuid);
+                slots.executeUpdate();
+            }
+            return cleared;
+        });
+    }
+
+    public boolean resetRaceAndClass(String uuid) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement clearSkills = connection.prepareStatement(
+                    "DELETE FROM player_skill_progress WHERE uuid = ?")) {
+                clearSkills.setString(1, uuid);
+                clearSkills.executeUpdate();
+            }
+            try (PreparedStatement clearSlots = connection.prepareStatement(
+                    "DELETE FROM player_skill_slots WHERE uuid = ?")) {
+                clearSlots.setString(1, uuid);
+                clearSlots.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_profiles SET selected_race = NULL, selected_class = NULL, " +
+                        "level = 1, exp = 0, skill_points = 0, home_world = NULL, mana = 100, " +
+                        "mana_updated_at = 0, updated_at = ? WHERE uuid = ? AND is_active = 1")) {
+                statement.setString(1, Instant.now().toString());
+                statement.setString(2, uuid);
+                return statement.executeUpdate() == 1;
+            }
+        });
+    }
+
+    public boolean updateResetPlayerSelection(String uuid, String playerName, String raceId, String classId,
+            String homeWorld, String updatedAt) throws SQLException {
+        if (uuid == null || uuid.isBlank() || playerName == null || playerName.isBlank()
+                || raceId == null || raceId.isBlank() || classId == null || classId.isBlank()
+                || updatedAt == null || updatedAt.isBlank()) {
+            throw new IllegalArgumentException("Reset profile selection fields are required.");
+        }
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_profiles SET player_name = ?, selected_race = ?, selected_class = ?, " +
+                    "level = 1, exp = 0, skill_points = 0, home_world = ?, mana = 100, " +
+                    "mana_updated_at = 0, updated_at = ? WHERE uuid = ? AND is_active = 1 " +
+                    "AND selected_race IS NULL AND selected_class IS NULL")) {
+                statement.setString(1, playerName);
+                statement.setString(2, raceId);
+                statement.setString(3, classId);
+                statement.setString(4, homeWorld);
+                statement.setString(5, updatedAt);
+                statement.setString(6, uuid);
+                return statement.executeUpdate() == 1;
+            }
+        });
+    }
+
+    public boolean deleteRpgProfile(String uuid) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "DELETE FROM player_profiles WHERE uuid = ?")) {
+                statement.setString(1, uuid);
+                return statement.executeUpdate() == 1;
+            }
+        });
+    }
+
     public boolean updateQuestStep(String uuid, String questId, String currentStep) throws SQLException {
         String sql = "UPDATE player_quest_progress SET current_step = ? " +
             "WHERE uuid = ? AND quest_id = ? AND status = 'active'";
@@ -1346,10 +1470,20 @@ public class PlayerProfileDatabaseManager {
     public boolean completeQuestAndAwardRewards(String uuid, String questId, String currentStep,
             int experienceReward, long coinReward, List<byte[]> itemRewards, String successorQuestId,
             String completedAt) throws SQLException {
+        return completeQuestAndAwardRewards(uuid, questId, currentStep, experienceReward, coinReward,
+            itemRewards, successorQuestId, completedAt, false, 0, null, null);
+    }
+
+    public boolean completeQuestAndAwardRewards(String uuid, String questId, String currentStep,
+            int experienceReward, long coinReward, List<byte[]> itemRewards, String successorQuestId,
+            String completedAt, boolean repeatable, int dailyLimit, String resetDate, String sourceId)
+            throws SQLException {
         if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank() || questId.length() > 64
                 || experienceReward < 0 || experienceReward > 100_000 || coinReward < 0
                 || coinReward > MAX_WALLET_BALANCE || itemRewards == null || itemRewards.size() > 45
                 || completedAt == null || completedAt.isBlank()
+                || repeatable && (dailyLimit < 0 || dailyLimit > 10 || !isDateValid(resetDate)
+                    || sourceId == null || !sourceId.matches("[a-zA-Z0-9_.:-]{1,100}"))
                 || (successorQuestId != null && (successorQuestId.length() > 64
                     || !successorQuestId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")))) {
             throw new IllegalArgumentException("Quest reward fields are invalid or outside supported bounds.");
@@ -1360,6 +1494,20 @@ public class PlayerProfileDatabaseManager {
             }
         }
         return executeWriteTransaction(connection -> {
+            int runNumber = 1;
+            if (repeatable) {
+                runNumber = countDailyQuestRuns(connection, uuid, questId, resetDate) + 1;
+                if (dailyLimit > 0 && runNumber > dailyLimit) return false;
+                try (PreparedStatement duplicate = connection.prepareStatement(
+                        "SELECT 1 FROM player_daily_quest_runs WHERE uuid = ? AND quest_id = ? AND source_id = ?")) {
+                    duplicate.setString(1, uuid);
+                    duplicate.setString(2, questId);
+                    duplicate.setString(3, sourceId);
+                    try (ResultSet result = duplicate.executeQuery()) {
+                        if (result.next()) return false;
+                    }
+                }
+            }
             try (PreparedStatement statement = connection.prepareStatement(
                     "UPDATE player_quest_progress SET status = 'completed', current_step = ?, " +
                     "completed_at = ?, reward_claimed = 1, tracked = 0 " +
@@ -1371,9 +1519,12 @@ public class PlayerProfileDatabaseManager {
                 if (statement.executeUpdate() != 1) return false;
             }
             if (experienceReward > 0) awardProfileExperience(connection, uuid, experienceReward, completedAt);
-            if (coinReward > 0) applyQuestWalletReward(connection, uuid, questId, coinReward, completedAt);
+            String rewardAttempt = sourceId == null ? null : ":" + sourceId;
+            if (coinReward > 0) applyQuestWalletReward(connection, uuid, questId, coinReward, completedAt,
+                "quest-reward:" + uuid + ":" + questId + (rewardAttempt == null ? "" : rewardAttempt));
             for (int index = 0; index < itemRewards.size(); index++) {
-                String transactionId = "quest-item:" + uuid + ":" + questId + ":" + index;
+                String transactionId = "quest-item:" + uuid + ":" + questId + ":"
+                    + (rewardAttempt == null ? "" : sourceId + ":") + index;
                 try (PreparedStatement delivery = connection.prepareStatement(
                         "INSERT INTO player_merchant_deliveries(transaction_id, uuid, item_data, created_at) " +
                         "VALUES (?, ?, ?, ?)")) {
@@ -1382,6 +1533,20 @@ public class PlayerProfileDatabaseManager {
                     delivery.setBytes(3, itemRewards.get(index));
                     delivery.setString(4, completedAt);
                     delivery.executeUpdate();
+                }
+            }
+            if (repeatable) {
+                try (PreparedStatement run = connection.prepareStatement(
+                        "INSERT INTO player_daily_quest_runs " +
+                            "(uuid, quest_id, reset_date, run_number, source_id, completed_at) " +
+                            "VALUES (?, ?, ?, ?, ?, ?)")) {
+                    run.setString(1, uuid);
+                    run.setString(2, questId);
+                    run.setString(3, resetDate);
+                    run.setInt(4, runNumber);
+                    run.setString(5, sourceId);
+                    run.setString(6, completedAt);
+                    run.executeUpdate();
                 }
             }
             if (successorQuestId != null) {
@@ -1453,7 +1618,12 @@ public class PlayerProfileDatabaseManager {
 
     private void applyQuestWalletReward(Connection connection, String uuid, String questId,
             long amount, String timestamp) throws SQLException {
-        String transactionId = "quest-reward:" + uuid + ":" + questId;
+        applyQuestWalletReward(connection, uuid, questId, amount, timestamp,
+            "quest-reward:" + uuid + ":" + questId);
+    }
+
+    private void applyQuestWalletReward(Connection connection, String uuid, String questId,
+            long amount, String timestamp, String transactionId) throws SQLException {
         WalletTransactionResult result = applyWalletTransaction(connection, uuid, amount, transactionId,
             "quest", null, "Phần thưởng nhiệm vụ " + questId, timestamp);
         if (result.status() != WalletTransactionStatus.APPLIED
@@ -1580,7 +1750,7 @@ public class PlayerProfileDatabaseManager {
     public record QuestObjectiveProgressResult(boolean active, String currentStep, int progress, boolean tracked) {
     }
 
-    public enum QuestStartResult { STARTED, ALREADY_EXISTS, ACTIVE_LIMIT_REACHED }
+    public enum QuestStartResult { STARTED, ALREADY_EXISTS, ACTIVE_LIMIT_REACHED, DAILY_LIMIT_REACHED }
 
     public enum SkillLearnResult {
         LEARNED,
@@ -1938,13 +2108,28 @@ public class PlayerProfileDatabaseManager {
     private static void createDailyQuestRunTables(Statement statement) throws SQLException {
         statement.execute("CREATE TABLE IF NOT EXISTS player_daily_quest_runs (" +
             "uuid TEXT NOT NULL, quest_id TEXT NOT NULL, reset_date TEXT NOT NULL, " +
-            "run_number INTEGER NOT NULL CHECK (run_number BETWEEN 1 AND 10), " +
+            "run_number INTEGER NOT NULL CHECK (run_number BETWEEN 1 AND 2147483647), " +
             "source_id TEXT NOT NULL, completed_at TEXT NOT NULL, " +
             "PRIMARY KEY (uuid, quest_id, reset_date, run_number), " +
             "UNIQUE (uuid, quest_id, source_id), " +
             "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
         statement.execute("CREATE INDEX IF NOT EXISTS idx_daily_quest_runs_player_date " +
             "ON player_daily_quest_runs(uuid, reset_date, quest_id)");
+    }
+
+    private void migrateV13ToV14(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            if (tableExists(connection, "player_daily_quest_runs")) {
+                statement.execute("DROP INDEX IF EXISTS idx_daily_quest_runs_player_date");
+                statement.execute("ALTER TABLE player_daily_quest_runs RENAME TO player_daily_quest_runs_v13");
+                createDailyQuestRunTables(statement);
+                statement.execute("INSERT INTO player_daily_quest_runs " +
+                    "(uuid, quest_id, reset_date, run_number, source_id, completed_at) " +
+                    "SELECT uuid, quest_id, reset_date, run_number, source_id, completed_at " +
+                    "FROM player_daily_quest_runs_v13");
+                statement.execute("DROP TABLE player_daily_quest_runs_v13");
+            } else createDailyQuestRunTables(statement);
+        }
     }
 
     private static void createQuestSuccessorTables(Statement statement) throws SQLException {
@@ -1980,7 +2165,7 @@ public class PlayerProfileDatabaseManager {
                 }
             }
             completedRuns = countDailyQuestRuns(connection, uuid, questId, resetDate);
-            if (completedRuns >= dailyLimit) {
+            if (dailyLimit > 0 && completedRuns >= dailyLimit) {
                 return new DailyQuestRewardResult(DailyQuestRewardStatus.DAILY_LIMIT,
                     completedRuns, readWalletBalance(connection, uuid));
             }
@@ -2046,7 +2231,7 @@ public class PlayerProfileDatabaseManager {
         if (uuid == null || !uuid.matches("(?i)[0-9a-f-]{36}")
                 || !isQuestIdValid(questId) || !isDateValid(resetDate)
                 || sourceId == null || !sourceId.matches("[a-zA-Z0-9_-]{1,40}")
-                || dailyLimit < 1 || dailyLimit > 10 || rewardAmount < 1
+                || dailyLimit < 0 || dailyLimit > 10 || rewardAmount < 1
                 || rewardAmount > MAX_WALLET_BALANCE || completedAt == null || completedAt.isBlank()) {
             throw new IllegalArgumentException("Repeatable daily quest reward fields are invalid.");
         }

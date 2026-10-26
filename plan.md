@@ -1,5 +1,18 @@
 # Kế hoạch hoàn thiện VnMineHardcore: RPG, VNCOIN và vận hành server
 
+## Quản trị người chơi và quest lặp lại — yêu cầu 2026-10-26
+
+- [x] Thêm `/vnplayeradmin`: danh sách online, nút offline có icon riêng, nhập tên qua chat với ví dụ và `!cancel`; hồ sơ quản trị có xác nhận Yes/No cho thao tác phá hủy.
+- [x] Thêm ban/unban, kick người đang online, mute/unmute và mute theo giây; lưu mute bền vững, giới hạn thời lượng cấu hình được, ghi audit actor/target/action.
+- [x] Xóa inventory online có xác nhận; duyệt tối đa 10 snapshot chết và phục hồi vào hàng đợi giao item bền vững, kể cả inventory đầy hoặc người chơi offline.
+- [x] Tra cứu có phân trang quest hoàn thành online/offline và đánh dấu một quest chưa hoàn thành; đồng bộ lại cache khi người chơi online, attempt thưởng mới dùng transaction ID riêng.
+- [x] Có thao tác reset toàn bộ quest, skill/quick slot, race/class (giữ quest) và toàn bộ hồ sơ RPG (giữ VNCOIN); hồ sơ reset race/class được phép đi lại luồng tạo nhân vật.
+- [~] Cấp level/EXP qua GUI tiến trình hiện có; picker item cấp được item RPG nhiệm vụ có PDC hợp lệ. Registry picker hiện chưa bao phủ mọi loại item RPG trong plugin.
+- [x] Quest editor có công tắc repeatable ON/OFF, nút tăng/giảm lượt/ngày 0–10; 0 không giới hạn. Lượt/ngày và source ID lưu SQLite, giới hạn được kiểm tra trong transaction completion.
+- [x] **Biên dịch/đóng gói:** Maven `clean package` thành công với Java 25; toàn bộ 55 file Java biên dịch được. Bộ test được bỏ qua (`-DskipTests`), không xem đây là kiểm thử gameplay.
+- [ ] **Chấp nhận vận hành:** kiểm thử Paper/gameplay admin online/offline, chat cancel, target đổi trạng thái, death restore khi túi đầy, reset/cache sau relog, repeat 1/10/unlimited qua ngày và restart/crash không trả thưởng trùng.
+- [ ] Mở rộng picker item admin từ các RPG item dùng cho quest sang toàn bộ registry item RPG của plugin.
+
 > Tài liệu này ghi nhận các vấn đề và đề xuất từ đợt rà soát mã nguồn, đồng thời xác định lộ trình hoàn thiện plugin cho server Minecraft RPG hardcore. Đây là kế hoạch triển khai; các hạng mục dưới đây không được coi là đã có trong mã hiện tại nếu chưa được triển khai và kiểm chứng.
 
 ## 1. Quyết định thiết kế đã chốt
@@ -633,6 +646,14 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 - Test DB: thay hằng schema cũ cứng bằng `SCHEMA_VERSION`; case "DB mới hơn" tạo fixture ở `SCHEMA_VERSION + 1`.
 - Tăng version `2.17.1` → `2.18.0`. JAR: `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.18.0.jar`, 2,181,440 bytes; SHA-256 `7a9e4be6e6d29985b1c8be737b0d572999237b39ac291ef948de167dc8fd6252`. Đã kiểm tra native SQLite `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so` + `META-INF/services/java.sql.Driver`.
 - Bản `2.17.1` đã chuyển vào `plugins/.old-builds`. Server cổng 25565 đang chạy code cũ; cần restart để nạp 2.18.0. Gameplay/migration test trên server vẫn chưa chạy.
+
+## Build 2.19.0 — 2026-10-26
+
+- Nâng phiên bản Maven từ `2.18.0` lên `2.19.0` cho tính năng quản trị người chơi và quest lặp lại.
+- `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64 mvn -DskipTests clean package` hoàn tất thành công lúc `2026-10-26 23:14 UTC`; 55 source Java biên dịch thành công. Không chạy test suite hoặc test Paper/gameplay.
+- JAR: `VnMineHardcore/target/VnMineHardcore-2.19.0.jar`; dung lượng `2,213,084` bytes; SHA-256 `cebf2b531a9f31578d1373a448664163d8b6428bcc0520c904899835927974ea`.
+- Đã xác nhận metadata trong JAR là `2.19.0`, command `/vnplayeradmin` có mặt, SQLite chỉ chứa `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so` cùng `META-INF/services/java.sql.Driver`.
+- Chưa cài JAR vào server đang chạy; cần kiểm thử Paper/gameplay theo checklist phía trên trước khi phát hành.
 
 ### Thứ tự và tối ưu phạm vi
 

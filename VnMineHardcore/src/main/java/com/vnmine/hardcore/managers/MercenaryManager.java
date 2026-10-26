@@ -6631,6 +6631,10 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
              holder.inventory.setItem(20, this.menuItem(Material.VILLAGER_SPAWN_EGG, "§eQuản lý NPC",
                  List.of("§7Tạo, sửa, di chuyển và xóa NPC.")));
          }
+         if (player.hasPermission("vnmine.command.playeradmin")) {
+            holder.inventory.setItem(24, this.menuItem(Material.SKELETON_SKULL, "§cQuản trị người chơi",
+                List.of("§7Ban, kick, mute và công cụ hồ sơ RPG.")));
+         }
          holder.inventory.setItem(26, this.menuItem(Material.ARROW, "§7Menu chính", List.of()));
          player.openInventory(holder.inventory);
       }
@@ -6643,7 +6647,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
             "vnmine.command.gamemode", "vnmine.command.scoreboard.reset", "vnmine.command.death.reset",
             "vnmine.command.skillbook.admin", "vnmine.command.progression.admin",
-            "vnmine.command.quest.admin", "vnmine.command.npc.admin")
+            "vnmine.command.quest.admin", "vnmine.command.npc.admin", "vnmine.command.playeradmin")
             .stream().anyMatch(player::hasPermission)
             || player.hasPermission("vnmine.command.death.history");
     }
@@ -6767,6 +6771,14 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         holder.inventory.setItem(49, menuItem(Material.ARROW, "§7Quay lại", List.of()));
         if (safePage + 1 < pages) holder.inventory.setItem(53, menuItem(Material.ARROW, "§eTrang sau", List.of()));
         player.openInventory(holder.inventory);
+    }
+
+    public void openAdminProgressionForPlayer(Player player, UUID target) {
+        if (!player.hasPermission("vnmine.command.progression.admin")) {
+            player.sendMessage("§cBạn không có quyền quản lý EXP/level.");
+            return;
+        }
+        openAdminProgression(player, target);
     }
 
     private void openAdminProgression(Player player, UUID target) {
@@ -8813,6 +8825,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      if (plugin.getQuestCatalogManager() != null) plugin.getQuestCatalogManager().openAdmin(player);
                   } else if (slot == 20 && player.hasPermission("vnmine.command.npc.admin")) {
                      if (plugin.getNpcManager() != null) plugin.getNpcManager().openAdminMenu(player);
+                  } else if (slot == 24 && player.hasPermission("vnmine.command.playeradmin")) {
+                     if (plugin.getPlayerAdminManager() != null) plugin.getPlayerAdminManager().open(player);
                   } else if (slot == 26) {
                      this.openMainMenu(player);
                   }
@@ -8904,9 +8918,9 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      this.openAdminRpgPlayers(player, "progression", 0);
                   } else if (choice != null && isAdminRpgToolsEnabled()
                           && player.hasPermission("vnmine.command.progression.admin")) {
-                     Player target = Bukkit.getPlayer(holder.target);
-                     if (target == null) {
-                        player.sendMessage("§cNgười chơi đã ngoại tuyến.");
+                     org.bukkit.OfflinePlayer target = Bukkit.getOfflinePlayer(holder.target);
+                     if (target.getName() == null) {
+                        player.sendMessage("§cKhông tìm thấy hồ sơ người chơi.");
                         break;
                      }
                      boolean experienceGrant = choice.startsWith("exp:");

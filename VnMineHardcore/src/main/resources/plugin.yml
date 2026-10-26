@@ -145,11 +145,18 @@ commands:
   vncoin:
     description: Xem ví, lịch sử hoặc quản trị tiền tệ VNCOIN
     usage: /vncoin [balance|history [người_chơi]|stats|give|take <người_chơi> <số> [lý_do]]
+  vnplayeradmin:
+    description: Mở giao diện quản trị người chơi online và offline
+    usage: /vnplayeradmin
+    permission: vnmine.command.playeradmin
   quatanthu:
     description: Nhận túi quà tân thủ và chọn token triệu hồi bậc 1
     usage: /quatanthu
 
 permissions:
+  vnmine.command.playeradmin:
+    description: Cho phép mở giao diện quản trị người chơi
+    default: op
   vnmine.command.stats:
     description: Cho phép xem thống kê cá nhân bằng /vnstats
     default: op

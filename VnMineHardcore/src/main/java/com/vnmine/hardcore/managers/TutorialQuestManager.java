@@ -399,6 +399,10 @@ public final class TutorialQuestManager implements Listener {
         }));
     }
 
+    public void refreshPlayerAfterAdminQuestReset(Player player) {
+        if (player != null && player.isOnline()) initializePlayer(player, false);
+    }
+
     private record QuestInitData(PlayerProfileDatabaseManager.PlayerProfile profile,
                                  Optional<PlayerProfileDatabaseManager.QuestProgress> progress,
                                  boolean startedNow, boolean rewardClaimedNow,

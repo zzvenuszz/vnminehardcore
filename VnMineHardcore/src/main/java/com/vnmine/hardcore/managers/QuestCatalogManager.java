@@ -61,6 +61,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private final Map<String, QuestDialogRefs> questDialogs = new LinkedHashMap<>();
     private final Map<String, Long> questItemSellValues = new LinkedHashMap<>();
     private final Map<String, List<Long>> questRewardSellValues = new LinkedHashMap<>();
+    private final Map<String, Boolean> repeatableQuests = new LinkedHashMap<>();
+    private final Map<String, Integer> repeatDailyLimits = new LinkedHashMap<>();
     private final Map<UUID, Map<String, PlayerProfileDatabaseManager.QuestProgress>> activeByPlayer =
         new ConcurrentHashMap<>();
     private final Map<UUID, java.util.Set<String>> completedByPlayer = new ConcurrentHashMap<>();
@@ -102,6 +104,189 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             return;
         }
         openAdminList(player, 0);
+    }
+
+    public void openAdminCompletedQuests(Player admin, UUID targetId) {
+        openAdminCompletedQuests(admin, targetId, 0);
+    }
+
+    private void openAdminCompletedQuests(Player admin, UUID targetId, int requestedPage) {
+        if (!admin.hasPermission(ADMIN_PERMISSION)
+                && !admin.hasPermission("vnmine.command.playeradmin")) return;
+        PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+        database.executeGameplayDatabaseTask("quest.admin-history actor=" + admin.getName()
+                + " target=" + targetId, () -> database.getCompletedQuestIds(targetId.toString()))
+            .whenComplete((completed, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!admin.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Quest][Admin] Could not load completed quests for "
+                        + targetId, failure);
+                    admin.sendMessage("§cKhông thể tải quest đã hoàn thành.");
+                    return;
+                }
+                List<QuestDefinition> quests = completed.stream().map(definitions::get)
+                    .filter(java.util.Objects::nonNull)
+                    .sorted(java.util.Comparator.comparing(QuestDefinition::title,
+                        String.CASE_INSENSITIVE_ORDER)).toList();
+                int pageCount = Math.max(1, (quests.size() + 44) / 45);
+                int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+                QuestMenuHolder holder = new QuestMenuHolder(admin.getUniqueId(),
+                    QuestMenu.ADMIN_PLAYER_HISTORY, null, page);
+                holder.npcId = targetId.toString();
+                Inventory menu = Bukkit.createInventory(holder, 54, "Admin • Quest hoàn thành");
+                holder.inventory = menu;
+                for (int slot = 0; slot < Math.min(45, quests.size() - page * 45); slot++) {
+                    QuestDefinition quest = quests.get(page * 45 + slot);
+                    holder.questSlots.put(slot, quest.id());
+                    menu.setItem(slot, adminItem(Material.ENCHANTED_BOOK, "§a" + quest.title(), List.of(
+                        "§7ID: " + quest.id(), "§aĐã hoàn thành", "§eNhấn để đánh dấu chưa hoàn thành.")));
+                }
+                if (quests.isEmpty()) menu.setItem(22, adminItem(Material.BOOK, "§7Không có quest hoàn thành", List.of()));
+                if (page > 0) menu.setItem(45, adminItem(Material.ARROW, "§eTrang trước", List.of()));
+                if (page + 1 < pageCount) menu.setItem(53, adminItem(Material.ARROW, "§eTrang sau", List.of()));
+                menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại hồ sơ", List.of()));
+                admin.openInventory(menu);
+                debugQuest("admin-history actor=" + admin.getName() + ", target=" + targetId
+                    + ", completed=" + quests.size());
+            }));
+    }
+
+    public List<AdminRpgItem> getAdminRpgItems() {
+        return definitions.values().stream()
+            .filter(quest -> quest.objectiveType() == ObjectiveType.COLLECT_RPG_ITEM)
+            .filter(quest -> quest.itemId() != null && !quest.itemId().isBlank())
+            .sorted(java.util.Comparator.comparing(QuestDefinition::id))
+            .collect(java.util.stream.Collectors.toMap(QuestDefinition::itemId,
+                quest -> new AdminRpgItem(quest.itemId(), quest.itemName(), quest.itemMaterial()),
+                (first, ignored) -> first, LinkedHashMap::new))
+            .values().stream().toList();
+    }
+
+    public boolean giveAdminRpgItem(Player admin, UUID targetId, String questItemId) {
+        if (admin == null || !admin.hasPermission("vnmine.command.playeradmin")) return false;
+        QuestDefinition quest = definitions.values().stream()
+            .filter(value -> value.objectiveType() == ObjectiveType.COLLECT_RPG_ITEM
+                && value.itemId().equals(questItemId)).findFirst().orElse(null);
+        if (quest == null) return false;
+        ItemStack item = createQuestItem(quest);
+        List<byte[]> delivery = List.of(item.serializeAsBytes());
+        Player target = Bukkit.getPlayer(targetId);
+        PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+        String transaction = "admin-rpg-item:" + UUID.randomUUID();
+        if (target == null) {
+            database.executeGameplayDatabaseTask("player-admin.give-rpg-item actor=" + admin.getName()
+                    + " target=" + targetId + " item=" + questItemId,
+                () -> {
+                    database.enqueueMerchantDeliveries(targetId.toString(), transaction, delivery,
+                        Instant.now().toString());
+                    return true;
+                })
+                .whenComplete((ignored, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (failure != null) {
+                        plugin.getLogger().log(Level.SEVERE, "[PlayerAdmin] Could not queue RPG item delivery.", failure);
+                        admin.sendMessage("§cKhông thể xếp item vào kho nhận.");
+                    } else {
+                        plugin.getLogger().info("[PlayerAdmin] actor=" + admin.getName() + ", target=" + targetId
+                            + ", action=give-rpg-item, item=" + questItemId + ", amount=1, delivery=queued");
+                        admin.sendMessage("§aĐã xếp item RPG vào kho nhận của người chơi offline.");
+                    }
+                }));
+            return true;
+        }
+        Map<Integer, ItemStack> leftover = target.getInventory().addItem(item);
+        if (leftover.isEmpty()) {
+            target.saveData();
+            plugin.getLogger().info("[PlayerAdmin] actor=" + admin.getName() + ", target=" + target.getName()
+                + ", action=give-rpg-item, item=" + questItemId + ", amount=1, delivery=inventory");
+            admin.sendMessage("§aĐã cấp item RPG cho " + target.getName() + ".");
+            return true;
+        }
+        List<byte[]> overflow = leftover.values().stream().map(ItemStack::serializeAsBytes).toList();
+        database.executeGameplayDatabaseTask("player-admin.give-rpg-overflow actor=" + admin.getName()
+                + " target=" + targetId + " item=" + questItemId,
+            () -> {
+                database.enqueueMerchantDeliveries(targetId.toString(), transaction, overflow, Instant.now().toString());
+                return true;
+            })
+            .whenComplete((ignored, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[PlayerAdmin] Could not queue RPG item overflow.", failure);
+                    admin.sendMessage("§cInventory gần đầy; phần item còn lại chưa được giao, hãy kiểm tra console.");
+                } else {
+                    target.saveData();
+                    plugin.getLogger().info("[PlayerAdmin] actor=" + admin.getName() + ", target=" + target.getName()
+                        + ", action=give-rpg-item, item=" + questItemId + ", amount=1, delivery=partial+queue");
+                    admin.sendMessage("§aĐã cấp item; phần tràn được xếp vào kho nhận.");
+                }
+            }));
+        return true;
+    }
+
+    public record AdminRpgItem(String id, String name, Material material) { }
+
+    private void confirmAdminQuestReset(Player admin, UUID targetId, String questId) {
+        QuestDefinition quest = definitions.get(questId);
+        if (quest == null) return;
+        QuestMenuHolder holder = new QuestMenuHolder(admin.getUniqueId(), QuestMenu.ADMIN_RESET_CONFIRM,
+            questId, getOpenAdminHistoryPage(admin, targetId));
+        holder.npcId = targetId.toString();
+        Inventory menu = Bukkit.createInventory(holder, 27, "Xác nhận reset quest");
+        holder.inventory = menu;
+        menu.setItem(13, adminItem(Material.REDSTONE, "§cĐánh dấu quest chưa hoàn thành?", List.of(
+            "§7Người chơi: §f" + Bukkit.getOfflinePlayer(targetId).getName(),
+            "§7Quest: §f" + quest.title(),
+            "§7Có thể nhận lại và phần thưởng được xử lý như lần chạy mới.")));
+        menu.setItem(11, adminItem(Material.LIME_CONCRETE, "§aXác nhận", List.of()));
+        menu.setItem(15, adminItem(Material.RED_CONCRETE, "§cHủy", List.of()));
+        admin.openInventory(menu);
+    }
+
+    private void resetAdminQuest(Player admin, UUID targetId, String questId, int page) {
+        PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+        database.executeGameplayDatabaseTask("quest.admin-reset actor=" + admin.getName()
+                + " target=" + targetId + " quest=" + questId,
+                () -> database.resetCompletedQuest(targetId.toString(), questId))
+            .whenComplete((reset, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!admin.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Quest][Admin] Could not reset quest " + questId
+                        + " for " + targetId, failure);
+                    admin.sendMessage("§cKhông thể reset quest; dữ liệu không được xác nhận.");
+                    return;
+                }
+                if (reset) {
+                    Player target = Bukkit.getPlayer(targetId);
+                    if (target != null) reloadQuestCache(target);
+                    plugin.getLogger().info("[Quest][Admin] actor=" + admin.getName() + ", target=" + targetId
+                        + ", action=reset-completed, quest=" + questId);
+                    admin.sendMessage("§aĐã cho phép nhận lại quest " + questId + ".");
+                } else admin.sendMessage("§eQuest không còn ở trạng thái hoàn thành.");
+                openAdminCompletedQuests(admin, targetId, page);
+            }));
+    }
+
+    private int getOpenAdminHistoryPage(Player admin, UUID targetId) {
+        if (admin.getOpenInventory().getTopInventory().getHolder() instanceof QuestMenuHolder holder
+                && holder.menu == QuestMenu.ADMIN_PLAYER_HISTORY
+                && targetId.toString().equals(holder.npcId)) return holder.page;
+        return 0;
+    }
+
+    public void reloadQuestCache(Player player) {
+        UUID id = player.getUniqueId();
+        PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+        database.executeGameplayDatabaseTask("quest.admin-refresh player=" + player.getName(),
+                () -> new QuestJoinData(database.getActiveQuestProgress(id.toString()),
+                    database.getCompletedQuestIds(id.toString())))
+            .whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) plugin.getLogger().log(Level.SEVERE,
+                    "[Quest][Admin] Could not refresh cache for " + player.getName(), failure);
+                else if (player.isOnline()) {
+                    activeByPlayer.put(id, data.active());
+                    completedByPlayer.put(id, data.completed());
+                    refreshBoard(player);
+                }
+            }));
     }
 
     public boolean isQuestDialogInUse(String dialogId) {
@@ -408,6 +593,16 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(29, dialogChoiceItem("Hội thoại: đang làm", refs.inProgress()));
         menu.setItem(30, dialogChoiceItem("Hội thoại: hoàn tất", refs.completed()));
         menu.setItem(31, dialogChoiceItem("Hội thoại: chưa đủ điều kiện", refs.unavailable()));
+        boolean repeatable = repeatableQuests.getOrDefault(quest.id(), false);
+        int dailyLimit = repeatDailyLimits.getOrDefault(quest.id(), 0);
+        menu.setItem(33, adminItem(repeatable ? Material.LIME_DYE : Material.GRAY_DYE,
+            repeatable ? "§aLặp lại: BẬT" : "§7Lặp lại: TẮT", List.of(
+                "§7" + (dailyLimit == 0 ? "Không giới hạn lượt/ngày." : "Tối đa " + dailyLimit + " lượt/ngày."),
+                "§eNhấn để bật/tắt.")));
+        menu.setItem(34, adminItem(Material.REPEATER, "§bSố lượt/ngày: " + dailyLimit,
+            List.of("§7Giới hạn: 0–10; 0 nghĩa là không giới hạn.")));
+        menu.setItem(32, adminItem(Material.RED_DYE, "§c-1 lượt", List.of()));
+        menu.setItem(35, adminItem(Material.LIME_DYE, "§a+1 lượt", List.of()));
         menu.setItem(40, adminItem(Material.EXPERIENCE_BOTTLE,
             "§bEXP thưởng: " + quest.experienceReward(), List.of("§7Giới hạn: 0–100000 EXP.")));
         int[] expSlots = {37, 38, 39, 41, 42, 43};
@@ -440,6 +635,44 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             return;
         }
         int slot = event.getRawSlot();
+        if (holder.menu == QuestMenu.ADMIN_PLAYER_HISTORY) {
+            event.setCancelled(true);
+            if (!player.hasPermission(ADMIN_PERMISSION)
+                    && !player.hasPermission("vnmine.command.playeradmin")) {
+                player.closeInventory();
+                return;
+            }
+            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+            UUID targetId;
+            try { targetId = UUID.fromString(holder.npcId); }
+            catch (IllegalArgumentException exception) { return; }
+            if (slot == 49) {
+                if (plugin.getPlayerAdminManager() != null)
+                    plugin.getPlayerAdminManager().openTargetForAdmin(player, targetId);
+            } else if (slot == 45 && holder.page > 0) {
+                openAdminCompletedQuests(player, targetId, holder.page - 1);
+            } else if (slot == 53) {
+                openAdminCompletedQuests(player, targetId, holder.page + 1);
+            } else if (holder.questSlots.containsKey(slot)) {
+                confirmAdminQuestReset(player, targetId, holder.questSlots.get(slot));
+            }
+            return;
+        }
+        if (holder.menu == QuestMenu.ADMIN_RESET_CONFIRM) {
+            event.setCancelled(true);
+            if (!player.hasPermission(ADMIN_PERMISSION)
+                    && !player.hasPermission("vnmine.command.playeradmin")) {
+                player.closeInventory();
+                return;
+            }
+            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+            UUID targetId;
+            try { targetId = UUID.fromString(holder.npcId); }
+            catch (IllegalArgumentException exception) { return; }
+            if (slot == 11) resetAdminQuest(player, targetId, holder.questId, holder.page);
+            else if (slot == 15) openAdminCompletedQuests(player, targetId, holder.page);
+            return;
+        }
         if (holder.menu == QuestMenu.NPC_ACCEPT || holder.menu == QuestMenu.NPC_SUBMIT) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -457,7 +690,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             player.closeInventory();
             if (holder.menu == QuestMenu.NPC_ACCEPT) {
                 if (!activeByPlayer.getOrDefault(player.getUniqueId(), Map.of()).containsKey(quest.id())
-                        && !completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of()).contains(quest.id())
+                        && (isRepeatable(quest.id()) || !completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of()).contains(quest.id()))
                         && canDisplayQuest(player, quest)
                         && activeByPlayer.getOrDefault(player.getUniqueId(), Map.of()).size() < 3) {
                     acceptQuest(player, holder.npcId, quest.id());
@@ -637,6 +870,20 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             openDeleteConfirmation(player, quest.id(), holder.page);
         } else if (slot == 25) {
             openSuccessorSelect(player, quest.id());
+        } else if (slot == 33) {
+            repeatableQuests.put(quest.id(), !repeatableQuests.getOrDefault(quest.id(), false));
+            if (!saveDefinitions()) repeatableQuests.put(quest.id(), !repeatableQuests.get(quest.id()));
+            debugQuest("repeatable-config actor=" + player.getName() + ", quest=" + quest.id()
+                + ", enabled=" + repeatableQuests.getOrDefault(quest.id(), false)
+                + ", dailyLimit=" + repeatDailyLimits.getOrDefault(quest.id(), 0));
+            openQuestEditor(player, quest.id());
+        } else if (slot == 32 || slot == 35) {
+            int current = repeatDailyLimits.getOrDefault(quest.id(), 0);
+            repeatDailyLimits.put(quest.id(), Math.max(0, Math.min(10, current + (slot == 35 ? 1 : -1))));
+            if (!saveDefinitions()) repeatDailyLimits.put(quest.id(), current);
+            debugQuest("repeat-limit-config actor=" + player.getName() + ", quest=" + quest.id()
+                + ", dailyLimit=" + repeatDailyLimits.getOrDefault(quest.id(), 0));
+            openQuestEditor(player, quest.id());
         } else if (slot >= 37 && slot <= 43 && slot != 40) {
             int delta = switch (slot) {
                 case 37 -> -100;
@@ -1424,6 +1671,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             yaml.setComments(base + ".successor-quest-id", List.of(
                 "[VI] ID quest tự giao sau khi quest này hoàn thành; tùy chọn, không tự tạo vòng lặp.",
                 "[EN] Quest ID to auto-start after this quest completes; optional and cycle-checked."));
+            yaml.set(base + ".repeatable.enabled", repeatableQuests.getOrDefault(quest.id(), false));
+            yaml.set(base + ".repeatable.daily-limit", repeatDailyLimits.getOrDefault(quest.id(), 0));
+            yaml.setComments(base + ".repeatable", List.of(
+                "[VI] Cho phép người chơi hoàn thành và nhận lại quest; daily-limit 0 là không giới hạn, 1-10 là số lượt tối đa mỗi ngày.",
+                "[EN] Allows players to repeat and receive rewards again; daily-limit 0 is unlimited, 1-10 is the daily maximum."));
             QuestDialogRefs refs = dialogRefs(quest.id());
             yaml.set(base + ".dialogs.available", refs.available());
             yaml.set(base + ".dialogs.in-progress", refs.inProgress());
@@ -1633,9 +1885,12 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             throw new IOException("Quest definitions may contain 0-100 entries.");
         }
         boolean needsSellValueDefaults = false;
+        boolean needsRepeatableDefaults = false;
         for (String id : section.getKeys(false)) {
             ConfigurationSection quest = section.getConfigurationSection(id);
             if (quest == null) throw new IOException("Quest '" + id + "' must be a configuration section.");
+            if (!quest.contains("repeatable.enabled") || !quest.contains("repeatable.daily-limit"))
+                needsRepeatableDefaults = true;
             String giver = quest.getString("giver-npc-id", "").trim();
             String title = quest.getString("title", "").trim();
             String successorQuestId = quest.getString("successor-quest-id", "").trim();
@@ -1650,6 +1905,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             int target = quest.getInt("objective.amount", 0);
             int reward = quest.getInt("reward.vncoin", 0);
             int experienceReward = quest.getInt("reward.character-exp", 0);
+            boolean repeatable = quest.getBoolean("repeatable.enabled", false);
+            int repeatDailyLimit = quest.getInt("repeatable.daily-limit", 0);
             List<ItemStack> itemRewards = parseItemRewards(quest.getList("reward.items", List.of()), id);
             Object rawRewardSellValues = quest.get("reward.item-sell-values");
             if (rawRewardSellValues != null && !(rawRewardSellValues instanceof List<?>))
@@ -1689,6 +1946,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                         && !entityType.isAlive())
                     || target < 1 || target > 100_000 || reward < 0 || reward > 1_000_000
                     || experienceReward < 0 || experienceReward > 100_000
+                    || repeatDailyLimit < 0 || repeatDailyLimit > 10
                     || objectiveType == ObjectiveType.COLLECT_RPG_ITEM
                         && (objectiveSellValue < 0 || objectiveSellValue > 1_000_000L)
                     || (objectiveType == ObjectiveType.KILL_BOSS
@@ -1708,6 +1966,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     ? quest.getString("objective.boss-id", "") : itemId, itemMaterial, itemName, dropChance,
                 quest.getBoolean("enabled", true), requirements, experienceReward, itemRewards,
                 additionalObjectives, successorQuestId));
+            repeatableQuests.put(id, repeatable);
+            repeatDailyLimits.put(id, repeatDailyLimit);
             questRewardSellValues.put(id, rewardSellValues);
             if (objectiveType == ObjectiveType.COLLECT_RPG_ITEM)
                 questItemSellValues.put(id, objectiveSellValue);
@@ -1724,13 +1984,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
         }
         validateSuccessorGraph();
-        if (needsSellValueDefaults) {
+        if (needsSellValueDefaults || needsRepeatableDefaults) {
             if (saveDefinitions()) {
-                plugin.getLogger().info("[Quest][Merchant] Added default sell-value fields to quest configuration; "
-                    + "all new RPG item values default to 0 VNCOIN.");
+                plugin.getLogger().info("[Quest][Config] Added missing safe defaults to quest definitions; "
+                    + "RPG item values default to 0 VNCOIN and quests default to non-repeatable.");
             } else {
-                plugin.getLogger().warning("[Quest][Merchant] Could not persist default sell-value fields; "
-                    + "in-memory fallback remains 0 VNCOIN.");
+                plugin.getLogger().warning("[Quest][Config] Could not persist missing defaults; "
+                    + "in-memory defaults remain non-repeatable/0 VNCOIN.");
             }
         }
         plugin.getLogger().info("[Quest] Loaded " + definitions.size() + " NPC quest definitions.");
@@ -1900,7 +2160,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         UUID playerId = player.getUniqueId();
         debugQuest("accept-start player=" + player.getName() + ", npc=" + npcId + ", quest=" + questId);
         if (activeByPlayer.getOrDefault(playerId, Map.of()).containsKey(questId)
-                || completedByPlayer.getOrDefault(playerId, java.util.Set.of()).contains(questId)) {
+                || !isRepeatable(questId)
+                    && completedByPlayer.getOrDefault(playerId, java.util.Set.of()).contains(questId)) {
             if (completion == null) player.sendMessage("§eBạn đã nhận nhiệm vụ này hoặc đã hoàn thành nó.");
             else completion.accept(AcceptStatus.ALREADY_STARTED);
             debugQuest("accept-cache-hit player=" + player.getName() + ", quest=" + questId
@@ -1931,12 +2192,17 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     }
                 }
             }
+            String startedAt = Instant.now().toString();
+            String resetDate = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString();
             PlayerProfileDatabaseManager.QuestStartResult start = database.startQuestProgressWithLimit(
-                playerId.toString(), questId, "0", Instant.now().toString(), 3);
+                playerId.toString(), questId, "0", startedAt, 3, isRepeatable(questId),
+                repeatDailyLimits.getOrDefault(questId, 0), resetDate);
             if (start == PlayerProfileDatabaseManager.QuestStartResult.ALREADY_EXISTS)
                 return AcceptResult.ALREADY_STARTED;
             if (start == PlayerProfileDatabaseManager.QuestStartResult.ACTIVE_LIMIT_REACHED)
                 return AcceptResult.ACTIVE_LIMIT_REACHED;
+            if (start == PlayerProfileDatabaseManager.QuestStartResult.DAILY_LIMIT_REACHED)
+                return AcceptResult.DAILY_LIMIT_REACHED;
             database.setQuestTracked(playerId.toString(), questId);
             var progress = database.getActiveQuestProgress(playerId.toString());
             return new AcceptResult(AcceptStatus.ACCEPTED, progress);
@@ -1960,8 +2226,16 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 player.sendMessage("§cBạn chỉ có thể nhận tối đa 3 nhiệm vụ cùng lúc. Hãy hoàn thành hoặc hủy một nhiệm vụ trước.");
             } else if (result.status() == AcceptStatus.REQUIREMENTS_NOT_MET) {
                 player.sendMessage("§cBạn chưa đáp ứng điều kiện để nhận quest này.");
+            } else if (result.status() == AcceptStatus.DAILY_LIMIT_REACHED) {
+                player.sendMessage("§cBạn đã đạt giới hạn số lần lặp quest hôm nay.");
             } else {
                 activeByPlayer.put(playerId, result.progress());
+                completedByPlayer.computeIfPresent(playerId, (ignored, completed) -> {
+                    java.util.Set<String> updatedCompleted = ConcurrentHashMap.newKeySet();
+                    updatedCompleted.addAll(completed);
+                    updatedCompleted.remove(questId);
+                    return updatedCompleted;
+                });
                 debugQuest("accept-result player=" + player.getName() + ", quest=" + questId
                     + ", status=accepted, activeCount=" + result.progress().size());
                 player.sendMessage("§aĐã nhận nhiệm vụ: §f" + quest.title() + " §7(0/" + quest.target() + ")");
@@ -1991,7 +2265,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             .sorted(java.util.Comparator.comparing(QuestDefinition::id))
             .map(quest -> {
                 String state = active.containsKey(quest.id()) ? "§e[Đang làm] "
-                    : completed.contains(quest.id()) ? "§a[Đã xong] "
+                    : completed.contains(quest.id()) && !isRepeatable(quest.id()) ? "§a[Đã xong] "
+                    : completed.contains(quest.id()) ? "§d[Lặp lại] "
                     : canDisplayQuest(player, quest) && active.size() < 3 ? "§a[Có thể nhận] " : "§c[Chưa đủ điều kiện] ";
                 String title = quest.title().length() > 26 ? quest.title().substring(0, 26) : quest.title();
                 return new NpcDefinitionLoader.NpcAction("quest-interaction", state + title, null, quest.id());
@@ -2011,7 +2286,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         QuestDialogRefs refs = dialogRefs(quest.id());
         String speaker = plugin.getNpcManager() == null ? quest.title()
             : plugin.getNpcManager().getNpcDisplayName(npcId).orElse(quest.title());
-        if (completed.contains(questId)) {
+        if (completed.contains(questId) && !isRepeatable(questId)) {
             plugin.getQuestDialogManager().openQuestDialogue(player, refs.completed(), speaker,
                 "Nhiệm vụ này đã hoàn thành. Phần thưởng đã được trao cho bạn.", null);
             return;
@@ -2059,7 +2334,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             activeByPlayer.getOrDefault(player.getUniqueId(), Map.of());
         if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(npcId)
                 || active.containsKey(questId)
-                || completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of()).contains(questId)
+                || !isRepeatable(questId)
+                    && completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of()).contains(questId)
                 || active.size() >= 3 || !canDisplayQuest(player, quest)) {
             player.sendMessage("§cQuest không còn đủ điều kiện nhận; hãy nói chuyện lại với NPC.");
             return;
@@ -2385,20 +2661,27 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private void dropQuestItem(Location location, QuestDefinition quest) {
+        ItemStack stack = createQuestItem(quest);
+        if (stack == null) return;
+        var dropped = location.getWorld().dropItemNaturally(location, stack);
+        dropped.setCustomName("§6" + quest.itemName());
+        dropped.setCustomNameVisible(true);
+        debugQuest("item-drop quest=" + quest.id() + ", item=" + quest.itemId() + ", sell-value="
+            + questItemSellValues.getOrDefault(quest.id(), 0L)
+            + ", entity=" + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+    }
+
+    private ItemStack createQuestItem(QuestDefinition quest) {
         long sellValue = questItemSellValues.getOrDefault(quest.id(), 0L);
         ItemStack stack = new ItemStack(quest.itemMaterial());
         ItemMeta meta = stack.getItemMeta();
-        if (meta == null) return;
+        if (meta == null) return null;
         meta.setDisplayName("§6" + quest.itemName());
         meta.setLore(List.of("§7Nguyên liệu nhiệm vụ RPG", "§8Mã: " + quest.itemId()));
         meta.getPersistentDataContainer().set(questItemKey, PersistentDataType.STRING, quest.itemId());
         meta.getPersistentDataContainer().set(rpgSellValueKey, PersistentDataType.LONG, sellValue);
         stack.setItemMeta(meta);
-        var dropped = location.getWorld().dropItemNaturally(location, stack);
-        dropped.setCustomName("§6" + quest.itemName());
-        dropped.setCustomNameVisible(true);
-        debugQuest("item-drop quest=" + quest.id() + ", item=" + quest.itemId() + ", sell-value=" + sellValue
-            + ", entity=" + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+        return stack;
     }
 
     private void increment(Player player, QuestDefinition quest, int objectiveIndex, int amount) {
@@ -2443,7 +2726,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 return database.executeGameplayDatabaseTask("quest.complete player=" + player.getName()
                         + " quest=" + quest.id(), () -> database.completeQuestAndAwardRewards(
                             playerId.toString(), quest.id(), "complete", quest.experienceReward(),
-                            quest.vncoinReward(), serializedItems, quest.successorQuestId(), Instant.now().toString()))
+                            quest.vncoinReward(), serializedItems, quest.successorQuestId(), Instant.now().toString(),
+                            isRepeatable(quest.id()), repeatDailyLimits.getOrDefault(quest.id(), 0),
+                            java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString(),
+                            activeByPlayer.getOrDefault(playerId, Map.of()).get(quest.id()) == null
+                                ? null : activeByPlayer.get(playerId).get(quest.id()).startedAt()))
                     .thenApply(completed -> new ProgressResult(result, completed, false));
             }).whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (failure != null) {
@@ -2567,6 +2854,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         return true;
     }
 
+    private boolean isRepeatable(String questId) {
+        return repeatableQuests.getOrDefault(questId, false);
+    }
+
     public boolean hasAvailableQuestForMarker(Player player, String npcId) {
         if (player == null || npcId == null || plugin.getCharacterSelectionManager() == null
                 || plugin.getCharacterSelectionManager().getLoadedProfile(player.getUniqueId()).isEmpty()
@@ -2577,7 +2868,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         java.util.Set<String> completed = completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of());
         return definitions.values().stream().anyMatch(quest -> quest.enabled()
             && quest.giverNpcId().equalsIgnoreCase(npcId)
-            && !active.containsKey(quest.id()) && !completed.contains(quest.id())
+            && !active.containsKey(quest.id()) && (isRepeatable(quest.id()) || !completed.contains(quest.id()))
             && canDisplayQuest(player, quest));
     }
 
@@ -2820,7 +3111,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private record QuestJoinData(Map<String, PlayerProfileDatabaseManager.QuestProgress> active,
                                  java.util.Set<String> completed) { }
     private enum AcceptStatus {
-        ACCEPTED, ALREADY_STARTED, ACTIVE_LIMIT_REACHED, NO_PROFILE, REQUIREMENTS_NOT_MET, TRANSIENT_FAILURE
+        ACCEPTED, ALREADY_STARTED, ACTIVE_LIMIT_REACHED, DAILY_LIMIT_REACHED, NO_PROFILE,
+        REQUIREMENTS_NOT_MET, TRANSIENT_FAILURE
     }
     private record AcceptResult(AcceptStatus status,
                                 Map<String, PlayerProfileDatabaseManager.QuestProgress> progress) {
@@ -2829,6 +3121,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             new AcceptResult(AcceptStatus.ALREADY_STARTED, Map.of());
         private static final AcceptResult ACTIVE_LIMIT_REACHED =
             new AcceptResult(AcceptStatus.ACTIVE_LIMIT_REACHED, Map.of());
+        private static final AcceptResult DAILY_LIMIT_REACHED =
+            new AcceptResult(AcceptStatus.DAILY_LIMIT_REACHED, Map.of());
         private static final AcceptResult REQUIREMENTS_NOT_MET =
             new AcceptResult(AcceptStatus.REQUIREMENTS_NOT_MET, Map.of());
         private AcceptResult {
@@ -2838,7 +3132,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     private enum QuestMenu { LIST, EDIT, CONFIRM_DELETE, CONFIRM_ABANDON, REQUIREMENTS,
         PREREQUISITE_SELECT, SUCCESSOR_SELECT, OBJECTIVES, REWARD_ITEMS, PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS,
-        NPC_ACCEPT, NPC_SUBMIT }
+        NPC_ACCEPT, NPC_SUBMIT, ADMIN_PLAYER_HISTORY, ADMIN_RESET_CONFIRM }
     private enum QuestDialogStage {
         AVAILABLE("Có thể nhận"), IN_PROGRESS("Đang thực hiện"), COMPLETED("Hoàn tất/nhận thưởng"),
         UNAVAILABLE("Không đủ điều kiện/đầy giới hạn");
