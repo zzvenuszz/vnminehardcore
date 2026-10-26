@@ -89,6 +89,43 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return entity.getPersistentDataContainer().has(npcIdKey, PersistentDataType.STRING);
     }
 
+    public List<NpcMarkerTarget> getMarkerTargets() {
+        List<NpcMarkerTarget> targets = new ArrayList<>();
+        for (NpcRecord record : npcs.values()) {
+            Entity entity = Bukkit.getEntity(record.entityId());
+            if (entity == null || !entity.isValid() || !isManagedNpc(entity)) continue;
+            targets.add(new NpcMarkerTarget(record.id(), record.type(), record.storyChapterId(), entity));
+        }
+        return List.copyOf(targets);
+    }
+
+    public boolean hasReadStoryChapter(Player player, String chapterId) {
+        if (player == null || chapterId == null || !ID_PATTERN.matcher(chapterId).matches()) return false;
+        return player.getPersistentDataContainer().has(storyReadKey(chapterId), PersistentDataType.BYTE);
+    }
+
+    private NamespacedKey storyReadKey(String chapterId) {
+        return new NamespacedKey(plugin, "story-read-" + chapterId);
+    }
+
+    private void recordStoryChapterRead(Player player, String npcId, String chapterId) {
+        if (!player.isOnline() || chapterId == null) return;
+        player.getPersistentDataContainer().set(storyReadKey(chapterId), PersistentDataType.BYTE, (byte) 1);
+        try {
+            player.saveData();
+            debugNpc("story-read player=" + player.getName() + ", npc=" + npcId + ", chapter=" + chapterId);
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[NPC][Story] Could not persist read chapter state: player="
+                + player.getName() + ", npc=" + npcId + ", chapter=" + chapterId, exception);
+        }
+    }
+
+    private void debugNpc(String message) {
+        if (plugin.getConfig().getBoolean("logging.console-debug", false)) {
+            plugin.getLogger().info("[RPG-DEBUG][NPC] " + message);
+        }
+    }
+
     public java.util.Optional<NpcTarget> getNpcTarget(String npcId) {
         if (npcId == null) return java.util.Optional.empty();
         NpcRecord npc = npcs.get(npcId.toLowerCase(Locale.ROOT));
@@ -565,7 +602,8 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                     + npc.storyChapterId() + "'.");
             }
             plugin.getQuestDialogManager().openStoryChapter(player,
-                ChatColor.stripColor(formatDisplayName(npc.displayName())), chapter);
+                ChatColor.stripColor(formatDisplayName(npc.displayName())), chapter,
+                chapter == null ? null : () -> recordStoryChapterRead(player, npc.id(), chapter.id()));
             return;
         }
         openNpcDialogue(player, npc, 0);
@@ -1758,6 +1796,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
 
         @Override public Location location() { return location == null ? null : location.clone(); }
+    }
+
+    public record NpcMarkerTarget(String id, String type, String storyChapterId, Entity entity) {
     }
 
     private record NpcRecord(String id, String type, String displayName, Location location,

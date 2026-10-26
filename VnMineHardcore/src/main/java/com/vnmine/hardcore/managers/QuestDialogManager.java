@@ -121,11 +121,16 @@ public final class QuestDialogManager implements Listener, CommandExecutor, TabC
     }
 
     public void openStoryChapter(Player player, String speaker, StoryChapterLoader.StoryChapter chapter) {
+        openStoryChapter(player, speaker, chapter, null);
+    }
+
+    public void openStoryChapter(Player player, String speaker, StoryChapterLoader.StoryChapter chapter,
+                                 Runnable onComplete) {
         if (chapter == null) {
             player.sendMessage("§cNPC này chưa được gán chapter truyện. Admin hãy shift+click phải NPC để chỉnh sửa.");
             return;
         }
-        openPages(player, speaker, chapter.pages(), null);
+        openPages(player, speaker, chapter.pages(), onComplete);
     }
 
     private void openPages(Player player, String speaker, List<String> pages, Runnable onContinue) {

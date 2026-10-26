@@ -744,6 +744,16 @@ confirmation GUI. No dialogue content is sent to chat. Quest journal and skill t
 their RPG interfaces; a skill-book button grants the configured book. An
 `accept-quest` action uses the same dialog flow and only accepts from its
 configured giver NPC ID.
+Nearby NPCs can show player-specific virtual markers: yellow `!` means at least
+one quest at that NPC is currently receivable; aqua `?` marks an unread story
+chapter or the tutorial NPC for the selected starting continent. A chapter is
+marked read only after its action-bar dialog finishes. Markers are reconciled
+every 20 ticks by default, only for NPCs tracked by the client and within
+48 blocks; change or disable them with `rpg.npc.markers.enabled`,
+`rpg.npc.markers.update-interval-ticks` (5-100), and
+`rpg.npc.markers.tracking-range-blocks` (8-128). Debug transition logs use
+`[RPG-DEBUG][NPCMarker]` and `[RPG-DEBUG][NPC]` when
+`logging.console-debug: true`.
 Quest definitions live in `quests/quest-definitions.yml`; the initial objective
 type is `kill-mob`, progress persists in SQLite, and VNCOIN rewards are paid
 once on completion. Create the sample quest NPCs at your chosen locations:

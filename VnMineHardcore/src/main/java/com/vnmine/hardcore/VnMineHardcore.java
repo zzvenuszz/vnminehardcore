@@ -37,6 +37,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private QuestDialogManager questDialogManager;
     private Map<String, NpcDefinitionLoader.NpcDefinition> npcDefinitions = Map.of();
     private NpcManager npcManager;
+    private NpcMarkerManager npcMarkerManager;
     private TextDisplayManager textDisplayManager;
     private SkillManager skillManager;
     private LogManager logManager;
@@ -211,6 +212,7 @@ public final class VnMineHardcore extends JavaPlugin {
         }
         economyManager.refreshAllGroundItemNames();
         Bukkit.getPluginManager().registerEvents(npcManager, this);
+        this.npcMarkerManager = new NpcMarkerManager(this);
         try {
             this.textDisplayManager = new TextDisplayManager(this);
         } catch (java.io.IOException exception) {
@@ -331,6 +333,7 @@ public final class VnMineHardcore extends JavaPlugin {
         if (bossLeaderboardManager != null) bossLeaderboardManager.stop();
         if (graveManager != null) graveManager.stop();
         if (mercenaryManager != null) mercenaryManager.stop();
+        if (npcMarkerManager != null) npcMarkerManager.close();
         if (tooltipManager != null) tooltipManager.stop();
         if (logManager != null) logManager.stop();
         if (timeControlManager != null) timeControlManager.stop();
@@ -1214,6 +1217,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public NpcManager getNpcManager() {
         return npcManager;
     }
+    public NpcMarkerManager getNpcMarkerManager() { return npcMarkerManager; }
     public TextDisplayManager getTextDisplayManager() { return textDisplayManager; }
     public SkillManager getSkillManager() { return skillManager; }
     public CharacterSelectionManager getCharacterSelectionManager() { return characterSelectionManager; }

@@ -120,6 +120,16 @@ rpg:
     # [VI] Số NPC runtime tối đa có thể quản lý; mặc định 100, hợp lệ 1-100.
     # [EN] Maximum number of managed runtime NPCs; defaults to 100, valid range 1-100.
     max-runtime-npcs: 100
+    markers:
+      # [VI] Bật dấu quest/story riêng theo từng người chơi trên đầu NPC; mặc định true.
+      # [EN] Enable per-player quest/story markers above NPCs; defaults to true.
+      enabled: true
+      # [VI] Chu kỳ đối chiếu marker (tick); mặc định 20, hợp lệ 5-100.
+      # [EN] Marker reconciliation interval (ticks); default 20, valid range 5-100.
+      update-interval-ticks: 20
+      # [VI] Tầm hiển thị marker tính theo block; mặc định 48, hợp lệ 8-128.
+      # [EN] Marker visibility range in blocks; default 48, valid range 8-128.
+      tracking-range-blocks: 48
   text-display:
     # [VI] Số text display quản lý tối đa; mặc định 100, hợp lệ 1-500.
     # [EN] Maximum number of managed text displays; defaults to 100, valid range 1-500.

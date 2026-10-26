@@ -61,6 +61,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private final Map<UUID, Map<String, PlayerProfileDatabaseManager.QuestProgress>> activeByPlayer =
         new ConcurrentHashMap<>();
     private final Map<UUID, java.util.Set<String>> completedByPlayer = new ConcurrentHashMap<>();
+    private final java.util.Set<UUID> questStateLoaded = ConcurrentHashMap.newKeySet();
     private final Map<UUID, PendingTextInput> pendingTextInputs = new ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingRequirementItems = new ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingObjectiveItems = new ConcurrentHashMap<>();
@@ -2112,6 +2113,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 } else if (player.isOnline()) {
                     activeByPlayer.put(playerId, data.active());
                     completedByPlayer.put(playerId, data.completed());
+                    questStateLoaded.add(playerId);
                     debugQuest("load-active player=" + player.getName() + ", count=" + data.active().size()
                         + ", completed=" + data.completed().size());
                     refreshBoard(player);
@@ -2192,6 +2194,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         QuestWaypointRenderer.forget(event.getPlayer().getUniqueId());
         activeByPlayer.remove(event.getPlayer().getUniqueId());
         completedByPlayer.remove(event.getPlayer().getUniqueId());
+        questStateLoaded.remove(event.getPlayer().getUniqueId());
         pendingTextInputs.remove(event.getPlayer().getUniqueId());
         pendingRequirementItems.remove(event.getPlayer().getUniqueId());
         pendingObjectiveItems.remove(event.getPlayer().getUniqueId());
@@ -2421,6 +2424,20 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
         }
         return true;
+    }
+
+    public boolean hasAvailableQuestForMarker(Player player, String npcId) {
+        if (player == null || npcId == null || plugin.getCharacterSelectionManager() == null
+                || plugin.getCharacterSelectionManager().getLoadedProfile(player.getUniqueId()).isEmpty()
+                || !questStateLoaded.contains(player.getUniqueId())) return false;
+        Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer
+            .getOrDefault(player.getUniqueId(), Map.of());
+        if (active.size() >= 3) return false;
+        java.util.Set<String> completed = completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of());
+        return definitions.values().stream().anyMatch(quest -> quest.enabled()
+            && quest.giverNpcId().equalsIgnoreCase(npcId)
+            && !active.containsKey(quest.id()) && !completed.contains(quest.id())
+            && canDisplayQuest(player, quest));
     }
 
     private void debugQuest(String detail) {

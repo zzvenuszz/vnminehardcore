@@ -383,6 +383,15 @@ public final class CharacterSelectionManager implements Listener {
             PersistentDataType.BYTE, (byte) 0) == 1;
     }
 
+    public boolean shouldShowTutorialMarker(Player player, String npcId) {
+        if (!isOnboardingEnabled() || !"awaiting-tutorial".equals(onboardingStage(player))) return false;
+        String continentId = onboardingContinent(player);
+        HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null
+            || plugin.getRpgWorldManager() == null ? null
+            : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+        return realm != null && realm.tutorialNpcId().equalsIgnoreCase(npcId);
+    }
+
     private void setOnboarding(Player player, String stage, String continentId) {
         if (continentId == null || continentId.isBlank()) {
             player.getPersistentDataContainer().remove(onboardingContinentKey);

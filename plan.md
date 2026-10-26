@@ -591,6 +591,14 @@ Các giá sau là đề xuất cấu hình ban đầu, chưa áp dụng. Mỗi h
 - [~] Thêm log debug/load/attempt/retained/cleared và log cảnh báo khi link đang pending trỏ tới quest bị tắt/thiếu.
 - Chưa compile hoặc gameplay test. Cần test chuỗi 2+ quest, vòng lặp qua GUI/YAML, đủ 3 quest, điều kiện chưa đạt, abandon, restart ngay sau khi hoàn thành và click/reconnect trùng trước khi đánh dấu hoàn tất Phase C.
 
+### Trạng thái Phase D sau khi bắt đầu triển khai — 2026-10-26
+
+- [~] Thêm ProtocolLib virtual TextDisplay làm marker theo từng viewer: `!` vàng khi có quest đủ điều kiện nhận và còn slot; `?` xanh nhạt cho chapter story chưa đọc hoặc đúng NPC tutorial của đại lục đang onboarding. Hai dấu có thể cùng hiện.
+- [~] Đọc trạng thái story được ghi vào PDC chỉ khi action-bar dialog chạy hết; khóa marker theo chapter nên chapter mới có thể hiện lại. Tutorial marker kiểm tra stage và NPC ID đại lục đã chọn.
+- [~] Marker tự dọn khi eligibility/range/world/tracking thay đổi hoặc entity NPC được thay; cấu hình `rpg.npc.markers.enabled`, update interval 5-100 ticks, range 8-128 blocks. Chỉ đánh giá NPC đang được client track trong phạm vi.
+- [~] Log state transition `[RPG-DEBUG][NPCMarker]`, đọc chapter `[RPG-DEBUG][NPC]`; packet send error có giới hạn log 30 giây/người chơi.
+- Chưa compile/gameplay test. Cần xác nhận metadata TextDisplay trên ProtocolLib/server đích, kiểm tra marker riêng hai người chơi, quest requirements/slot, story complete/interrupt/restart, tutorial đúng đại lục, world/chunk/NPC unload/reload, config disable, packet cleanup và chi phí với NPC/player gần giới hạn trước khi hoàn tất Phase D.
+
 ### Thứ tự và tối ưu phạm vi
 
 1. Phase A trước vì đây là cổng vào hành trình.
