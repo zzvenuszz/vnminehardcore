@@ -11,7 +11,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
@@ -64,6 +66,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private final Map<UUID, ItemStack> pendingObjectiveItems = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastCrossWorldHint = new ConcurrentHashMap<>();
     private final java.util.Set<UUID> creditedBossEncounters = ConcurrentHashMap.newKeySet();
+    private final java.util.Set<UUID> processingPendingSuccessors = ConcurrentHashMap.newKeySet();
 
     public QuestCatalogManager(VnMineHardcore plugin) throws IOException {
         this.plugin = plugin;
@@ -108,6 +111,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private void openPlayerJournal(Player player, int requestedPage) {
+        processPendingQuestSuccessors(player);
         Map<String, PlayerProfileDatabaseManager.QuestProgress> active =
             activeByPlayer.getOrDefault(player.getUniqueId(), Map.of());
         List<Map.Entry<String, PlayerProfileDatabaseManager.QuestProgress>> quests = active.entrySet().stream()
@@ -375,6 +379,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(21, adminItem(Material.CHEST, "§6Item thưởng", List.of(
             "§7Số stack: §f" + quest.itemRewards().size(), "§eNhấn để mở rương cấu hình.")));
         menu.setItem(23, adminItem(Material.REDSTONE, "§cXóa quest", List.of("§7Xóa định nghĩa và gỡ khỏi danh sách.")));
+        QuestDefinition successor = quest.successorQuestId() == null ? null : definitions.get(quest.successorQuestId());
+        menu.setItem(25, adminItem(Material.CHAIN,
+            "§bQuest tự giao tiếp theo",
+            List.of("§7Hiện tại: §f" + (successor == null ? "Không có"
+                : successor.title() + " (" + successor.id() + ")"),
+                "§7Giao sau khi quest này hoàn thành và nhận thưởng.",
+                "§eNhấn để cấu hình.")));
         QuestDialogRefs refs = dialogRefs(quest.id());
         menu.setItem(28, dialogChoiceItem("Hội thoại: có thể nhận", refs.available()));
         menu.setItem(29, dialogChoiceItem("Hội thoại: đang làm", refs.inProgress()));
@@ -508,6 +519,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                             activeByPlayer.put(playerId, Map.copyOf(updated));
                             player.sendMessage("§eĐã hủy nhiệm vụ §f" + questId + "§e.");
                             refreshBoard(player);
+                            processPendingQuestSuccessors(player);
                         }
                         if (player.isOnline()) openPlayerJournal(player);
                     }));
@@ -555,6 +567,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     openQuestEditor(player, deleting.id());
                     return;
                 }
+                if (deleting != null && hasSuccessorReferences(deleting.id())) {
+                    player.sendMessage("§cKhông thể xóa quest này vì quest khác đang liên kết tới nó.");
+                    openQuestEditor(player, deleting.id());
+                    return;
+                }
                 if (deleting != null) deleteDefinition(deleting);
                 openAdminList(player, holder.page);
             } else if (slot == 15) {
@@ -564,6 +581,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         }
         if (holder.menu == QuestMenu.REQUIREMENTS || holder.menu == QuestMenu.PREREQUISITE_SELECT) {
             handleRequirementMenuClick(player, holder, slot);
+            return;
+        }
+        if (holder.menu == QuestMenu.SUCCESSOR_SELECT) {
+            handleSuccessorSelectClick(player, holder, slot);
             return;
         }
         if (holder.menu == QuestMenu.OBJECTIVES) {
@@ -597,6 +618,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             openRewardItems(player, quest);
         } else if (slot == 23) {
             openDeleteConfirmation(player, quest.id(), holder.page);
+        } else if (slot == 25) {
+            openSuccessorSelect(player, quest.id());
         } else if (slot >= 37 && slot <= 43 && slot != 40) {
             int delta = switch (slot) {
                 case 37 -> -100;
@@ -804,6 +827,79 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         }
         menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại", List.of()));
         player.openInventory(menu);
+    }
+
+    private void openSuccessorSelect(Player player, String questId) {
+        openSuccessorSelect(player, questId, 0);
+    }
+
+    private void openSuccessorSelect(Player player, String questId, int requestedPage) {
+        QuestDefinition source = definitions.get(questId);
+        if (source == null) return;
+        List<QuestDefinition> choices = definitions.values().stream()
+            .filter(candidate -> !candidate.id().equals(questId))
+            .sorted(java.util.Comparator.comparing(QuestDefinition::id)).toList();
+        int pageCount = Math.max(1, (choices.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.SUCCESSOR_SELECT, questId, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Quest tiếp theo • " + source.title());
+        holder.inventory = menu;
+        for (int index = 0; index < 45; index++) {
+            int choiceIndex = page * 45 + index;
+            if (choiceIndex >= choices.size()) break;
+            QuestDefinition choice = choices.get(choiceIndex);
+            boolean createsCycle = wouldCreateSuccessorCycle(questId, choice.id());
+            menu.setItem(index, adminItem(createsCycle ? Material.BARRIER : Material.BOOK,
+                (createsCycle ? "§c" : "§e") + choice.title(), List.of(
+                    "§7ID: §f" + choice.id(),
+                    createsCycle ? "§cLựa chọn này tạo vòng lặp." : "§eNhấn để chọn làm quest tiếp theo.")));
+            if (!createsCycle) holder.questSlots.put(index, choice.id());
+        }
+        menu.setItem(45, adminItem(Material.BARRIER, "§cXóa liên kết", List.of(
+            "§7Quest này sẽ không tự giao quest tiếp theo.")));
+        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại quest", List.of()));
+        if (page > 0) menu.setItem(46, adminItem(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(48, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
+            List.of("§7Tổng quest: " + choices.size())));
+        if (page + 1 < pageCount) menu.setItem(50, adminItem(Material.ARROW, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private boolean wouldCreateSuccessorCycle(String sourceQuestId, String candidateId) {
+        String current = candidateId;
+        Set<String> visited = new java.util.HashSet<>();
+        while (current != null && visited.add(current)) {
+            if (current.equals(sourceQuestId)) return true;
+            QuestDefinition definition = definitions.get(current);
+            current = definition == null ? null : definition.successorQuestId();
+        }
+        return current != null;
+    }
+
+    private void handleSuccessorSelectClick(Player player, QuestMenuHolder holder, int slot) {
+        QuestDefinition source = definitions.get(holder.questId);
+        if (source == null) return;
+        if (slot == 49) {
+            openQuestEditor(player, source.id());
+            return;
+        }
+        if (slot == 46 || slot == 50) {
+            openSuccessorSelect(player, source.id(), holder.page + (slot == 50 ? 1 : -1));
+            return;
+        }
+        if (slot == 45) {
+            replaceDefinition(source, source.withSuccessorQuestId(null));
+            debugQuest("successor-configured admin=" + player.getName() + ", quest=" + source.id()
+                + ", successor=cleared");
+            openQuestEditor(player, source.id());
+            return;
+        }
+        String successorId = holder.questSlots.get(slot);
+        if (successorId == null || wouldCreateSuccessorCycle(source.id(), successorId)) return;
+        replaceDefinition(source, source.withSuccessorQuestId(successorId));
+        debugQuest("successor-configured admin=" + player.getName() + ", quest=" + source.id()
+            + ", successor=" + successorId);
+        openQuestEditor(player, source.id());
     }
 
     private void handleRequirementMenuClick(Player player, QuestMenuHolder holder, int slot) {
@@ -1230,7 +1326,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private void deleteDefinition(QuestDefinition quest) {
-        if (hasActiveQuest(quest.id())) return;
+        if (hasActiveQuest(quest.id()) || hasSuccessorReferences(quest.id())) return;
         definitions.remove(quest.id());
         QuestDialogRefs oldRefs = questDialogs.remove(quest.id());
         if (!saveDefinitions()) {
@@ -1241,6 +1337,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     private boolean hasActiveQuest(String questId) {
         return activeByPlayer.values().stream().anyMatch(active -> active.containsKey(questId));
+    }
+
+    private boolean hasSuccessorReferences(String questId) {
+        return definitions.values().stream().anyMatch(quest -> questId.equals(quest.successorQuestId()));
     }
 
     private boolean saveDefinitions() {
@@ -1256,6 +1356,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             yaml.set(base + ".enabled", quest.enabled());
             yaml.set(base + ".title", quest.title());
             yaml.set(base + ".giver-npc-id", quest.giverNpcId());
+            yaml.set(base + ".successor-quest-id", quest.successorQuestId());
+            yaml.setComments(base + ".successor-quest-id", List.of(
+                "[VI] ID quest tự giao sau khi quest này hoàn thành; tùy chọn, không tự tạo vòng lặp.",
+                "[EN] Quest ID to auto-start after this quest completes; optional and cycle-checked."));
             QuestDialogRefs refs = dialogRefs(quest.id());
             yaml.set(base + ".dialogs.available", refs.available());
             yaml.set(base + ".dialogs.in-progress", refs.inProgress());
@@ -1458,6 +1562,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             if (quest == null) throw new IOException("Quest '" + id + "' must be a configuration section.");
             String giver = quest.getString("giver-npc-id", "").trim();
             String title = quest.getString("title", "").trim();
+            String successorQuestId = quest.getString("successor-quest-id", "").trim();
+            if (successorQuestId.isEmpty()) successorQuestId = null;
             String type = quest.getString("objective.type", "").trim().toLowerCase(Locale.ROOT);
             String entityText = quest.getString("objective.entity", "ZOMBIE").trim().toUpperCase(Locale.ROOT);
             int target = quest.getInt("objective.amount", 0);
@@ -1490,7 +1596,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
             List<QuestObjective> additionalObjectives = parseAdditionalObjectives(
                 quest.getMapList("additional-objectives"), id);
-            if (!id.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || !giver.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+            if (!id.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || id.length() > 64
+                    || !giver.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || giver.length() > 64
                     || title.isBlank() || title.length() > 64 || objectiveType == null
                     || (objectiveType != ObjectiveType.KILL_BOSS && objectiveType != ObjectiveType.VISIT_NPC
                         && !entityType.isAlive())
@@ -1512,7 +1619,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 target, reward, objectiveType == ObjectiveType.KILL_BOSS
                     ? quest.getString("objective.boss-id", "") : itemId, itemMaterial, itemName, dropChance,
                 quest.getBoolean("enabled", true), requirements, experienceReward, itemRewards,
-                additionalObjectives));
+                additionalObjectives, successorQuestId));
             ConfigurationSection dialogs = quest.getConfigurationSection("dialogs");
             if (dialogs != null) {
                 questDialogs.put(id, new QuestDialogRefs(
@@ -1522,7 +1629,20 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     validDialogId(dialogs.getString("unavailable"))));
             }
         }
+        validateSuccessorGraph();
         plugin.getLogger().info("[Quest] Loaded " + definitions.size() + " NPC quest definitions.");
+    }
+
+    private void validateSuccessorGraph() throws IOException {
+        for (QuestDefinition quest : definitions.values()) {
+            String successorId = quest.successorQuestId();
+            if (successorId == null) continue;
+            if (!successorId.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || successorId.length() > 64
+                    || !definitions.containsKey(successorId)
+                    || wouldCreateSuccessorCycle(quest.id(), successorId)) {
+                throw new IOException("Quest '" + quest.id() + "' has an invalid successor quest link.");
+            }
+        }
     }
 
     private List<QuestObjective> parseAdditionalObjectives(List<Map<?, ?>> rawObjectives, String questId)
@@ -1640,6 +1760,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     public void acceptQuest(Player player, String npcId, String questId) {
+        acceptQuest(player, npcId, questId, null);
+    }
+
+    private void acceptQuest(Player player, String npcId, String questId, Consumer<AcceptStatus> completion) {
         QuestDefinition quest = definitions.get(questId);
         if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(npcId)) {
             player.sendMessage("§cNhiệm vụ này không khả dụng tại NPC hiện tại.");
@@ -1648,10 +1772,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         }
         UUID playerId = player.getUniqueId();
         debugQuest("accept-start player=" + player.getName() + ", npc=" + npcId + ", quest=" + questId);
+        if (activeByPlayer.getOrDefault(playerId, Map.of()).containsKey(questId)
+                || completedByPlayer.getOrDefault(playerId, java.util.Set.of()).contains(questId)) {
+            if (completion == null) player.sendMessage("§eBạn đã nhận nhiệm vụ này hoặc đã hoàn thành nó.");
+            else completion.accept(AcceptStatus.ALREADY_STARTED);
+            debugQuest("accept-cache-hit player=" + player.getName() + ", quest=" + questId
+                + ", status=already-started");
+            return;
+        }
         for (QuestRequirement requirement : quest.requirements()) {
             if (requirement.type() == RequirementType.EXACT_ITEM
                     && countExactItems(player, requirement.item()) < requirement.amount()) {
                 player.sendMessage("§cThiếu vật phẩm yêu cầu: §f" + requirement.description());
+                if (completion != null) completion.accept(AcceptStatus.REQUIREMENTS_NOT_MET);
                 return;
             }
         }
@@ -1685,13 +1818,17 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 plugin.getLogger().log(Level.SEVERE, "[Quest] Failed to accept " + questId
                     + " for " + player.getName(), failure);
                 if (player.isOnline()) player.sendMessage("§cKhông thể nhận nhiệm vụ lúc này.");
+                if (completion != null) completion.accept(AcceptStatus.TRANSIENT_FAILURE);
                 return;
             }
-            if (!player.isOnline()) return;
+            if (!player.isOnline()) {
+                if (completion != null) completion.accept(AcceptStatus.TRANSIENT_FAILURE);
+                return;
+            }
             if (result.status() == AcceptStatus.NO_PROFILE) {
                 player.sendMessage("§cHãy tạo nhân vật trước khi nhận nhiệm vụ.");
             } else if (result.status() == AcceptStatus.ALREADY_STARTED) {
-                player.sendMessage("§eBạn đã nhận nhiệm vụ này hoặc đã hoàn thành nó.");
+                if (completion == null) player.sendMessage("§eBạn đã nhận nhiệm vụ này hoặc đã hoàn thành nó.");
             } else if (result.status() == AcceptStatus.ACTIVE_LIMIT_REACHED) {
                 player.sendMessage("§cBạn chỉ có thể nhận tối đa 3 nhiệm vụ cùng lúc. Hãy hoàn thành hoặc hủy một nhiệm vụ trước.");
             } else if (result.status() == AcceptStatus.REQUIREMENTS_NOT_MET) {
@@ -1704,6 +1841,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 player.sendMessage("§7Phần thưởng: §e" + quest.vncoinReward() + " VNCOIN");
                 refreshBoard(player);
             }
+            if (completion != null) completion.accept(result.status());
         }));
     }
 
@@ -1977,8 +2115,76 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     debugQuest("load-active player=" + player.getName() + ", count=" + data.active().size()
                         + ", completed=" + data.completed().size());
                     refreshBoard(player);
+                    processPendingQuestSuccessors(player);
                 }
             }));
+    }
+
+    private void processPendingQuestSuccessors(Player player) {
+        UUID playerId = player.getUniqueId();
+        if (!processingPendingSuccessors.add(playerId)) return;
+        PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+        database.executeGameplayDatabaseTask("quest.successor-load player=" + player.getName(),
+                () -> database.getPendingQuestSuccessors(playerId.toString()))
+            .whenComplete((pending, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    processingPendingSuccessors.remove(playerId);
+                    plugin.getLogger().log(Level.SEVERE, "[Quest][Successor] Failed loading pending successors for "
+                        + player.getName(), failure);
+                    return;
+                }
+                if (!player.isOnline()) {
+                    processingPendingSuccessors.remove(playerId);
+                    return;
+                }
+                debugQuest("successor-pending-loaded player=" + player.getName() + ", count=" + pending.size());
+                processPendingQuestSuccessorAt(player, pending, 0);
+            }));
+    }
+
+    private void processPendingQuestSuccessorAt(Player player,
+            List<PlayerProfileDatabaseManager.PendingQuestSuccessor> pending, int index) {
+        UUID playerId = player.getUniqueId();
+        if (!player.isOnline() || index >= pending.size()) {
+            processingPendingSuccessors.remove(playerId);
+            return;
+        }
+        PlayerProfileDatabaseManager.PendingQuestSuccessor link = pending.get(index);
+        QuestDefinition successor = definitions.get(link.successorQuestId());
+        if (successor == null || !successor.enabled()) {
+            plugin.getLogger().warning("[Quest][Successor] Pending quest remains unresolved: player="
+                + player.getName() + ", source=" + link.sourceQuestId() + ", successor="
+                + link.successorQuestId() + ", reason=" + (successor == null ? "definition-missing" : "disabled"));
+            debugQuest("successor-held player=" + player.getName() + ", source=" + link.sourceQuestId()
+                + ", successor=" + link.successorQuestId() + ", reason=missing-or-disabled");
+            processPendingQuestSuccessorAt(player, pending, index + 1);
+            return;
+        }
+        debugQuest("successor-start-attempt player=" + player.getName() + ", source=" + link.sourceQuestId()
+            + ", successor=" + successor.id());
+        acceptQuest(player, successor.giverNpcId(), successor.id(), status -> {
+            if (status != AcceptStatus.ACCEPTED && status != AcceptStatus.ALREADY_STARTED) {
+                debugQuest("successor-retained player=" + player.getName() + ", source="
+                    + link.sourceQuestId() + ", successor=" + successor.id() + ", reason=" + status);
+                processPendingQuestSuccessorAt(player, pending, index + 1);
+                return;
+            }
+            PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
+            database.executeGameplayDatabaseTask("quest.successor-clear player=" + player.getName()
+                    + " quest=" + successor.id(), () -> database.removePendingQuestSuccessor(
+                        playerId.toString(), link.sourceQuestId(), successor.id()))
+                .whenComplete((removed, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (failure != null || !Boolean.TRUE.equals(removed)) {
+                        plugin.getLogger().log(Level.SEVERE, "[Quest][Successor] Could not clear pending link: "
+                            + "player=" + player.getName() + ", source=" + link.sourceQuestId()
+                            + ", successor=" + successor.id(), failure);
+                    } else {
+                        debugQuest("successor-cleared player=" + player.getName() + ", source="
+                            + link.sourceQuestId() + ", successor=" + successor.id() + ", status=" + status);
+                    }
+                    processPendingQuestSuccessorAt(player, pending, index + 1);
+                }));
+        });
     }
 
     @EventHandler
@@ -2093,7 +2299,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 return database.executeGameplayDatabaseTask("quest.complete player=" + player.getName()
                         + " quest=" + quest.id(), () -> database.completeQuestAndAwardRewards(
                             playerId.toString(), quest.id(), "complete", quest.experienceReward(),
-                            quest.vncoinReward(), serializedItems, Instant.now().toString()))
+                            quest.vncoinReward(), serializedItems, quest.successorQuestId(), Instant.now().toString()))
                     .thenApply(completed -> new ProgressResult(result, completed, false));
             }).whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (failure != null) {
@@ -2154,6 +2360,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 }
                 activeByPlayer.put(playerId, Map.copyOf(updated));
                 refreshBoard(player);
+                if (result.completed()) {
+                    if (quest.successorQuestId() != null) {
+                        debugQuest("successor-enqueued player=" + player.getName() + ", source=" + quest.id()
+                            + ", successor=" + quest.successorQuestId());
+                    }
+                    processPendingQuestSuccessors(player);
+                }
             }));
     }
 
@@ -2368,7 +2581,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                                    EntityType targetEntity, int target, int vncoinReward, String itemId,
                                    Material itemMaterial, String itemName, int dropChancePercent, boolean enabled,
                                    List<QuestRequirement> requirements, int experienceReward,
-                                   List<ItemStack> itemRewards, List<QuestObjective> additionalObjectives) {
+                                   List<ItemStack> itemRewards, List<QuestObjective> additionalObjectives,
+                                   String successorQuestId) {
         private QuestDefinition {
             requirements = List.copyOf(requirements);
             itemRewards = itemRewards.stream().map(ItemStack::clone).toList();
@@ -2377,7 +2591,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
         private static QuestDefinition create(String id) {
             return new QuestDefinition(id, "hunter", "Quest mới", ObjectiveType.KILL_MOB,
-                EntityType.ZOMBIE, 1, 1, "", null, "", 0, false, List.of(), 0, List.of(), List.of());
+                EntityType.ZOMBIE, 1, 1, "", null, "", 0, false, List.of(), 0, List.of(), List.of(), null);
         }
 
         private List<QuestObjective> objectives() {
@@ -2391,57 +2605,65 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         private QuestDefinition withTitle(String value) {
             return new QuestDefinition(id, giverNpcId, value, objectiveType, targetEntity, target, vncoinReward,
                 itemId, itemMaterial, itemName, dropChancePercent, enabled, requirements, experienceReward, itemRewards,
-                additionalObjectives);
+                additionalObjectives, successorQuestId);
         }
 
         private QuestDefinition withGiverNpcId(String value) {
             return new QuestDefinition(id, value, title, objectiveType, targetEntity, target, vncoinReward,
                 itemId, itemMaterial, itemName, dropChancePercent, enabled, requirements, experienceReward, itemRewards,
-                additionalObjectives);
+                additionalObjectives, successorQuestId);
         }
 
         private QuestDefinition withEnabled(boolean value) {
             return new QuestDefinition(id, giverNpcId, title, objectiveType, targetEntity, target, vncoinReward,
                 itemId, itemMaterial, itemName, dropChancePercent, value, requirements, experienceReward, itemRewards,
-                additionalObjectives);
+                additionalObjectives, successorQuestId);
         }
 
         private QuestDefinition withRequirements(List<QuestRequirement> value) {
             return new QuestDefinition(id, giverNpcId, title, objectiveType, targetEntity, target, vncoinReward,
                 itemId, itemMaterial, itemName, dropChancePercent, enabled, value, experienceReward, itemRewards,
-                additionalObjectives);
+                additionalObjectives, successorQuestId);
         }
 
         private QuestDefinition withExperienceReward(int value) {
             return new QuestDefinition(id, giverNpcId, title, objectiveType, targetEntity, target, vncoinReward,
                 itemId, itemMaterial, itemName, dropChancePercent, enabled, requirements, value, itemRewards,
-                additionalObjectives);
+                additionalObjectives, successorQuestId);
         }
 
         private QuestDefinition withItemRewards(List<ItemStack> value) {
             return new QuestDefinition(id, giverNpcId, title, objectiveType, targetEntity, target, vncoinReward,
                 itemId, itemMaterial, itemName, dropChancePercent, enabled, requirements, experienceReward, value,
-                additionalObjectives);
+                additionalObjectives, successorQuestId);
         }
 
         private QuestDefinition withWalletReward(int value) {
             return new QuestDefinition(id, giverNpcId, title, objectiveType, targetEntity, target, value,
                 itemId, itemMaterial, itemName, dropChancePercent, enabled, requirements, experienceReward, itemRewards,
-                additionalObjectives);
+                additionalObjectives, successorQuestId);
         }
 
         private QuestDefinition withObjectives(List<QuestObjective> value) {
             QuestObjective first = value.getFirst();
             return new QuestDefinition(id, giverNpcId, title, first.type(), first.entity(), first.amount(),
                 vncoinReward, first.itemId(), first.itemMaterial(), first.itemName(), first.dropChancePercent(),
-                enabled, requirements, experienceReward, itemRewards, value.subList(1, value.size()));
+                enabled, requirements, experienceReward, itemRewards, value.subList(1, value.size()), successorQuestId);
+        }
+
+        private QuestDefinition withSuccessorQuestId(String value) {
+            return new QuestDefinition(id, giverNpcId, title, objectiveType, targetEntity, target, vncoinReward,
+                itemId, itemMaterial, itemName, dropChancePercent, enabled, requirements, experienceReward,
+                itemRewards, additionalObjectives, value);
         }
     }
     private record ProgressResult(PlayerProfileDatabaseManager.QuestObjectiveProgressResult progress,
                                   boolean completed, boolean advanced) { }
     private record QuestJoinData(Map<String, PlayerProfileDatabaseManager.QuestProgress> active,
                                  java.util.Set<String> completed) { }
-    private enum AcceptStatus { ACCEPTED, ALREADY_STARTED, ACTIVE_LIMIT_REACHED, NO_PROFILE, REQUIREMENTS_NOT_MET }
+    private enum AcceptStatus {
+        ACCEPTED, ALREADY_STARTED, ACTIVE_LIMIT_REACHED, NO_PROFILE, REQUIREMENTS_NOT_MET, TRANSIENT_FAILURE
+    }
     private record AcceptResult(AcceptStatus status,
                                 Map<String, PlayerProfileDatabaseManager.QuestProgress> progress) {
         private static final AcceptResult NO_PROFILE = new AcceptResult(AcceptStatus.NO_PROFILE, Map.of());
@@ -2457,7 +2679,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private enum QuestMenu { LIST, EDIT, CONFIRM_DELETE, CONFIRM_ABANDON, REQUIREMENTS,
-        PREREQUISITE_SELECT, OBJECTIVES, REWARD_ITEMS, PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS,
+        PREREQUISITE_SELECT, SUCCESSOR_SELECT, OBJECTIVES, REWARD_ITEMS, PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS,
         NPC_ACCEPT, NPC_SUBMIT }
     private enum QuestDialogStage {
         AVAILABLE("Có thể nhận"), IN_PROGRESS("Đang thực hiện"), COMPLETED("Hoàn tất/nhận thưởng"),

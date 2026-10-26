@@ -583,6 +583,14 @@ Các giá sau là đề xuất cấu hình ban đầu, chưa áp dụng. Mỗi h
 - [~] Bổ sung `[RPG-DEBUG][Delivery]` cho đăng ký callback, số delivery chờ, transaction mục tiêu, hết chỗ, callback trì hoãn/hoàn tất; README hướng dẫn bật bằng `logging.console-debug`.
 - Chưa xác minh bằng compile hoặc gameplay. Phần class advancement (parent/skill inheritance/điều kiện chuyển chức) vẫn chưa triển khai; chưa mở thêm các class trong `classes.md` vì hiện không có skill handler/vertical slice tương ứng. Cần kiểm tra mapping invalid/missing, cấp đúng sách, inventory đầy, restart ở các điểm giao dịch và bảo đảm không tạo sách trùng trước khi coi Phase B hoàn tất.
 
+### Trạng thái Phase C sau khi bắt đầu triển khai — 2026-10-26
+
+- [~] Quest editor có mục chọn/xóa successor, danh sách có phân trang; chặn tự trỏ, vòng lặp và xóa quest đang được quest khác tham chiếu. YAML `successor-quest-id` là tùy chọn, có chú thích VI/EN; loader kiểm tra link trước khi bật catalog.
+- [~] Khi hoàn thành quest, pending successor được ghi trong cùng SQLite transaction với trạng thái hoàn thành và reward. Hệ thống tự nhận successor theo điều kiện thường dùng, giữ pending nếu đủ 3 slot/thiếu điều kiện, retry sau join, hoàn thành hoặc hủy quest; chấp nhận trạng thái đã có để chống nhận trùng sau crash.
+- [~] Tăng schema SQLite từ 10 lên 11; migration tạo bảng pending successor có backup theo quy trình hiện tại, bảng cũng được tạo cho database mới.
+- [~] Thêm log debug/load/attempt/retained/cleared và log cảnh báo khi link đang pending trỏ tới quest bị tắt/thiếu.
+- Chưa compile hoặc gameplay test. Cần test chuỗi 2+ quest, vòng lặp qua GUI/YAML, đủ 3 quest, điều kiện chưa đạt, abandon, restart ngay sau khi hoàn thành và click/reconnect trùng trước khi đánh dấu hoàn tất Phase C.
+
 ### Thứ tự và tối ưu phạm vi
 
 1. Phase A trước vì đây là cổng vào hành trình.

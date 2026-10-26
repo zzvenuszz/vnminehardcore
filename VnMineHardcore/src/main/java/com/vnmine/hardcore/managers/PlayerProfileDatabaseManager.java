@@ -37,7 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public class PlayerProfileDatabaseManager {
-    public static final int SCHEMA_VERSION = 10;
+    public static final int SCHEMA_VERSION = 11;
     public static final long MAX_WALLET_BALANCE = 2_147_483_647L;
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
         .withZone(ZoneOffset.UTC);
@@ -406,6 +406,10 @@ public class PlayerProfileDatabaseManager {
                     } else if (version == 9) {
                         migrateV9ToV10(connection);
                         version = 10;
+                        setSchemaVersion(connection, version);
+                    } else if (version == 10) {
+                        migrateV10ToV11(connection);
+                        version = 11;
                         setSchemaVersion(connection, version);
                     } else {
                         throw new SQLException("No player profile database migration exists from version "
@@ -1256,10 +1260,19 @@ public class PlayerProfileDatabaseManager {
     public boolean completeQuestAndAwardRewards(String uuid, String questId, String currentStep,
             int experienceReward, long coinReward, List<byte[]> itemRewards, String completedAt)
             throws SQLException {
+        return completeQuestAndAwardRewards(uuid, questId, currentStep, experienceReward, coinReward,
+            itemRewards, null, completedAt);
+    }
+
+    public boolean completeQuestAndAwardRewards(String uuid, String questId, String currentStep,
+            int experienceReward, long coinReward, List<byte[]> itemRewards, String successorQuestId,
+            String completedAt) throws SQLException {
         if (uuid == null || uuid.isBlank() || questId == null || questId.isBlank() || questId.length() > 64
                 || experienceReward < 0 || experienceReward > 100_000 || coinReward < 0
                 || coinReward > MAX_WALLET_BALANCE || itemRewards == null || itemRewards.size() > 45
-                || completedAt == null || completedAt.isBlank()) {
+                || completedAt == null || completedAt.isBlank()
+                || (successorQuestId != null && (successorQuestId.length() > 64
+                    || !successorQuestId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")))) {
             throw new IllegalArgumentException("Quest reward fields are invalid or outside supported bounds.");
         }
         for (byte[] itemData : itemRewards) {
@@ -1292,8 +1305,47 @@ public class PlayerProfileDatabaseManager {
                     delivery.executeUpdate();
                 }
             }
+            if (successorQuestId != null) {
+                try (PreparedStatement pending = connection.prepareStatement(
+                        "INSERT OR IGNORE INTO player_quest_successors_pending " +
+                        "(uuid, source_quest_id, successor_quest_id, created_at) VALUES (?, ?, ?, ?)")) {
+                    pending.setString(1, uuid);
+                    pending.setString(2, questId);
+                    pending.setString(3, successorQuestId);
+                    pending.setString(4, completedAt);
+                    pending.executeUpdate();
+                }
+            }
             return true;
         });
+    }
+
+    public List<PendingQuestSuccessor> getPendingQuestSuccessors(String uuid) throws SQLException {
+        List<PendingQuestSuccessor> pending = new ArrayList<>();
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT source_quest_id, successor_quest_id FROM player_quest_successors_pending " +
+                 "WHERE uuid = ? ORDER BY created_at, source_quest_id, successor_quest_id")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) pending.add(new PendingQuestSuccessor(
+                    resultSet.getString("source_quest_id"), resultSet.getString("successor_quest_id")));
+            }
+        }
+        return List.copyOf(pending);
+    }
+
+    public boolean removePendingQuestSuccessor(String uuid, String sourceQuestId,
+            String successorQuestId) throws SQLException {
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "DELETE FROM player_quest_successors_pending WHERE uuid = ? AND source_quest_id = ? " +
+                 "AND successor_quest_id = ?")) {
+            statement.setString(1, uuid);
+            statement.setString(2, sourceQuestId);
+            statement.setString(3, successorQuestId);
+            return statement.executeUpdate() == 1;
+        }
     }
 
     public boolean claimCompletedQuestWalletReward(String uuid, String questId,
@@ -1441,6 +1493,9 @@ public class PlayerProfileDatabaseManager {
                              boolean rewardClaimed) {
             this(status, currentStep, startedAt, completedAt, rewardClaimed, 0, false);
         }
+    }
+
+    public record PendingQuestSuccessor(String sourceQuestId, String successorQuestId) {
     }
 
     public record QuestObjectiveProgressResult(boolean active, String currentStep, int progress, boolean tracked) {
@@ -1623,6 +1678,7 @@ public class PlayerProfileDatabaseManager {
                 "tracked INTEGER NOT NULL DEFAULT 0 CHECK (tracked IN (0, 1)), " +
                 "PRIMARY KEY (uuid, quest_id), " +
                 "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
+            createQuestSuccessorTables(statement);
             statement.execute("CREATE TABLE IF NOT EXISTS player_world_progress (" +
                 "uuid TEXT NOT NULL, world_id TEXT NOT NULL, unlocked INTEGER NOT NULL DEFAULT 0, " +
                 "completed INTEGER NOT NULL DEFAULT 0, last_visited TEXT, PRIMARY KEY (uuid, world_id), " +
@@ -1719,6 +1775,12 @@ public class PlayerProfileDatabaseManager {
         }
     }
 
+    private void migrateV10ToV11(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            createQuestSuccessorTables(statement);
+        }
+    }
+
     private static void createWalletTables(Statement statement) throws SQLException {
         statement.execute("CREATE TABLE IF NOT EXISTS player_wallets (" +
             "uuid TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0 " +
@@ -1750,6 +1812,13 @@ public class PlayerProfileDatabaseManager {
             "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
         statement.execute("CREATE INDEX IF NOT EXISTS idx_daily_quest_runs_player_date " +
             "ON player_daily_quest_runs(uuid, reset_date, quest_id)");
+    }
+
+    private static void createQuestSuccessorTables(Statement statement) throws SQLException {
+        statement.execute("CREATE TABLE IF NOT EXISTS player_quest_successors_pending (" +
+            "uuid TEXT NOT NULL, source_quest_id TEXT NOT NULL, successor_quest_id TEXT NOT NULL, " +
+            "created_at TEXT NOT NULL, PRIMARY KEY (uuid, source_quest_id, successor_quest_id), " +
+            "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
     }
 
     /**

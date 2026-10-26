@@ -846,6 +846,14 @@ players have that quest active, preventing progress indexes from shifting. The r
 stacks and saves them to the quest definition; reward delivery uses the
 persistent delivery queue. EXP and VNCOIN rewards have +/-1, +/-10, and +/-100
 controls. Chat prompts accept `!cancel` and reopen the relevant editor.
+An admin can set **Quest tự giao tiếp theo** in the quest editor. On successful
+completion, the next quest is recorded in SQLite in the same transaction as the
+completion reward. The system starts it when the player meets its configured
+requirements and has an available quest slot; if all three slots are occupied,
+the successor stays pending and is retried after a quest is completed, abandoned,
+the player rejoins, or the player opens the quest journal. Links cannot point to themselves, form a cycle, or target
+a missing quest. A pending link to a disabled definition is retained and logged
+for admin repair instead of silently discarded.
 
 Players can open **Hồ sơ RPG → Nhiệm vụ** or `/vnquest journal` to switch between
 active quests and completed quest history. Selecting an active quest opens its
