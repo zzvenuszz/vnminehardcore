@@ -62,6 +62,8 @@ public final class CharacterSelectionManager implements Listener {
     private final Map<String, String> promotionNpcByClass = new LinkedHashMap<>();
     private final Map<String, Material> promotionItemByClass = new LinkedHashMap<>();
     private final Map<String, Integer> promotionItemAmountByClass = new LinkedHashMap<>();
+    private final Map<String, String> promotionRpgItemByClass = new LinkedHashMap<>();
+    private final Map<String, Integer> promotionRpgItemAmountByClass = new LinkedHashMap<>();
     private final Map<String, String> starterBookMappings = new LinkedHashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
     private final Set<UUID> profileLookupComplete = new java.util.HashSet<>();
@@ -170,6 +172,14 @@ public final class CharacterSelectionManager implements Listener {
 
     public int getPromotionRequiredItemAmount(String classId) {
         return promotionItemAmountByClass.getOrDefault(classId, 0);
+    }
+
+    public String getPromotionRequiredRpgItem(String classId) {
+        return promotionRpgItemByClass.get(classId);
+    }
+
+    public int getPromotionRequiredRpgItemAmount(String classId) {
+        return promotionRpgItemAmountByClass.getOrDefault(classId, 0);
     }
 
     public void setPlayableClassIds(Set<String> classIds) {
@@ -1196,6 +1206,25 @@ public final class CharacterSelectionManager implements Listener {
                 }
                 promotionItemAmount = amount.intValue();
             }
+            String promotionRpgItem = null;
+            int promotionRpgItemAmount = 0;
+            if (section.contains("required-rpg-item-id") || section.contains("required-rpg-item-amount")) {
+                if (!section.contains("required-rpg-item-id") || !section.contains("required-rpg-item-amount")) {
+                    plugin.getLogger().warning("[ClassProgression] required-rpg-item-id and "
+                        + "required-rpg-item-amount must both be set at " + path + ". Class skipped.");
+                    continue;
+                }
+                promotionRpgItem = readText(section, "required-rpg-item-id", path);
+                Object rawAmount = section.get("required-rpg-item-amount");
+                if (promotionRpgItem == null || !DEFINITION_ID_PATTERN.matcher(promotionRpgItem).matches()
+                        || !(rawAmount instanceof Number amount) || amount.doubleValue() != amount.intValue()
+                        || amount.intValue() < 1 || amount.intValue() > 2304) {
+                    plugin.getLogger().warning("[ClassProgression] Invalid RPG item requirement at " + path
+                        + "; expected valid RPG item ID and integer amount from 1 to 2304. Class skipped.");
+                    continue;
+                }
+                promotionRpgItemAmount = amount.intValue();
+            }
             if (raceId == null || name == null || description == null || icon == null || availability == null) continue;
             if (!Set.of("auto", "available", "locked", "planned").contains(availability)) {
                 plugin.getLogger().warning("[Character] Invalid availability '" + availability
@@ -1215,6 +1244,10 @@ public final class CharacterSelectionManager implements Listener {
             if (parentClassId != null && promotionItem != null) {
                 promotionItemByClass.put(id, promotionItem);
                 promotionItemAmountByClass.put(id, promotionItemAmount);
+            }
+            if (parentClassId != null && promotionRpgItem != null) {
+                promotionRpgItemByClass.put(id, promotionRpgItem);
+                promotionRpgItemAmountByClass.put(id, promotionRpgItemAmount);
             }
         }
 

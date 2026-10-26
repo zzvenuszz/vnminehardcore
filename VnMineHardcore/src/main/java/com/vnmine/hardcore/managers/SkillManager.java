@@ -68,6 +68,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private final NamespacedKey skillIdKey;
     private final NamespacedKey rpgSellValueKey;
     private final NamespacedKey classVisitedNpcsKey;
+    private final NamespacedKey questItemIdKey;
     private SkillDefinitionLoader.SkillRegistry registry;
     private final Map<UUID, Map<String, Long>> cooldowns = new HashMap<>();
     private final Map<UUID, Integer> battleFocusRanks = new HashMap<>();
@@ -88,6 +89,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         this.skillIdKey = new NamespacedKey(plugin, "rpg_skill_id");
         this.rpgSellValueKey = new NamespacedKey(plugin, "rpg_sell_value");
         this.classVisitedNpcsKey = new NamespacedKey(plugin, "class_visited_npcs");
+        this.questItemIdKey = new NamespacedKey(plugin, "quest_item_id");
     }
 
     private String formatPercent(double fraction) {
@@ -576,6 +578,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
                         if (requiredQuest != null) requirements.add("§7Quest yêu cầu: §b" + requiredQuest);
                         appendPromotionNpcRequirement(requirements, classes, candidate.id());
                         appendPromotionItemRequirement(requirements, classes, candidate.id());
+                        appendPromotionRpgItemRequirement(requirements, classes, candidate.id());
                         requirements.add("§aNhấn để xem trước.");
                         inventory.setItem(slots[index], createSkillIcon(candidate.material(), "§d" + candidate.name(),
                             requirements));
@@ -608,6 +611,7 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         if (requiredQuest != null) requirements.add("§7Quest yêu cầu: §b" + requiredQuest);
         appendPromotionNpcRequirement(requirements, manager, target.id());
         appendPromotionItemRequirement(requirements, manager, target.id());
+        appendPromotionRpgItemRequirement(requirements, manager, target.id());
         requirements.add("§7Skill đã học sẽ được giữ nguyên.");
         requirements.add("§eNhấn xác nhận để đổi class.");
         PromotionHolder holder = new PromotionHolder(player.getUniqueId(), sourceClassId, true, targetClassId);
@@ -650,10 +654,25 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             player.sendMessage("§cBạn cần gặp NPC §e" + requiredNpcId + "§c trước khi tiến chức.");
             return;
         }
+        String requiredRpgItemId = manager.getPromotionRequiredRpgItem(target.id());
+        int requiredRpgItemAmount = manager.getPromotionRequiredRpgItemAmount(target.id());
+        int carriedRpgItemAmount = requiredRpgItemId == null ? 0
+            : countInventoryQuestItem(player, requiredRpgItemId);
+        if (requiredRpgItemId != null && carriedRpgItemAmount < requiredRpgItemAmount) {
+            debugFeature("[RPG-DEBUG][ClassProgression] promotion-rejected player=" + player.getName()
+                + ", target=" + targetClassId + ", reason=required-rpg-item-missing, itemId=" + requiredRpgItemId
+                + ", required=" + requiredRpgItemAmount + ", found=" + carriedRpgItemAmount);
+            player.sendMessage("§cBạn cần mang theo " + requiredRpgItemAmount + " item RPG §e"
+                + requiredRpgItemId + "§c để tiến chức.");
+            return;
+        }
         debugFeature("[RPG-DEBUG][ClassProgression] promotion-request player=" + player.getName()
             + ", from=" + sourceClassId + ", to=" + targetClassId + ", requiredLevel=" + requiredLevel
             + ", requiredQuest=" + (requiredQuest == null ? "none" : requiredQuest)
-            + ", requiredItem=" + (requiredItem == null ? "none" : requiredItem + "x" + requiredItemAmount));
+            + ", requiredNpc=" + (requiredNpcId == null ? "none" : requiredNpcId)
+            + ", requiredItem=" + (requiredItem == null ? "none" : requiredItem + "x" + requiredItemAmount)
+            + ", requiredRpgItem=" + (requiredRpgItemId == null ? "none"
+                : requiredRpgItemId + "x" + requiredRpgItemAmount));
         database.executeGameplayDatabaseTask("class-promotion.commit player=" + player.getName(),
             () -> database.promoteClass(playerId.toString(), sourceClassId, targetClassId, requiredLevel,
                 requiredQuest, changedAt))
@@ -690,6 +709,24 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
     private void appendPromotionNpcRequirement(List<String> lore, CharacterSelectionManager manager, String classId) {
         String npcId = manager.getPromotionRequiredNpc(classId);
         if (npcId != null) lore.add("§7Cần gặp NPC: §e" + npcId);
+    }
+
+    private void appendPromotionRpgItemRequirement(List<String> lore, CharacterSelectionManager manager,
+                                                   String classId) {
+        String itemId = manager.getPromotionRequiredRpgItem(classId);
+        int amount = manager.getPromotionRequiredRpgItemAmount(classId);
+        if (itemId != null && amount > 0) lore.add("§7Cần mang theo RPG item: §e" + amount + "x " + itemId);
+    }
+
+    private int countInventoryQuestItem(Player player, String itemId) {
+        int count = 0;
+        for (ItemStack item : player.getInventory().getStorageContents()) {
+            if (item == null || !item.hasItemMeta()) continue;
+            String actualId = item.getItemMeta().getPersistentDataContainer()
+                .get(questItemIdKey, PersistentDataType.STRING);
+            if (itemId.equals(actualId)) count += item.getAmount();
+        }
+        return count;
     }
 
     private boolean hasVisitedNpc(Player player, String npcId) {
