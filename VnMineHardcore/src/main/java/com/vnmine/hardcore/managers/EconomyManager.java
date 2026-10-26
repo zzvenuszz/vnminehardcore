@@ -42,6 +42,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.ItemDespawnEvent;
@@ -54,8 +55,11 @@ import org.bukkit.event.player.PlayerAttemptPickupItemEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.event.world.EntitiesUnloadEvent;
@@ -85,6 +89,8 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private final NamespacedKey armySummonKey;
     private final NamespacedKey merchantOfferKey;
     private final NamespacedKey merchantDeliveryIdKey;
+    private final NamespacedKey merchantSaleIdKey;
+    private final NamespacedKey merchantSaleAmountKey;
     private final NamespacedKey rpgSellValueKey;
     private final MerchantPriceCatalog merchantPriceCatalog;
     private final ConcurrentMap<UUID, ItemNameMode> itemNameModes = new ConcurrentHashMap<>();
@@ -98,6 +104,8 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private final Set<UUID> reconcileMerchantDeliveriesAgain = new HashSet<>();
     private final Map<UUID, List<MerchantDeliveryCallback>> merchantDeliveryCallbacks = new HashMap<>();
     private final Set<String> lockedMerchantDeliveries = ConcurrentHashMap.newKeySet();
+    private final Set<String> lockedMerchantSales = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> reconcilingMerchantSales = ConcurrentHashMap.newKeySet();
     private final Map<String, MobTier> tiersByEntity = new HashMap<>();
     private final PacketAdapter itemNamePacketListener;
     private boolean economyEnabled;
@@ -125,6 +133,8 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         armySummonKey = new NamespacedKey(plugin, "army_summoned_minion");
         merchantOfferKey = new NamespacedKey(plugin, "merchant_offer_id");
         merchantDeliveryIdKey = new NamespacedKey(plugin, "merchant_delivery_id");
+        merchantSaleIdKey = new NamespacedKey(plugin, "merchant_sale_id");
+        merchantSaleAmountKey = new NamespacedKey(plugin, "merchant_sale_amount");
         rpgSellValueKey = new NamespacedKey(plugin, "rpg_sell_value");
         merchantPriceCatalog = new MerchantPriceCatalog(plugin);
         itemNamePacketListener = new PacketAdapter(plugin, ListenerPriority.NORMAL,
@@ -359,7 +369,25 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         loadItemNameMode(event.getPlayer());
+        reconcilePendingMerchantSales(event.getPlayer());
         reconcileMerchantDeliveries(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onLockedMerchantSaleDeath(org.bukkit.event.entity.PlayerDeathEvent event) {
+        int removed = 0;
+        for (ItemStack item : event.getDrops()) {
+            if (isLockedMerchantSale(item)) {
+                removed += item.getAmount();
+                item.setAmount(0);
+            }
+        }
+        event.getDrops().removeIf(item -> item == null || item.getAmount() <= 0 || item.getType().isAir());
+        if (removed > 0) {
+            plugin.getLogger().warning("[Economy][MerchantSale] Suppressed death drops for escrow-locked items; "
+                + "sale recovery will settle the durable intent: player=" + event.getEntity().getName()
+                + ", item-amount=" + removed);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -715,31 +743,82 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onTaggedCoinDrop(PlayerDropItemEvent event) {
         if (hasCoinTag(event.getItemDrop().getItemStack())) event.setCancelled(true);
-        if (isLockedMerchantDelivery(event.getItemDrop().getItemStack())) event.setCancelled(true);
+        if (isLockedMerchantDelivery(event.getItemDrop().getItemStack())
+                || isLockedMerchantSale(event.getItemDrop().getItemStack())) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onLockedMerchantDeliveryClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player) || !containsLockedMerchantDelivery(player)) return;
+        if (!(event.getWhoClicked() instanceof Player player)
+                || !containsLockedMerchantDelivery(player) && !containsLockedMerchantSale(player)) return;
         event.setCancelled(true);
         player.sendMessage("§7Vật phẩm mua đang được xác nhận an toàn, vui lòng chờ.");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onLockedMerchantDeliveryDrag(InventoryDragEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player) || !containsLockedMerchantDelivery(player)) return;
+        if (!(event.getWhoClicked() instanceof Player player)
+                || !containsLockedMerchantDelivery(player) && !containsLockedMerchantSale(player)) return;
         event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onLockedMerchantDeliveryInteract(PlayerInteractEvent event) {
-        if (isLockedMerchantDelivery(event.getItem())
-                || isLockedMerchantDelivery(event.getPlayer().getInventory().getItemInOffHand())) {
+        if (isLockedMerchantDelivery(event.getItem()) || isLockedMerchantSale(event.getItem())
+                || isLockedMerchantDelivery(event.getPlayer().getInventory().getItemInOffHand())
+                || isLockedMerchantSale(event.getPlayer().getInventory().getItemInOffHand())) {
             event.setCancelled(true);
         }
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLockedMerchantSaleSwap(org.bukkit.event.player.PlayerSwapHandItemsEvent event) {
+        if (isLockedMerchantSale(event.getMainHandItem()) || isLockedMerchantSale(event.getOffHandItem())
+                || isLockedMerchantDelivery(event.getMainHandItem())
+                || isLockedMerchantDelivery(event.getOffHandItem())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLockedMerchantSaleConsume(PlayerItemConsumeEvent event) {
+        if (!isLockedMerchantSale(event.getItem())) return;
+        event.setCancelled(true);
+        debug("[RPG-DEBUG][VNCOIN][MerchantSale] blocked-use player=" + event.getPlayer().getName()
+            + ", action=consume, transaction=" + merchantSaleId(event.getItem()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLockedMerchantSaleDamage(PlayerItemDamageEvent event) {
+        if (!isLockedMerchantSale(event.getItem())) return;
+        event.setCancelled(true);
+        debug("[RPG-DEBUG][VNCOIN][MerchantSale] blocked-use player=" + event.getPlayer().getName()
+            + ", action=item-damage, transaction=" + merchantSaleId(event.getItem()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLockedMerchantSaleAttack(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)
+                || !isLockedMerchantSale(player.getInventory().getItemInMainHand())
+                    && !isLockedMerchantSale(player.getInventory().getItemInOffHand())) return;
+        event.setCancelled(true);
+        debug("[RPG-DEBUG][VNCOIN][MerchantSale] blocked-use player=" + player.getName()
+            + ", action=attack, main-hand-transaction="
+            + merchantSaleId(player.getInventory().getItemInMainHand()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLockedMerchantSaleBlockBreak(BlockBreakEvent event) {
+        if (!isLockedMerchantSale(event.getPlayer().getInventory().getItemInMainHand())
+                && !isLockedMerchantSale(event.getPlayer().getInventory().getItemInOffHand())) return;
+        event.setCancelled(true);
+        debug("[RPG-DEBUG][VNCOIN][MerchantSale] blocked-use player=" + event.getPlayer().getName()
+            + ", action=block-break, main-hand-transaction="
+            + merchantSaleId(event.getPlayer().getInventory().getItemInMainHand()));
+    }
+
     public void openWalletMenu(Player player) {
+        reconcilePendingMerchantSales(player);
         reconcileMerchantDeliveries(player);
         String uuid = player.getUniqueId().toString();
         String playerName = player.getName();
@@ -1108,53 +1187,410 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             openMerchantSellInventory(player, source.source);
             return;
         }
-        ItemStack removed = offer.item().clone();
-        removed.setAmount(offer.amount());
-        if (!removeExactItems(player, offer.item(), offer.amount())) {
+        String transactionId = "merchant-sell:" + UUID.randomUUID();
+        String ledgerReason = "Bán " + offer.amount() + " "
+            + (offer.name().length() > 180 ? offer.name().substring(0, 180) : offer.name());
+        ItemStack template = offer.item().clone();
+        template.setAmount(1);
+        List<byte[]> refundItems = serializeSaleRefund(template, offer.amount());
+        if (refundItems.isEmpty()) {
             pendingMerchantSales.remove(playerId);
-            player.sendMessage("§cKhông thể lấy item khỏi túi; giao dịch đã bị hủy.");
-            openMerchantSellInventory(player, source.source);
+            player.sendMessage("§cKhông tạo được bản sao an toàn để hoàn tác giao dịch; chưa lấy item.");
+            return;
+        }
+        String createdAt = Instant.now().toString();
+        player.sendMessage("§7Đang khóa item và ghi giao dịch an toàn...");
+        database.executeGameplayDatabaseTask("wallet.merchant-sell player=" + player.getName()
+                + " offer=" + offer.id(), () -> {
+                    database.createMerchantSaleIntent(playerId.toString(), transactionId,
+                        template.serializeAsBytes(), offer.amount(), offer.price(), "merchant-sell",
+                        playerId.toString(), ledgerReason, createdAt);
+                    return null;
+                })
+            .whenComplete((ignored, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    pendingMerchantSales.remove(playerId);
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Could not create sale intent: player="
+                        + player.getName() + ", npc=" + merchantId + ", offer=" + offer.id()
+                        + ", transaction=" + transactionId, failure);
+                    if (player.isOnline()) player.sendMessage("§cKhông lưu được giao dịch an toàn; chưa lấy item.");
+                    return;
+                }
+                lockedMerchantSales.add(transactionId);
+                debug("[RPG-DEBUG][VNCOIN][MerchantSale] intent-prepared player=" + player.getName()
+                    + ", npc=" + merchantId + ", offer=" + offer.id() + ", amount=" + offer.amount()
+                    + ", price=" + offer.price() + ", transaction=" + transactionId);
+                if (!player.isOnline()) {
+                    pendingMerchantSales.remove(playerId);
+                    debug("[RPG-DEBUG][VNCOIN][MerchantSale] prepared-unclaimed player=" + player.getName()
+                        + ", transaction=" + transactionId + ", reason=player-offline-before-tag");
+                    return;
+                }
+                if (!tagExactItemsForSale(player, template, offer.amount(), transactionId)) {
+                    pendingMerchantSales.remove(playerId);
+                    cancelPreparedSale(player, transactionId, "inventory-changed-before-tag");
+                    player.sendMessage("§cTúi đồ đã thay đổi hoặc không thể khóa item; giao dịch chưa thực hiện.");
+                    openMerchantSellInventory(player, source.source);
+                    return;
+                }
+                try {
+                    player.saveData();
+                } catch (RuntimeException saveFailure) {
+                    pendingMerchantSales.remove(playerId);
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Could not persist tagged inventory; "
+                        + "escrow stays pending for reconnect recovery: player=" + player.getName()
+                        + ", transaction=" + transactionId, saveFailure);
+                    player.sendMessage("§eGiao dịch đang được giữ an toàn; hãy mở lại game để hệ thống đối soát.");
+                    return;
+                }
+                debug("[RPG-DEBUG][VNCOIN][MerchantSale] item-locked player=" + player.getName()
+                    + ", npc=" + merchantId + ", item=" + template.getType() + ", amount=" + offer.amount()
+                    + ", transaction=" + transactionId + ", pdc-fingerprint=" + itemPdcFingerprint(template));
+                database.executeGameplayDatabaseTask("wallet.merchant-sale-tagged player=" + player.getName(),
+                        () -> database.markMerchantSaleTagged(playerId.toString(), transactionId))
+                    .whenComplete((tagged, tagFailure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (tagFailure != null || !Boolean.TRUE.equals(tagged)) {
+                            pendingMerchantSales.remove(playerId);
+                            plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Could not persist tagged "
+                                + "sale state; escrow remains locked: player=" + player.getName()
+                                + ", transaction=" + transactionId, tagFailure);
+                            if (player.isOnline()) player.sendMessage("§eGiao dịch đang được giữ an toàn; hãy thử mở /vncoin.");
+                            return;
+                        }
+                        if (!player.isOnline()) {
+                            pendingMerchantSales.remove(playerId);
+                            debug("[RPG-DEBUG][VNCOIN][MerchantSale] deferred-offline player=" + player.getName()
+                                + ", transaction=" + transactionId + ", stage=tagged");
+                            return;
+                        }
+                        if (!consumeTaggedMerchantSale(player, transactionId, offer.amount())) {
+                            pendingMerchantSales.remove(playerId);
+                            plugin.getLogger().severe("[Economy][MerchantSale] Tagged item amount mismatch; "
+                                + "escrow remains recoverable: player=" + player.getName()
+                                + ", transaction=" + transactionId + ", required=" + offer.amount());
+                            player.sendMessage("§eKhông thể đối soát số item; giao dịch đang được giữ an toàn.");
+                            return;
+                        }
+                        try {
+                            player.saveData();
+                        } catch (RuntimeException removeFailure) {
+                            pendingMerchantSales.remove(playerId);
+                            plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Could not persist escrow "
+                                + "consumption; tagged transaction remains recoverable: player=" + player.getName()
+                                + ", transaction=" + transactionId, removeFailure);
+                            player.sendMessage("§eGiao dịch đang chờ đối soát an toàn; hãy mở lại game.");
+                            return;
+                        }
+                        completeMerchantSale(player, transactionId, refundItems, merchantId, offer);
+                    }));
+            }));
+    }
+
+    private List<byte[]> serializeSaleRefund(ItemStack template, int amount) {
+        if (template == null || template.getType().isAir() || amount < 1 || amount > 100_000) return List.of();
+        List<byte[]> result = new ArrayList<>();
+        int maxStack = Math.max(1, template.getMaxStackSize());
+        int remaining = amount;
+        while (remaining > 0) {
+            ItemStack stack = template.clone();
+            int stackAmount = Math.min(remaining, maxStack);
+            stack.setAmount(stackAmount);
+            result.add(stack.serializeAsBytes());
+            if (result.size() > 45) return List.of();
+            remaining -= stackAmount;
+        }
+        return List.copyOf(result);
+    }
+
+    private boolean tagExactItemsForSale(Player player, ItemStack template, int amount, String transactionId) {
+        ItemStack[] original = player.getInventory().getStorageContents();
+        ItemStack[] planned = new ItemStack[original.length];
+        for (int index = 0; index < original.length; index++)
+            planned[index] = original[index] == null ? null : original[index].clone();
+        int remaining = amount;
+        for (int index = 0; index < planned.length && remaining > 0; index++) {
+            ItemStack item = planned[index];
+            if (item == null || item.getType().isAir() || !item.isSimilar(template)
+                    || isLockedMerchantDelivery(item) || merchantSaleId(item) != null) continue;
+            int taken = Math.min(remaining, item.getAmount());
+            ItemMeta meta = item.getItemMeta();
+            if (meta == null) continue;
+            meta.getPersistentDataContainer().set(merchantSaleIdKey, PersistentDataType.STRING, transactionId);
+            meta.getPersistentDataContainer().set(merchantSaleAmountKey, PersistentDataType.INTEGER, taken);
+            item.setItemMeta(meta);
+            remaining -= taken;
+        }
+        if (remaining > 0) return false;
+        player.getInventory().setStorageContents(planned);
+        return true;
+    }
+
+    private boolean hasTaggedMerchantSale(Player player, String transactionId) {
+        for (ItemStack item : player.getInventory().getStorageContents())
+            if (transactionId.equals(merchantSaleId(item))) return true;
+        for (ItemStack item : player.getEnderChest().getContents())
+            if (transactionId.equals(merchantSaleId(item))) return true;
+        return transactionId.equals(merchantSaleId(player.getItemOnCursor()));
+    }
+
+    private boolean consumeTaggedMerchantSale(Player player, String transactionId, int expectedAmount) {
+        ItemStack[] storage = player.getInventory().getStorageContents();
+        ItemStack[] plannedStorage = cloneItems(storage);
+        ItemStack[] ender = player.getEnderChest().getContents();
+        ItemStack[] plannedEnder = cloneItems(ender);
+        int consumed = consumeTaggedSaleFromArray(plannedStorage, transactionId);
+        consumed += consumeTaggedSaleFromArray(plannedEnder, transactionId);
+        ItemStack cursor = player.getItemOnCursor();
+        ItemStack plannedCursor = cursor == null ? null : cursor.clone();
+        if (plannedCursor != null && transactionId.equals(merchantSaleId(plannedCursor))) {
+            ItemStack[] cursorSlot = {plannedCursor};
+            consumed += consumeTaggedSaleFromArray(cursorSlot, transactionId);
+            plannedCursor = cursorSlot[0];
+        }
+        if (consumed != expectedAmount) return false;
+        player.getInventory().setStorageContents(plannedStorage);
+        player.getEnderChest().setContents(plannedEnder);
+        player.setItemOnCursor(plannedCursor);
+        return true;
+    }
+
+    private int consumeTaggedSaleFromArray(ItemStack[] items, String transactionId) {
+        int consumed = 0;
+        for (int index = 0; index < items.length; index++) {
+            ItemStack item = items[index];
+            if (item == null || item.getType().isAir() || !transactionId.equals(merchantSaleId(item))) continue;
+            ItemMeta meta = item.getItemMeta();
+            Integer take = meta == null ? null
+                : meta.getPersistentDataContainer().get(merchantSaleAmountKey, PersistentDataType.INTEGER);
+            if (take == null || take < 1 || take > item.getAmount()) return -100_000;
+            consumed += take;
+            if (take == item.getAmount()) {
+                items[index] = null;
+            } else {
+                item.setAmount(item.getAmount() - take);
+                meta.getPersistentDataContainer().remove(merchantSaleIdKey);
+                meta.getPersistentDataContainer().remove(merchantSaleAmountKey);
+                item.setItemMeta(meta);
+            }
+        }
+        return consumed;
+    }
+
+    private ItemStack[] cloneItems(ItemStack[] items) {
+        ItemStack[] copy = new ItemStack[items.length];
+        for (int index = 0; index < items.length; index++) copy[index] = items[index] == null ? null : items[index].clone();
+        return copy;
+    }
+
+    private void cancelPreparedSale(Player player, String transactionId, String reason) {
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("wallet.merchant-sale-cancel player=" + player.getName(),
+                () -> database.cancelPreparedMerchantSale(playerId.toString(), transactionId))
+            .whenComplete((cancelled, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (Boolean.TRUE.equals(cancelled)) lockedMerchantSales.remove(transactionId);
+                if (failure != null) plugin.getLogger().log(Level.SEVERE,
+                    "[Economy][MerchantSale] Could not cancel unused prepared intent: player=" + player.getName()
+                        + ", transaction=" + transactionId + ", reason=" + reason, failure);
+                debug("[RPG-DEBUG][VNCOIN][MerchantSale] intent-cancel player=" + player.getName()
+                    + ", transaction=" + transactionId + ", cancelled=" + Boolean.TRUE.equals(cancelled)
+                    + ", reason=" + reason);
+                if (player.isOnline() && !Boolean.TRUE.equals(cancelled)) reconcilePendingMerchantSales(player);
+            }));
+    }
+
+    private void completeMerchantSale(Player player, String transactionId, List<byte[]> refundItems,
+            String merchantId, MerchantBuyOffer offer) {
+        UUID playerId = player.getUniqueId();
+        database.executeGameplayDatabaseTask("wallet.merchant-sale-complete player=" + player.getName(),
+                () -> database.completeMerchantSale(playerId.toString(), transactionId, refundItems))
+            .whenComplete((completion, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                pendingMerchantSales.remove(playerId);
+                if (failure != null || completion == null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Final wallet step failed; "
+                        + "escrow will be retried: player=" + player.getName() + ", transaction=" + transactionId,
+                        failure);
+                    if (player.isOnline()) {
+                        player.sendMessage("§eItem đã được khóa và giao dịch đang chờ đối soát. Mở /vncoin để thử lại.");
+                        reconcilePendingMerchantSales(player);
+                    }
+                    return;
+                }
+                lockedMerchantSales.remove(transactionId);
+                debug("[RPG-DEBUG][VNCOIN][MerchantSale] completed player=" + player.getName()
+                    + ", npc=" + merchantId + ", offer=" + offer.id() + ", status=" + completion.status()
+                    + ", amount=" + offer.amount() + ", price=" + offer.price()
+                    + ", balance=" + completion.balance() + ", transaction=" + transactionId);
+                if (!player.isOnline()) return;
+                if (completion.status() == PlayerProfileDatabaseManager.MerchantSaleCompletionStatus.REFUNDED) {
+                    player.sendMessage("§cVí đã đạt giới hạn số dư; giao dịch bị hủy và item được hoàn qua kho giao dịch.");
+                    reconcileMerchantDeliveries(player);
+                } else {
+                    player.sendMessage("§aĐã bán " + offer.amount() + " item và nhận §6"
+                        + offer.price() + " VNCOIN§a.");
+                }
+            }));
+    }
+
+    private void reconcilePendingMerchantSales(Player player) {
+        UUID playerId = player.getUniqueId();
+        if (!player.isOnline() || pendingMerchantSales.contains(playerId)
+                || !reconcilingMerchantSales.add(playerId)) return;
+        Set<String> taggedIds = new HashSet<>();
+        for (ItemStack item : player.getInventory().getContents()) {
+            String id = merchantSaleId(item);
+            if (id != null) {
+                taggedIds.add(id);
+                lockedMerchantSales.add(id);
+            }
+        }
+        for (ItemStack item : player.getEnderChest().getContents()) {
+            String id = merchantSaleId(item);
+            if (id != null) {
+                taggedIds.add(id);
+                lockedMerchantSales.add(id);
+            }
+        }
+        database.executeGameplayDatabaseTask("wallet.merchant-sale-reconcile player=" + player.getName(),
+                () -> database.getPendingMerchantSales(playerId.toString()))
+            .whenComplete((sales, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null) {
+                    reconcilingMerchantSales.remove(playerId);
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Could not load sale intents for "
+                        + player.getName(), failure);
+                    return;
+                }
+                Set<String> pendingIds = sales.stream().map(
+                    PlayerProfileDatabaseManager.PendingMerchantSale::transactionId)
+                    .collect(java.util.stream.Collectors.toSet());
+                for (String taggedId : taggedIds) {
+                    if (!pendingIds.contains(taggedId)) {
+                        plugin.getLogger().severe("[Economy][MerchantSale] Found item lock without a pending intent; "
+                            + "item remains locked for manual recovery: player=" + player.getName()
+                            + ", transaction=" + taggedId);
+                    }
+                }
+                debug("[RPG-DEBUG][VNCOIN][MerchantSale] reconcile-loaded player=" + player.getName()
+                    + ", pending=" + sales.size() + ", tagged=" + taggedIds.size());
+                processPendingMerchantSales(player, sales, 0);
+            }));
+    }
+
+    private void processPendingMerchantSales(Player player,
+            List<PlayerProfileDatabaseManager.PendingMerchantSale> sales, int index) {
+        UUID playerId = player.getUniqueId();
+        if (index >= sales.size() || !player.isOnline()) {
+            reconcilingMerchantSales.remove(playerId);
+            return;
+        }
+        PlayerProfileDatabaseManager.PendingMerchantSale sale = sales.get(index);
+        String transactionId = sale.transactionId();
+        lockedMerchantSales.add(transactionId);
+        boolean hasTaggedItems = hasTaggedMerchantSale(player, transactionId);
+        if ("PREPARED".equals(sale.state()) && !hasTaggedItems) {
+            database.executeGameplayDatabaseTask("wallet.merchant-sale-cancel-prepared player=" + player.getName(),
+                    () -> database.cancelPreparedMerchantSale(playerId.toString(), transactionId))
+                .whenComplete((cancelled, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (failure != null) plugin.getLogger().log(Level.SEVERE,
+                        "[Economy][MerchantSale] Could not cancel untagged prepared intent: player="
+                            + player.getName() + ", transaction=" + transactionId, failure);
+                    if (Boolean.TRUE.equals(cancelled)) {
+                        lockedMerchantSales.remove(transactionId);
+                        debug("[RPG-DEBUG][VNCOIN][MerchantSale] recovered-cancel player=" + player.getName()
+                            + ", transaction=" + transactionId + ", reason=never-tagged");
+                    }
+                    processPendingMerchantSales(player, sales, index + 1);
+                }));
+            return;
+        }
+        if (hasTaggedItems) {
+            if ("PREPARED".equals(sale.state())) {
+                database.executeGameplayDatabaseTask("wallet.merchant-sale-recover-tagged player=" + player.getName(),
+                        () -> database.markMerchantSaleTagged(playerId.toString(), transactionId))
+                    .whenComplete((tagged, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (failure != null || !Boolean.TRUE.equals(tagged)) {
+                            reconcilingMerchantSales.remove(playerId);
+                            plugin.getLogger().log(Level.SEVERE,
+                                "[Economy][MerchantSale] Could not advance recovered sale intent: player="
+                                    + player.getName() + ", transaction=" + transactionId, failure);
+                            return;
+                        }
+                        consumeAndCompleteRecoveredSale(player, sale, sales, index);
+                    }));
+                return;
+            }
+            consumeAndCompleteRecoveredSale(player, sale, sales, index);
+            return;
+        }
+        completeRecoveredMerchantSale(player, sale, sales, index);
+    }
+
+    private void consumeAndCompleteRecoveredSale(Player player,
+            PlayerProfileDatabaseManager.PendingMerchantSale sale,
+            List<PlayerProfileDatabaseManager.PendingMerchantSale> sales, int index) {
+        UUID playerId = player.getUniqueId();
+        String id = sale.transactionId();
+        if (!player.isOnline()) {
+            reconcilingMerchantSales.remove(playerId);
+            debug("[RPG-DEBUG][VNCOIN][MerchantSale] deferred-offline player=" + player.getName()
+                + ", transaction=" + id + ", stage=recovered-tagged");
+            return;
+        }
+        if (!consumeTaggedMerchantSale(player, id, sale.itemAmount())) {
+            reconcilingMerchantSales.remove(playerId);
+            plugin.getLogger().severe("[Economy][MerchantSale] Recovered lock amount mismatch; escrow remains pending: "
+                + "player=" + player.getName() + ", transaction=" + id + ", expected=" + sale.itemAmount());
             return;
         }
         try {
             player.saveData();
-        } catch (RuntimeException failure) {
-            restoreMerchantSaleItems(player, removed);
-            pendingMerchantSales.remove(playerId);
-            plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Could not persist inventory before sell: player="
-                + player.getName() + ", offer=" + offer.id(), failure);
-            player.sendMessage("§cKhông thể lưu túi đồ an toàn; giao dịch đã được hoàn tác.");
+        } catch (RuntimeException exception) {
+            reconcilingMerchantSales.remove(playerId);
+            plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Could not persist recovered item "
+                + "consumption: player=" + player.getName() + ", transaction=" + id, exception);
             return;
         }
-        String transactionId = "merchant-sell:" + UUID.randomUUID();
-        String ledgerReason = "Bán " + offer.amount() + " "
-            + (offer.name().length() > 180 ? offer.name().substring(0, 180) : offer.name());
-        player.sendMessage("§7Đang xử lý giao dịch bán item...");
-        database.executeGameplayDatabaseTask("wallet.merchant-sell player=" + player.getName()
-                + " offer=" + offer.id(), () -> database.applyWalletTransaction(playerId.toString(),
-                    offer.price(), transactionId, "merchant-sell", playerId.toString(),
-                    ledgerReason, Instant.now().toString()))
-            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
-                pendingMerchantSales.remove(playerId);
-                if (failure != null || result == null
-                        || result.status() != PlayerProfileDatabaseManager.WalletTransactionStatus.APPLIED) {
-                    restoreMerchantSaleItems(player, removed);
-                    if (failure != null) {
-                        plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Sell transaction failed: player="
-                            + player.getName() + ", offer=" + offer.id() + ", transaction=" + transactionId, failure);
-                    }
-                    if (player.isOnline()) player.sendMessage("§cKhông hoàn tất được giao dịch; item đã được hoàn lại.");
+        completeRecoveredMerchantSale(player, sale, sales, index);
+    }
+
+    private void completeRecoveredMerchantSale(Player player,
+            PlayerProfileDatabaseManager.PendingMerchantSale sale,
+            List<PlayerProfileDatabaseManager.PendingMerchantSale> sales, int index) {
+        UUID playerId = player.getUniqueId();
+        ItemStack template;
+        try {
+            template = ItemStack.deserializeBytes(sale.itemData());
+        } catch (RuntimeException exception) {
+            reconcilingMerchantSales.remove(playerId);
+            plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Stored escrow item cannot be decoded: "
+                + "player=" + player.getName() + ", transaction=" + sale.transactionId(), exception);
+            return;
+        }
+        List<byte[]> refundItems = serializeSaleRefund(template, sale.itemAmount());
+        if (refundItems.isEmpty()) {
+            reconcilingMerchantSales.remove(playerId);
+            plugin.getLogger().severe("[Economy][MerchantSale] Cannot serialize sale refund: player="
+                + player.getName() + ", transaction=" + sale.transactionId());
+            return;
+        }
+        database.executeGameplayDatabaseTask("wallet.merchant-sale-recover-complete player=" + player.getName(),
+                () -> database.completeMerchantSale(playerId.toString(), sale.transactionId(), refundItems))
+            .whenComplete((completion, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null || completion == null) {
+                    reconcilingMerchantSales.remove(playerId);
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][MerchantSale] Recovery wallet operation failed; "
+                        + "intent remains pending: player=" + player.getName()
+                        + ", transaction=" + sale.transactionId(), failure);
                     return;
                 }
-                debug("[RPG-DEBUG][VNCOIN][Merchant] sell player=" + player.getName() + ", offer=" + offer.id()
-                    + ", npc=" + merchantId
-                    + ", amount=" + offer.amount() + ", price=" + offer.price() + ", balance=" + result.balance()
-                    + ", transaction=" + transactionId);
-                if (player.isOnline()) {
-                    player.sendMessage("§aĐã bán " + offer.amount() + " item và nhận §6"
-                        + offer.price() + " VNCOIN§a.");
-                    player.saveData();
-                }
+                lockedMerchantSales.remove(sale.transactionId());
+                debug("[RPG-DEBUG][VNCOIN][MerchantSale] recovered player=" + player.getName()
+                    + ", transaction=" + sale.transactionId() + ", state=" + sale.state()
+                    + ", status=" + completion.status() + ", amount=" + sale.itemAmount()
+                    + ", price=" + sale.price());
+                if (completion.status() == PlayerProfileDatabaseManager.MerchantSaleCompletionStatus.REFUNDED)
+                    reconcileMerchantDeliveries(player);
+                if (player.isOnline()) processPendingMerchantSales(player, sales, index + 1);
+                else reconcilingMerchantSales.remove(playerId);
             }));
     }
 
@@ -1163,62 +1599,6 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         for (ItemStack item : player.getInventory().getStorageContents())
             if (item != null && !item.getType().isAir() && item.isSimilar(template)) count += item.getAmount();
         return (int) Math.min(Integer.MAX_VALUE, count);
-    }
-
-    private boolean removeExactItems(Player player, ItemStack template, int amount) {
-        if (amount < 1 || countExactItem(player, template) < amount) return false;
-        int remaining = amount;
-        for (int slot = 0; slot < player.getInventory().getStorageContents().length && remaining > 0; slot++) {
-            ItemStack item = player.getInventory().getItem(slot);
-            if (item == null || item.getType().isAir() || !item.isSimilar(template)) continue;
-            int taken = Math.min(remaining, item.getAmount());
-            item.setAmount(item.getAmount() - taken);
-            if (item.getAmount() <= 0) player.getInventory().setItem(slot, null);
-            remaining -= taken;
-        }
-        return remaining == 0;
-    }
-
-    private void restoreMerchantSaleItems(Player player, ItemStack removed) {
-        if (player.isOnline()) {
-            int remaining = removed.getAmount();
-            while (remaining > 0) {
-                ItemStack stack = removed.clone();
-                int give = Math.min(remaining, stack.getMaxStackSize());
-                stack.setAmount(give);
-                Map<Integer, ItemStack> overflow = player.getInventory().addItem(stack);
-                overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
-                remaining -= give;
-            }
-            try {
-                player.saveData();
-            } catch (RuntimeException failure) {
-                plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Could not persist a sale refund for "
-                    + player.getName(), failure);
-            }
-            return;
-        }
-        List<byte[]> serialized = new ArrayList<>();
-        int remaining = removed.getAmount();
-        while (remaining > 0) {
-            ItemStack stack = removed.clone();
-            int amount = Math.min(remaining, stack.getMaxStackSize());
-            stack.setAmount(amount);
-            serialized.add(stack.serializeAsBytes());
-            remaining -= amount;
-        }
-        String source = "merchant-sell-refund:" + player.getUniqueId() + ":" + UUID.randomUUID();
-        database.executeGameplayDatabaseTask("wallet.merchant-sell-refund player=" + player.getName(), () -> {
-            database.enqueueMerchantDeliveries(player.getUniqueId().toString(), source, serialized,
-                Instant.now().toString());
-            return null;
-        }).whenComplete((ignored, failure) -> {
-            if (failure != null) plugin.getLogger().log(Level.SEVERE,
-                "[Economy][Merchant] Could not queue offline sell refund for " + player.getName(), failure);
-            else Bukkit.getScheduler().runTask(plugin, () -> {
-                if (player.isOnline()) reconcileMerchantDeliveries(player);
-            });
-        });
     }
 
     private static String itemName(ItemStack item) {
@@ -1542,6 +1922,16 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         return id != null && lockedMerchantDeliveries.contains(id);
     }
 
+    private String merchantSaleId(ItemStack item) {
+        if (item == null || item.getType().isAir() || item.getItemMeta() == null) return null;
+        return item.getItemMeta().getPersistentDataContainer().get(merchantSaleIdKey, PersistentDataType.STRING);
+    }
+
+    private boolean isLockedMerchantSale(ItemStack item) {
+        String id = merchantSaleId(item);
+        return id != null && lockedMerchantSales.contains(id);
+    }
+
     private boolean containsLockedMerchantDelivery(Player player) {
         for (ItemStack item : player.getInventory().getContents()) {
             if (isLockedMerchantDelivery(item)) return true;
@@ -1550,6 +1940,16 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             if (isLockedMerchantDelivery(item)) return true;
         }
         return isLockedMerchantDelivery(player.getItemOnCursor());
+    }
+
+    private boolean containsLockedMerchantSale(Player player) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (isLockedMerchantSale(item)) return true;
+        }
+        for (ItemStack item : player.getEnderChest().getContents()) {
+            if (isLockedMerchantSale(item)) return true;
+        }
+        return isLockedMerchantSale(player.getItemOnCursor());
     }
 
     private boolean containsMerchantDelivery(Player player, String transactionId) {

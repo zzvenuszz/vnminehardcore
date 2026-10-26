@@ -37,7 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public class PlayerProfileDatabaseManager {
-    public static final int SCHEMA_VERSION = 11;
+    public static final int SCHEMA_VERSION = 12;
     public static final long MAX_WALLET_BALANCE = 2_147_483_647L;
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
         .withZone(ZoneOffset.UTC);
@@ -410,6 +410,10 @@ public class PlayerProfileDatabaseManager {
                     } else if (version == 10) {
                         migrateV10ToV11(connection);
                         version = 11;
+                        setSchemaVersion(connection, version);
+                    } else if (version == 11) {
+                        migrateV11ToV12(connection);
+                        version = 12;
                         setSchemaVersion(connection, version);
                     } else {
                         throw new SQLException("No player profile database migration exists from version "
@@ -1587,6 +1591,26 @@ public class PlayerProfileDatabaseManager {
         }
     }
 
+    public record PendingMerchantSale(String transactionId, String uuid, byte[] itemData, int itemAmount,
+            long price, String source, String actorUuid, String reason, String createdAt, String state) {
+        public PendingMerchantSale {
+            if (transactionId == null || transactionId.isBlank() || uuid == null || uuid.isBlank()
+                    || itemData == null || itemData.length == 0 || itemAmount < 1 || price < 1
+                    || source == null || source.isBlank() || reason == null || createdAt == null
+                    || !("PREPARED".equals(state) || "TAGGED".equals(state))) {
+                throw new IllegalArgumentException("Pending merchant sale data is invalid.");
+            }
+            itemData = itemData.clone();
+        }
+
+        @Override public byte[] itemData() { return itemData.clone(); }
+    }
+
+    public enum MerchantSaleCompletionStatus { PAID, ALREADY_PAID, REFUNDED }
+
+    public record MerchantSaleCompletion(MerchantSaleCompletionStatus status, long balance) {
+    }
+
     public record WalletLedgerEntry(long id, String transactionId, long delta, long balanceAfter,
                                     String source, String actorUuid, String reason, String createdAt) {
     }
@@ -1697,6 +1721,7 @@ public class PlayerProfileDatabaseManager {
                 "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
             createWalletTables(statement);
             createMerchantDeliveryTables(statement);
+            createMerchantSaleTables(statement);
             createDailyQuestRunTables(statement);
         }
     }
@@ -1781,6 +1806,12 @@ public class PlayerProfileDatabaseManager {
         }
     }
 
+    private void migrateV11ToV12(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            createMerchantSaleTables(statement);
+        }
+    }
+
     private static void createWalletTables(Statement statement) throws SQLException {
         statement.execute("CREATE TABLE IF NOT EXISTS player_wallets (" +
             "uuid TEXT PRIMARY KEY, balance INTEGER NOT NULL DEFAULT 0 " +
@@ -1800,6 +1831,17 @@ public class PlayerProfileDatabaseManager {
             "created_at TEXT NOT NULL, delivered_at TEXT)");
         statement.execute("CREATE INDEX IF NOT EXISTS idx_player_merchant_deliveries_uuid_pending " +
             "ON player_merchant_deliveries(uuid, delivered_at)");
+    }
+
+    private static void createMerchantSaleTables(Statement statement) throws SQLException {
+        statement.execute("CREATE TABLE IF NOT EXISTS player_merchant_sales_pending (" +
+            "transaction_id TEXT PRIMARY KEY, uuid TEXT NOT NULL, item_data BLOB NOT NULL, " +
+            "item_amount INTEGER NOT NULL CHECK (item_amount BETWEEN 1 AND 100000), " +
+            "price INTEGER NOT NULL CHECK (price BETWEEN 1 AND 1000000), " +
+            "source TEXT NOT NULL, actor_uuid TEXT, reason TEXT NOT NULL, created_at TEXT NOT NULL, " +
+            "state TEXT NOT NULL CHECK (state IN ('PREPARED', 'TAGGED'))) ");
+        statement.execute("CREATE INDEX IF NOT EXISTS idx_player_merchant_sales_uuid " +
+            "ON player_merchant_sales_pending(uuid, created_at)");
     }
 
     private static void createDailyQuestRunTables(Statement statement) throws SQLException {
@@ -1977,6 +2019,166 @@ public class PlayerProfileDatabaseManager {
             }
             return result;
         });
+    }
+
+    public void createMerchantSaleIntent(String uuid, String transactionId, byte[] itemData, int itemAmount,
+            long price, String source, String actorUuid, String reason, String createdAt) throws SQLException {
+        validateWalletTransaction(uuid, price, transactionId, source, reason, createdAt);
+        if (itemData == null || itemData.length == 0 || itemData.length > 1_048_576
+                || itemAmount < 1 || itemAmount > 100_000) {
+            throw new IllegalArgumentException("Merchant sale escrow item data/amount is invalid.");
+        }
+        executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO player_merchant_sales_pending(transaction_id, uuid, item_data, item_amount, " +
+                    "price, source, actor_uuid, reason, created_at, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PREPARED')")) {
+                statement.setString(1, transactionId);
+                statement.setString(2, uuid);
+                statement.setBytes(3, itemData);
+                statement.setInt(4, itemAmount);
+                statement.setLong(5, price);
+                statement.setString(6, source);
+                if (actorUuid == null || actorUuid.isBlank()) statement.setNull(7, java.sql.Types.VARCHAR);
+                else statement.setString(7, actorUuid);
+                statement.setString(8, reason);
+                statement.setString(9, createdAt);
+                statement.executeUpdate();
+            }
+            return null;
+        });
+    }
+
+    public boolean markMerchantSaleTagged(String uuid, String transactionId) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE player_merchant_sales_pending SET state = 'TAGGED' " +
+                    "WHERE transaction_id = ? AND uuid = ? AND state = 'PREPARED'")) {
+                statement.setString(1, transactionId);
+                statement.setString(2, uuid);
+                if (statement.executeUpdate() == 1) return true;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT state FROM player_merchant_sales_pending WHERE transaction_id = ? AND uuid = ?")) {
+                statement.setString(1, transactionId);
+                statement.setString(2, uuid);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    return resultSet.next() && "TAGGED".equals(resultSet.getString("state"));
+                }
+            }
+        });
+    }
+
+    public boolean cancelPreparedMerchantSale(String uuid, String transactionId) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "DELETE FROM player_merchant_sales_pending WHERE transaction_id = ? AND uuid = ? " +
+                    "AND state = 'PREPARED'")) {
+                statement.setString(1, transactionId);
+                statement.setString(2, uuid);
+                return statement.executeUpdate() == 1;
+            }
+        });
+    }
+
+    public List<PendingMerchantSale> getPendingMerchantSales(String uuid) throws SQLException {
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT transaction_id, item_data, item_amount, price, source, actor_uuid, reason, created_at, state " +
+                 "FROM player_merchant_sales_pending WHERE uuid = ? ORDER BY created_at, transaction_id")) {
+            statement.setString(1, uuid);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                List<PendingMerchantSale> pending = new ArrayList<>();
+                while (resultSet.next()) {
+                    pending.add(new PendingMerchantSale(resultSet.getString("transaction_id"), uuid,
+                        resultSet.getBytes("item_data"), resultSet.getInt("item_amount"),
+                        resultSet.getLong("price"), resultSet.getString("source"),
+                        resultSet.getString("actor_uuid"), resultSet.getString("reason"),
+                        resultSet.getString("created_at"), resultSet.getString("state")));
+                }
+                return List.copyOf(pending);
+            }
+        }
+    }
+
+    public MerchantSaleCompletion completeMerchantSale(String uuid, String transactionId,
+            List<byte[]> refundItems) throws SQLException {
+        if (uuid == null || uuid.isBlank() || transactionId == null || transactionId.isBlank()
+                || refundItems == null || refundItems.isEmpty() || refundItems.size() > 45
+                || refundItems.stream().anyMatch(item -> item == null || item.length == 0
+                    || item.length > 1_048_576)) {
+            throw new IllegalArgumentException("Merchant sale completion data is invalid.");
+        }
+        return executeWriteTransaction(connection -> {
+            String playerId;
+            long price;
+            String source;
+            String actorUuid;
+            String reason;
+            String createdAt;
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT uuid, price, source, actor_uuid, reason, created_at " +
+                    "FROM player_merchant_sales_pending WHERE transaction_id = ? AND uuid = ?")) {
+                statement.setString(1, transactionId);
+                statement.setString(2, uuid);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    if (!resultSet.next()) {
+                        try (PreparedStatement ledger = connection.prepareStatement(
+                                "SELECT balance_after FROM player_wallet_ledger WHERE transaction_id = ? AND uuid = ?")) {
+                            ledger.setString(1, transactionId);
+                            ledger.setString(2, uuid);
+                            try (ResultSet applied = ledger.executeQuery()) {
+                                if (applied.next()) return new MerchantSaleCompletion(
+                                    MerchantSaleCompletionStatus.ALREADY_PAID,
+                                    applied.getLong("balance_after"));
+                            }
+                        }
+                        throw new SQLException("Pending merchant sale intent is missing: " + transactionId);
+                    }
+                    playerId = resultSet.getString("uuid");
+                    price = resultSet.getLong("price");
+                    source = resultSet.getString("source");
+                    actorUuid = resultSet.getString("actor_uuid");
+                    reason = resultSet.getString("reason");
+                    createdAt = resultSet.getString("created_at");
+                }
+            }
+            WalletTransactionResult wallet = applyWalletTransaction(connection, playerId, price,
+                transactionId, source, actorUuid, reason, createdAt);
+            if (wallet.status() == WalletTransactionStatus.APPLIED
+                    || wallet.status() == WalletTransactionStatus.DUPLICATE) {
+                deleteMerchantSaleIntent(connection, uuid, transactionId);
+                return new MerchantSaleCompletion(wallet.status() == WalletTransactionStatus.APPLIED
+                    ? MerchantSaleCompletionStatus.PAID : MerchantSaleCompletionStatus.ALREADY_PAID,
+                    wallet.balance());
+            }
+            if (wallet.status() != WalletTransactionStatus.BALANCE_LIMIT) {
+                throw new SQLException("Merchant sale wallet credit was rejected with status " + wallet.status());
+            }
+            try (PreparedStatement delivery = connection.prepareStatement(
+                    "INSERT INTO player_merchant_deliveries(transaction_id, uuid, item_data, created_at) " +
+                    "VALUES (?, ?, ?, ?) ON CONFLICT(transaction_id) DO NOTHING")) {
+                for (int index = 0; index < refundItems.size(); index++) {
+                    delivery.setString(1, transactionId + "-refund-" + index);
+                    delivery.setString(2, uuid);
+                    delivery.setBytes(3, refundItems.get(index));
+                    delivery.setString(4, createdAt);
+                    delivery.addBatch();
+                }
+                delivery.executeBatch();
+            }
+            deleteMerchantSaleIntent(connection, uuid, transactionId);
+            return new MerchantSaleCompletion(MerchantSaleCompletionStatus.REFUNDED, wallet.balance());
+        });
+    }
+
+    private void deleteMerchantSaleIntent(Connection connection, String uuid, String transactionId)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM player_merchant_sales_pending WHERE transaction_id = ? AND uuid = ?")) {
+            statement.setString(1, transactionId);
+            statement.setString(2, uuid);
+            statement.executeUpdate();
+        }
     }
 
     private void validateWalletTransaction(String uuid, long delta, String transactionId,

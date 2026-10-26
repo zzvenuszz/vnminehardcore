@@ -916,7 +916,17 @@ server confirms it. `system-merchant` NPCs use the shared catalog under
 `economy.merchant.offers`, while custom merchants use their saved per-NPC list.
 System and custom merchants show **Bán vật phẩm cho shop**. Players review the
 exact item count and VNCOIN, confirm the sale, then matching items are removed
-and the wallet ledger is credited. A custom merchant only accepts RPG items
+and the wallet ledger is credited through a durable SQLite sale intent. The
+system first persists a transaction ID and temporarily locks the exact item
+quantity; after the tagged inventory is saved and consumed, SQLite credits the
+wallet once. Pending sales reconcile on player join or when `/vncoin` is opened.
+If the wallet is at its balance limit, the sale is canceled and the item is
+placed in the persistent merchant delivery queue. Escrow-locked items cannot
+be moved or used, and are suppressed from death drops while their transaction
+is pending. Debug and recovery records use the `[Economy][MerchantSale]` and
+`[RPG-DEBUG][VNCOIN][MerchantSale]` log prefixes. This recovery flow still
+needs server restart/crash testing before it can be considered verified.
+A custom merchant only accepts RPG items
 with a buy order configured at that exact NPC; unconfigured items have no sale
 entry there. The system merchant only buys vanilla Materials listed in
 `merchant-prices.yml`; an unlisted Material is not purchasable. The initial
