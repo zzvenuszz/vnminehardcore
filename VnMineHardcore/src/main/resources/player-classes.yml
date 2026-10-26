@@ -4,8 +4,10 @@
 # [EN] Each race supports up to 28 classes in the GUI; each class belongs to one race.
 # [VI] `parent-class-id` là khóa tùy chọn (mặc định: không có); class con kế thừa skill theo ID từ class cha cùng race. Parent phải tồn tại và không tạo chu trình.
 # [EN] `parent-class-id` is optional (default: absent); a child inherits skill IDs from a parent of the same race. The parent must exist and the graph must be acyclic.
-# [VI] Cấu hình parent hiện chỉ khai báo/kiểm tra đồ thị và quyền kế thừa skill; chưa tự mở tiến chức cho người chơi.
-# [EN] Parent currently declares/validates the graph and skill inheritance eligibility; player promotion is not enabled yet.
+# [VI] `required-level` là cấp tối thiểu để tiến vào class con (mặc định 1, hợp lệ 1-10000); chỉ áp dụng khi có parent-class-id.
+# [EN] `required-level` is the minimum level for promotion into a child class (default 1, valid 1-10000); used only with parent-class-id.
+# [VI] Ví dụ class con: parent-class-id: swordsman; required-level: 20. Class con cần có skill đã triển khai để xuất hiện trong GUI.
+# [EN] Child example: parent-class-id: swordsman; required-level: 20. A child needs an implemented skill to appear in the GUI.
 classes:
   swordsman:
     # [VI] Trạng thái: available hiển thị nếu có skill hoạt động; locked/planned bị ẩn. Thiếu khóa sẽ tự dò (auto).

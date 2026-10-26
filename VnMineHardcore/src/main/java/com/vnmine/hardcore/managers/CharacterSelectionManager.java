@@ -57,6 +57,7 @@ public final class CharacterSelectionManager implements Listener {
     private final Map<String, RaceDefinition> races = new LinkedHashMap<>();
     private final Map<String, List<ClassDefinition>> classesByRace = new HashMap<>();
     private final Map<String, String> parentClassById = new LinkedHashMap<>();
+    private final Map<String, Integer> promotionLevelByClass = new LinkedHashMap<>();
     private final Map<String, String> starterBookMappings = new LinkedHashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
     private final Set<UUID> profileLookupComplete = new java.util.HashSet<>();
@@ -135,6 +136,20 @@ public final class CharacterSelectionManager implements Listener {
         if (classId == null || classId.isBlank()) return Set.of();
         return getClassIds().stream().filter(candidate -> getInheritedClassIds(candidate).contains(classId))
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    public List<ClassDefinition> getPromotionCandidates(String currentClassId) {
+        if (currentClassId == null || currentClassId.isBlank()) return List.of();
+        return classesByRace.values().stream().flatMap(List::stream)
+            .filter(candidate -> currentClassId.equals(parentClassById.get(candidate.id())))
+            .filter(candidate -> ("available".equals(candidate.availability())
+                || "auto".equals(candidate.availability())) && playableClassIds.contains(candidate.id()))
+            .sorted(java.util.Comparator.comparing(ClassDefinition::name, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    }
+
+    public int getPromotionRequiredLevel(String classId) {
+        return promotionLevelByClass.getOrDefault(classId, 1);
     }
 
     public void setPlayableClassIds(Set<String> classIds) {
@@ -1113,6 +1128,17 @@ public final class CharacterSelectionManager implements Listener {
                 ? readText(section, "availability", path) : "auto";
             String parentClassId = section.contains("parent-class-id")
                 ? readText(section, "parent-class-id", path) : null;
+            int promotionLevel = 1;
+            if (section.contains("required-level")) {
+                Object rawLevel = section.get("required-level");
+                if (!(rawLevel instanceof Number number) || number.doubleValue() != number.intValue()
+                        || number.intValue() < 1 || number.intValue() > 10000) {
+                    plugin.getLogger().warning("[ClassProgression] Invalid required-level at " + path
+                        + ".required-level; expected an integer from 1 to 10000. Class skipped.");
+                    continue;
+                }
+                promotionLevel = number.intValue();
+            }
             if (raceId == null || name == null || description == null || icon == null || availability == null) continue;
             if (!Set.of("auto", "available", "locked", "planned").contains(availability)) {
                 plugin.getLogger().warning("[Character] Invalid availability '" + availability
@@ -1126,6 +1152,7 @@ public final class CharacterSelectionManager implements Listener {
             }
             classList.add(new ClassDefinition(raceId, id, name, icon, description, availability));
             if (parentClassId != null) parentClassById.put(id, parentClassId);
+            if (parentClassId != null) promotionLevelByClass.put(id, promotionLevel);
         }
 
         validateClassInheritance();
@@ -1228,7 +1255,7 @@ public final class CharacterSelectionManager implements Listener {
     private boolean isClassSelectable(ClassDefinition klass) {
         return klass != null && ("available".equals(klass.availability())
                 || "auto".equals(klass.availability()))
-            && playableClassIds.contains(klass.id());
+            && playableClassIds.contains(klass.id()) && !parentClassById.containsKey(klass.id());
     }
 
     private ItemStack createRaceItem(RaceDefinition race) {

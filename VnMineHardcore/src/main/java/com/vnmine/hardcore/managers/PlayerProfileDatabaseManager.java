@@ -37,7 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public class PlayerProfileDatabaseManager {
-    public static final int SCHEMA_VERSION = 12;
+    public static final int SCHEMA_VERSION = 13;
     public static final long MAX_WALLET_BALANCE = 2_147_483_647L;
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
         .withZone(ZoneOffset.UTC);
@@ -415,6 +415,10 @@ public class PlayerProfileDatabaseManager {
                         migrateV11ToV12(connection);
                         version = 12;
                         setSchemaVersion(connection, version);
+                    } else if (version == 12) {
+                        migrateV12ToV13(connection);
+                        version = 13;
+                        setSchemaVersion(connection, version);
                     } else {
                         throw new SQLException("No player profile database migration exists from version "
                             + version + ".");
@@ -559,6 +563,64 @@ public class PlayerProfileDatabaseManager {
             }
         }
     }
+
+    public ClassPromotionResult promoteClass(String uuid, String expectedClass, String targetClass,
+                                              int requiredLevel, String changedAt) throws SQLException {
+        if (expectedClass == null || expectedClass.isBlank() || targetClass == null || targetClass.isBlank()
+                || expectedClass.equals(targetClass) || requiredLevel < 1 || changedAt == null) {
+            throw new IllegalArgumentException("Class promotion request is invalid.");
+        }
+        return executeWriteTransaction(connection -> {
+            int level;
+            try (PreparedStatement query = connection.prepareStatement(
+                    "SELECT selected_class, level FROM player_profiles WHERE uuid = ? AND is_active = 1")) {
+                query.setString(1, uuid);
+                try (ResultSet result = query.executeQuery()) {
+                    if (!result.next()) return ClassPromotionResult.PROFILE_NOT_FOUND;
+                    if (!expectedClass.equals(result.getString("selected_class"))) {
+                        return ClassPromotionResult.CLASS_CHANGED;
+                    }
+                    level = result.getInt("level");
+                }
+            }
+            if (level < requiredLevel) return ClassPromotionResult.REQUIREMENTS_NOT_MET;
+            try (PreparedStatement update = connection.prepareStatement(
+                    "UPDATE player_profiles SET selected_class = ?, updated_at = ? " +
+                        "WHERE uuid = ? AND selected_class = ? AND is_active = 1")) {
+                update.setString(1, targetClass);
+                update.setString(2, changedAt);
+                update.setString(3, uuid);
+                update.setString(4, expectedClass);
+                if (update.executeUpdate() != 1) return ClassPromotionResult.CLASS_CHANGED;
+            }
+            try (PreparedStatement history = connection.prepareStatement(
+                    "INSERT INTO player_class_history (uuid, from_class, to_class, changed_at) VALUES (?, ?, ?, ?)")) {
+                history.setString(1, uuid);
+                history.setString(2, expectedClass);
+                history.setString(3, targetClass);
+                history.setString(4, changedAt);
+                history.executeUpdate();
+            }
+            return ClassPromotionResult.PROMOTED;
+        });
+    }
+
+    public List<ClassHistoryEntry> getClassHistory(String uuid) throws SQLException {
+        List<ClassHistoryEntry> history = new ArrayList<>();
+        try (Connection connection = openConnection();
+             PreparedStatement query = connection.prepareStatement(
+                 "SELECT from_class, to_class, changed_at FROM player_class_history WHERE uuid = ? ORDER BY id")) {
+            query.setString(1, uuid);
+            try (ResultSet result = query.executeQuery()) {
+                while (result.next()) history.add(new ClassHistoryEntry(result.getString("from_class"),
+                    result.getString("to_class"), result.getString("changed_at")));
+            }
+        }
+        return List.copyOf(history);
+    }
+
+    public enum ClassPromotionResult { PROMOTED, PROFILE_NOT_FOUND, CLASS_CHANGED, REQUIREMENTS_NOT_MET }
+    public record ClassHistoryEntry(String fromClass, String toClass, String changedAt) { }
 
     public SkillLearnResult learnSkill(String uuid, String skillId, Set<String> eligibleClasses,
                                        int requiredLevel, String learnedAt) throws SQLException {
@@ -1724,6 +1786,7 @@ public class PlayerProfileDatabaseManager {
             createMerchantDeliveryTables(statement);
             createMerchantSaleTables(statement);
             createDailyQuestRunTables(statement);
+            createClassHistoryTables(statement);
         }
     }
 
@@ -1811,6 +1874,21 @@ public class PlayerProfileDatabaseManager {
         try (Statement statement = connection.createStatement()) {
             createMerchantSaleTables(statement);
         }
+    }
+
+    private void migrateV12ToV13(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            createClassHistoryTables(statement);
+        }
+    }
+
+    private static void createClassHistoryTables(Statement statement) throws SQLException {
+        statement.execute("CREATE TABLE IF NOT EXISTS player_class_history (" +
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT NOT NULL, from_class TEXT NOT NULL, " +
+            "to_class TEXT NOT NULL, changed_at TEXT NOT NULL, " +
+            "FOREIGN KEY (uuid) REFERENCES player_profiles(uuid) ON DELETE CASCADE)");
+        statement.execute("CREATE INDEX IF NOT EXISTS idx_player_class_history_uuid_id " +
+            "ON player_class_history(uuid, id)");
     }
 
     private static void createWalletTables(Statement statement) throws SQLException {

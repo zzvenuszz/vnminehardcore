@@ -134,6 +134,22 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             return;
         }
 
+        if (event.getView().getTopInventory().getHolder() instanceof PromotionHolder promotionHolder) {
+            event.setCancelled(true);
+            if (!promotionHolder.viewer.equals(player.getUniqueId())
+                    || event.getClickedInventory() != event.getView().getTopInventory()) return;
+            if (promotionHolder.confirmation) {
+                if (event.getSlot() == 11) confirmClassPromotion(player, promotionHolder.sourceClassId,
+                    promotionHolder.targetClassId);
+                else if (event.getSlot() == 15) openClassPromotionMenu(player);
+            } else {
+                String targetId = promotionHolder.choices.get(event.getSlot());
+                if (targetId != null) openClassPromotionConfirmation(player,
+                    promotionHolder.sourceClassId, targetId);
+                else if (event.getSlot() == 53) openSkillTree(player);
+            }
+            return;
+        }
         if (!(event.getView().getTopInventory().getHolder() instanceof QuickCastHolder holder)) return;
         event.setCancelled(true);
 
@@ -157,6 +173,10 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             if (instance != null && instance.getMercenaryManager() != null) {
                 instance.getMercenaryManager().openMainMenu(player);
             }
+            return;
+        }
+        if (holder.screen == QuickCastScreen.SKILL_TREE && event.getSlot() == 45) {
+            openClassPromotionMenu(player);
             return;
         }
 
@@ -477,6 +497,9 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             "§7Skill chưa học cần sách tương ứng."));
         points.setItemMeta(pointsMeta);
         inventory.setItem(49, points);
+        inventory.setItem(45, createSkillIcon(Material.NETHER_STAR, "§dTiến chức class",
+            List.of("§7Xem các class nâng cao có thể chọn.",
+                "§7Yêu cầu và thay đổi class được xác nhận trước khi lưu.")));
         inventory.setItem(53, createSkillIcon(Material.ARROW, "§eQuay lại menu chính",
             List.of("§7Trở về menu chính VnMineHardcore.")));
         for (int index = 0; index < classSkills.size() && index < 45; index++) {
@@ -510,6 +533,118 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             inventory.setItem(index, icon);
         }
         player.openInventory(inventory);
+    }
+
+    private void openClassPromotionMenu(Player player) {
+        UUID playerId = player.getUniqueId();
+        debugFeature("[RPG-DEBUG][ClassProgression] menu-open player=" + player.getName());
+        database.executeGameplayDatabaseTask("class-promotion.menu player=" + player.getName(),
+            () -> database.getPlayerProfile(playerId.toString()))
+            .whenComplete((profile, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "Could not load class promotion menu for "
+                        + player.getName() + ".", failure);
+                    player.sendMessage("§cKhông thể tải danh sách tiến chức.");
+                    return;
+                }
+                if (profile.isEmpty() || !profile.get().active()) {
+                    player.sendMessage("§cBạn cần có hồ sơ RPG đang hoạt động.");
+                    return;
+                }
+                CharacterSelectionManager classes = plugin.getCharacterSelectionManager();
+                List<CharacterSelectionManager.ClassDefinition> candidates = classes == null ? List.of()
+                    : classes.getPromotionCandidates(profile.get().selectedClass());
+                PromotionHolder holder = new PromotionHolder(playerId, profile.get().selectedClass(), false, null);
+                Inventory inventory = Bukkit.createInventory(holder, 54, "§dTiến chức class");
+                holder.inventory = inventory;
+                if (candidates.isEmpty()) {
+                    inventory.setItem(13, createSkillIcon(Material.BARRIER, "§cChưa có nhánh tiến chức",
+                        List.of("§7Class hiện tại chưa có class con đã triển khai.")));
+                } else {
+                    int[] slots = java.util.stream.IntStream.range(0, 45).toArray();
+                    for (int index = 0; index < candidates.size() && index < slots.length; index++) {
+                        CharacterSelectionManager.ClassDefinition candidate = candidates.get(index);
+                        int requiredLevel = classes.getPromotionRequiredLevel(candidate.id());
+                        holder.choices.put(slots[index], candidate.id());
+                        inventory.setItem(slots[index], createSkillIcon(candidate.material(), "§d" + candidate.name(),
+                            List.of("§7" + candidate.description(), "§8ID: " + candidate.id(),
+                                "§7Cấp yêu cầu: §e" + requiredLevel, "§aNhấn để xem trước.")));
+                    }
+                }
+                inventory.setItem(53, createSkillIcon(Material.ARROW,
+                    "§eQuay lại cây kỹ năng", List.of("§7Quay lại cây kỹ năng.")));
+                player.openInventory(inventory);
+                debugFeature("[RPG-DEBUG][ClassProgression] candidates player=" + player.getName()
+                    + ", current=" + profile.get().selectedClass() + ", count=" + candidates.size());
+            }));
+    }
+
+    private void openClassPromotionConfirmation(Player player, String sourceClassId, String targetClassId) {
+        CharacterSelectionManager manager = plugin.getCharacterSelectionManager();
+        CharacterSelectionManager.ClassDefinition target = manager == null ? null
+            : manager.getPromotionCandidates(sourceClassId).stream()
+                .filter(candidate -> candidate.id().equals(targetClassId)).findFirst().orElse(null);
+        if (target == null) {
+            player.sendMessage("§cClass tiến chức không còn hợp lệ; hãy mở lại danh sách.");
+            openClassPromotionMenu(player);
+            return;
+        }
+        int requiredLevel = manager.getPromotionRequiredLevel(target.id());
+        PromotionHolder holder = new PromotionHolder(player.getUniqueId(), sourceClassId, true, targetClassId);
+        Inventory inventory = Bukkit.createInventory(holder, 27, "§dXác nhận tiến chức");
+        holder.inventory = inventory;
+        inventory.setItem(13, createSkillIcon(target.material(), "§d" + target.name(), List.of(
+            "§7Class hiện tại: §f" + sourceClassId,
+            "§7Class mới: §f" + target.id(),
+            "§7Cấp yêu cầu: §e" + requiredLevel,
+            "§7Skill đã học sẽ được giữ nguyên.",
+            "§eNhấn xác nhận để đổi class.")));
+        inventory.setItem(11, createSkillIcon(Material.LIME_CONCRETE, "§aXác nhận tiến chức", List.of(
+            "§7Hồ sơ sẽ chuyển sang class mới.")));
+        inventory.setItem(15, createSkillIcon(Material.RED_CONCRETE, "§cQuay lại", List.of("§7Không thay đổi hồ sơ.")));
+        player.openInventory(inventory);
+    }
+
+    private void confirmClassPromotion(Player player, String sourceClassId, String targetClassId) {
+        CharacterSelectionManager manager = plugin.getCharacterSelectionManager();
+        CharacterSelectionManager.ClassDefinition target = manager == null ? null
+            : manager.getPromotionCandidates(sourceClassId).stream()
+                .filter(candidate -> candidate.id().equals(targetClassId)).findFirst().orElse(null);
+        if (target == null) {
+            player.sendMessage("§cClass tiến chức không còn hợp lệ.");
+            openClassPromotionMenu(player);
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        int requiredLevel = manager.getPromotionRequiredLevel(target.id());
+        String changedAt = Instant.now().toString();
+        debugFeature("[RPG-DEBUG][ClassProgression] promotion-request player=" + player.getName()
+            + ", from=" + sourceClassId + ", to=" + targetClassId + ", requiredLevel=" + requiredLevel);
+        database.executeGameplayDatabaseTask("class-promotion.commit player=" + player.getName(),
+            () -> database.promoteClass(playerId.toString(), sourceClassId, targetClassId, requiredLevel, changedAt))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "Could not promote class for " + player.getName() + ".", failure);
+                    player.sendMessage("§cKhông thể lưu tiến chức. Class cũ vẫn được giữ.");
+                    return;
+                }
+                debugFeature("[RPG-DEBUG][ClassProgression] promotion-result player=" + player.getName()
+                    + ", from=" + sourceClassId + ", to=" + targetClassId + ", result=" + result);
+                switch (result) {
+                    case PROMOTED -> {
+                        player.closeInventory();
+                        player.sendTitle("§d§lTIẾN CHỨC THÀNH CÔNG", "§fClass mới: §e" + target.name(),
+                            5, 50, 10);
+                        if (manager != null) manager.refreshLoadedProfile(player);
+                        refreshPassiveRanks(player);
+                    }
+                    case REQUIREMENTS_NOT_MET -> player.sendMessage("§cBạn chưa đạt cấp " + requiredLevel + ".");
+                    case CLASS_CHANGED -> player.sendMessage("§cClass đã thay đổi hoặc bạn đã tiến chức rồi.");
+                    case PROFILE_NOT_FOUND -> player.sendMessage("§cKhông tìm thấy hồ sơ RPG.");
+                }
+            }));
     }
 
     private Set<String> inheritedClasses(String classId) {
@@ -1676,6 +1811,27 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
         SKILL_PICKER,
         SKILL_TREE,
         SKILL_DETAILS
+    }
+
+    private static final class PromotionHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final String sourceClassId;
+        private final boolean confirmation;
+        private final String targetClassId;
+        private final Map<Integer, String> choices = new HashMap<>();
+        private Inventory inventory;
+
+        private PromotionHolder(UUID viewer, String sourceClassId, boolean confirmation, String targetClassId) {
+            this.viewer = viewer;
+            this.sourceClassId = sourceClassId;
+            this.confirmation = confirmation;
+            this.targetClassId = targetClassId;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return inventory;
+        }
     }
 
     private static final class QuickCastHolder implements InventoryHolder {
