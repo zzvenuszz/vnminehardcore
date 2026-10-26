@@ -331,7 +331,7 @@ Operators and the console have all plugin permissions by default.
 | `vnmine.command.groups.manage`, `.users.manage` | Manage permission groups and player assignments |
 | `vnmine.command.army` | Hire and manage a player's mercenary army (default: true) |
 | `vnmine.command.army.admin` | Grant summon tokens or mercenaries with `/vnarmy give` (default: op) |
-| `vnmine.command.skillbook.admin` | Give configured RPG skill books via command or admin GUI (default: op) |
+| `vnmine.command.skillbook.admin` | Give configured RPG skill books and configure race/class starter books (default: op) |
 | `vnmine.command.progression.admin` | Grant character RPG EXP/levels from the admin GUI (default: op) |
 | `vnmine.command.npc.admin` | Create, rename, move, inspect, list, and remove RPG NPCs (default: op) |
 | `vnmine.command.text.manage` | Create, edit, move, list, inspect, and remove world text displays with `/vntext` (default: op) |
@@ -435,12 +435,29 @@ An administrator can issue a configured book to an online player:
 
 ```text
 /vnskillbook give <player> <book-id>
+/vnskillbook config
 ```
 
 This command requires `vnmine.command.skillbook.admin` (default: operators).
 The admin GUI also provides **Quản trị → RPG → Give sách kỹ năng**. Select an
 online player, then a configured book. It uses the same book generation as the
 command and reports an error if the player is offline or their inventory is full.
+Use **Quản trị → RPG → Sách skill khởi đầu** or `/vnskillbook config` to assign a
+starter book to a race/class pair. The selector only offers books whose skill
+belongs to that class. Mappings are saved in
+`plugins/VnMineHardcore/starter-skill-books.yml`; bundled defaults cover the
+currently playable Human swordsman/guardian and Elf mage. After a new player
+finishes onboarding and creates a character, the configured book is queued as
+a durable item delivery. If their inventory is full, the book remains pending
+until space is available; the tutorial quest waits for the delivery to complete.
+If the inventory was full, leave a slot open and trigger delivery again by
+rejoining or using `/vncoin`. Older profiles do not receive a retroactive
+starter book. Set or remove mappings before onboarding if a class should
+receive a different book or no book.
+For troubleshooting, set `logging.console-debug: true`; onboarding emits
+`[RPG-DEBUG][Profile] starter-book-*` and delivery reconciliation emits
+`[RPG-DEBUG][Delivery]` with the stable transaction ID, queue state, retry,
+and callback result. Turn debug logging off after collecting the needed log.
 
 The **Quản trị → RPG → Quản lý EXP / level** menu provides +100/+500/+1000
 character EXP and +1/+5 level actions. EXP follows the configured progression

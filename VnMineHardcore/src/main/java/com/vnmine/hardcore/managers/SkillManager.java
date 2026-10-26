@@ -561,6 +561,20 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             .sorted(Comparator.comparing(SkillDefinitionLoader.SkillBookDefinition::id)).toList();
     }
 
+    public List<SkillDefinitionLoader.SkillBookDefinition> getSkillBooksForClass(String classId) {
+        if (classId == null || classId.isBlank()) return List.of();
+        return getSkillBooks().stream().filter(book -> {
+            SkillDefinitionLoader.SkillDefinition skill = registry.skills().get(book.skillId());
+            return skill != null && classId.equals(skill.classId());
+        }).toList();
+    }
+
+    public Optional<byte[]> serializeStarterSkillBook(String bookId) {
+        SkillDefinitionLoader.SkillBookDefinition book = registry.books().get(bookId);
+        if (book == null || !isSkillSupported(registry.skills().get(book.skillId()))) return Optional.empty();
+        return Optional.of(createSkillBook(book).serializeAsBytes());
+    }
+
     public Set<String> getPlayableClassIds() {
         return registry.skills().values().stream()
             .filter(this::isSkillSupported)
@@ -1554,8 +1568,16 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             sender.sendMessage("§cBạn không có quyền dùng lệnh này.");
             return true;
         }
+        if (args.length == 1 && args[0].equalsIgnoreCase("config")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("§cMở giao diện cấu hình sách cần thực hiện trong game.");
+                return true;
+            }
+            plugin.getCharacterSelectionManager().openStarterBookAdminMenu(player);
+            return true;
+        }
         if (args.length != 3 || !args[0].equalsIgnoreCase("give")) {
-            sender.sendMessage("§eDùng: /vnskillbook give <người_chơi> <book-id>");
+            sender.sendMessage("§eDùng: /vnskillbook give <người_chơi> <book-id> hoặc /vnskillbook config");
             return true;
         }
         Player target = Bukkit.getPlayerExact(args[1]);
@@ -1605,7 +1627,8 @@ public final class SkillManager implements Listener, CommandExecutor, TabComplet
             return List.of("list", "tree").stream().filter(value -> value.startsWith(prefix)).toList();
         }
         if (!sender.hasPermission(ADMIN_PERMISSION)) return List.of();
-        if (args.length == 1) return List.of("give");
+        if (args.length == 1) return List.of("give", "config").stream()
+            .filter(value -> value.startsWith(args[0].toLowerCase(java.util.Locale.ROOT))).toList();
         if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
             String prefix = args[1].toLowerCase(java.util.Locale.ROOT);
             return Bukkit.getOnlinePlayers().stream().map(Player::getName)

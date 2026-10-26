@@ -118,7 +118,7 @@ commands:
     permission: vnmine.command.skills
   vnskillbook:
     description: Cấp sách kỹ năng cho người chơi (admin)
-    usage: /vnskillbook give <người_chơi> <book-id>
+    usage: /vnskillbook <give <người_chơi> <book-id>|config>
     permission: vnmine.command.skillbook.admin
   vnportal:
     description: Tạo và quản lý các portal dịch chuyển RPG
@@ -235,7 +235,7 @@ permissions:
     description: Cho phép xem kỹ năng RPG đã học bằng /vnskills
     default: true
   vnmine.command.skillbook.admin:
-    description: Cho phép cấp sách kỹ năng bằng /vnskillbook
+    description: Cho phép cấp sách kỹ năng và quản lý sách khởi đầu race/class
     default: op
   vnmine.command.progression.admin:
     description: Cho phép cấp EXP và level RPG cho người chơi từ menu admin

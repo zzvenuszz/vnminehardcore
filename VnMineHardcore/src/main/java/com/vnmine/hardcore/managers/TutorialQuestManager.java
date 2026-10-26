@@ -270,6 +270,12 @@ public final class TutorialQuestManager implements Listener {
     }
 
     private void initializePlayer(Player player, boolean showReminder) {
+        CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+        if (characters != null && characters.isStarterTutorialPending(player)) {
+            debugQuest("initialize-deferred player=" + player.getName()
+                + ", reason=starter-skill-book-delivery-pending");
+            return;
+        }
         if (definition == null) return;
         TutorialQuestDefinitionLoader.TutorialQuestDefinition quest = definition;
         if (!quest.enabled()) {

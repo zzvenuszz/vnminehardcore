@@ -1,0 +1,14 @@
+# [VI] Phiên bản cấu trúc của mapping sách skill khởi đầu; hiện hỗ trợ phiên bản 1.
+# [EN] Schema version for starter skill-book mappings; version 1 is currently supported.
+schema-version: 1
+
+# [VI] Khóa theo race ID rồi class ID; value là book ID trong skills/skill-books.yml.
+#     Bỏ một mapping để class không tự nhận sách khởi đầu. GUI /vnskillbook config có thể chỉnh các khóa này.
+# [EN] Keys are nested by race ID then class ID; values are book IDs from skills/skill-books.yml.
+#     Remove a mapping to grant no starter book. The /vnskillbook config GUI edits these entries.
+starter-books:
+  human:
+    swordsman: blade-flare-manual
+    guardian: shield-wall-manual
+  elf:
+    mage: fire-bolt-manual

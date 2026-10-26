@@ -575,6 +575,14 @@ Các giá sau là đề xuất cấu hình ban đầu, chưa áp dụng. Mỗi h
 - [~] Quest legacy hướng tới spawn chỉ khởi chạy khi world khởi đầu của profile không xung đột với world đích của quest.
 - Chưa xác minh bằng compile, test tự động, Paper integration hoặc gameplay; chưa đánh dấu Phase A hoàn tất. Cần kiểm tra GUI join, đóng/reconnect, PDC persistence, ID/world NPC sai, chunk/world chưa nạp, lựa chọn Yêu Realm và particle navigation; sau kiểm thử cần sửa các lỗi phát hiện trước khi hoàn tất phase.
 
+### Trạng thái Phase B sau khi bắt đầu triển khai — 2026-10-26
+
+- [~] Đã thêm GUI `/vnskillbook config` và nút trong Quản trị → RPG để ánh xạ sách chỉ thuộc đúng class cho từng cặp race/class; mapping lưu atomically trong `starter-skill-books.yml` và có validation/log.
+- [~] Sau khi tạo profile qua onboarding, sách khởi đầu được đưa vào durable delivery queue bằng transaction ID cố định theo UUID. Inventory đầy thì delivery chờ; marker PDC cho phép thử lại sau lỗi/restart; profile cũ không nhận sách hồi tố.
+- [~] Quest tutorial được hoãn trong lúc sách còn pending; callback chỉ hoàn tất onboarding khi đúng transaction ID của sách starter đã được xác nhận và item còn trong inventory/ender chest. Callback không bị gọi nhầm khi một reconcile khác trả danh sách cũ/rỗng; callback được giữ qua lỗi/túi đầy, dedupe theo transaction, trạng thái PDC cho phép reconnect tiếp tục.
+- [~] Bổ sung `[RPG-DEBUG][Delivery]` cho đăng ký callback, số delivery chờ, transaction mục tiêu, hết chỗ, callback trì hoãn/hoàn tất; README hướng dẫn bật bằng `logging.console-debug`.
+- Chưa xác minh bằng compile hoặc gameplay. Phần class advancement (parent/skill inheritance/điều kiện chuyển chức) vẫn chưa triển khai; chưa mở thêm các class trong `classes.md` vì hiện không có skill handler/vertical slice tương ứng. Cần kiểm tra mapping invalid/missing, cấp đúng sách, inventory đầy, restart ở các điểm giao dịch và bảo đảm không tạo sách trùng trước khi coi Phase B hoàn tất.
+
 ### Thứ tự và tối ưu phạm vi
 
 1. Phase A trước vì đây là cổng vào hành trình.

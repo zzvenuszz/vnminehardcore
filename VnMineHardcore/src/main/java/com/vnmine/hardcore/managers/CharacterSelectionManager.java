@@ -3,6 +3,9 @@ package com.vnmine.hardcore.managers;
 import com.vnmine.hardcore.VnMineHardcore;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Collections;
@@ -11,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -47,8 +51,12 @@ public final class CharacterSelectionManager implements Listener {
     private final VnMineHardcore plugin;
     private final NamespacedKey onboardingStageKey;
     private final NamespacedKey onboardingContinentKey;
+    private final NamespacedKey starterBookPendingKey;
+    private final NamespacedKey starterTutorialPendingKey;
+    private final File starterBookMappingsFile;
     private final Map<String, RaceDefinition> races = new LinkedHashMap<>();
     private final Map<String, List<ClassDefinition>> classesByRace = new HashMap<>();
+    private final Map<String, String> starterBookMappings = new LinkedHashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
     private final Set<UUID> profileLookupComplete = new java.util.HashSet<>();
     private final Set<UUID> pendingProfileCreates = new java.util.HashSet<>();
@@ -63,8 +71,12 @@ public final class CharacterSelectionManager implements Listener {
         this.plugin = plugin;
         this.onboardingStageKey = new NamespacedKey(plugin, "onboarding_stage");
         this.onboardingContinentKey = new NamespacedKey(plugin, "onboarding_continent");
+        this.starterBookPendingKey = new NamespacedKey(plugin, "starter_book_pending");
+        this.starterTutorialPendingKey = new NamespacedKey(plugin, "starter_tutorial_pending");
+        this.starterBookMappingsFile = new File(plugin.getDataFolder(), "starter-skill-books.yml");
         try {
             loadDefinitions();
+            loadStarterBookMappings();
             definitionsAvailable = true;
         } catch (IllegalStateException exception) {
             races.clear();
@@ -110,6 +122,7 @@ public final class CharacterSelectionManager implements Listener {
 
     public void setPlayableClassIds(Set<String> classIds) {
         playableClassIds = Set.copyOf(classIds);
+        validateStarterBookMappings();
         for (String classId : getClassIds()) {
             ClassDefinition definition = findClassForId(classId);
             if (definition != null && "available".equals(definition.availability())
@@ -166,9 +179,11 @@ public final class CharacterSelectionManager implements Listener {
             player.getUniqueId(), "confirm", raceId, classId, new HashMap<>());
         Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Xác nhận nhân vật");
         holder.inventory = inventory;
+        String starterBookId = starterBookMappings.get(starterBookKey(raceId, classId));
         inventory.setItem(11, createActionItem(Material.LIME_CONCRETE, "§aXác nhận tạo nhân vật", List.of(
             "§7Chủng tộc: §6" + race.name(),
             "§7Class: §b" + selectedClass.name(),
+            "§7Sách skill đầu tiên: §e" + (starterBookId == null ? "Chưa được cấu hình" : starterBookId),
             "§eMỗi tài khoản chỉ tạo được một nhân vật.")));
         inventory.setItem(13, createActionItem(Material.BOOK, "§fXem lại lựa chọn", List.of(
             "§7" + race.description(),
@@ -211,6 +226,15 @@ public final class CharacterSelectionManager implements Listener {
             String continentId = holder.choices.get(slot);
             if (continentId != null) selectStartingContinent(player, continentId);
             else if (slot == 49) player.closeInventory();
+            return;
+        }
+
+        if (holder.type.startsWith("starter-")) {
+            if (!player.hasPermission("vnmine.command.skillbook.admin")) {
+                player.sendMessage("§cBạn không có quyền quản lý sách skill khởi đầu.");
+                return;
+            }
+            handleStarterBookMenuClick(player, holder, slot);
             return;
         }
 
@@ -276,6 +300,12 @@ public final class CharacterSelectionManager implements Listener {
                 PlayerProfileDatabaseManager.PlayerProfile loadedProfile = profile.get();
                 loadedProfiles.put(playerId, loadedProfile);
                 if (!"complete".equals(onboardingStage(player))) setOnboarding(player, "complete", null);
+                if (player.getPersistentDataContainer().getOrDefault(starterBookPendingKey,
+                        PersistentDataType.BYTE, (byte) 0) == 1) {
+                    queueStarterBookGrant(player, loadedProfile.selectedRace(), loadedProfile.selectedClass());
+                } else if (isStarterTutorialPending(player)) {
+                    reconcileStarterBookDelivery(player);
+                }
                 if (!races.containsKey(loadedProfile.selectedRace())
                         || findClass(loadedProfile.selectedRace(), loadedProfile.selectedClass()) == null) {
                     plugin.getLogger().warning("[Profile] Stored race/class definition is missing for player " +
@@ -346,6 +376,11 @@ public final class CharacterSelectionManager implements Listener {
 
     private String onboardingContinent(Player player) {
         return player.getPersistentDataContainer().get(onboardingContinentKey, PersistentDataType.STRING);
+    }
+
+    public boolean isStarterTutorialPending(Player player) {
+        return player.getPersistentDataContainer().getOrDefault(starterTutorialPendingKey,
+            PersistentDataType.BYTE, (byte) 0) == 1;
     }
 
     private void setOnboarding(Player player, String stage, String continentId) {
@@ -534,6 +569,283 @@ public final class CharacterSelectionManager implements Listener {
         onboardingNavigationTask = null;
     }
 
+    public void openStarterBookAdminMenu(Player player) {
+        if (!player.hasPermission("vnmine.command.skillbook.admin")) {
+            player.sendMessage("§cBạn không có quyền quản lý sách skill khởi đầu.");
+            return;
+        }
+        CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(),
+            "starter-races", null, null, new HashMap<>());
+        Inventory inventory = Bukkit.createInventory(holder, 54, "Quản lý sách skill khởi đầu • Race");
+        holder.inventory = inventory;
+        int index = 0;
+        for (RaceDefinition race : races.values()) {
+            if (index >= MENU_SLOTS.length) break;
+            int slot = MENU_SLOTS[index++];
+            holder.choices.put(slot, race.id());
+            long mapped = starterBookMappings.keySet().stream()
+                .filter(key -> key.startsWith(race.id() + ".")).count();
+            inventory.setItem(slot, createActionItem(race.material(), "§6" + race.name(), List.of(
+                "§7Mapping sách đã đặt: §f" + mapped,
+                "§eNhấn để chọn class của race này.")));
+        }
+        inventory.setItem(49, createActionItem(Material.BARRIER, "§cĐóng", List.of()));
+        player.openInventory(inventory);
+        debugProfile("starter-book-admin-open player=" + player.getName() + ", mappings="
+            + starterBookMappings.size());
+    }
+
+    private void openStarterClassMenu(Player player, String raceId) {
+        RaceDefinition race = races.get(raceId);
+        if (race == null) return;
+        CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(),
+            "starter-classes", raceId, null, new HashMap<>());
+        Inventory inventory = Bukkit.createInventory(holder, 54, "Sách khởi đầu • " + race.name());
+        holder.inventory = inventory;
+        List<ClassDefinition> classList = classesByRace.getOrDefault(raceId, List.of());
+        for (int index = 0; index < classList.size() && index < MENU_SLOTS.length; index++) {
+            ClassDefinition klass = classList.get(index);
+            int slot = MENU_SLOTS[index];
+            holder.choices.put(slot, klass.id());
+            String bookId = starterBookMappings.get(starterBookKey(raceId, klass.id()));
+            inventory.setItem(slot, createActionItem(klass.material(), "§b" + klass.name(), List.of(
+                "§7Trạng thái: §f" + klass.availability(),
+                "§7Sách hiện tại: §e" + (bookId == null ? "Chưa đặt" : bookId),
+                "§eNhấn để chọn sách.")));
+        }
+        inventory.setItem(45, createActionItem(Material.ARROW, "§eQuay lại race", List.of()));
+        inventory.setItem(49, createActionItem(Material.BARRIER, "§cĐóng", List.of()));
+        player.openInventory(inventory);
+    }
+
+    private void openStarterBookMenu(Player player, String raceId, String classId) {
+        ClassDefinition klass = findClass(raceId, classId);
+        if (klass == null) return;
+        CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(),
+            "starter-books", raceId, classId, new HashMap<>());
+        Inventory inventory = Bukkit.createInventory(holder, 54, "Chọn sách • " + klass.name());
+        holder.inventory = inventory;
+        SkillManager skills = plugin.getSkillManager();
+        List<SkillDefinitionLoader.SkillBookDefinition> books = skills == null
+            ? List.of() : skills.getSkillBooksForClass(classId);
+        for (int index = 0; index < books.size() && index < 45; index++) {
+            SkillDefinitionLoader.SkillBookDefinition book = books.get(index);
+            int slot = index;
+            holder.choices.put(slot, book.id());
+            String current = starterBookMappings.get(starterBookKey(raceId, classId));
+            List<String> lore = new java.util.ArrayList<>();
+            lore.add("§7Book ID: §f" + book.id());
+            lore.add("§7Skill: §b" + book.skillId());
+            lore.add("§7Độ hiếm: §d" + book.rarity());
+            lore.add(Objects.equals(current, book.id()) ? "§aĐang được chọn" : "§eNhấn để gán cho class này.");
+            inventory.setItem(slot, createActionItem(book.material(), "§6" + book.displayName(), lore));
+        }
+        inventory.setItem(46, createActionItem(Material.BARRIER, "§cXóa mapping", List.of(
+            "§7Class này sẽ không tự nhận sách.")));
+        inventory.setItem(49, createActionItem(Material.ARROW, "§eQuay lại class", List.of()));
+        inventory.setItem(53, createActionItem(Material.BARRIER, "§cĐóng", List.of()));
+        player.openInventory(inventory);
+    }
+
+    private void handleStarterBookMenuClick(Player player, CharacterMenuHolder holder, int slot) {
+        switch (holder.type) {
+            case "starter-races" -> {
+                if (slot == 49) player.closeInventory();
+                else {
+                    String raceId = holder.choices.get(slot);
+                    if (raceId != null) openStarterClassMenu(player, raceId);
+                }
+            }
+            case "starter-classes" -> {
+                if (slot == 45) openStarterBookAdminMenu(player);
+                else if (slot == 49) player.closeInventory();
+                else {
+                    String classId = holder.choices.get(slot);
+                    if (classId != null) openStarterBookMenu(player, holder.raceId, classId);
+                }
+            }
+            case "starter-books" -> {
+                if (slot == 49) openStarterClassMenu(player, holder.raceId);
+                else if (slot == 53) player.closeInventory();
+                else if (slot == 46) {
+                    String key = starterBookKey(holder.raceId, holder.classId);
+                    Map<String, String> previous = new LinkedHashMap<>(starterBookMappings);
+                    String previousBook = starterBookMappings.remove(key);
+                    boolean saved = saveStarterBookMappings(player);
+                    if (!saved) {
+                        starterBookMappings.clear();
+                        starterBookMappings.putAll(previous);
+                    }
+                    debugProfile("starter-book-mapping-clear player=" + player.getName() + ", pair=" + key
+                        + ", previous=" + previousBook + ", saved=" + saved);
+                    openStarterClassMenu(player, holder.raceId);
+                } else {
+                    String bookId = holder.choices.get(slot);
+                    if (bookId != null) {
+                        String key = starterBookKey(holder.raceId, holder.classId);
+                        Map<String, String> previous = new LinkedHashMap<>(starterBookMappings);
+                        starterBookMappings.put(key, bookId);
+                        boolean saved = saveStarterBookMappings(player);
+                        if (!saved) {
+                            starterBookMappings.clear();
+                            starterBookMappings.putAll(previous);
+                        }
+                        debugProfile("starter-book-mapping-set player=" + player.getName() + ", pair=" + key
+                            + ", book=" + bookId + ", saved=" + saved);
+                        openStarterClassMenu(player, holder.raceId);
+                    }
+                }
+            }
+            default -> { }
+        }
+    }
+
+    private String starterBookKey(String raceId, String classId) {
+        return raceId + "." + classId;
+    }
+
+    private void loadStarterBookMappings() {
+        if (!starterBookMappingsFile.isFile()) {
+            try {
+                plugin.saveResource("starter-skill-books.yml", false);
+            } catch (IllegalArgumentException exception) {
+                plugin.getLogger().log(Level.SEVERE, "[Skills] Bundled starter-skill-books.yml is missing.", exception);
+                return;
+            }
+        }
+        YamlConfiguration yaml = loadStrictConfig(starterBookMappingsFile);
+        if (yaml.getInt("schema-version", -1) != 1) {
+            plugin.getLogger().severe("[Skills] Unsupported starter-skill-books.yml schema-version; expected 1.");
+            return;
+        }
+        ConfigurationSection roots = yaml.getConfigurationSection("starter-books");
+        if (roots == null) return;
+        for (String raceId : roots.getKeys(false)) {
+            ConfigurationSection classMappings = roots.getConfigurationSection(raceId);
+            if (classMappings == null) continue;
+            for (String classId : classMappings.getKeys(false)) {
+                String bookId = classMappings.getString(classId, "").trim();
+                if (!bookId.isEmpty()) starterBookMappings.put(starterBookKey(raceId, classId), bookId);
+            }
+        }
+        debugProfile("starter-book-config-loaded mappings=" + starterBookMappings.size());
+    }
+
+    private void validateStarterBookMappings() {
+        SkillManager skills = plugin.getSkillManager();
+        starterBookMappings.entrySet().removeIf(entry -> {
+            String[] identity = entry.getKey().split("\\.", 2);
+            ClassDefinition klass = identity.length == 2 ? findClass(identity[0], identity[1]) : null;
+            boolean valid = klass != null && skills != null
+                && skills.getSkillBooksForClass(klass.id()).stream()
+                    .anyMatch(book -> book.id().equals(entry.getValue()));
+            debugProfile("starter-book-mapping-check pair=" + entry.getKey() + ", book=" + entry.getValue()
+                + ", valid=" + valid);
+            if (!valid) plugin.getLogger().warning("[Skills] Ignoring invalid starter-book mapping '"
+                + entry.getKey() + "' -> '" + entry.getValue() + "'.");
+            return !valid;
+        });
+    }
+
+    private boolean saveStarterBookMappings(Player player) {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("schema-version", 1);
+        for (Map.Entry<String, String> entry : starterBookMappings.entrySet()) {
+            String[] identity = entry.getKey().split("\\.", 2);
+            if (identity.length == 2) yaml.set("starter-books." + identity[0] + "." + identity[1], entry.getValue());
+        }
+        File temporary = new File(starterBookMappingsFile.getParentFile(), "starter-skill-books.yml.tmp");
+        String header = "# [VI] Ánh xạ race/class sang sách skill được cấp sau onboarding; xóa khóa để không cấp sách.\n"
+            + "# [EN] Maps each race/class to its onboarding skill book; remove a key to grant no book.\n"
+            + "# [VI] Chỉ chọn book có skill cùng class; ID phải có trong skills/skill-books.yml.\n"
+            + "# [EN] Select a book whose skill belongs to the same class; IDs must exist in skills/skill-books.yml.\n";
+        try {
+            Files.writeString(temporary.toPath(), header + yaml.saveToString(), java.nio.charset.StandardCharsets.UTF_8);
+            try {
+                Files.move(temporary.toPath(), starterBookMappingsFile.toPath(), StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporary.toPath(), starterBookMappingsFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            player.sendMessage("§aĐã lưu mapping sách skill khởi đầu.");
+            debugProfile("starter-book-config-saved player=" + player.getName()
+                + ", mappings=" + starterBookMappings.size());
+            return true;
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[Skills] Could not save starter-skill-books.yml.", exception);
+            player.sendMessage("§cKhông thể lưu cấu hình sách. Cấu hình trước đó vẫn được giữ.");
+            return false;
+        } finally {
+            try { Files.deleteIfExists(temporary.toPath()); }
+            catch (IOException exception) {
+                plugin.getLogger().log(Level.WARNING, "[Skills] Could not remove temporary starter-book config.", exception);
+            }
+        }
+    }
+
+    private void queueStarterBookGrant(Player player, String raceId, String classId) {
+        if (player.getPersistentDataContainer().getOrDefault(starterBookPendingKey,
+                PersistentDataType.BYTE, (byte) 0) != 1) return;
+        String bookId = starterBookMappings.get(starterBookKey(raceId, classId));
+        SkillManager skillManager = plugin.getSkillManager();
+        Optional<byte[]> serialized = skillManager == null || bookId == null
+            ? Optional.empty() : skillManager.serializeStarterSkillBook(bookId);
+        if (serialized.isEmpty()) {
+            plugin.getLogger().severe("[Onboarding][SkillBook] No valid starter book mapping: player="
+                + player.getName() + ", race=" + raceId + ", class=" + classId + ", book=" + bookId);
+            player.sendMessage("§cSách skill khởi đầu chưa được cấu hình đúng. Tiến trình được giữ để quản trị viên sửa.");
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        String transactionPrefix = starterBookTransactionPrefix(playerId);
+        byte[] itemData = serialized.get();
+        debugProfile("starter-book-queue-start player=" + player.getName() + ", race=" + raceId
+            + ", class=" + classId + ", book=" + bookId + ", transaction=" + transactionPrefix + ":0");
+        plugin.getPlayerProfileDatabaseManager().executeGameplayDatabaseTask(
+                "onboarding.starter-book.queue player=" + player.getName(), () -> {
+                    plugin.getPlayerProfileDatabaseManager().enqueueMerchantDeliveries(playerId.toString(),
+                        transactionPrefix, List.of(itemData), Instant.now().toString());
+                    return true;
+                })
+            .whenComplete((queued, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (failure != null || !Boolean.TRUE.equals(queued)) {
+                    plugin.getLogger().log(Level.SEVERE, "[Onboarding][SkillBook] Could not queue starter book: "
+                        + "player=" + player.getName() + ", race=" + raceId + ", class=" + classId
+                        + ", book=" + bookId, failure);
+                    if (player.isOnline()) player.sendMessage("§cChưa thể giao sách skill. Hệ thống sẽ thử lại khi bạn vào lại.");
+                    return;
+                }
+                if (!player.isOnline()) return;
+                player.getPersistentDataContainer().remove(starterBookPendingKey);
+                player.saveData();
+                debugProfile("starter-book-queued player=" + player.getName() + ", race=" + raceId
+                    + ", class=" + classId + ", book=" + bookId + ", transaction=" + transactionPrefix + ":0");
+                player.sendMessage("§aĐã chuẩn bị sách kỹ năng khởi đầu §e" + bookId
+                    + "§a. Nếu túi đầy, sách sẽ chờ đến khi còn chỗ.");
+                if (plugin.getEconomyManager() != null) {
+                    Bukkit.getScheduler().runTaskLater(plugin,
+                        () -> { if (player.isOnline()) reconcileStarterBookDelivery(player); }, 20L);
+                }
+            }));
+    }
+
+    private void reconcileStarterBookDelivery(Player player) {
+        if (plugin.getEconomyManager() == null || !isStarterTutorialPending(player)) return;
+        String transactionId = starterBookTransactionPrefix(player.getUniqueId()) + ":0";
+        plugin.getEconomyManager().reconcileMerchantDeliveries(player, transactionId, () -> {
+            if (!player.isOnline() || !isStarterTutorialPending(player)) return;
+            player.getPersistentDataContainer().remove(starterTutorialPendingKey);
+            player.saveData();
+            debugProfile("starter-book-delivered player=" + player.getName() + ", transaction="
+                + transactionId + ", next=tutorial-quest-start");
+            if (plugin.getTutorialQuestManager() != null) plugin.getTutorialQuestManager().initializePlayer(player);
+        });
+    }
+
+    private String starterBookTransactionPrefix(UUID playerId) {
+        return "starter-skill-book:" + playerId;
+    }
+
     static List<String> buildProfileLore(PlayerProfileDatabaseManager.PlayerProfile profile,
                                          String raceName, String className,
                                          CharacterProgression.Rules progressionRules) {
@@ -661,6 +973,13 @@ public final class CharacterSelectionManager implements Listener {
             || plugin.getRpgWorldManager() == null ? null
             : plugin.getRpgWorldManager().getDefinitions().get(continentId);
         String homeWorld = startingRealm == null ? null : startingRealm.worldName();
+        if (isOnboardingEnabled()) {
+            player.getPersistentDataContainer().set(starterBookPendingKey, PersistentDataType.BYTE, (byte) 1);
+            player.getPersistentDataContainer().set(starterTutorialPendingKey, PersistentDataType.BYTE, (byte) 1);
+            player.saveData();
+            debugProfile("starter-book-grant-armed player=" + playerName + ", race=" + raceId
+                + ", class=" + classId);
+        }
         debugProfile("create-start player=" + playerName + ", race=" + raceId + ", class=" + classId);
         String now = Instant.now().toString();
         plugin.getPlayerProfileDatabaseManager().executeGameplayDatabaseTask(
@@ -682,10 +1001,12 @@ public final class CharacterSelectionManager implements Listener {
                 loadedProfiles.put(playerId, profile);
                 profileLookupComplete.add(playerId);
                 if (isOnboardingEnabled()) setOnboarding(player, "complete", continentId);
+                if (isOnboardingEnabled()) {
+                    queueStarterBookGrant(player, raceId, classId);
+                }
                 debugProfile("create-result player=" + playerName + ", created=true");
                 player.sendMessage("§aĐã tạo nhân vật: §6" + race.name() + " §7- §b" + selectedClass.name());
                 player.closeInventory();
-                plugin.getTutorialQuestManager().initializePlayer(player);
             } else {
                 debugProfile("create-result player=" + playerName + ", created=false, reason=profile-exists");
                 player.sendMessage("§cTài khoản của bạn đã có nhân vật. Không có dữ liệu nào bị ghi đè.");

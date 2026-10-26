@@ -92,6 +92,8 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private final Set<UUID> pendingMerchantPurchases = ConcurrentHashMap.newKeySet();
     private final Set<UUID> pendingMerchantSales = ConcurrentHashMap.newKeySet();
     private final Set<UUID> reconcilingMerchantDeliveries = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> reconcileMerchantDeliveriesAgain = new HashSet<>();
+    private final Map<UUID, List<MerchantDeliveryCallback>> merchantDeliveryCallbacks = new HashMap<>();
     private final Set<String> lockedMerchantDeliveries = ConcurrentHashMap.newKeySet();
     private final Map<String, MobTier> tiersByEntity = new HashMap<>();
     private final PacketAdapter itemNamePacketListener;
@@ -298,8 +300,12 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        nextBossDropClaimAt.remove(event.getPlayer().getUniqueId());
-        itemNameModes.remove(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        nextBossDropClaimAt.remove(playerId);
+        itemNameModes.remove(playerId);
+        reconcilingMerchantDeliveries.remove(playerId);
+        reconcileMerchantDeliveriesAgain.remove(playerId);
+        merchantDeliveryCallbacks.remove(playerId);
     }
 
     @EventHandler
@@ -1235,8 +1241,35 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     }
 
     public void reconcileMerchantDeliveries(Player player) {
+        reconcileMerchantDeliveriesInternal(player);
+    }
+
+    public void reconcileMerchantDeliveries(Player player, String requiredTransactionId, Runnable onComplete) {
+        if (requiredTransactionId == null || requiredTransactionId.isBlank()) {
+            throw new IllegalArgumentException("requiredTransactionId must not be blank");
+        }
         UUID playerId = player.getUniqueId();
-        if (!reconcilingMerchantDeliveries.add(playerId)) return;
+        if (onComplete != null) {
+            List<MerchantDeliveryCallback> callbacks = merchantDeliveryCallbacks.computeIfAbsent(playerId,
+                ignored -> new ArrayList<>());
+            if (callbacks.stream().noneMatch(callback -> callback.transactionId().equals(requiredTransactionId))) {
+                callbacks.add(new MerchantDeliveryCallback(requiredTransactionId, onComplete));
+                debug("[RPG-DEBUG][Delivery] callback-registered player=" + player.getName()
+                    + ", transaction=" + requiredTransactionId);
+            } else {
+                debug("[RPG-DEBUG][Delivery] callback-already-registered player=" + player.getName()
+                    + ", transaction=" + requiredTransactionId);
+            }
+        }
+        reconcileMerchantDeliveriesInternal(player);
+    }
+
+    private void reconcileMerchantDeliveriesInternal(Player player) {
+        UUID playerId = player.getUniqueId();
+        if (!reconcilingMerchantDeliveries.add(playerId)) {
+            reconcileMerchantDeliveriesAgain.add(playerId);
+            return;
+        }
         Set<String> taggedDeliveries = lockExistingMerchantDeliveryItems(player);
         database.executeGameplayDatabaseTask("wallet.merchant-reconcile player=" + player.getName(),
                 () -> database.getPendingMerchantDeliveries(playerId.toString()))
@@ -1248,6 +1281,9 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                     if (player.isOnline()) player.sendMessage("§cKhông tải được vật phẩm đang chờ giao. Hãy thử vào lại.");
                     return;
                 }
+                debug("[RPG-DEBUG][Delivery] reconcile-loaded player=" + player.getName()
+                    + ", pending=" + deliveries.size() + ", callbacks="
+                    + merchantDeliveryCallbacks.getOrDefault(playerId, List.of()).size());
                 Set<String> pendingIds = new HashSet<>();
                 for (PlayerProfileDatabaseManager.MerchantDelivery delivery : deliveries) {
                     pendingIds.add(delivery.transactionId());
@@ -1264,6 +1300,32 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         UUID playerId = player.getUniqueId();
         if (index >= deliveries.size()) {
             reconcilingMerchantDeliveries.remove(playerId);
+            if (reconcileMerchantDeliveriesAgain.remove(playerId) && player.isOnline()) {
+                reconcileMerchantDeliveries(player);
+                return;
+            }
+            List<MerchantDeliveryCallback> callbacks = merchantDeliveryCallbacks.get(playerId);
+            if (callbacks != null && player.isOnline()) {
+                List<MerchantDeliveryCallback> completed = new ArrayList<>();
+                for (MerchantDeliveryCallback callback : callbacks) {
+                    if (!containsMerchantDelivery(player, callback.transactionId())) {
+                        debug("[RPG-DEBUG][Delivery] callback-deferred player=" + player.getName()
+                            + ", transaction=" + callback.transactionId() + ", reason=target-item-not-in-inventory");
+                        continue;
+                    }
+                    try {
+                        callback.action().run();
+                        completed.add(callback);
+                        debug("[RPG-DEBUG][Delivery] callback-completed player=" + player.getName()
+                            + ", transaction=" + callback.transactionId());
+                    } catch (RuntimeException failure) {
+                        plugin.getLogger().log(Level.SEVERE, "[Economy][Merchant] Delivery completion callback failed: "
+                            + "player=" + player.getName() + ", transaction=" + callback.transactionId(), failure);
+                    }
+                }
+                callbacks.removeAll(completed);
+                if (callbacks.isEmpty()) merchantDeliveryCallbacks.remove(playerId);
+            }
             return;
         }
         PlayerProfileDatabaseManager.MerchantDelivery delivery = deliveries.get(index);
@@ -1274,6 +1336,8 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         }
         if (!player.isOnline() || player.getInventory().firstEmpty() < 0) {
             reconcilingMerchantDeliveries.remove(playerId);
+            debug("[RPG-DEBUG][Delivery] waiting-for-space player=" + player.getName()
+                + ", transaction=" + delivery.transactionId() + ", online=" + player.isOnline());
             if (player.isOnline()) player.sendMessage("§eCó vật phẩm mua đang chờ giao. Hãy chừa ô trống rồi dùng /vncoin.");
             return;
         }
@@ -1368,6 +1432,9 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             if (hasMerchantDeliveryId(item, transactionId)) return true;
         }
         return false;
+    }
+
+    private record MerchantDeliveryCallback(String transactionId, Runnable action) {
     }
 
     private Set<String> lockExistingMerchantDeliveryItems(Player player) {

@@ -6709,6 +6709,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             case "rpg" -> {
                 if (isAdminRpgToolsEnabled() && player.hasPermission("vnmine.command.skillbook.admin")) {
                     holder.inventory.setItem(11, this.menuItem(Material.ENCHANTED_BOOK, "§dGive sách kỹ năng", List.of()));
+                    holder.inventory.setItem(13, this.menuItem(Material.WRITABLE_BOOK, "§dSách skill khởi đầu",
+                        List.of("§7Gán sách theo từng race và class.", "§eMở giao diện cấu hình.")));
                 }
                 if (isAdminRpgToolsEnabled() && player.hasPermission("vnmine.command.progression.admin")) {
                     holder.inventory.setItem(15, this.menuItem(Material.EXPERIENCE_BOTTLE, "§6Quản lý EXP / level", List.of()));
@@ -8844,6 +8846,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                   } else if ("rpg".equals(holder.itemType) && isAdminRpgToolsEnabled()) {
                      if (slot == 11 && player.hasPermission("vnmine.command.skillbook.admin")) {
                         this.openAdminRpgPlayers(player, "skillbook", 0);
+                     } else if (slot == 13 && player.hasPermission("vnmine.command.skillbook.admin")) {
+                        plugin.getCharacterSelectionManager().openStarterBookAdminMenu(player);
                      } else if (slot == 15 && player.hasPermission("vnmine.command.progression.admin")) {
                         this.openAdminRpgPlayers(player, "progression", 0);
                      }
