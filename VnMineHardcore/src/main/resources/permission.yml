@@ -51,6 +51,10 @@ groups:
       - vnmine.command.help
       - vnmine.command.groups.manage
       - vnmine.command.users.manage
+      - vnmine.command.init
+      - vnmine.command.skillbook.admin
+      - vnmine.command.quest.admin
+      - vnmine.command.npc.admin
       - vnmine.command.army
       - vnmine.command.army.admin
       - vnmine.spawnprotection.bypass

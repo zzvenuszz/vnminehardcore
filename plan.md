@@ -1,5 +1,17 @@
 # Kế hoạch hoàn thiện VnMineHardcore: RPG, VNCOIN và vận hành server
 
+## Wizard setup server RPG — yêu cầu 2026-10-27
+
+- [x] Thêm `/vninit` và quyền `vnmine.command.init` (mặc định OP; admin group VnMine được cấp). Dashboard GUI nêu trạng thái onboarding, các đại lục đang khai báo, mapping sách khởi đầu và quest hướng dẫn; có thể mở GUI cấu hình sách/quest hiện hành.
+- [x] Cấu hình riêng từng đại lục: bật/tắt cho chọn khởi đầu, chọn world đang được nạp, chọn NPC runtime loại `tutorial`, lưu vị trí hiện tại làm spawn hoặc quay về spawn của world. Mỗi thao tác ghi file YAML nguyên tử, nạp lại realm catalog và ghi log admin/action; GUI đánh dấu rõ điều kiện còn thiếu.
+- [x] Bật/tắt onboarding trong `config.yml`. Admin có thể đóng wizard ở bất kỳ màn hình nào; vì các giá trị lưu ngay nên `/vninit` lần sau tiếp tục từ cấu hình hiện tại, đồng thời vẫn dùng được để sửa setup.
+- [x] Hỗ trợ objective spawn của quest tutorial theo đại lục: loader chấp nhận realm ID hợp lệ; mỗi nhân vật được dẫn/đánh dấu hoàn thành tại spawn có world trùng `homeWorld`, thay vì bỏ qua quest của người chơi bắt đầu ngoài Nhân giới.
+- [x] Tăng version nguồn lên 2.26.0; cập nhật README và hướng dẫn lệnh.
+- [x] **Build 2.26.0:** `mvn -DskipTests clean package` thành công bằng JDK 25 lúc `2026-10-27 23:39:02 UTC`; biên dịch 56 file Java, test suite được bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.26.0.jar` (2,262,941 bytes), SHA-256 `288410a2e83c6e8585b94a14175caa729200c0388eabc6035178ad4c5e22c14f`; metadata xác nhận Paper API 26.3, chỉ có SQLite native Linux x86_64 cùng service metadata.
+- [x] Sao lưu `VnMineHardcore-2.25.0.jar` vào `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/`, cài 2.26.0 vào `/home/ubuntu/DATA/VNMINE/plugins/` và gỡ bản cũ khỏi thư mục plugin để tránh nạp hai phiên bản. File cài đã được đối chiếu byte với artifact build.
+- [ ] **Chưa Paper test:** kiểm tra GUI, quyền, ghi YAML và phục hồi sau thoát/restart; cấu hình các đại lục, xác nhận world/NPC không khớp được báo chính xác; tạo nhân vật mới ở từng đại lục và kiểm tra NPC, chọn race/class, sách khởi đầu, quest first-steps tracking/hoàn thành ở đúng spawn.
+- [ ] Xác minh mapping sách race/class đầy đủ theo thiết kế từng chủng tộc và các quest tutorial tiếp nối đã được bật/cấu hình; wizard hiện báo trạng thái và mở menu quản lý hiện có, chưa tự tạo nội dung sách hoặc chuỗi quest.
+
 ## Quản trị người chơi và quest lặp lại — yêu cầu 2026-10-26
 
 - [x] Thêm `/vnplayeradmin`: danh sách online, nút offline có icon riêng, nhập tên qua chat với ví dụ và `!cancel`; hồ sơ quản trị có xác nhận Yes/No cho thao tác phá hủy.

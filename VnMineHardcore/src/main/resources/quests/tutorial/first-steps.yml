@@ -37,8 +37,8 @@ quest:
     # [EN] Objective type supported in this slice; only visit-realm-spawn is accepted.
     type: visit-realm-spawn
 
-    # [VI] ID đại lục đích; mặc định human-realm, hiện là đại lục duy nhất được hỗ trợ.
-    # [EN] Destination realm ID; defaults to human-realm, currently the only supported realm.
+    # [VI] Realm dự phòng; mặc định human-realm. Người chơi mới tự được dẫn tới realm có world khớp homeWorld đã chọn.
+    # [EN] Fallback realm; defaults to human-realm. New players are routed to the realm matching their selected homeWorld.
     realm-id: human-realm
 
     # [VI] Bán kính để tính đã tới spawn; mặc định 8 block, giới hạn 1..64.

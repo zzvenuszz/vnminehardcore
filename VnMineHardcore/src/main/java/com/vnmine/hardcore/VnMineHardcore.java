@@ -54,6 +54,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private PortalManager portalManager;
     private MercenaryManager mercenaryManager;
     private PlayerAdminManager playerAdminManager;
+    private ServerSetupWizardManager serverSetupWizardManager;
     private TooltipManager tooltipManager;
     private VillagerDataManager villagerDataManager;
     private DeathListener deathListener;
@@ -185,6 +186,7 @@ public final class VnMineHardcore extends JavaPlugin {
         }
         this.mercenaryManager = new MercenaryManager(this);
         this.playerAdminManager = new PlayerAdminManager(this);
+        this.serverSetupWizardManager = new ServerSetupWizardManager(this);
         this.tooltipManager = new TooltipManager(this);
 
         // Create listeners (pass config)
@@ -196,6 +198,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(skillManager, this);
         Bukkit.getPluginManager().registerEvents(economyManager, this);
         Bukkit.getPluginManager().registerEvents(playerAdminManager, this);
+        Bukkit.getPluginManager().registerEvents(serverSetupWizardManager, this);
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
         this.combatListener = new CombatListener(this, deathListener, configManager);
         this.environmentListener = new EnvironmentListener(this, configManager);
@@ -267,6 +270,7 @@ public final class VnMineHardcore extends JavaPlugin {
             sender.sendMessage("Lệnh này chỉ dùng trong game.");
             return true;
         }, (sender, command, alias, args) -> List.of());
+        registerCommand("vninit", serverSetupWizardManager, serverSetupWizardManager);
         startProfileDatabaseBackupTask();
 
         getLogger().info("§a  VnMineHardcore enabled - Hell difficulty!");
@@ -633,6 +637,8 @@ public final class VnMineHardcore extends JavaPlugin {
                 "§e/gm0 /gm1 /gm2 /gm3 §7- Đổi game mode.");
             sendHelpLine(sender, "vnmine.command.reload",
                 "§e/vnreload §7- Tải lại cấu hình và các hệ thống.");
+            sendHelpLine(sender, "vnmine.command.init",
+                "§e/vninit §7- Mở wizard setup đại lục, world, NPC tutorial và onboarding RPG.");
             sendHelpLine(sender, "vnmine.command.users.manage",
                 "§e/vnuser info <player> §7- Xem nhóm/quyền người chơi.");
             sendHelpLine(sender, "vnmine.command.users.manage",

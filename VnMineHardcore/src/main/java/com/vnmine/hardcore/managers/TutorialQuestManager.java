@@ -37,6 +37,7 @@ public final class TutorialQuestManager implements Listener {
     private final NamespacedKey trackingEnabledKey;
     private final Map<UUID, Boolean> activeQuestSessions = new HashMap<>();
     private final Map<UUID, Long> lastWaypointAtMillis = new HashMap<>();
+    private final Map<UUID, String> sessionRealmIds = new HashMap<>();
     private final java.util.Set<UUID> pendingQuestCompletions = new java.util.HashSet<>();
     private TutorialQuestDefinitionLoader.TutorialQuestDefinition definition;
     private BukkitTask waypointTicker;
@@ -64,14 +65,33 @@ public final class TutorialQuestManager implements Listener {
     }
 
     public boolean reload() {
+        return reload(true);
+    }
+
+    /** Reloads tutorial quest settings without starting the quest for all online players. */
+    public boolean reloadDefinitionOnly() {
+        return reload(false);
+    }
+
+    private boolean reload(boolean initializeOnlinePlayers) {
         Optional<TutorialQuestDefinitionLoader.TutorialQuestDefinition> loaded =
             TutorialQuestDefinitionLoader.load(definitionFile, plugin.getLogger());
         if (loaded.isEmpty()) return false;
 
         definition = loaded.get();
         startWaypointTicker();
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            initializePlayer(player, false);
+        if (initializeOnlinePlayers) {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                initializePlayer(player, false);
+            }
+        } else if (!definition.enabled()) {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                UUID playerId = player.getUniqueId();
+                activeQuestSessions.remove(playerId);
+                lastWaypointAtMillis.remove(playerId);
+                QuestWaypointRenderer.forget(playerId);
+                refreshQuestSidebar(player);
+            }
         }
         return true;
     }
@@ -87,6 +107,7 @@ public final class TutorialQuestManager implements Listener {
         QuestWaypointRenderer.forget(playerId);
         activeQuestSessions.remove(playerId);
         lastWaypointAtMillis.remove(playerId);
+        sessionRealmIds.remove(playerId);
     }
 
     public List<String> getQuestSidebarLines(Player player) {
@@ -233,7 +254,7 @@ public final class TutorialQuestManager implements Listener {
         Boolean wasInside = activeQuestSessions.get(playerId);
         if (wasInside == null) return;
 
-        boolean isInside = isAtObjective(to);
+        boolean isInside = isAtObjective(event.getPlayer(), to);
         activeQuestSessions.put(playerId, isInside);
         if (isInside && !wasInside) {
             completeObjective(event.getPlayer());
@@ -297,24 +318,11 @@ public final class TutorialQuestManager implements Listener {
             player.sendMessage("§cKhông thể tải nhiệm vụ hướng dẫn lúc này. Tiến trình của bạn vẫn được giữ.");
             return;
         }
-        String tutorialTargetWorld = plugin.getRpgWorldManager() == null ? null
-            : plugin.getRpgWorldManager().getDefinitions().containsKey(quest.objective().realmId())
-                ? plugin.getRpgWorldManager().getDefinitions().get(quest.objective().realmId()).worldName() : null;
         String playerName = player.getName();
-        boolean debugEnabled = plugin.getConfig().getBoolean("logging.console-debug", false);
         database.executeGameplayDatabaseTask("quest.initialize player=" + player.getName(), () -> {
             Optional<PlayerProfileDatabaseManager.PlayerProfile> profile =
                 database.getPlayerProfile(playerId.toString());
             if (profile.isEmpty() || !profile.get().active()) return null;
-            if (tutorialTargetWorld != null && profile.get().homeWorld() != null
-                    && !profile.get().homeWorld().isBlank()
-                    && !tutorialTargetWorld.equals(profile.get().homeWorld())) {
-                if (debugEnabled) plugin.getLogger().info("[RPG-DEBUG][Quest] initialize-skip player=" + playerName
-                    + ", quest=" + quest.id() + ", reason=starting-world-mismatch, homeWorld="
-                    + profile.get().homeWorld() + ", questWorld=" + tutorialTargetWorld);
-                return null;
-            }
-
             Optional<PlayerProfileDatabaseManager.QuestProgress> progress =
                 database.getQuestProgress(playerId.toString(), quest.id());
             boolean startedNow = false;
@@ -388,7 +396,11 @@ public final class TutorialQuestManager implements Listener {
                 player.sendMessage("§e" + quest.objective().startMessage());
             }
 
-            boolean alreadyAtTarget = isAtObjective(player.getLocation());
+            String realmId = resolveTargetRealmId(data.profile().homeWorld());
+            sessionRealmIds.put(playerId, realmId);
+            debugQuest("tutorial-destination player=" + player.getName() + ", homeWorld="
+                + data.profile().homeWorld() + ", realm=" + realmId);
+            boolean alreadyAtTarget = isAtObjective(player, player.getLocation());
             activeQuestSessions.put(playerId, alreadyAtTarget);
             refreshQuestSidebar(player);
             if (alreadyAtTarget) {
@@ -478,11 +490,19 @@ public final class TutorialQuestManager implements Listener {
                 List.of(activeQuest
                     ? "§eNhấn để " + (trackingEnabled ? "tắt" : "bật") + " particle dẫn đường."
                     : "§7Chỉ bật tracking khi có nhiệm vụ đang thực hiện.")));
-            inventory.setItem(13, createJournalItem(Material.WRITABLE_BOOK, "§6" + definition.title(),
-                buildJournalLore(definition, progress)));
+            List<String> journalLore = new ArrayList<>(buildJournalLore(definition, progress));
+            String activeRealmId = targetRealmId(player);
+            var activeRealm = plugin.getRpgWorldManager().getDefinitions().get(activeRealmId);
+            String activeRealmName = activeRealm == null ? activeRealmId : activeRealm.displayName();
+            journalLore.replaceAll(line -> line.startsWith("§eĐiểm đến:")
+                ? "§eĐiểm đến: §f" + activeRealmName : line);
+            inventory.setItem(13, createJournalItem(Material.WRITABLE_BOOK, "§6" + definition.title(), journalLore));
             if (activeQuest) {
-                inventory.setItem(17, createJournalItem(Material.COMPASS, "§bĐiểm đến: Nhân giới",
-                    List.of("§7Mục tiêu: Đi tới spawn của Nhân giới.",
+                String targetRealmId = targetRealmId(player);
+                var targetRealm = plugin.getRpgWorldManager().getDefinitions().get(targetRealmId);
+                String targetRealmName = targetRealm == null ? targetRealmId : targetRealm.displayName();
+                inventory.setItem(17, createJournalItem(Material.COMPASS, "§bĐiểm đến: " + targetRealmName,
+                    List.of("§7Mục tiêu: Đi tới spawn của " + targetRealmName + ".",
                         "§eBấm để bật particle tracking tới điểm này.")));
             }
             boolean rewardClaimed = progress.isPresent()
@@ -514,13 +534,12 @@ public final class TutorialQuestManager implements Listener {
         return item;
     }
 
-    private boolean isAtObjective(Location location) {
-        if (definition == null || location.getWorld() == null
-                || !definition.objective().realmId().equals("human-realm")) {
+    private boolean isAtObjective(Player player, Location location) {
+        if (definition == null || location.getWorld() == null) {
             return false;
         }
         Optional<RpgWorldManager.ResolvedSpawn> target =
-            plugin.getRpgWorldManager().resolveHumanRealmSpawn();
+            plugin.getRpgWorldManager().resolveSpawn(targetRealmId(player));
         if (target.isEmpty()) return false;
 
         Location center = target.get().location();
@@ -537,8 +556,10 @@ public final class TutorialQuestManager implements Listener {
         if (!force && lastUpdate != null && now - lastUpdate < updateIntervalMillis) return;
         lastWaypointAtMillis.put(player.getUniqueId(), now);
 
-        Optional<RpgWorldManager.ResolvedSpawn> resolvedTarget = plugin.getRpgWorldManager().resolveSpawn(
-            definition.objective().realmId());
+        String realmId = targetRealmId(player);
+        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        String realmName = realm == null ? realmId : realm.displayName();
+        Optional<RpgWorldManager.ResolvedSpawn> resolvedTarget = plugin.getRpgWorldManager().resolveSpawn(realmId);
         if (resolvedTarget.isEmpty()) return;
         Location target = resolvedTarget.get().location();
         String targetPosition = "§fX " + target.getBlockX() + " Y " + target.getBlockY()
@@ -552,12 +573,38 @@ public final class TutorialQuestManager implements Listener {
         double dy = target.getY() - playerLocation.getY();
         double dz = target.getZ() - playerLocation.getZ();
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        player.sendActionBar("§eĐi tới spawn Nhân giới §7(" + targetPosition + "§7) §8• §f"
+        player.sendActionBar("§eĐi tới spawn " + realmName + " §7(" + targetPosition + "§7) §8• §f"
             + Math.round(Math.sqrt(dx * dx + dz * dz)) + " block");
         if (distance > definition.objective().waypointParticleRangeBlocks()) return;
 
         QuestWaypointRenderer.render(player, target,
             definition.objective().waypointParticleRangeBlocks(), definition.objective().targetMarkerEnabled());
+    }
+
+    private String targetRealmId(Player player) {
+        return sessionRealmIds.computeIfAbsent(player.getUniqueId(), ignored ->
+            resolveTargetRealmId(currentHomeWorld(player)));
+    }
+
+    private String resolveTargetRealmId(String homeWorld) {
+        var definitions = plugin.getRpgWorldManager() == null
+            ? Map.<String, HumanRealmDefinitionLoader.HumanRealmDefinition>of()
+            : plugin.getRpgWorldManager().getDefinitions();
+        if (homeWorld != null && !homeWorld.isBlank()) {
+            Optional<String> matchingHome = definitions.values().stream()
+                .filter(realm -> realm.worldName().equalsIgnoreCase(homeWorld))
+                .map(HumanRealmDefinitionLoader.HumanRealmDefinition::id)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .findFirst();
+            if (matchingHome.isPresent()) return matchingHome.get();
+        }
+        return definition == null ? "human-realm" : definition.objective().realmId();
+    }
+
+    private String currentHomeWorld(Player player) {
+        CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+        return characters == null ? null : characters.getLoadedProfile(player.getUniqueId())
+            .map(PlayerProfileDatabaseManager.PlayerProfile::homeWorld).orElse(null);
     }
 
     private void completeObjective(Player player) {

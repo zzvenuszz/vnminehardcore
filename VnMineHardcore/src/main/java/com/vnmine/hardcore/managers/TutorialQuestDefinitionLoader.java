@@ -15,7 +15,6 @@ public final class TutorialQuestDefinitionLoader {
     private static final int SUPPORTED_SCHEMA_VERSION = 1;
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
     private static final String SUPPORTED_OBJECTIVE_TYPE = "visit-realm-spawn";
-    private static final String SUPPORTED_REALM_ID = "human-realm";
 
     private TutorialQuestDefinitionLoader() {
     }
@@ -99,9 +98,9 @@ public final class TutorialQuestDefinitionLoader {
             valid = false;
         }
         String realmId = readRequiredText(objective, "realm-id", file, "quest.objective", logger);
-        if (realmId != null && !SUPPORTED_REALM_ID.equals(realmId)) {
-            logger.warning("[Quest] Unsupported realm ID at " + file.getName() +
-                ".quest.objective.realm-id; expected '" + SUPPORTED_REALM_ID + "'.");
+        if (realmId != null && !ID_PATTERN.matcher(realmId).matches()) {
+            logger.warning("[Quest] Invalid realm ID at " + file.getName() +
+                ".quest.objective.realm-id; use lowercase letters, numbers, and single hyphens between segments.");
             valid = false;
         }
         Integer radiusBlocks = readRequiredInteger(objective, "radius-blocks", file, "quest.objective", logger);

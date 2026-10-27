@@ -42,6 +42,7 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vnreload` | Tải lại config và các hệ thống | `vnmine.command.reload` |
 | `/vnhelp`, `/vn help` | Hiển thị lệnh theo quyền người dùng; admin/OP thấy thêm lệnh quản trị | `vnmine.command.help`, `.utility` |
 | `/vnmenu` hoặc phím `F` | Mở menu chức năng; phím F thay thao tác đổi tay phụ | Không yêu cầu quyền riêng |
+| `/vninit` | Mở wizard setup RPG: chọn đại lục khởi đầu, world, NPC tutorial và spawn; mỗi thay đổi lưu ngay, thoát rồi chạy lại để tiếp tục | `vnmine.command.init` |
 | `/vngroup ...` | Tạo/xóa nhóm, xem nhóm, cấp/thu hồi quyền nhóm | `vnmine.command.groups.manage` |
 | `/vnuser ...` | Xem/gán nhóm, cấp/thu hồi quyền cá nhân, reset người chơi | `vnmine.command.users.manage` |
 | `/vnarmy ...` | Thuê/quản lý lính, đổi chế độ AI và trang bị | `vnmine.command.army` |
@@ -385,6 +386,19 @@ bấm `F` hoặc dùng `/vnmenu` để mở menu chính. Dùng `/vnreload` sau k
 `vnmine.*`; permission từ plugin khác có thể cộng thêm quyền. Chỉ cấp
 `vnmine.command.groups.manage`/`vnmine.command.users.manage` cho nhân viên đáng
 tin cậy. OP luôn có toàn quyền và không thể bị giới hạn bởi group.
+
+## Setup RPG lần đầu
+
+Quản trị viên dùng `/vninit` để mở wizard cấu hình onboarding. Chọn một đại lục
+để bật/tắt quyền bắt đầu, gán world đang được nạp, chọn NPC runtime loại
+`tutorial`, và lưu vị trí hiện tại làm điểm bắt đầu hoặc dùng spawn của world.
+Nếu chưa có NPC hướng dẫn, tạo nó tại vị trí mong muốn bằng
+`/vnnpc create <id> tutorial`, rồi quay lại wizard để gán NPC cho đại lục.
+GUI báo từng điều kiện đã đạt/chưa đạt; mỗi thay đổi được lưu ngay vào file đại
+lục và catalog được nạp lại. Có thể đóng menu ở bất kỳ bước nào rồi chạy lại
+`/vninit`. Dashboard có nút mở cấu hình sách khởi đầu (`/vnskillbook config`) và
+quản lý quest RPG do NPC giao (`/vnquest admin`); quest First Steps có cấu hình
+riêng tại `plugins/VnMineHardcore/quests/tutorial/first-steps.yml`.
 
 ## Cấu hình (config.yml)
 
@@ -818,6 +832,12 @@ sát thương người chơi, thông báo và tỷ lệ. Chạy `/vnreload` sau 
 5. Gõ `/vnreload` để áp dụng thay đổi
 
 ## Changelog
+
+### v2.26.0
+- Thêm `/vninit` với dashboard trạng thái setup, cấu hình đại lục/world/NPC tutorial/spawn qua GUI, lưu nguyên tử từng thao tác và bật/tắt onboarding.
+- Quest `first-steps` định tuyến spawn theo `homeWorld` của người chơi để hỗ trợ nhiều đại lục bắt đầu; tutorial realm ID không còn bị cố định vào `human-realm`.
+- Dashboard hướng dẫn và báo trạng thái mapping sách skill khởi đầu, quest hướng dẫn; bổ sung quyền init cho admin group.
+- Build JDK 25 thành công; test suite chưa chạy. JAR cài tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.26.0.jar`, 2,262,941 bytes, SHA-256 `288410a2e83c6e8585b94a14175caa729200c0388eabc6035178ad4c5e22c14f`. Bản 2.25.0 được sao lưu trong `.old-builds`.
 
 ### v2.25.0
 - Đổi gear Kỵ Sĩ sang spear, đặt tên vũ khí/sách theo vai trò, hiển thị và áp dụng bonus sách phép theo vật liệu/sao, gộp gear hai tay thành một mẫu dùng được cho cả hai tay.

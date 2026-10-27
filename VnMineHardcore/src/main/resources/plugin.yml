@@ -149,6 +149,10 @@ commands:
     description: Mở giao diện quản trị người chơi online và offline
     usage: /vnplayeradmin
     permission: vnmine.command.playeradmin
+  vninit:
+    description: Mở trình hướng dẫn setup RPG lần đầu cho server
+    usage: /vninit
+    permission: vnmine.command.init
   quatanthu:
     description: Nhận túi quà tân thủ và chọn token triệu hồi bậc 1
     usage: /quatanthu
@@ -156,6 +160,9 @@ commands:
 permissions:
   vnmine.command.playeradmin:
     description: Cho phép mở giao diện quản trị người chơi
+    default: op
+  vnmine.command.init:
+    description: Cho phép mở trình hướng dẫn setup server RPG bằng /vninit
     default: op
   vnmine.command.stats:
     description: Cho phép xem thống kê cá nhân bằng /vnstats

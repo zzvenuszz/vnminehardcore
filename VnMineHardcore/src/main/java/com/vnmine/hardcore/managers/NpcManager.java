@@ -153,6 +153,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return npcId != null && npcs.containsKey(npcId.toLowerCase(Locale.ROOT));
     }
 
+    /** Returns a stable snapshot of currently configured runtime NPC IDs. */
+    public List<String> getNpcIds() {
+        return List.copyOf(npcs.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList());
+    }
+
     public java.util.Optional<MerchantBuyQuote> getBestMerchantBuyQuote(ItemStack item) {
         if (item == null || item.getType().isAir()) return java.util.Optional.empty();
         MerchantBuyQuote best = null;
