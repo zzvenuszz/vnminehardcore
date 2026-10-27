@@ -17,8 +17,19 @@
 - [x] **Hotfix Give item RPG 2.22.1:** log server xác nhận `IllegalArgumentException` do enchantment không áp dụng được lên vật liệu giáp trong lúc tạo catalog boss. Enchantment không tương thích bị bỏ qua có warning; lỗi ở catalog boss không còn chặn toàn bộ picker.
 - [x] **Build hotfix:** Maven `clean package` thành công với Java 25 cho 2.22.1 lúc 2026-10-27 07:16 UTC; biên dịch 55 file, bỏ qua test. JAR `VnMineHardcore/target/VnMineHardcore-2.22.1.jar` (2,227,611 byte), SHA-256 `6cffa15e5d71032e7c1f412a16806f4581dcb3d6d940683afa1256a93bf4575e`; plugin.yml xác nhận 2.22.1, SQLite native chỉ gồm Linux x86_64.
 - [ ] **Chấp nhận vận hành:** kiểm thử Paper/gameplay admin online/offline, chat cancel, target đổi trạng thái, death restore khi túi đầy, reset/cache sau relog, repeat 1/10/unlimited qua ngày và restart/crash không trả thưởng trùng.
-- [ ] **Chấp nhận giao diện:** xác minh trên server với JAR 2.22.1 tuyến Menu chính → Admin → Người chơi → hồ sơ → Give item RPG; kiểm tra picker mở đủ danh mục và có thể cấp item.
-- [ ] **Chấp nhận vận hành:** kiểm tra từng loại item, PDC và khả năng dùng/trang bị, phân trang khi registry lớn, giao nhận offline/túi đầy và đối soát sau relog. Bản 2.20.0 đã build; gameplay trên Paper chưa được kiểm chứng trong lượt này.
+- [ ] **Chấp nhận giao diện:** xác minh trên server với JAR 2.23.0 tuyến Menu chính → Admin → Người chơi → hồ sơ → Give item RPG; kiểm tra picker phân loại, gear theo class/material/star/set, cấp lẻ và nguyên set.
+- [ ] **Chấp nhận vận hành:** kiểm tra từng loại item, PDC và khả năng dùng/trang bị, giao nhận offline/túi đầy, chỉ số gear theo hai tay và đối soát sau relog. Gameplay trên Paper chưa được kiểm chứng.
+
+## Mở rộng give item và bộ gear lính — yêu cầu 2026-10-27
+
+- [x] Đổi lối vào Give item RPG của hồ sơ admin thành các nhóm: vật phẩm người chơi, trang bị lính và lệnh triệu hồi. Nhóm vật phẩm người chơi tách theo danh mục có sẵn như quest, skill book, boss và shop; giữ factory/PDC gốc.
+- [x] Tạo menu gear theo class → vật liệu → sao → set → món; cấp một món hoặc toàn bộ ô hợp lệ của set. Giao item cho người chơi offline/túi đầy qua hàng đợi bền vững đang có.
+- [x] Tạo tập ô gear theo class, bỏ giả định tất cả đều có khiên; chỉ class được cấu hình `offhand` mới có món tay phụ. Dùng số ô hợp lệ làm mẫu số chia chỉ số để class không bị hụt bonus sau khi bỏ khiên.
+- [x] Thêm `gear-system.item-materials` với chú thích VI/EN: cung thủ bow + rabbit-foot charm, sát thủ song kiếm, chiến binh song rìu, tu sĩ rừng trident + spellbook, pháp sư băng snowball + spellbook, vệ binh kiếm + shield, y sư potion + spellbook, kỵ sĩ spear + shield, pháp sư lửa fire charge + spellbook, trinh sát crossbow + spyglass. Item có vật liệu cố định vẫn nhận hệ số sức mạnh theo tier/star trong PDC.
+- [x] Cộng bonus chỉ số của gear cả hai tay; cho gear ảnh hưởng sát thương đòn đánh thường. Chất lượng spellbook Tu sĩ rừng tăng giới hạn Vex; chất lượng spyglass Trinh Sát tăng tầm bắn, số tên của ILLUMINATION và thời gian đuốc.
+- [x] **Build 2.23.0:** Maven `clean package -DskipTests` thành công bằng Java 25 lúc 2026-10-27 10:13 UTC; compile 55 file Java, test được bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.23.0.jar` (2,234,896 bytes), SHA-256 `74224d4aef6ab2e525c95bd9075f1c328935d23fa5f9ef746e220f4d33b3fe5a`; `plugin.yml` xác nhận 2.23.0, SQLite native chỉ gồm Linux x86_64.
+- [ ] **Cần kiểm thử Paper:** mở từng menu trong tuyến Menu chính → Admin → Người chơi → hồ sơ → Give item RPG; thử single/full-set, offline và inventory đầy; xác minh các class không bị gán shield, gear tier/star hiển thị đúng, tay phụ được lưu/trang bị, chỉ số hai tay cộng dồn và bonus cung/Vex/băng/hỏa/hồi máu/cooldown/range/đuốc.
+- [ ] **Cần rà soát thêm:** kiểm tra crafting/recipe cho gear lính. Luồng hiện tại tạo item qua admin GUI; cấu hình recipe chế tạo theo nguyên liệu chưa có trong thay đổi này và cần thiết kế riêng nếu muốn người chơi tự chế gear.
 
 > Tài liệu này ghi nhận các vấn đề và đề xuất từ đợt rà soát mã nguồn, đồng thời xác định lộ trình hoàn thiện plugin cho server Minecraft RPG hardcore. Đây là kế hoạch triển khai; các hạng mục dưới đây không được coi là đã có trong mã hiện tại nếu chưa được triển khai và kiểm chứng.
 

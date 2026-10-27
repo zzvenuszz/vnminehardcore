@@ -1,5 +1,9 @@
 # Changelog
 
+## [v2.23.0] - 2026-10-27
+- Chia menu Give item RPG theo vật phẩm người chơi, trang bị lính và token; thêm phân cấp class/vật liệu/sao/set/món, cấp lẻ hoặc nguyên set.
+- Sửa mẫu gear theo vai trò từng class, bỏ khiên mặc định ở các lớp không dùng khiên và cộng chỉ số gear cả hai tay; thêm bonus cho bùa Xạ Thủ, sách Tu sĩ rừng và ống nhòm Trinh Sát.
+
 ## [v2.22.1] - 2026-10-27
 - Sửa lỗi picker Give item RPG không mở khi gặp enchantment không tương thích với giáp boss; bỏ qua enchantment lỗi, log nguyên nhân và tiếp tục hiển thị các danh mục item khác.
 

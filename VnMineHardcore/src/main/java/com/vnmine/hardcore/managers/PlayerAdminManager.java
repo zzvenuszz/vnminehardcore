@@ -239,12 +239,53 @@ public final class PlayerAdminManager implements Listener {
             return;
         }
         if ("rpg-items".equals(holder.screen)) {
-            if (slot == 49) openTarget(admin, holder.target);
+            if (slot == 49) {
+                if ("rpg-root".equals(holder.action)) openTarget(admin, holder.target);
+                else if ("player-root".equals(holder.action)) openRpgItemPicker(admin, holder.target);
+                else if ("player-categories".equals(holder.action)) openPlayerRpgCategories(admin, holder.target);
+                else if ("root".equals(holder.action)) openRpgItemPicker(admin, holder.target);
+                else if ("gear-class".equals(holder.action)) openMercenaryClasses(admin, holder.target);
+                else if ("gear-material".equals(holder.action)) openMercenaryMaterials(admin, holder.target, holder.gearClass);
+                else if ("gear-star".equals(holder.action)) openMercenaryStars(admin, holder.target, holder.gearClass, holder.gearMaterial);
+                else if ("gear-set".equals(holder.action)) openMercenarySets(admin, holder.target, holder.gearClass, holder.gearMaterial, holder.gearStars);
+                else openTarget(admin, holder.target);
+            }
             else if (slot == 45 && holder.page > 0)
                 openRpgItemPicker(admin, holder.target, holder.rpgItemList, holder.page - 1);
             else if (slot == 53)
                 openRpgItemPicker(admin, holder.target, holder.rpgItemList, holder.page + 1);
-            else if (holder.rpgChoices.containsKey(slot)) giveAdminRpgItem(admin, holder.target, holder.rpgChoices.get(slot));
+            else if (holder.rpgChoices.containsKey(slot)) {
+                AdminItemChoice choice = holder.rpgChoices.get(slot);
+                if (choice.id().startsWith("menu:")) {
+                    switch (choice.id()) {
+                        case "menu:player-items" -> openPlayerRpgCategories(admin, holder.target);
+                        case "menu:mercenary-gear" -> openMercenaryClasses(admin, holder.target);
+                        case "menu:mercenary-token" -> openRpgItemPicker(admin, holder.target,
+                            getAdminRpgItems(admin).stream().filter(item -> item.id().startsWith("army-token/")).toList(),
+                            0, "root", "Lệnh triệu hồi lính", null, null, 0, null);
+                        case "menu:category" -> openRpgItemPicker(admin, holder.target,
+                            getAdminRpgItems(admin).stream().filter(item -> item.category().equals(choice.category())
+                                && !item.id().startsWith("army-")).toList(), 0);
+                        default -> { }
+                    }
+                } else if (choice.id().startsWith("gear-class:")) {
+                    openMercenaryMaterials(admin, holder.target, choice.id().substring("gear-class:".length()));
+                } else if (choice.id().startsWith("gear-material:")) {
+                    openMercenaryStars(admin, holder.target, holder.gearClass,
+                        choice.id().substring("gear-material:".length()));
+                } else if (choice.id().startsWith("gear-star:")) {
+                    openMercenarySets(admin, holder.target, holder.gearClass, holder.gearMaterial,
+                        Integer.parseInt(choice.id().substring("gear-star:".length())));
+                } else if (choice.id().startsWith("gear-set:")) {
+                    openMercenarySlots(admin, holder.target, holder.gearClass, holder.gearMaterial,
+                        holder.gearStars, choice.id().substring("gear-set:".length()));
+                } else if ("gear-give-set".equals(choice.id())) {
+                    List<AdminItemChoice> setItems = gearItems(getAdminRpgItems(admin), holder.gearClass,
+                        holder.gearMaterial, holder.gearStars, holder.gearSet);
+                    giveAdminRpgItems(admin, holder.target, setItems,
+                        "Bộ " + mercenaryClassName(holder.gearClass) + " " + holder.gearMaterial + " ★" + holder.gearStars);
+                } else giveAdminRpgItem(admin, holder.target, choice);
+            }
             return;
         }
         if ("death-snapshots".equals(holder.screen)) {
@@ -317,31 +358,47 @@ public final class PlayerAdminManager implements Listener {
     }
 
     private void openRpgItemPicker(Player admin, UUID targetId) {
-        openRpgItemPicker(admin, targetId, 0);
+        List<AdminItemChoice> root = List.of(
+            new AdminItemChoice("menu:player-items", "§aVật phẩm người chơi", "Item RPG / boss / quest / skill / shop", Material.CHEST, new ItemStack(Material.CHEST)),
+            new AdminItemChoice("menu:mercenary-gear", "§bTrang bị lính", "Class → vật liệu → sao → set → món", Material.IRON_CHESTPLATE, new ItemStack(Material.IRON_CHESTPLATE)),
+            new AdminItemChoice("menu:mercenary-token", "§eLệnh triệu hồi lính", "Token lính theo class và bậc", Material.PAPER, new ItemStack(Material.PAPER))
+        );
+        openRpgItemPicker(admin, targetId, root, 0, "rpg-root", "Give RPG • Phân loại", null, null, 0, null);
     }
 
     private void openRpgItemPicker(Player admin, UUID targetId, int requestedPage) {
-        openRpgItemPicker(admin, targetId, getAdminRpgItems(admin), requestedPage);
+        openPlayerRpgCategories(admin, targetId);
     }
 
     private void openRpgItemPicker(Player admin, UUID targetId, List<AdminItemChoice> items, int requestedPage) {
+        openRpgItemPicker(admin, targetId, items, requestedPage, "player-categories", "Give item RPG", null, null, 0, null);
+    }
+
+    private void openRpgItemPicker(Player admin, UUID targetId, List<AdminItemChoice> items, int requestedPage,
+            String back, String title, String gearClass, String gearMaterial, int gearStars, String gearSet) {
         int pageCount = Math.max(1, (items.size() + 44) / 45);
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         AdminHolder holder = new AdminHolder(admin.getUniqueId(), "rpg-items", page);
         holder.target = targetId;
         holder.rpgItemList = items;
-        Inventory menu = Bukkit.createInventory(holder, 54, "Give item RPG • " + (page + 1) + "/" + pageCount);
+        holder.action = back;
+        holder.gearClass = gearClass;
+        holder.gearMaterial = gearMaterial;
+        holder.gearStars = gearStars;
+        holder.gearSet = gearSet;
+        Inventory menu = Bukkit.createInventory(holder, 54, title + (items.size() > 45 ? " • " + (page + 1) + "/" + pageCount : ""));
         holder.inventory = menu;
         for (int slot = 0; slot < Math.min(45, items.size() - page * 45); slot++) {
             AdminItemChoice choice = items.get(page * 45 + slot);
             holder.rpgChoices.put(slot, choice);
             ItemStack icon = choice.item().clone();
             ItemMeta meta = icon.getItemMeta();
-            meta.setDisplayName("§6" + choice.name());
+            meta.setDisplayName(choice.name().startsWith("§") ? choice.name() : "§6" + choice.name());
             List<String> lore = new ArrayList<>();
             lore.add("§dLoại: §f" + choice.category());
             lore.add("§7ID: §f" + choice.id());
-            lore.add("§eNhấn để cấp một vật phẩm.");
+            lore.add(choice.id().startsWith("menu:") || choice.id().startsWith("gear-")
+                ? "§eNhấn để mở danh mục." : "§eNhấn để cấp một vật phẩm.");
             meta.setLore(lore);
             icon.setItemMeta(meta);
             icon.setAmount(1);
@@ -349,9 +406,106 @@ public final class PlayerAdminManager implements Listener {
         }
         if (items.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có item RPG trong registry", List.of()));
         if (page > 0) menu.setItem(45, item(Material.ARROW, "§eTrang trước", List.of()));
-        menu.setItem(49, item(Material.ARROW, "§eQuay lại hồ sơ", List.of()));
+        menu.setItem(49, item(Material.ARROW, "§eQuay lại", List.of("§7Về danh mục trước.")));
         if (page + 1 < pageCount) menu.setItem(53, item(Material.ARROW, "§eTrang sau", List.of()));
         admin.openInventory(menu);
+    }
+
+    private void openPlayerRpgCategories(Player admin, UUID targetId) {
+        Map<String, AdminItemChoice> categories = new LinkedHashMap<>();
+        for (AdminItemChoice choice : getAdminRpgItems(admin)) {
+            if (choice.id().startsWith("army-")) continue;
+            categories.putIfAbsent(choice.category(), new AdminItemChoice("menu:category", choice.category(),
+                choice.category(), choice.material(), choice.item()));
+        }
+        List<AdminItemChoice> choices = new ArrayList<>(categories.values());
+        choices.sort(Comparator.comparing(AdminItemChoice::category, String.CASE_INSENSITIVE_ORDER));
+        if (choices.isEmpty()) choices = List.of(new AdminItemChoice("empty", "Chưa có vật phẩm", "", Material.BARRIER, new ItemStack(Material.BARRIER)));
+        openRpgItemPicker(admin, targetId, choices, 0, "player-root", "Vật phẩm người chơi", null, null, 0, null);
+    }
+
+    private void openMercenaryClasses(Player admin, UUID targetId) {
+        List<AdminItemChoice> all = getAdminRpgItems(admin).stream().filter(choice -> choice.id().startsWith("army-gear/")).toList();
+        Map<String, AdminItemChoice> classes = new LinkedHashMap<>();
+        for (AdminItemChoice choice : all) {
+            String[] parts = choice.id().split("/");
+            if (parts.length < 6) continue;
+            classes.putIfAbsent(parts[1], new AdminItemChoice("gear-class:" + parts[1], mercenaryClassName(parts[1]),
+                "Class lính", Material.IRON_SWORD, new ItemStack(Material.IRON_SWORD)));
+        }
+        openRpgItemPicker(admin, targetId, new ArrayList<>(classes.values()), 0, "root", "Trang bị lính • Chọn loại lính", null, null, 0, null);
+    }
+
+    private void openMercenaryMaterials(Player admin, UUID targetId, String classId) {
+        List<AdminItemChoice> all = gearItems(getAdminRpgItems(admin), classId, null, 0, null);
+        Map<String, AdminItemChoice> materials = new LinkedHashMap<>();
+        for (AdminItemChoice choice : all) {
+            String[] parts = choice.id().split("/");
+            if (parts.length < 6) continue;
+            materials.putIfAbsent(parts[3], new AdminItemChoice("gear-material:" + parts[3], gearMaterialName(parts[3]),
+                "Vật liệu", Material.IRON_INGOT, new ItemStack(Material.IRON_INGOT)));
+        }
+        openRpgItemPicker(admin, targetId, new ArrayList<>(materials.values()), 0, "gear-class", "Trang bị lính • Vật liệu",
+            classId, null, 0, null);
+    }
+
+    private void openMercenaryStars(Player admin, UUID targetId, String classId, String material) {
+        List<AdminItemChoice> all = gearItems(getAdminRpgItems(admin), classId, material, 0, null);
+        Map<Integer, AdminItemChoice> stars = new LinkedHashMap<>();
+        for (AdminItemChoice choice : all) {
+            String[] parts = choice.id().split("/");
+            if (parts.length < 6) continue;
+            int tier = Integer.parseInt(parts[4]);
+            stars.putIfAbsent(tier, new AdminItemChoice("gear-star:" + tier, "§e" + "★".repeat(tier),
+                "Bậc sao", Material.NETHER_STAR, new ItemStack(Material.NETHER_STAR)));
+        }
+        openRpgItemPicker(admin, targetId, new ArrayList<>(stars.values()), 0, "gear-material", "Trang bị lính • Bậc sao",
+            classId, material, 0, null);
+    }
+
+    private void openMercenarySets(Player admin, UUID targetId, String classId, String material, int stars) {
+        List<AdminItemChoice> all = gearItems(getAdminRpgItems(admin), classId, material, stars, null);
+        Map<String, AdminItemChoice> sets = new LinkedHashMap<>();
+        for (AdminItemChoice choice : all) {
+            String[] parts = choice.id().split("/");
+            if (parts.length < 6) continue;
+            sets.putIfAbsent(parts[2], new AdminItemChoice("gear-set:" + parts[2], parts[2], "Set trang bị",
+                Material.CHEST, new ItemStack(Material.CHEST)));
+        }
+        openRpgItemPicker(admin, targetId, new ArrayList<>(sets.values()), 0, "gear-star", "Trang bị lính • Set",
+            classId, material, stars, null);
+    }
+
+    private void openMercenarySlots(Player admin, UUID targetId, String classId, String material, int stars, String setId) {
+        List<AdminItemChoice> items = gearItems(getAdminRpgItems(admin), classId, material, stars, setId);
+        items = new ArrayList<>(items);
+        items.add(new AdminItemChoice("gear-give-set", "§aCấp nguyên set", "Gồm " + items.size() + " món hợp lệ",
+            Material.CHEST, new ItemStack(Material.CHEST)));
+        openRpgItemPicker(admin, targetId, items, 0, "gear-set", "Trang bị lính • Chọn món",
+            classId, material, stars, setId);
+    }
+
+    private List<AdminItemChoice> gearItems(List<AdminItemChoice> all, String classId, String material, int stars, String setId) {
+        return all.stream().filter(choice -> choice.id().startsWith("army-gear/"))
+            .filter(choice -> { String[] p = choice.id().split("/"); return p.length >= 6 && (classId == null || p[1].equals(classId)); })
+            .filter(choice -> { String[] p = choice.id().split("/"); return material == null || p[3].equals(material); })
+            .filter(choice -> { String[] p = choice.id().split("/"); return stars <= 0 || Integer.parseInt(p[4]) == stars; })
+            .filter(choice -> { String[] p = choice.id().split("/"); return setId == null || p[2].equals(setId); })
+            .toList();
+    }
+
+    private String mercenaryClassName(String id) {
+        return switch (id) {
+            case "archer" -> "Xạ Thủ"; case "guardian" -> "Vệ Binh"; case "medic" -> "Y Sư";
+            case "berserker" -> "Chiến binh"; case "ranger" -> "Trinh Sát"; case "paladin" -> "Kỵ sĩ";
+            case "pyromancer" -> "Pháp sư lửa"; case "druid" -> "Tu sĩ rừng"; case "assassin" -> "Sát thủ";
+            case "frost_mage" -> "Pháp sư băng"; default -> id;
+        };
+    }
+
+    private String gearMaterialName(String id) {
+        return switch (id) { case "leather" -> "Da"; case "copper" -> "Đồng"; case "iron" -> "Sắt";
+            case "gold" -> "Vàng"; case "diamond" -> "Kim cương"; case "netherite" -> "Netherite"; default -> id; };
     }
 
     private List<AdminItemChoice> getAdminRpgItems(Player admin) {
@@ -394,38 +548,50 @@ public final class PlayerAdminManager implements Listener {
     }
 
     private void giveAdminRpgItem(Player admin, UUID targetId, AdminItemChoice choice) {
+        giveAdminRpgItems(admin, targetId, List.of(choice), choice.name());
+    }
+
+    private void giveAdminRpgItems(Player admin, UUID targetId, List<AdminItemChoice> choices, String description) {
+        if (choices.isEmpty()) {
+            admin.sendMessage("§cSet này chưa có món hợp lệ để cấp.");
+            return;
+        }
         PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
         String transaction = "admin-rpg-item:" + UUID.randomUUID();
-        ItemStack item = choice.item().clone();
-        item.setAmount(1);
+        List<ItemStack> items = choices.stream().map(choice -> {
+            ItemStack item = choice.item().clone();
+            item.setAmount(1);
+            return item;
+        }).toList();
         Player target = Bukkit.getPlayer(targetId);
         if (target == null) {
             database.executeGameplayDatabaseTask("player-admin.give-rpg-item actor=" + admin.getName()
-                    + " target=" + targetId + " item=" + choice.id(), () -> {
+                    + " target=" + targetId + " item=" + description, () -> {
                 database.enqueueMerchantDeliveries(targetId.toString(), transaction,
-                    List.of(item.serializeAsBytes()), java.time.Instant.now().toString());
+                    items.stream().map(ItemStack::serializeAsBytes).toList(), java.time.Instant.now().toString());
                 return true;
             }).whenComplete((ignored, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (failure != null) {
                     plugin.getLogger().log(Level.SEVERE, "[PlayerAdmin] Could not queue RPG item delivery.", failure);
                     admin.sendMessage("§cKhông thể xếp item vào kho nhận.");
                 } else {
-                    audit(admin, Bukkit.getOfflinePlayer(targetId).getName(), "give-rpg-item:" + choice.id());
-                    admin.sendMessage("§aĐã xếp §f" + choice.name() + "§a vào kho nhận offline.");
+                    audit(admin, Bukkit.getOfflinePlayer(targetId).getName(), "give-rpg-item:" + description);
+                    admin.sendMessage("§aĐã xếp §f" + description + "§a (" + items.size() + " món) vào kho nhận offline.");
                 }
             }));
             return;
         }
-        Map<Integer, ItemStack> leftover = target.getInventory().addItem(item);
-        if (leftover.isEmpty()) {
+        List<ItemStack> overflowItems = new ArrayList<>();
+        for (ItemStack item : items) overflowItems.addAll(target.getInventory().addItem(item).values());
+        if (overflowItems.isEmpty()) {
             target.saveData();
-            audit(admin, target.getName(), "give-rpg-item:" + choice.id());
-            admin.sendMessage("§aĐã cấp §f" + choice.name() + "§a cho " + target.getName() + ".");
+            audit(admin, target.getName(), "give-rpg-item:" + description);
+            admin.sendMessage("§aĐã cấp §f" + description + "§a (" + items.size() + " món) cho " + target.getName() + ".");
             return;
         }
-        List<byte[]> overflow = leftover.values().stream().map(ItemStack::serializeAsBytes).toList();
+        List<byte[]> overflow = overflowItems.stream().map(ItemStack::serializeAsBytes).toList();
         database.executeGameplayDatabaseTask("player-admin.give-rpg-overflow actor=" + admin.getName()
-                + " target=" + targetId + " item=" + choice.id(), () -> {
+                + " target=" + targetId + " item=" + description, () -> {
             database.enqueueMerchantDeliveries(targetId.toString(), transaction, overflow,
                 java.time.Instant.now().toString());
             return true;
@@ -435,7 +601,7 @@ public final class PlayerAdminManager implements Listener {
                 admin.sendMessage("§cKhông thể lưu phần item tràn vào kho nhận; hãy kiểm tra console.");
             } else {
                 if (target.isOnline()) target.saveData();
-                audit(admin, target.getName(), "give-rpg-item:" + choice.id() + ":queued");
+                audit(admin, target.getName(), "give-rpg-item:" + description + ":queued");
                 admin.sendMessage("§aĐã cấp item; phần tồn kho được xếp vào hàng đợi bền vững.");
                 if (target.isOnline() && plugin.getEconomyManager() != null)
                     plugin.getEconomyManager().reconcileMerchantDeliveries(target);
@@ -671,6 +837,10 @@ public final class PlayerAdminManager implements Listener {
         private List<AdminItemChoice> rpgItemList = List.of();
         private UUID target;
         private String action;
+        private String gearClass;
+        private String gearMaterial;
+        private String gearSet;
+        private int gearStars;
         private Inventory inventory;
         private AdminHolder(UUID viewer, String screen, int page) {
             this.viewer = viewer; this.screen = screen; this.page = page;

@@ -257,6 +257,39 @@ gear-system:
   effect-internal-cooldown-seconds: 5.0
   # [VI] Mỗi class có set standard mặc định; có thể thêm set với ID chữ thường gồm a-z, 0-9, _ hoặc -, dài 1-32 ký tự.
   # [EN] Each class has a default standard set; add sets with lowercase IDs using a-z, 0-9, _ or -, 1-32 characters.
+  # [VI] Vật liệu tay chính/tay phụ theo class; mặc định theo từng class bên dưới, giá trị phải là Bukkit Material hợp lệ; AIR tắt ô tay phụ.
+  # [EN] Per-class main/off-hand item materials; defaults are listed per class below, values must be valid Bukkit Materials; AIR disables off-hand gear.
+  item-materials:
+    # [VI] Mặc định BOW/RABBIT_FOOT; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults BOW/RABBIT_FOOT; values must be Bukkit Materials.
+    archer: {mainhand: BOW, offhand: RABBIT_FOOT}
+    # [VI] Mặc định IRON_SWORD/SHIELD; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults IRON_SWORD/SHIELD; values must be Bukkit Materials.
+    guardian: {mainhand: IRON_SWORD, offhand: SHIELD}
+    # [VI] Mặc định POTION/ENCHANTED_BOOK; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults POTION/ENCHANTED_BOOK; values must be Bukkit Materials.
+    medic: {mainhand: POTION, offhand: ENCHANTED_BOOK}
+    # [VI] Mặc định IRON_AXE ở cả hai tay; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults IRON_AXE in both hands; values must be Bukkit Materials.
+    berserker: {mainhand: IRON_AXE, offhand: IRON_AXE}
+    # [VI] Mặc định CROSSBOW/SPYGLASS; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults CROSSBOW/SPYGLASS; values must be Bukkit Materials.
+    ranger: {mainhand: CROSSBOW, offhand: SPYGLASS}
+    # [VI] Mặc định IRON_SPEAR/SHIELD; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults IRON_SPEAR/SHIELD; values must be Bukkit Materials.
+    paladin: {mainhand: IRON_SPEAR, offhand: SHIELD}
+    # [VI] Mặc định FIRE_CHARGE/ENCHANTED_BOOK; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults FIRE_CHARGE/ENCHANTED_BOOK; values must be Bukkit Materials.
+    pyromancer: {mainhand: FIRE_CHARGE, offhand: ENCHANTED_BOOK}
+    # [VI] Mặc định TRIDENT/ENCHANTED_BOOK; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults TRIDENT/ENCHANTED_BOOK; values must be Bukkit Materials.
+    druid: {mainhand: TRIDENT, offhand: ENCHANTED_BOOK}
+    # [VI] Mặc định IRON_SWORD ở cả hai tay; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults IRON_SWORD in both hands; values must be Bukkit Materials.
+    assassin: {mainhand: IRON_SWORD, offhand: IRON_SWORD}
+    # [VI] Mặc định SNOWBALL/ENCHANTED_BOOK; vật liệu hợp lệ là Bukkit Material.
+    # [EN] Defaults SNOWBALL/ENCHANTED_BOOK; values must be Bukkit Materials.
+    frost_mage: {mainhand: SNOWBALL, offhand: ENCHANTED_BOOK}
   sets:
     # [VI] Khai báo class Xạ Thủ; mặc định có set standard.
     # [EN] Archer sets; the default set ID is standard.

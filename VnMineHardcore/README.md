@@ -112,6 +112,21 @@ cấp bởi nhóm. Nhóm mặc định áp dụng cho người mới và `/vnuse
 
 ### Lính đánh thuê (`armies.yml`)
 
+Trong hồ sơ quản trị người chơi, chọn **Give item RPG** để mở danh mục theo
+nhóm: vật phẩm người chơi (quest, skill, boss, shop), trang bị lính hoặc lệnh
+triệu hồi. Trang bị lính đi theo Class → vật liệu → sao → set → món; chọn từng
+món để cấp riêng hoặc **Cấp nguyên set**. Luồng này hỗ trợ người nhận offline và
+xếp các món tràn inventory vào kho nhận bền vững.
+
+Trang bị lính có đủ sáu bậc vật liệu (da, đồng, sắt, vàng, kim cương, netherite)
+và 1–5 sao. Vật liệu không tồn tại cho kiểu vũ khí được giữ nguyên, còn sức mạnh
+được tăng theo metadata vật liệu/sao. Cấu hình `gear-system.item-materials`
+trong `armies.yml` chọn chất liệu riêng theo class. Tay phụ chỉ được tạo nếu class
+có món hợp lệ; mặc định không còn tự gán khiên cho mọi lớp. Xạ Thủ dùng cung và
+bùa may mắn; Sát Thủ/Chiến binh song kiếm/song rìu; Tu sĩ rừng dùng đinh ba và
+sách phép; Pháp sư băng dùng cầu tuyết và sách băng; Vệ Binh/Kỵ sĩ dùng kiếm/giáo
+và khiên; Y Sư, Pháp sư lửa và Trinh Sát có bộ tay phụ hỗ trợ theo vai trò.
+
 `plugins/VnMineHardcore/armies.yml` là file tinh chỉnh AI và cấu hình lính: giới
 hạn sở hữu đội quân (mặc định 10), giới hạn triệu hồi đồng thời (mặc định 3),
 tầm tìm mục tiêu, chu kỳ AI, chỉ số, kỹ năng, EXP,
@@ -123,9 +138,10 @@ Xạ Thủ (`archer`), Vệ Binh (`guardian`), Y Sư (`medic`), Cuồng Chiến
 tay chính/tay phụ theo danh sách ưu tiên từng class trong `armies.yml`, rồi dùng
 vũ khí mặc định nếu không tìm thấy món phù hợp; trang bị được giữ qua nghỉ, chết
 và triệu hồi lại. Vệ Binh dùng model Husk để hiển thị item ở cả hai tay và tìm
-khiên; Cuồng Chiến có thể lấy rìu thứ hai cho tay phụ. Kỵ Sĩ dùng giáo, Tu Sĩ
-Rừng cầm emerald; Pháp Sư Băng/Lửa không tự tạo vũ
-khí. Y Sư ưu tiên potion hồi máu ở tay chính và có thể ném splash/lingering
+khiên; Cuồng Chiến có thể lấy rìu thứ hai cho tay phụ. Loadout lính thường vẫn
+được điều khiển bởi `starting-weapon`, `starting-offhand` và danh sách ưu tiên;
+ví dụ Tu sĩ rừng hiện ưu tiên emerald. Y Sư ưu tiên potion hồi máu ở tay chính
+và có thể ném splash/lingering
 potion có lợi từ tay phụ cho đồng đội cần hiệu ứng/hồi máu mà không tiêu hao bình.
 Gear GUI dùng ô riêng cho tay chính và tay phụ. Mô tả skill và action bar dùng
 tên tiếng Việt.
