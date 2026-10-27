@@ -1,5 +1,8 @@
 # Changelog
 
+## [v2.22.0] - 2026-10-27
+- Đổi luồng quản trị hồ sơ thành **Menu chính → Admin → Người chơi → chọn online/offline → chức năng hồ sơ**; giữ các tiện ích teleport/gamemode trong mục riêng khi admin có quyền tương ứng.
+
 ## [v2.21.0] - 2026-10-27
 - Làm rõ luồng quản trị người chơi: mở menu tìm offline tại cuối danh sách, có điều hướng về menu quản trị, thêm submenu quản lý quest để xem quest hoàn thành, mở lại quest hoặc reset toàn bộ; nút giới hạn lặp lại chỉ hoạt động khi bật repeatable.
 

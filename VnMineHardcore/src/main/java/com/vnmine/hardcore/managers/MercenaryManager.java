@@ -6604,11 +6604,17 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
              holder.inventory.setItem(10, this.menuItem(Material.REDSTONE, "§eMáy chủ",
                  List.of("§7Sự kiện, boss, thời gian và spawn.")));
          }
-         if (hasAnyPermission(player, "vnmine.command.teleport.other", "vnmine.command.users.manage",
-                 "vnmine.command.fly", "vnmine.command.nodame", "vnmine.command.gamemode",
-                 "vnmine.command.death.reset", "vnmine.command.death.history")) {
+         boolean hasLegacyPlayerTools = hasAnyPermission(player, "vnmine.command.teleport.other",
+                 "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
+                 "vnmine.command.gamemode", "vnmine.command.death.reset", "vnmine.command.death.history");
+         boolean hasPlayerAdmin = player.hasPermission("vnmine.command.playeradmin");
+         if (hasPlayerAdmin) {
              holder.inventory.setItem(12, this.menuItem(Material.PLAYER_HEAD, "§bNgười chơi",
-                 List.of("§7Dịch chuyển, chế độ chơi và thông tin.")));
+                 List.of("§7Chọn người chơi online hoặc tìm người offline.",
+                     "§eMở menu thao tác hồ sơ người chơi.")));
+         } else if (hasLegacyPlayerTools) {
+             holder.inventory.setItem(12, this.menuItem(Material.PLAYER_HEAD, "§bNgười chơi",
+                 List.of("§7Dịch chuyển, chế độ chơi và công cụ người chơi.")));
          }
          if (hasAnyPermission(player, "vnmine.command.groups.manage", "vnmine.command.users.manage")) {
              holder.inventory.setItem(14, this.menuItem(Material.BOOKSHELF, "§dQuản lý quyền",
@@ -6631,9 +6637,9 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
              holder.inventory.setItem(20, this.menuItem(Material.VILLAGER_SPAWN_EGG, "§eQuản lý NPC",
                  List.of("§7Tạo, sửa, di chuyển và xóa NPC.")));
          }
-         if (player.hasPermission("vnmine.command.playeradmin")) {
-            holder.inventory.setItem(24, this.menuItem(Material.SKELETON_SKULL, "§cQuản trị người chơi",
-                List.of("§7Ban, kick, mute và công cụ hồ sơ RPG.")));
+         if (hasPlayerAdmin && hasLegacyPlayerTools) {
+            holder.inventory.setItem(24, this.menuItem(Material.COMPASS, "§dTiện ích người chơi",
+                List.of("§7Dịch chuyển, chế độ chơi và tiện ích khác.")));
          }
          holder.inventory.setItem(49, this.menuItem(Material.ARROW, "§7Menu chính", List.of()));
          player.openInventory(holder.inventory);
@@ -8856,7 +8862,14 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                   if (slot == 10) {
                      this.openAdminCategory(player, "server");
                   } else if (slot == 12) {
-                     this.openAdminCategory(player, "players");
+                     if (player.hasPermission("vnmine.command.playeradmin")) {
+                        if (plugin.getPlayerAdminManager() != null) plugin.getPlayerAdminManager().open(player);
+                     } else if (hasAnyPermission(player, "vnmine.command.teleport.other",
+                             "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
+                             "vnmine.command.gamemode", "vnmine.command.death.reset",
+                             "vnmine.command.death.history")) {
+                        this.openAdminCategory(player, "players");
+                     }
                   } else if (slot == 14) {
                      this.openAdminCategory(player, "permissions");
                   } else if (slot == 16 && isAdminRpgToolsEnabled()
@@ -8869,8 +8882,12 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      if (plugin.getQuestCatalogManager() != null) plugin.getQuestCatalogManager().openAdmin(player);
                   } else if (slot == 20 && player.hasPermission("vnmine.command.npc.admin")) {
                      if (plugin.getNpcManager() != null) plugin.getNpcManager().openAdminMenu(player);
-                  } else if (slot == 24 && player.hasPermission("vnmine.command.playeradmin")) {
-                     if (plugin.getPlayerAdminManager() != null) plugin.getPlayerAdminManager().open(player);
+                  } else if (slot == 24 && player.hasPermission("vnmine.command.playeradmin")
+                          && hasAnyPermission(player, "vnmine.command.teleport.other",
+                              "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
+                              "vnmine.command.gamemode", "vnmine.command.death.reset",
+                              "vnmine.command.death.history")) {
+                     this.openAdminCategory(player, "players");
                   } else if (slot == 49) {
                      this.openMainMenu(player);
                   }

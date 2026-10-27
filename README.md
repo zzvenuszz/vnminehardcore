@@ -237,9 +237,10 @@ profile reset preserves the VNCOIN wallet and starts character onboarding again.
 Quest history is paginated. Moderation and reset actions are logged with actor,
 target, and action under `[PlayerAdmin]` / `[Quest][Admin]`.
 
-Open player administration from **Admin → Player Administration** or with
-`/vnplayeradmin`. The bottom-center button returns to the admin menu; the
-ender-eye button at the end of the bottom row searches for an offline player.
+Open player administration from **Main Menu → Admin → Người chơi**, or directly
+with `/vnplayeradmin`. That screen lists online players and has an offline-name
+search button at the end of the bottom row. Select a player to open the profile
+actions. The bottom-center button returns to the admin menu.
 From a player's profile, choose **Manage Player Quests** to view completed
 quests, reopen one for that player, or reset all quest progress. In the quest
 editor, toggle **Lặp lại** on before using the `-1` and `+1` daily-limit
