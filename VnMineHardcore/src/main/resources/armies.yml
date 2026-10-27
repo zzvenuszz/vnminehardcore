@@ -255,6 +255,33 @@ gear-system:
   # [VI] Thời gian chờ nội bộ giữa các lần kích hoạt hiệu ứng item; mặc định 5 giây, hợp lệ 0-120.
   # [EN] Internal cooldown between gear effect procs; default 5 seconds, valid 0-120.
   effect-internal-cooldown-seconds: 5.0
+  # [VI] Hiệu ứng riêng của sách phép; chất lượng tăng theo vật liệu và sao: 0-9.
+  # [EN] Spellbook-specific effects; quality scales with material and stars: 0-9.
+  spellbook-effects:
+    druid:
+      # [VI] Số Vex tối đa cộng thêm ở chất lượng 0; mặc định 1, hợp lệ 0-10.
+      # [EN] Extra Vex cap at quality 0; default 1, valid range 0-10.
+      base-vex-bonus: 1.0
+      # [VI] Vex cộng thêm mỗi điểm chất lượng sách; mặc định 0.5, hợp lệ 0-5.
+      # [EN] Extra Vex per spellbook quality point; default 0.5, valid range 0-5.
+      extra-vex-per-quality: 0.5
+      # [VI] Trần Vex cộng thêm từ sách; mặc định 5, hợp lệ 0-10.
+      # [EN] Maximum extra Vex from the spellbook; default 5, valid range 0-10.
+      maximum-vex-bonus: 5.0
+    frost_mage:
+      # [VI] Thời gian khống chế cộng thêm ở chất lượng 0; mặc định 0.5 giây, hợp lệ 0-5.
+      # [EN] Control duration added at quality 0; default 0.5 seconds, valid range 0-5.
+      control-duration-base-seconds: 0.5
+      # [VI] Thời gian khống chế cộng thêm mỗi điểm chất lượng; mặc định 0.25 giây, hợp lệ 0-5.
+      # [EN] Control duration added per quality point; default 0.25 seconds, valid range 0-5.
+      control-duration-per-quality-seconds: 0.25
+    pyromancer:
+      # [VI] Thời gian cháy cộng thêm ở chất lượng 0; mặc định 0.5 giây, hợp lệ 0-5.
+      # [EN] Burn duration added at quality 0; default 0.5 seconds, valid range 0-5.
+      burn-duration-base-seconds: 0.5
+      # [VI] Thời gian cháy cộng thêm mỗi điểm chất lượng; mặc định 0.25 giây, hợp lệ 0-5.
+      # [EN] Burn duration added per quality point; default 0.25 seconds, valid range 0-5.
+      burn-duration-per-quality-seconds: 0.25
   # [VI] Mỗi class có set standard mặc định; có thể thêm set với ID chữ thường gồm a-z, 0-9, _ hoặc -, dài 1-32 ký tự.
   # [EN] Each class has a default standard set; add sets with lowercase IDs using a-z, 0-9, _ or -, 1-32 characters.
   # [VI] Vật liệu tay chính/tay phụ theo class; mặc định theo từng class bên dưới, giá trị phải là Bukkit Material hợp lệ; AIR tắt ô tay phụ.
@@ -269,8 +296,8 @@ gear-system:
     # [VI] Mặc định POTION/ENCHANTED_BOOK; vật liệu hợp lệ là Bukkit Material.
     # [EN] Defaults POTION/ENCHANTED_BOOK; values must be Bukkit Materials.
     medic: {mainhand: POTION, offhand: ENCHANTED_BOOK}
-    # [VI] Mặc định IRON_AXE ở cả hai tay; vật liệu hợp lệ là Bukkit Material.
-    # [EN] Defaults IRON_AXE in both hands; values must be Bukkit Materials.
+    # [VI] Một mẫu rìu dùng được ở cả hai tay; khi trang bị hai bản, chỉ số cộng dồn.
+    # [EN] One axe item template fits either hand; two equipped copies stack their stats.
     berserker: {mainhand: IRON_AXE, offhand: IRON_AXE}
     # [VI] Mặc định CROSSBOW/SPYGLASS; vật liệu hợp lệ là Bukkit Material.
     # [EN] Defaults CROSSBOW/SPYGLASS; values must be Bukkit Materials.
@@ -284,8 +311,8 @@ gear-system:
     # [VI] Mặc định TRIDENT/ENCHANTED_BOOK; vật liệu hợp lệ là Bukkit Material.
     # [EN] Defaults TRIDENT/ENCHANTED_BOOK; values must be Bukkit Materials.
     druid: {mainhand: TRIDENT, offhand: ENCHANTED_BOOK}
-    # [VI] Mặc định IRON_SWORD ở cả hai tay; vật liệu hợp lệ là Bukkit Material.
-    # [EN] Defaults IRON_SWORD in both hands; values must be Bukkit Materials.
+    # [VI] Một mẫu kiếm dùng được ở cả hai tay; khi trang bị hai bản, chỉ số cộng dồn.
+    # [EN] One sword item template fits either hand; two equipped copies stack their stats.
     assassin: {mainhand: IRON_SWORD, offhand: IRON_SWORD}
     # [VI] Mặc định SNOWBALL/ENCHANTED_BOOK; vật liệu hợp lệ là Bukkit Material.
     # [EN] Defaults SNOWBALL/ENCHANTED_BOOK; values must be Bukkit Materials.
@@ -1084,9 +1111,12 @@ classes:
         # [VI] Góc bắn hướng lên; mặc định 55 độ, hợp lệ 10-85.
         # [EN] Upward launch angle; default 55 degrees, valid range 10-85.
         upward-angle-degrees: 55
-        # [VI] Bán kính phân tán điểm rơi quanh mục tiêu; mặc định 5 block, hợp lệ 0-16.
-        # [EN] Landing spread radius around the target; default 5 blocks, valid range 0-16.
+        # [VI] Bán kính vòng đuốc quanh vị trí Trinh Sát; mặc định 5 block, hợp lệ 0-16.
+        # [EN] Torch-ring radius around the Ranger; default 5 blocks, valid range 0-16.
         spread-radius-blocks: 5.0
+        # [VI] Khoảng cách ngang tối thiểu giữa các đuốc Soi Sáng; mặc định 3 block, hợp lệ 1.5-8.
+        # [EN] Minimum horizontal spacing between Illumination torches; default 3 blocks, valid range 1.5-8.
+        minimum-torch-spacing-blocks: 3.0
     # [VI] Chi phí nâng bậc; tier đích 2-13, mỗi vật liệu hợp lệ 0-1000000.
     # [EN] Tier-upgrade costs; target tier 2-13, each material amount 0-1000000.
     tier-upgrades:

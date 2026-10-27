@@ -131,6 +131,19 @@ bùa may mắn; Sát Thủ/Chiến binh song kiếm/song rìu; Tu sĩ rừng dù
 sách phép; Pháp sư băng dùng cầu tuyết và sách băng; Vệ Binh/Kỵ sĩ dùng kiếm/giáo
 và khiên; Y Sư, Pháp sư lửa và Trinh Sát có bộ tay phụ hỗ trợ theo vai trò.
 
+Tên gear ghi rõ vai trò, chẳng hạn **Giáo Kỵ Sĩ**, **Sách Y Thuật**, **Sách Băng
+Thuật** và **Sách Hỏa Thuật**. Kỵ sĩ dùng spear material riêng (`IRON_SPEAR` và
+các bậc spear tương ứng), không dùng trident. Sát Thủ và Chiến binh có một mẫu
+kiếm/rìu dùng được ở tay chính hoặc tay phụ; trang bị hai bản vẫn cộng chỉ số.
+Tooltip sách Tu Sĩ Rừng hiển thị số Vex tối đa được cộng theo vật liệu/sao; sách
+Băng ghi % sát thương, % hồi chiêu và số giây làm chậm cộng thêm cho Bão Tuyết,
+Băng Nộ, Tường Băng; sách Y Thuật ghi % lượng hồi máu và % hồi chiêu; sách Hỏa
+Thuật ghi % sát thương lửa và số giây cháy cộng thêm cho Hỏa Cầu/Thiêu Đốt.
+
+Trinh Sát tự dùng **Soi Sáng** khi ánh sáng quanh lính thấp, kể cả khi không có
+mục tiêu. Mũi tên rơi theo vòng quanh vị trí lính; đuốc do kỹ năng tạo cách nhau
+ít nhất 3 block theo cấu hình `minimum-torch-spacing-blocks`.
+
 `plugins/VnMineHardcore/armies.yml` là file tinh chỉnh AI và cấu hình lính: giới
 hạn sở hữu đội quân (mặc định 10), giới hạn triệu hồi đồng thời (mặc định 3),
 tầm tìm mục tiêu, chu kỳ AI, chỉ số, kỹ năng, EXP,
@@ -805,6 +818,11 @@ sát thương người chơi, thông báo và tỷ lệ. Chạy `/vnreload` sau 
 5. Gõ `/vnreload` để áp dụng thay đổi
 
 ## Changelog
+
+### v2.25.0
+- Đổi gear Kỵ Sĩ sang spear, đặt tên vũ khí/sách theo vai trò, hiển thị và áp dụng bonus sách phép theo vật liệu/sao, gộp gear hai tay thành một mẫu dùng được cho cả hai tay.
+- Trinh Sát tự soi sáng khi thiếu sáng, không cần mục tiêu; bố trí mũi tên theo vòng và chặn đuốc tạm trong phạm vi tối thiểu.
+- Build thành công bằng JDK 25; test suite chưa chạy. JAR cài tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.25.0.jar`; SHA-256 `20dca1d90bd0e5bde57ee7ed5a2f0a98413a8bce482e75c06b8f16fbc2333964`. JAR 2.24.0 được sao lưu trong `.old-builds`.
 
 ### v2.24.0
 - Chia sách kỹ năng theo chủng tộc → class, lọc danh mục boss còn vật phẩm hiếm và thống nhất icon gear/token với menu quân đội.

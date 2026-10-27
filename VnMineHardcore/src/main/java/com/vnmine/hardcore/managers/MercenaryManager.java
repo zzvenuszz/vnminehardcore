@@ -234,6 +234,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
    private final NamespacedKey soldierGearStarsKey;
    private final NamespacedKey soldierGearSetKey;
    private final NamespacedKey soldierGearSlotKey;
+   private final NamespacedKey soldierGearDualHandKey;
    private final NamespacedKey nativeSoldierGearKey;
    private final NamespacedKey welcomeGiftKey;
    private final NamespacedKey illuminationArrowKey;
@@ -510,6 +511,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       this.soldierGearStarsKey = new NamespacedKey(plugin, "army_soldier_gear_stars");
       this.soldierGearSetKey = new NamespacedKey(plugin, "army_soldier_gear_set");
       this.soldierGearSlotKey = new NamespacedKey(plugin, "army_soldier_gear_slot");
+      this.soldierGearDualHandKey = new NamespacedKey(plugin, "army_soldier_gear_dual_hand");
       this.nativeSoldierGearKey = new NamespacedKey(plugin, "army_native_soldier_gear");
       this.welcomeGiftKey = new NamespacedKey(plugin, "welcome_gift");
       this.illuminationArrowKey = new NamespacedKey(plugin, "ranger_illumination_arrow");
@@ -2072,6 +2074,14 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
          settingsChanged = true;
       }
 
+      String paladinGearWeaponPath = "gear-system.item-materials.paladin.mainhand";
+      if ("TRIDENT".equalsIgnoreCase(loaded.getString(paladinGearWeaponPath, ""))) {
+         loaded.set(paladinGearWeaponPath, "IRON_SPEAR");
+         loaded.setComments(paladinGearWeaponPath, defaults.getComments(paladinGearWeaponPath));
+         this.plugin.getLogger().info("[Army] Replaced the legacy Paladin trident gear material with IRON_SPEAR.");
+         settingsChanged = true;
+      }
+
       if (!loaded.getBoolean("_migrations.guardian-husk-model", false)) {
          String guardianEntityPath = "classes.guardian.entity-type";
          if ("VINDICATOR".equalsIgnoreCase(loaded.getString(guardianEntityPath, ""))) {
@@ -2490,6 +2500,10 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             return;
         }
         LivingEntity target = findTarget(unit, mob, owner);
+        if (hasSkill(unit, "ILLUMINATION") && ready(unit, "illumination")
+                && canUseIlluminationInCurrentLight(mob)) {
+            fireIlluminationVolley(unit, mob, owner);
+        }
         if (target == null && unit.mode == Mode.PROTECT && hasAiPriority(unit, "FOLLOW_OWNER")
                 && distanceSquared > followDistance * followDistance) {
             mob.setTarget(null);
@@ -3322,12 +3336,6 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                 announceSkillCast(unit, owner, "LANCE_CHARGE", Particle.CRIT);
             }
         }
-        if (hasSkill(unit, "ILLUMINATION") && mob != null && target != null
-                && isWithinConfiguredSkillRange(unit, mob, target, "ILLUMINATION")
-                && canUseIlluminationInCurrentLight(mob)
-                && ready(unit, "illumination")) {
-            fireIlluminationVolley(unit, mob, target, owner);
-        }
         if (hasSkill(unit, "RANGED_ATTACK") && target != null && mob != null
                 && isWithinConfiguredSkillRange(unit, mob, target, "RANGED_ATTACK")
                 && ready(unit, "ranged-attack")) {
@@ -3453,7 +3461,10 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         double base = skillOptionDouble(unit, skill, "duration-seconds", fallback, min, max);
         double increase = skillOptionDouble(unit, skill, "duration-increase-per-level-seconds",
             0.1, 0.0, 10.0);
-        return (int) Math.round(Math.min(max, base + Math.max(0, unit.level - 1) * increase) * 20.0);
+        double spellbookBonus = "FROST_NOVA".equalsIgnoreCase(skill)
+            ? frostSpellbookControlBonus(unit) : 0.0;
+        return (int) Math.round(Math.min(max + 5.0,
+            base + Math.max(0, unit.level - 1) * increase + spellbookBonus) * 20.0);
     }
 
     private void castBlizzard(Unit unit, Mob mob, LivingEntity target) {
@@ -3461,7 +3472,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         int durationTicks = frostDurationTicks(unit, "BLIZZARD", 3.0, 1.0, 12.0);
         int intervalTicks = (int) skillOptionDouble(unit, "BLIZZARD", "pulse-interval-ticks", 20.0, 10.0, 100.0);
         int maxTargets = (int) skillOptionDouble(unit, "BLIZZARD", "max-targets", 8.0, 1.0, 32.0);
-        int slowTicks = (int) skillOptionDouble(unit, "BLIZZARD", "slowness-duration-ticks", 40.0, 10.0, 200.0);
+        int slowTicks = (int) Math.round(skillOptionDouble(unit, "BLIZZARD", "slowness-duration-ticks", 40.0, 10.0, 200.0)
+            + frostSpellbookControlBonus(unit) * 20.0);
         int amplifier = (int) skillOptionDouble(unit, "BLIZZARD", "slowness-amplifier", 1.0, 0.0, 4.0);
         Location center = target.getLocation().clone();
         double damage = frostDamage(unit, "BLIZZARD", 3.0);
@@ -3523,7 +3535,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         double slowSeconds = Math.min(30.0,
             skillOptionDouble(unit, "ICE_WALL", "slowness-duration-seconds", 3.0, 0.1, 30.0)
                 + Math.max(0, unit.level - 1) * skillOptionDouble(unit, "ICE_WALL",
-                    "slowness-duration-increase-per-level-seconds", 0.1, 0.0, 10.0));
+                    "slowness-duration-increase-per-level-seconds", 0.1, 0.0, 10.0)
+                + frostSpellbookControlBonus(unit));
         BukkitTask task = new BukkitRunnable() {
             private long elapsedTicks;
 
@@ -3915,10 +3928,11 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
 
       if (this.hasSkill(unit, "FIRE_BOLT") && target != null && mob != null && this.ready(unit, "fire-bolt")) {
          double damage = Math.min(100.0, this.skillOptionDouble(unit, "FIRE_BOLT", "damage", 7.0, 0.0, 100.0) * this.skillPowerMultiplier(unit));
-         int fireSeconds = (int)this.skillOptionDouble(unit, "FIRE_BOLT", "fire-seconds", 3.0, 0.0, 15.0);
+         double fireSeconds = Math.min(15.0, this.skillOptionDouble(unit, "FIRE_BOLT", "fire-seconds", 3.0, 0.0, 15.0)
+            + fireSpellbookBurnBonus(unit));
          target.damage(damage, mob);
          if (fireSeconds > 0) {
-            target.setFireTicks(Math.max(target.getFireTicks(), fireSeconds * 20));
+            target.setFireTicks(Math.max(target.getFireTicks(), (int)Math.round(fireSeconds * 20.0)));
          }
 
          target.getWorld().spawnParticle(Particle.FLAME, target.getLocation().add(0.0, 1.0, 0.0), 18, 0.35, 0.45, 0.35, 0.03);
@@ -4276,10 +4290,13 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
     }
 
     private void startIgniteTicks(Unit unit, Mob mob, LivingEntity target, IgniteContext context) {
-        int durationSeconds = (int) flameOption(unit, "IGNITE", "duration-seconds", 8.0, 2.0, 30.0);
+        double durationSeconds = Math.min(30.0,
+            flameOption(unit, "IGNITE", "duration-seconds", 8.0, 2.0, 30.0)
+                + fireSpellbookBurnBonus(unit));
+        int durationTicks = (int)Math.round(durationSeconds * 20.0);
         int intervalTicks = (int) Math.min(
-            flameOption(unit, "IGNITE", "pulse-interval-ticks", 40.0, 20.0, 200.0), durationSeconds * 20.0);
-        int pulseCount = Math.max(1, (int) Math.ceil(durationSeconds * 20.0 / intervalTicks));
+            flameOption(unit, "IGNITE", "pulse-interval-ticks", 40.0, 20.0, 200.0), durationTicks);
+        int pulseCount = Math.max(1, (int) Math.ceil((double)durationTicks / intervalTicks));
         BukkitTask task = new BukkitRunnable() {
             private int pulses;
 
@@ -4912,23 +4929,26 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         }
     }
 
-    private void fireIlluminationVolley(Unit unit, Mob mob, LivingEntity target, Player owner) {
+    private void fireIlluminationVolley(Unit unit, Mob mob, Player owner) {
         String skill = "ILLUMINATION";
-        int baseArrowCount = (int) skillOptionDouble(unit, skill, "base-arrow-count", 1.0, 1.0, 20.0);
-        int levelsPerArrow = (int) skillOptionDouble(unit, skill, "levels-per-extra-arrow", 5.0, 1.0, 30.0);
-        int arrowCount = Math.min(20, baseArrowCount + unit.level / levelsPerArrow + rangerSpyglassArrowBonus(unit));
-        double radius = skillOptionDouble(unit, skill, "spread-radius-blocks", 5.0, 0.0, 16.0);
+        int arrowCount = illuminationArrowCount(unit);
+        double minimumSpacing = skillOptionDouble(unit, skill, "minimum-torch-spacing-blocks", 3.0, 1.5, 8.0);
+        double maxRange = skillOptionDouble(unit, skill, "range-blocks", 20.8, 4.0, 64.0);
+        double maxRingRadius = Math.max(1.0, maxRange * 0.45);
+        double configuredRadius = skillOptionDouble(unit, skill, "spread-radius-blocks", 5.0, 0.0, 16.0);
+        double requiredRadius = arrowCount <= 1 ? 0.0
+            : minimumSpacing / (2.0 * Math.sin(Math.PI / arrowCount));
+        double radius = Math.min(maxRingRadius, Math.max(configuredRadius, requiredRadius));
         double angle = Math.toRadians(skillOptionDouble(unit, skill, "upward-angle-degrees", 55.0, 10.0, 85.0));
         double speedMultiplier = skillOptionDouble(unit, skill, "speed-multiplier", 1.0, 0.5, 2.0);
         Vector origin = mob.getEyeLocation().toVector();
-        Vector targetPosition = target.getLocation().toVector();
-        java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+        Location center = mob.getLocation();
+        double startAngle = ThreadLocalRandom.current().nextDouble(Math.PI * 2.0);
 
         for (int index = 0; index < arrowCount; index++) {
-            double spreadAngle = random.nextDouble(Math.PI * 2.0);
-            double spreadDistance = radius * Math.sqrt(random.nextDouble());
-            Vector landingPoint = targetPosition.clone().add(new Vector(
-                Math.cos(spreadAngle) * spreadDistance, 0.0, Math.sin(spreadAngle) * spreadDistance));
+            double spreadAngle = startAngle + Math.PI * 2.0 * index / arrowCount;
+            Vector landingPoint = center.toVector().add(new Vector(
+                Math.cos(spreadAngle) * radius, 0.0, Math.sin(spreadAngle) * radius));
             Vector horizontal = landingPoint.subtract(origin.clone());
             horizontal.setY(0.0);
             double horizontalDistance = Math.max(1.0, horizontal.length());
@@ -4950,6 +4970,17 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         announceSkillCast(unit, owner, skill, Particle.FLAME);
     }
 
+   private int illuminationArrowCount(Unit unit) {
+      int base = (int)skillOptionDouble(unit, "ILLUMINATION", "base-arrow-count", 1.0, 1.0, 20.0);
+      int levelsPerArrow = (int)skillOptionDouble(unit, "ILLUMINATION", "levels-per-extra-arrow", 5.0, 1.0, 30.0);
+      int arrows = Math.min(20, base + unit.level / levelsPerArrow + rangerSpyglassArrowBonus(unit));
+      double minimumSpacing = skillOptionDouble(unit, "ILLUMINATION", "minimum-torch-spacing-blocks", 3.0, 1.5, 8.0);
+      double maxRingRadius = Math.max(1.0,
+         skillOptionDouble(unit, "ILLUMINATION", "range-blocks", 20.8, 4.0, 64.0) * 0.45);
+      while (arrows > 1 && 2.0 * maxRingRadius * Math.sin(Math.PI / arrows) < minimumSpacing) arrows--;
+      return arrows;
+   }
+
    private double illuminationCooldownSeconds(MercenaryManager.Unit unit) {
       double cooldown = this.skillOptionDouble(unit, "ILLUMINATION", "cooldown-seconds", 30.0, 1.0, 3600.0);
       double reduction = this.skillOptionDouble(unit, "ILLUMINATION", "cooldown-reduction-per-level-seconds", 0.2, 0.0, 30.0) * (unit.level - 1);
@@ -4959,11 +4990,16 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
 
     private boolean canUseIlluminationInCurrentLight(Mob mob) {
         if (!settings.getBoolean("classes.ranger.skill-settings.ILLUMINATION.darkness-only", true)) return true;
-        long time = mob.getWorld().getTime();
-        if (time >= 13_000L && time <= 23_000L) return true;
         int threshold = (int) readBoundedDouble(settings,
             "classes.ranger.skill-settings.ILLUMINATION.low-light-threshold", 7.0, 0.0, 15.0);
         return mob.getLocation().getBlock().getLightLevel() <= threshold;
+    }
+
+    private boolean hasNearbyTemporaryTorch(World world, int x, int z, double minimumSpacing) {
+        double spacingSquared = minimumSpacing * minimumSpacing;
+        return temporaryTorches.values().stream().anyMatch(torch ->
+            torch.worldName.equals(world.getName())
+                && (torch.x - x) * (double)(torch.x - x) + (torch.z - z) * (double)(torch.z - z) < spacingSquared);
     }
 
    @EventHandler
@@ -4975,6 +5011,12 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
 
         Block torchBlock = hitBlock.getRelative(org.bukkit.block.BlockFace.UP);
         if (!hitBlock.getType().isSolid() || !torchBlock.getType().isAir()) return;
+        double minimumSpacing = skillOptionDoubleForRanger(
+            "ILLUMINATION", "minimum-torch-spacing-blocks", 3.0, 1.5, 8.0);
+        if (hasNearbyTemporaryTorch(torchBlock.getWorld(), torchBlock.getX(), torchBlock.getZ(), minimumSpacing)) {
+            arrow.remove();
+            return;
+        }
         torchBlock.setType(Material.TORCH, false);
         Unit unit = null;
         if (arrow.getShooter() instanceof Mob mob) {
@@ -5415,7 +5457,66 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
    }
 
    private int druidSpellbookVexBonus(Unit unit) {
-      return "druid".equals(unit.unitClass) ? Math.min(2, offhandGearQuality(unit, "druid") / 4) : 0;
+      int quality = equippedOffhandSpellbookQuality(unit, "druid");
+      return quality < 0 ? 0 : druidSpellbookVexBonus(
+         soldierGearValue(unit.equipment.get(EquipmentSlot.OFF_HAND), soldierGearMaterialKey),
+         soldierGearStars(unit.equipment.get(EquipmentSlot.OFF_HAND)));
+   }
+
+   private int equippedOffhandSpellbookQuality(Unit unit, String classId) {
+      if (unit == null || !classId.equals(unit.unitClass)) return -1;
+      ItemStack item = unit.equipment.get(EquipmentSlot.OFF_HAND);
+      if (!validSoldierGear(item, EquipmentSlot.OFF_HAND)
+            || !classId.equals(soldierGearValue(item, soldierGearClassKey))) return -1;
+      return gearQuality(soldierGearValue(item, soldierGearMaterialKey), soldierGearStars(item));
+   }
+
+   private int druidSpellbookVexBonus(String material, int stars) {
+      if (normalizeGearMaterial(material) == null || stars < 1 || stars > 5) return 0;
+      int quality = gearQuality(material, stars);
+      double base = readBoundedDouble(settings,
+         "gear-system.spellbook-effects.druid.base-vex-bonus", 1.0, 0.0, 10.0);
+      double perQuality = readBoundedDouble(settings,
+         "gear-system.spellbook-effects.druid.extra-vex-per-quality", 0.5, 0.0, 5.0);
+      int maximum = (int)readBoundedDouble(settings,
+         "gear-system.spellbook-effects.druid.maximum-vex-bonus", 5.0, 0.0, 10.0);
+      return Math.min(maximum, (int)Math.floor(base + quality * perQuality));
+   }
+
+   private double frostSpellbookControlBonus(Unit unit) {
+      int quality = equippedOffhandSpellbookQuality(unit, "frost_mage");
+      return quality < 0 ? 0.0 : frostSpellbookControlBonus(
+         soldierGearValue(unit.equipment.get(EquipmentSlot.OFF_HAND), soldierGearMaterialKey),
+         soldierGearStars(unit.equipment.get(EquipmentSlot.OFF_HAND)));
+   }
+
+   private double frostSpellbookControlBonus(String material, int stars) {
+      if (normalizeGearMaterial(material) == null || stars < 1 || stars > 5) return 0.0;
+      return spellbookQualityBonus("frost_mage", "control-duration-base-seconds",
+         "control-duration-per-quality-seconds", material, stars, 0.5, 0.25, 5.0);
+   }
+
+   private double fireSpellbookBurnBonus(Unit unit) {
+      int quality = equippedOffhandSpellbookQuality(unit, "pyromancer");
+      return quality < 0 ? 0.0 : fireSpellbookBurnBonus(
+         soldierGearValue(unit.equipment.get(EquipmentSlot.OFF_HAND), soldierGearMaterialKey),
+         soldierGearStars(unit.equipment.get(EquipmentSlot.OFF_HAND)));
+   }
+
+   private double fireSpellbookBurnBonus(String material, int stars) {
+      if (normalizeGearMaterial(material) == null || stars < 1 || stars > 5) return 0.0;
+      return spellbookQualityBonus("pyromancer", "burn-duration-base-seconds",
+         "burn-duration-per-quality-seconds", material, stars, 0.5, 0.25, 5.0);
+   }
+
+   private double spellbookQualityBonus(String classId, String baseKey, String qualityKey,
+         String material, int stars, double baseDefault, double qualityDefault, double maximum) {
+      int quality = gearQuality(material, stars);
+      double base = readBoundedDouble(settings,
+         "gear-system.spellbook-effects." + classId + "." + baseKey, baseDefault, 0.0, maximum);
+      double perQuality = readBoundedDouble(settings,
+         "gear-system.spellbook-effects." + classId + "." + qualityKey, qualityDefault, 0.0, maximum);
+      return Math.min(maximum, base + quality * perQuality);
    }
 
    private int rangerSpyglassArrowBonus(Unit unit) {
@@ -6977,13 +7078,13 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       holder.gearStars = stars;
       holder.gearSet = setId;
 
-      List<EquipmentSlot> classSlots = this.soldierGearSlots(classId);
+      List<EquipmentSlot> classSlots = this.soldierGearDefinitionSlots(classId);
       for (int index = 0; index < classSlots.size(); index++) {
          EquipmentSlot equipmentSlot = classSlots.get(index);
          ItemStack preview = this.createSoldierGearItem(classId, material, stars, setId, equipmentSlot);
          int slot = 10 + index;
          holder.choices.put(slot, this.gearSlotCommandName(equipmentSlot));
-         holder.inventory.setItem(slot, this.menuItem(preview.getType(), this.gearSlotDisplayName(equipmentSlot), preview.getItemMeta().getLore()));
+         holder.inventory.setItem(slot, this.menuItem(preview.getType(), gearItemName(classId, equipmentSlot), preview.getItemMeta().getLore()));
       }
 
       holder.inventory.setItem(25, this.menuItem(Material.CHEST, "§aGive trọn set", List.of("§7Cấp đủ " + classSlots.size() + " ô trang bị hợp lệ.")));
@@ -6997,13 +7098,14 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       ItemStack item = new ItemStack(itemMaterial);
       ItemMeta meta = item.getItemMeta();
       String setName = this.settings.getString("gear-system.sets." + classId + "." + setId + ".display-name", setId);
-      meta.setDisplayName("§b" + this.gearSlotDisplayName(slot) + " §7• §e" + this.gearMaterialDisplay(material) + " " + "★".repeat(stars));
+      String displayName = gearItemName(classId, slot);
+      meta.setDisplayName("§b" + displayName + " §7• §e" + this.gearMaterialDisplay(material) + " " + "★".repeat(stars));
       List<String> lore = new ArrayList<>(
          List.of(
             "§7Dành riêng cho lính: §f" + this.classDisplay(classId),
             "§7Set: §f" + setName + " §8(" + setId + ")",
             "§7Vật liệu: §f" + this.gearMaterialDisplay(material) + " §8| §7Bậc sao: §e" + stars,
-            "§7Ô trang bị: §f" + this.gearSlotDisplayName(slot)
+            "§7Vị trí: §f" + gearSlotDescription(classId, slot)
          )
       );
       meta.getPersistentDataContainer().set(this.soldierGearKey, PersistentDataType.BYTE, (byte)1);
@@ -7014,9 +7116,12 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       meta.getPersistentDataContainer().set(this.soldierGearStarsKey, PersistentDataType.INTEGER, stars);
       meta.getPersistentDataContainer().set(this.soldierGearSetKey, PersistentDataType.STRING, setId);
       meta.getPersistentDataContainer().set(this.soldierGearSlotKey, PersistentDataType.STRING, slot.name());
+      if (isDualWieldClass(classId)) {
+         meta.getPersistentDataContainer().set(this.soldierGearDualHandKey, PersistentDataType.BYTE, (byte)1);
+      }
       item.setItemMeta(meta);
       lore.addAll(this.soldierGearLore(this.soldierGearItemStats(item)));
-      String roleLore = soldierGearRoleLore(classId, material, stars, slot);
+      String roleLore = soldierGearRoleLore(classId, material, stars, slot, this.soldierGearItemStats(item));
       if (roleLore != null) lore.add(roleLore);
       lore.add("§8Item dành cho lính đánh thuê; người chơi không thể trang bị.");
       lore.add("§8System merchant: " + this.generatedGearSellValue + " VNCOIN/item.");
@@ -7026,34 +7131,75 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       return item;
    }
 
-   private String soldierGearRoleLore(String classId, String material, int stars, EquipmentSlot slot) {
+   private String soldierGearRoleLore(String classId, String material, int stars, EquipmentSlot slot, GearStats itemStats) {
       if (slot == EquipmentSlot.OFF_HAND) {
          return switch (classId) {
-            case "archer" -> "§eBùa may mắn: cộng sát thương đòn bắn thường bằng cung.";
-            case "assassin", "berserker" -> "§eSong vũ khí: chỉ số gear hai tay được cộng dồn.";
-            case "druid" -> "§aSách phép: +" + Math.min(2, gearQuality(material, stars) / 4) + " Vex tối đa theo vật liệu/sao.";
-            case "frost_mage" -> "§bSách phép: tăng sát thương băng và hiệu quả kỹ năng.";
+            case "archer" -> "§eBùa May Mắn: tăng " + formatStat(itemStats.damagePercent()) + "% sát thương đòn bắn thường bằng cung.";
+            case "druid" -> "§aSách Triệu Hồi: tăng giới hạn " + druidSpellbookVexBonus(material, stars)
+               + " Vex khi trang bị; tổng giới hạn còn chịu mức tối đa của class.";
+            case "frost_mage" -> "§bSách Băng Thuật: +" + formatStat(itemStats.frostDamagePercent())
+               + "% sát thương kỹ năng băng, giảm " + formatStat(itemStats.cooldownReductionPercent())
+               + "% hồi chiêu và kéo dài làm chậm của Bão Tuyết, Băng Nộ, Tường Băng thêm "
+               + formatStat(frostSpellbookControlBonus(material, stars)) + " giây.";
             case "guardian", "paladin" -> "§bKhiên: chỉ số phòng thủ của bộ gear được cộng vào lính.";
-            case "medic" -> "§dSách phép: tăng hiệu quả hồi máu và giảm hồi chiêu.";
-            case "pyromancer" -> "§cSách phép: tăng sát thương hỏa và hiệu quả kỹ năng.";
+            case "medic" -> "§dSách Y Thuật: tăng lượng hồi máu từ kỹ năng "
+               + formatStat(itemStats.healingPercent()) + "% và giảm hồi chiêu kỹ năng "
+               + formatStat(itemStats.cooldownReductionPercent()) + "%.";
+            case "pyromancer" -> "§cSách Hỏa Thuật: +" + formatStat(itemStats.fireDamagePercent())
+               + "% sát thương kỹ năng lửa; hiệu ứng cháy từ Hỏa Cầu và Thiêu Đốt kéo dài thêm "
+               + formatStat(fireSpellbookBurnBonus(material, stars)) + " giây.";
             case "ranger" -> "§eỐng nhòm: +" + Math.min(3, gearQuality(material, stars) / 3)
-               + " tên soi sáng, +" + gearQuality(material, stars) * 5 + " giây đuốc; gear tăng tầm.";
+               + " mũi tên Soi Sáng, đuốc tồn tại thêm " + gearQuality(material, stars) * 5
+               + " giây, tầm đánh +" + formatStat(itemStats.attackRangeBlocks()) + " block.";
             default -> null;
          };
       }
       if (slot == EquipmentSlot.HAND) {
          return switch (classId) {
-            case "archer" -> "§eCung: vũ khí chính của Xạ Thủ.";
-            case "druid" -> "§aTrượng đinh ba: chất liệu hiển thị là đinh ba; sức mạnh theo bậc gear.";
-            case "frost_mage" -> "§bCầu băng: quả cầu tuyết dùng làm vật phẩm tay chính.";
-            case "medic" -> "§dBình thuốc: vật phẩm tay chính của Y Sư.";
-            case "paladin" -> "§bGiáo: vũ khí chính của Kỵ sĩ.";
-            case "pyromancer" -> "§cCầu lửa: fire charge dùng làm vật phẩm tay chính.";
-            case "ranger" -> "§eNỏ: vũ khí chính của Trinh Sát.";
+            case "archer" -> "§eCung Xạ Thủ: tăng sát thương bắn theo chỉ số gear của class.";
+            case "guardian" -> "§bKiếm Vệ Binh: vũ khí cận chiến chính.";
+            case "medic" -> "§dBình Dược Y Sư: vật phẩm nhận diện vai trò; bonus hồi máu nằm trên Sách Y Thuật.";
+            case "berserker" -> "§6Rìu Chiến: dùng được ở cả tay chính và tay phụ; mỗi tay được trang bị sẽ cộng dồn chỉ số.";
+            case "ranger" -> "§eNỏ Trinh Sát: bắn mục tiêu; Ống Nhòm hỗ trợ tầm và kỹ năng Soi Sáng.";
+            case "paladin" -> "§bGiáo Kỵ Sĩ: vũ khí riêng của Kỵ sĩ, nâng vật liệu theo bậc gear.";
+            case "pyromancer" -> "§cHỏa Cầu Pháp Sư: vũ khí phép; hiệu ứng sách được ghi trên Sách Hỏa Thuật.";
+            case "druid" -> "§aTrượng Rừng: vũ khí phép của Tu Sĩ Rừng; Sách Triệu Hồi tăng giới hạn Vex.";
+            case "assassin" -> "§5Song Kiếm Sát Thủ: một mẫu kiếm dùng được ở cả hai tay; chỉ số hai tay cộng dồn.";
+            case "frost_mage" -> "§bCầu Băng: vật phẩm phép của Pháp Sư Băng; hiệu ứng sách ghi trên Sách Băng Thuật.";
             default -> null;
          };
       }
       return null;
+   }
+
+   private boolean isDualWieldClass(String classId) {
+      return "assassin".equals(classId) || "berserker".equals(classId);
+   }
+
+   private String gearItemName(String classId, EquipmentSlot slot) {
+      if (slot == EquipmentSlot.HAND || slot == EquipmentSlot.OFF_HAND) {
+         return switch (classId) {
+            case "archer" -> slot == EquipmentSlot.HAND ? "Cung Xạ Thủ" : "Bùa May Mắn Xạ Thủ";
+            case "guardian" -> slot == EquipmentSlot.HAND ? "Kiếm Vệ Binh" : "Khiên Vệ Binh";
+            case "medic" -> slot == EquipmentSlot.HAND ? "Bình Dược Y Sư" : "Sách Y Thuật";
+            case "berserker" -> "Rìu Chiến Cuồng Chiến · Dùng Được Hai Tay";
+            case "ranger" -> slot == EquipmentSlot.HAND ? "Nỏ Trinh Sát" : "Ống Nhòm Trinh Sát";
+            case "paladin" -> slot == EquipmentSlot.HAND ? "Giáo Kỵ Sĩ" : "Khiên Kỵ Sĩ";
+            case "pyromancer" -> slot == EquipmentSlot.HAND ? "Hỏa Cầu Pháp Sư" : "Sách Hỏa Thuật";
+            case "druid" -> slot == EquipmentSlot.HAND ? "Trượng Rừng" : "Sách Triệu Hồi Vex";
+            case "assassin" -> "Song Kiếm Sát Thủ · Dùng Được Hai Tay";
+            case "frost_mage" -> slot == EquipmentSlot.HAND ? "Cầu Băng Pháp Sư" : "Sách Băng Thuật";
+            default -> gearSlotDisplayName(slot);
+         };
+      }
+      return gearSlotDisplayName(slot);
+   }
+
+   private String gearSlotDescription(String classId, EquipmentSlot slot) {
+      if (isDualWieldClass(classId) && (slot == EquipmentSlot.HAND || slot == EquipmentSlot.OFF_HAND)) {
+         return "tay chính hoặc tay phụ; trang bị hai bản sẽ cộng dồn chỉ số";
+      }
+      return slot == EquipmentSlot.HAND ? "tay chính" : slot == EquipmentSlot.OFF_HAND ? "tay phụ" : gearSlotDisplayName(slot);
    }
 
    public List<AdminMercenaryItem> getAdminRpgItems() {
@@ -7064,7 +7210,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
          for (String setId : gearSetIds(classId)) {
             for (String material : GEAR_MATERIALS) {
                for (int stars = 1; stars <= 5; stars++) {
-                  for (EquipmentSlot slot : soldierGearSlots(classId)) {
+                  for (EquipmentSlot slot : soldierGearDefinitionSlots(classId)) {
                      ItemStack item;
                      try {
                         item = createSoldierGearItem(classId, material, stars, setId, slot);
@@ -7076,7 +7222,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      }
                      String id = "army-gear/" + classId + "/" + setId + "/" + material + "/" + stars
                         + "/" + slot.name().toLowerCase(Locale.ROOT);
-                     String name = gearSlotDisplayName(slot) + " • " + gearMaterialDisplay(material) + " "
+                     String name = gearItemName(classId, slot) + " • " + gearMaterialDisplay(material) + " "
                         + "★".repeat(stars) + " • " + classDisplay(classId);
                      result.add(new AdminMercenaryItem(id, name, item.getType(), item, "Lính đánh thuê • gear"));
                   }
@@ -7122,7 +7268,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
          String classId = classIds.get(random.nextInt(classIds.size()));
          List<String> setIds = this.gearSetIds(classId);
          String setId = setIds.get(random.nextInt(setIds.size()));
-         List<EquipmentSlot> classSlots = this.soldierGearSlots(classId);
+         List<EquipmentSlot> classSlots = this.soldierGearDefinitionSlots(classId);
          List<ItemStack> gearItems = new ArrayList<>(classSlots.size());
 
          for (EquipmentSlot slot : classSlots) {
@@ -7208,10 +7354,6 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
 
          String weapon = configured.toUpperCase(Locale.ROOT);
          if ("AIR".equals(weapon) || "NONE".equals(weapon)) return null;
-         if (slot == EquipmentSlot.HAND && ("WOODEN_SPEAR".equals(weapon) || "IRON_SPEAR".equals(weapon))) {
-            weapon = "WOODEN_SPEAR".equals(weapon) ? "STICK" : "TRIDENT";
-         }
-
          if (weapon.matches("(WOODEN|COPPER|IRON|GOLDEN|DIAMOND|NETHERITE)_.+")) {
             int separator = weapon.indexOf(95);
             String weaponSuffix = weapon.substring(separator + 1);
@@ -7245,6 +7387,12 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       Material offhand = soldierGearMaterial(classId, "iron", EquipmentSlot.OFF_HAND);
       if (offhand != null && !offhand.isAir()) slots.add(EquipmentSlot.OFF_HAND);
       return List.copyOf(slots);
+   }
+
+   private List<EquipmentSlot> soldierGearDefinitionSlots(String classId) {
+      return soldierGearSlots(classId).stream()
+         .filter(slot -> !(isDualWieldClass(classId) && slot == EquipmentSlot.OFF_HAND))
+         .toList();
    }
 
    private boolean isSoldierGear(ItemStack item) {
@@ -7305,7 +7453,12 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
       String itemSlot = this.soldierGearValue(item, this.soldierGearSlotKey);
       String tier = this.normalizeGearMaterial(this.soldierGearValue(item, this.soldierGearMaterialKey));
       Material expectedMaterial = classId == null || tier == null ? null : this.soldierGearMaterial(classId, tier, slot);
-      return slot.name().equals(itemSlot)
+      boolean flexibleHands = item.getItemMeta().getPersistentDataContainer()
+         .getOrDefault(this.soldierGearDualHandKey, PersistentDataType.BYTE, (byte)0) == 1;
+      boolean slotMatches = slot.name().equals(itemSlot)
+         || flexibleHands && isDualWieldClass(classId)
+            && (slot == EquipmentSlot.HAND || slot == EquipmentSlot.OFF_HAND);
+      return slotMatches
          && classId != null
          && this.soldierGearSlots(classId).contains(slot)
          && tier != null
@@ -8590,13 +8743,15 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             + " khỏi chủ nhân";
          case "FIRE_BOLT" -> this.skillDamageDescription(unit, this.skillOptionDouble(unit, skill, "damage", 6.0, 0.0, 100.0), 0.0, power, 100.0, true)
             + " và đốt mục tiêu trong "
-            + (int)this.skillOptionDouble(unit, skill, "fire-seconds", 3.0, 0.0, 15.0)
+            + formatStat(Math.min(15.0, this.skillOptionDouble(unit, skill, "fire-seconds", 3.0, 0.0, 15.0)
+               + fireSpellbookBurnBonus(unit)))
             + " giây";
          case "FLAME_BOLT" -> "Phóng hỏa cầu gây " + this.flameDamageDescription(unit, skill, "damage", 6.0) + "; giảm 20% tốc độ trong 3 giây";
          case "IGNITE" -> "Thiêu đốt gây "
             + this.flameDamageDescription(unit, skill, "damage-per-pulse", 2.5)
             + " mỗi 2 giây trong "
-            + (int)this.flameOption(unit, skill, "duration-seconds", 8.0, 2.0, 30.0)
+            + formatStat(Math.min(30.0, this.flameOption(unit, skill, "duration-seconds", 8.0, 2.0, 30.0)
+               + fireSpellbookBurnBonus(unit)))
             + " giây, lây tối đa "
             + (int)this.flameOption(unit, skill, "max-spread-targets", 6.0, 1.0, 24.0)
             + " mục tiêu";
@@ -8681,13 +8836,12 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             + formatStat(this.skillOptionDouble(unit, skill, "radius-blocks", 4.0, 1.0, 12.0))
             + " block";
          case "ILLUMINATION" -> "Bắn "
-            + Math.min(
-               20,
-               (int)this.skillOptionDouble(unit, skill, "base-arrow-count", 1.0, 1.0, 20.0)
-                  + unit.level / (int)this.skillOptionDouble(unit, skill, "levels-per-extra-arrow", 5.0, 1.0, 30.0)
-            )
-            + " tên lửa rơi quanh mục tiêu, cắm đuốc "
-            + (int)this.skillOptionDouble(unit, skill, "torch-duration-seconds", 30.0, 1.0, 600.0)
+            + illuminationArrowCount(unit)
+            + " tên lửa rơi quanh vị trí Trinh Sát khi thiếu sáng, giữ đuốc cách nhau tối thiểu "
+            + formatStat(this.skillOptionDouble(unit, skill, "minimum-torch-spacing-blocks", 3.0, 1.5, 8.0))
+            + " block trong "
+            + Math.min(600, (int)this.skillOptionDouble(unit, skill, "torch-duration-seconds", 30.0, 1.0, 600.0)
+               + rangerSpyglassTorchBonus(unit))
             + " giây, tầm "
             + formatStat(this.skillOptionDouble(unit, skill, "range-blocks", 20.8, 4.0, 64.0))
             + " block";
@@ -8700,9 +8854,11 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             + this.frostDamageDescription(unit, skill, 3.0)
             + " mỗi nhịp trong bán kính "
             + formatStat(this.skillOptionDouble(unit, skill, "radius-blocks", 4.0, 1.0, 12.0))
-            + " block, kéo dài "
+            + " block, bão kéo dài "
             + this.frostDurationTicks(unit, skill, 3.0, 1.0, 12.0) / 20
-            + " giây";
+            + " giây; làm chậm mỗi nhịp "
+            + formatStat(skillOptionDouble(unit, skill, "slowness-duration-ticks", 40.0, 10.0, 200.0) / 20.0
+               + frostSpellbookControlBonus(unit)) + " giây";
          case "FROST_NOVA" -> "Làm chậm mục tiêu quanh lính trong "
             + this.frostDurationTicks(unit, skill, 3.0, 1.0, 10.0) / 20
             + " giây, bán kính "
@@ -8725,6 +8881,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                   30.0,
                   this.skillOptionDouble(unit, skill, "slowness-duration-seconds", 3.0, 0.1, 30.0)
                      + Math.max(0, unit.level - 1) * this.skillOptionDouble(unit, skill, "slowness-duration-increase-per-level-seconds", 0.1, 0.0, 10.0)
+                     + frostSpellbookControlBonus(unit)
                )
             )
             + " giây";
@@ -10196,13 +10353,17 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
 
    private void giveSoldierGear(Player target, String classId, String material, int stars, String setId, String itemSlot) {
       if (itemSlot.equals("set")) {
-         for (EquipmentSlot slot : soldierGearSlots(classId)) {
+         for (EquipmentSlot slot : soldierGearDefinitionSlots(classId)) {
             this.giveItem(target, this.createSoldierGearItem(classId, material, stars, setId, slot));
          }
       } else {
          EquipmentSlot slot = this.parseGearSlot(itemSlot);
          if (slot == null || !soldierGearSlots(classId).contains(slot)) {
             throw new IllegalArgumentException("Unsupported mercenary gear slot.");
+         }
+
+         if (isDualWieldClass(classId) && (slot == EquipmentSlot.HAND || slot == EquipmentSlot.OFF_HAND)) {
+            slot = EquipmentSlot.HAND;
          }
 
          this.giveItem(target, this.createSoldierGearItem(classId, material, stars, setId, slot));
@@ -10617,14 +10778,6 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
    private ItemStack configuredStartingWeapon(MercenaryManager.Unit unit) {
       String configuredWeapon = this.settings.getString("classes." + unit.unitClass + ".starting-weapon", "");
       Material material = Material.matchMaterial(configuredWeapon);
-      if (material == null && "paladin".equals(unit.unitClass) && "IRON_SPEAR".equalsIgnoreCase(configuredWeapon)) {
-         material = Material.TRIDENT;
-      }
-
-      if (material == null && "paladin".equals(unit.unitClass) && "WOODEN_SPEAR".equalsIgnoreCase(configuredWeapon)) {
-         material = Material.STICK;
-      }
-
       return material != null && !material.isAir() ? this.markNativeSoldierGear(new ItemStack(material), unit.unitClass, EquipmentSlot.HAND) : null;
    }
 

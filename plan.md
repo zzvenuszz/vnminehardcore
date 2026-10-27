@@ -41,6 +41,16 @@
 - [x] **Build 2.24.0:** Maven `clean package -DskipTests` thành công bằng JDK 25 lúc `2026-10-27 10:45:18 UTC`; biên dịch 55 file Java, test suite được bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.24.0.jar` (2,239,242 bytes), SHA-256 `5c34fe4dc406d3171f6708fcb3e89843ddc69d1f993a565e851ba455bf3868a`; `plugin.yml` xác nhận 2.24.0 và archive chỉ chứa SQLite native Linux x86_64. Đã cài tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.24.0.jar`, sao lưu 2.23.0 tại `.old-builds/VnMineHardcore-2.23.0.jar`.
 - [ ] **Kiểm thử Paper:** xác nhận thứ tự Chủng tộc → Class → sách, icon gear/token khớp menu quân đội/thuê lính, lọc boss, thao tác quay lại/phân trang và cấp item; chưa kiểm thử gameplay trên server.
 
+## Chỉnh sửa gear và kỹ năng lính — yêu cầu 2026-10-27
+
+- [x] Kỵ sĩ dùng spear material riêng từ Paper 26.3 (`WOODEN/COPPER/IRON/GOLDEN/DIAMOND/NETHERITE_SPEAR`) cho gear và vũ khí bắt đầu; bỏ đường quy đổi spear thành trident. Tự sửa cấu hình cũ nếu `paladin.mainhand` đang là `TRIDENT`.
+- [x] Đặt tên gear theo vai trò thay cho nhãn tay chính/tay phụ chung chung. Sát Thủ/Chiến binh chỉ sinh một mẫu song kiếm/song rìu, có thể đặt ở một trong hai tay; marker gear cho phép equip ở cả hai slot và chỉ số sẽ cộng dồn nếu lính dùng hai bản.
+- [x] Làm rõ và áp dụng bonus sách phép theo chất lượng vật liệu/sao: sách Tu Sĩ Rừng tăng giới hạn Vex theo cấu hình; sách Băng tăng sát thương và giảm hồi chiêu theo chỉ số gear, đồng thời kéo dài hiệu ứng làm chậm của Bão Tuyết/Băng Nộ/Tường Băng; sách Y Thuật ghi rõ lượng hồi máu và giảm hồi chiêu; sách Hỏa Thuật tăng sát thương lửa và thời gian cháy từ Hỏa Cầu/Thiêu Đốt. Giá trị và hiệu ứng hiện rõ trong lore item.
+- [x] Trinh Sát tự kích hoạt Soi Sáng khi ánh sáng quanh lính thấp, không cần mục tiêu; tên được bố trí theo vòng quanh lính, số lượng tự giảm nếu cần để giữ khoảng cách, và sự kiện đặt đuốc chặn vị trí quá gần các đuốc tạm đang tồn tại. Khoảng cách mặc định 3 block, chỉnh được trong `armies.yml`.
+- [x] Đổi version nguồn lên 2.25.0; `mvn -DskipTests clean package` thành công bằng JDK 25 lúc `2026-10-27 11:11:14 UTC`, biên dịch 55 file Java; test suite được bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.25.0.jar` (2,242,966 bytes), SHA-256 `20dca1d90bd0e5bde57ee7ed5a2f0a98413a8bce482e75c06b8f16fbc2333964`; metadata xác nhận Paper API 26.3 và archive chỉ chứa SQLite native Linux x86_64 cùng service metadata.
+- [x] Đã sao lưu `VnMineHardcore-2.24.0.jar` vào `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/` và cài JAR 2.25.0 vào `/home/ubuntu/DATA/VNMINE/plugins/`; xác nhận file cài trùng byte với artifact build.
+- [ ] **Kiểm thử Paper:** xem spear trong menu thuê/give gear và lúc lính cầm; thử gear song kiếm/song rìu ở một hoặc cả hai tay; so lore và chỉ số từng vật liệu/sao; xác nhận sách tăng đúng Vex/heal/damage/cooldown/duration; kiểm tra ranger soi sáng ban đêm và trong hang không có mục tiêu, các đuốc cách nhau và tự dọn sau thời hạn.
+
 > Tài liệu này ghi nhận các vấn đề và đề xuất từ đợt rà soát mã nguồn, đồng thời xác định lộ trình hoàn thiện plugin cho server Minecraft RPG hardcore. Đây là kế hoạch triển khai; các hạng mục dưới đây không được coi là đã có trong mã hiện tại nếu chưa được triển khai và kiểm chứng.
 
 ## 1. Quyết định thiết kế đã chốt
