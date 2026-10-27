@@ -31,6 +31,16 @@
 - [ ] **Cần kiểm thử Paper:** mở từng menu trong tuyến Menu chính → Admin → Người chơi → hồ sơ → Give item RPG; thử single/full-set, offline và inventory đầy; xác minh các class không bị gán shield, gear tier/star hiển thị đúng, tay phụ được lưu/trang bị, chỉ số hai tay cộng dồn và bonus cung/Vex/băng/hỏa/hồi máu/cooldown/range/đuốc.
 - [ ] **Cần rà soát thêm:** kiểm tra crafting/recipe cho gear lính. Luồng hiện tại tạo item qua admin GUI; cấu hình recipe chế tạo theo nguyên liệu chưa có trong thay đổi này và cần thiết kế riêng nếu muốn người chơi tự chế gear.
 
+### Chỉnh sửa menu theo phản hồi admin — 2026-10-27
+
+- [x] Sách kỹ năng trong Give item RPG đi theo Chủng tộc → Class → sách; danh sách sách lấy từ SkillManager nên giữ kế thừa class và item factory/PDC hiện hành.
+- [x] Danh mục boss chỉ đưa vật phẩm khác biệt/hiếm vào picker; loại nguyên liệu phổ thông như kim cương, lục bảo, thỏi quặng và khử item trùng hoàn toàn.
+- [x] Menu give gear tái sử dụng tên, icon class và icon vật liệu từ cấu hình/menu quản lý quân đội; icon từng món lấy từ item gear thực tế đã tạo.
+- [x] Lệnh triệu hồi được phân theo Class → Bậc; dùng icon class và icon bậc giống menu thuê lính, sau đó cấp token gốc theo đúng class/bậc.
+- [x] Giữ chức năng admin hiện hữu, dùng chung nguồn dữ liệu cấu hình/factory của các menu quân đội thay vì thêm hệ thống item, gear hoặc token thứ hai.
+- [x] **Build 2.24.0:** Maven `clean package -DskipTests` thành công bằng JDK 25 lúc `2026-10-27 10:45:18 UTC`; biên dịch 55 file Java, test suite được bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.24.0.jar` (2,239,242 bytes), SHA-256 `5c34fe4dc406d3171f6708fcb3e89843ddc69d1f993a565e851ba455bf3868a`; `plugin.yml` xác nhận 2.24.0 và archive chỉ chứa SQLite native Linux x86_64. Đã cài tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.24.0.jar`, sao lưu 2.23.0 tại `.old-builds/VnMineHardcore-2.23.0.jar`.
+- [ ] **Kiểm thử Paper:** xác nhận thứ tự Chủng tộc → Class → sách, icon gear/token khớp menu quân đội/thuê lính, lọc boss, thao tác quay lại/phân trang và cấp item; chưa kiểm thử gameplay trên server.
+
 > Tài liệu này ghi nhận các vấn đề và đề xuất từ đợt rà soát mã nguồn, đồng thời xác định lộ trình hoàn thiện plugin cho server Minecraft RPG hardcore. Đây là kế hoạch triển khai; các hạng mục dưới đây không được coi là đã có trong mã hiện tại nếu chưa được triển khai và kiểm chứng.
 
 ## 1. Quyết định thiết kế đã chốt

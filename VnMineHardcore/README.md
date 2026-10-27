@@ -114,9 +114,13 @@ cấp bởi nhóm. Nhóm mặc định áp dụng cho người mới và `/vnuse
 
 Trong hồ sơ quản trị người chơi, chọn **Give item RPG** để mở danh mục theo
 nhóm: vật phẩm người chơi (quest, skill, boss, shop), trang bị lính hoặc lệnh
-triệu hồi. Trang bị lính đi theo Class → vật liệu → sao → set → món; chọn từng
-món để cấp riêng hoặc **Cấp nguyên set**. Luồng này hỗ trợ người nhận offline và
-xếp các món tràn inventory vào kho nhận bền vững.
+triệu hồi. Sách kỹ năng được lọc theo Chủng tộc → Class → sách; vật phẩm boss
+chỉ hiện các item đặc trưng/hiếm, bỏ nguyên liệu phổ thông và item trùng hoàn
+toàn. Lệnh triệu hồi đi theo Class → Bậc và dùng icon giống menu thuê lính.
+Trang bị lính đi theo Class → vật liệu → sao → set → món; tên và icon class/vật
+liệu lấy từ cấu hình quân đội, còn icon từng món là chính item gear được tạo.
+Chọn món để cấp riêng hoặc **Cấp nguyên set**. Luồng này hỗ trợ người nhận
+offline và xếp các món tràn inventory vào kho nhận bền vững.
 
 Trang bị lính có đủ sáu bậc vật liệu (da, đồng, sắt, vàng, kim cương, netherite)
 và 1–5 sao. Vật liệu không tồn tại cho kiểu vũ khí được giữ nguyên, còn sức mạnh
@@ -801,6 +805,9 @@ sát thương người chơi, thông báo và tỷ lệ. Chạy `/vnreload` sau 
 5. Gõ `/vnreload` để áp dụng thay đổi
 
 ## Changelog
+
+### v2.24.0
+- Chia sách kỹ năng theo chủng tộc → class, lọc danh mục boss còn vật phẩm hiếm và thống nhất icon gear/token với menu quân đội.
 
 ### v1.9.1
 - Đóng gói lại JAR từ resource hiện tại để khai báo đầy đủ các lệnh trong `plugin.yml`, tránh lỗi không tìm thấy command khi khởi động.

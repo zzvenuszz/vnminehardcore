@@ -9,6 +9,7 @@ import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -126,6 +127,19 @@ public final class CharacterSelectionManager implements Listener {
             .flatMap(List::stream)
             .map(ClassDefinition::id)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    public List<RaceDefinition> getRaceDefinitions() {
+        return races.values().stream()
+            .filter(race -> classesByRace.getOrDefault(race.id(), List.of()).stream().anyMatch(this::isClassSelectable))
+            .sorted(Comparator.comparing(RaceDefinition::name, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    }
+
+    public List<ClassDefinition> getClassDefinitions(String raceId) {
+        return classesByRace.getOrDefault(raceId, List.of()).stream()
+            .sorted(Comparator.comparing(ClassDefinition::name, String.CASE_INSENSITIVE_ORDER))
+            .toList();
     }
 
     /** Returns this class and configured ancestors, nearest parent first. */

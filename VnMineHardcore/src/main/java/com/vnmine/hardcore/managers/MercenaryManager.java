@@ -11018,6 +11018,48 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
         return classes == null ? List.of() : classes.getKeys(false).stream().sorted().toList();
     }
 
+    public List<String> getAdminClassIds() {
+        return getClassIds();
+    }
+
+    public String getAdminClassDisplayName(String classId) {
+        return classId == null ? "" : classDisplay(classId);
+    }
+
+    public Material getAdminClassIcon(String classId) {
+        Material icon = classId == null ? null
+            : Material.matchMaterial(settings.getString("classes." + classId + ".menu-icon", "IRON_SWORD"));
+        return icon == null || icon.isAir() ? Material.IRON_SWORD : icon;
+    }
+
+    public List<String> getAdminGearMaterialIds() {
+        return GEAR_MATERIALS;
+    }
+
+    public Material getAdminGearMaterialIcon(String material) {
+        return switch (material == null ? "" : material.toLowerCase(Locale.ROOT)) {
+            case "leather" -> Material.LEATHER_CHESTPLATE;
+            case "copper" -> Material.IRON_INGOT;
+            case "iron" -> Material.IRON_CHESTPLATE;
+            case "gold" -> Material.GOLD_INGOT;
+            case "diamond" -> Material.DIAMOND_CHESTPLATE;
+            case "netherite" -> Material.NETHERITE_CHESTPLATE;
+            default -> Material.BARRIER;
+        };
+    }
+
+    public String getAdminGearMaterialDisplayName(String material) {
+        return material == null ? "" : gearMaterialDisplay(material.toLowerCase(Locale.ROOT));
+    }
+
+    public List<Integer> getAdminTokenTiers() {
+        return getTierIds().stream().map(MercenaryManager::parsePositiveInt).toList();
+    }
+
+    public Material getAdminTokenTierIcon() {
+        return Material.AMETHYST_SHARD;
+    }
+
     private List<String> getTierIds() {
         ConfigurationSection tiers = settings.getConfigurationSection("tiers");
         return tiers == null ? List.of() : tiers.getKeys(false).stream()
