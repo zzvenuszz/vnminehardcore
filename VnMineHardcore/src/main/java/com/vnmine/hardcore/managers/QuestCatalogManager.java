@@ -602,12 +602,16 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         int dailyLimit = repeatDailyLimits.getOrDefault(quest.id(), 0);
         menu.setItem(33, adminItem(repeatable ? Material.LIME_DYE : Material.GRAY_DYE,
             repeatable ? "§aLặp lại: BẬT" : "§7Lặp lại: TẮT", List.of(
+                "§7Bật để có thể nhận lại quest sau khi hoàn thành.",
                 "§7" + (dailyLimit == 0 ? "Không giới hạn lượt/ngày." : "Tối đa " + dailyLimit + " lượt/ngày."),
                 "§eNhấn để bật/tắt.")));
         menu.setItem(34, adminItem(Material.REPEATER, "§bSố lượt/ngày: " + dailyLimit,
-            List.of("§7Giới hạn: 0–10; 0 nghĩa là không giới hạn.")));
-        menu.setItem(32, adminItem(Material.RED_DYE, "§c-1 lượt", List.of()));
-        menu.setItem(35, adminItem(Material.LIME_DYE, "§a+1 lượt", List.of()));
+            List.of("§7Giới hạn: 0–10; 0 nghĩa là không giới hạn.",
+                repeatable ? "§eDùng nút -1 / +1 hai bên để chỉnh." : "§8Bật lặp lại trước khi chỉnh.")));
+        menu.setItem(32, adminItem(repeatable ? Material.RED_DYE : Material.GRAY_DYE,
+            repeatable ? "§c-1 lượt/ngày" : "§8-1 lượt/ngày (hãy bật lặp lại)", List.of()));
+        menu.setItem(35, adminItem(repeatable ? Material.LIME_DYE : Material.GRAY_DYE,
+            repeatable ? "§a+1 lượt/ngày" : "§8+1 lượt/ngày (hãy bật lặp lại)", List.of()));
         menu.setItem(40, adminItem(Material.EXPERIENCE_BOTTLE,
             "§bEXP thưởng: " + quest.experienceReward(), List.of("§7Giới hạn: 0–100000 EXP.")));
         int[] expSlots = {37, 38, 39, 41, 42, 43};
@@ -653,7 +657,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             catch (IllegalArgumentException exception) { return; }
             if (slot == 49) {
                 if (plugin.getPlayerAdminManager() != null)
-                    plugin.getPlayerAdminManager().openTargetForAdmin(player, targetId);
+                    plugin.getPlayerAdminManager().openTargetQuestMenuForAdmin(player, targetId);
             } else if (slot == 45 && holder.page > 0) {
                 openAdminCompletedQuests(player, targetId, holder.page - 1);
             } else if (slot == 53) {
@@ -883,6 +887,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 + ", dailyLimit=" + repeatDailyLimits.getOrDefault(quest.id(), 0));
             openQuestEditor(player, quest.id());
         } else if (slot == 32 || slot == 35) {
+            if (!repeatableQuests.getOrDefault(quest.id(), false)) {
+                player.sendMessage("§eBật “Lặp lại” trước khi chỉnh số lượt mỗi ngày.");
+                openQuestEditor(player, quest.id());
+                return;
+            }
             int current = repeatDailyLimits.getOrDefault(quest.id(), 0);
             repeatDailyLimits.put(quest.id(), Math.max(0, Math.min(10, current + (slot == 35 ? 1 : -1))));
             if (!saveDefinitions()) repeatDailyLimits.put(quest.id(), current);

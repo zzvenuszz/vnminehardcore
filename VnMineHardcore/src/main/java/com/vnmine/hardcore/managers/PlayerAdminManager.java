@@ -72,9 +72,10 @@ public final class PlayerAdminManager implements Listener {
                 List.of("§7Đang trực tuyến", "§eNhấn để quản trị.")));
         }
         if (page > 0) menu.setItem(45, item(Material.ARROW, "§eTrang trước", List.of()));
-        menu.setItem(49, item(Material.ENDER_EYE, "§dChọn người chơi ngoại tuyến",
+        menu.setItem(49, item(Material.ARROW, "§eMenu quản trị", List.of("§7Quay về menu quản trị chính.")));
+        if (page + 1 < pageCount) menu.setItem(51, item(Material.ARROW, "§eTrang sau", List.of()));
+        menu.setItem(53, item(Material.ENDER_EYE, "§dTìm người chơi ngoại tuyến",
             List.of("§7Icon này dành riêng cho tìm người chơi offline.", "§eNhấn rồi nhập tên vào chat.")));
-        menu.setItem(53, item(Material.ARROW, "§eTrang sau", List.of()));
         admin.openInventory(menu);
     }
 
@@ -170,19 +171,39 @@ public final class PlayerAdminManager implements Listener {
         menu.setItem(15, item(Material.TOTEM_OF_UNDYING, "§6Khôi phục inventory tử vong",
             List.of("§7Chọn một trong tối đa 10 mộ gần nhất.",
                 "§7Vật phẩm được gửi an toàn kể cả khi offline.")));
-        menu.setItem(16, item(Material.BOOK, "§bQuest đã hoàn thành", List.of("§7Mở danh sách quest để xem hoặc reset một quest.")));
-        menu.setItem(19, item(Material.REDSTONE, "§cReset quest", List.of("§7Xóa toàn bộ trạng thái quest của người chơi.")));
+        menu.setItem(16, item(Material.WRITABLE_BOOK, "§bQuản lý nhiệm vụ người chơi", List.of(
+            "§7Mở menu riêng để quản lý tiến trình quest.",
+            "§7Xem quest hoàn thành, cho phép làm lại hoặc reset.")));
         menu.setItem(20, item(Material.ENCHANTED_BOOK, "§cXóa skill đã học", List.of("§7Xóa skill progress và quick slot.")));
         menu.setItem(21, item(Material.PLAYER_HEAD, "§cReset race/class", List.of("§7Đưa lựa chọn về trạng thái chưa tạo nhân vật.")));
         menu.setItem(22, item(Material.TNT, "§4Reset toàn bộ hồ sơ RPG", List.of("§7Xóa tiến trình RPG để tạo lại nhân vật.")));
         menu.setItem(23, item(Material.EXPERIENCE_BOTTLE, "§aCấp level / EXP", List.of("§7Dùng công cụ quản trị tiến trình hiện có.")));
         menu.setItem(24, item(Material.ENCHANTED_BOOK, "§aGive item RPG", List.of("§7Chọn vật phẩm trong registry hệ thống.")));
-        menu.setItem(49, item(Material.ARROW, "§eQuay lại danh sách", List.of()));
+        menu.setItem(45, item(Material.ARROW, "§eQuay lại danh sách người chơi", List.of()));
+        menu.setItem(49, item(Material.ARROW, "§eMenu quản trị", List.of("§7Quay về menu quản trị chính.")));
         admin.openInventory(menu);
     }
 
     public void openTargetForAdmin(Player admin, UUID targetId) {
         if (admin.hasPermission(PERMISSION)) openTarget(admin, targetId);
+    }
+
+    public void openTargetQuestMenuForAdmin(Player admin, UUID targetId) {
+        if (admin == null || !admin.hasPermission(PERMISSION)) return;
+        OfflinePlayer target = Bukkit.getOfflinePlayer(targetId);
+        String name = target.getName() == null ? targetId.toString() : target.getName();
+        AdminHolder holder = new AdminHolder(admin.getUniqueId(), "target-quests", 0);
+        holder.target = targetId;
+        Inventory menu = Bukkit.createInventory(holder, 27, "Quản lý quest • " + name);
+        holder.inventory = menu;
+        menu.setItem(4, item(Material.PLAYER_HEAD, "§b" + name,
+            List.of("§7Quản lý tiến trình nhiệm vụ của người chơi này.")));
+        menu.setItem(11, item(Material.WRITABLE_BOOK, "§aQuest đã hoàn thành",
+            List.of("§7Xem danh sách quest đã hoàn thành.", "§eChọn quest để cho phép làm lại.")));
+        menu.setItem(15, item(Material.REDSTONE, "§cReset toàn bộ quest",
+            List.of("§7Xóa trạng thái quest đang làm và đã hoàn thành.", "§eCó xác nhận trước khi thực hiện.")));
+        menu.setItem(22, item(Material.ARROW, "§eQuay lại hồ sơ người chơi", List.of()));
+        admin.openInventory(menu);
     }
 
     private ItemStack item(Material material, String title, List<String> lore) {
@@ -207,9 +228,13 @@ public final class PlayerAdminManager implements Listener {
         if (!holder.viewer.equals(admin.getUniqueId()) || event.getClickedInventory() != event.getView().getTopInventory()) return;
         int slot = event.getRawSlot();
         if ("players".equals(holder.screen)) {
-            if (slot == 49) promptOfflineName(admin);
+            if (slot == 49) {
+                if (plugin.getMercenaryManager() != null) plugin.getMercenaryManager().openAdminMenu(admin);
+            }
+            else if (slot == 53) promptOfflineName(admin);
             else if (slot == 45 && holder.page > 0) openOnlinePlayers(admin, holder.page - 1);
-            else if (slot == 53) openOnlinePlayers(admin, holder.page + 1);
+            else if (slot == 51 && holder.page + 1 < (Bukkit.getOnlinePlayers().size() + 44) / 45)
+                openOnlinePlayers(admin, holder.page + 1);
             else if (holder.targets.containsKey(slot)) openTarget(admin, holder.targets.get(slot));
             return;
         }
@@ -230,12 +255,24 @@ public final class PlayerAdminManager implements Listener {
         }
         if ("confirm".equals(holder.screen)) {
             if (slot == 11) applyConfirmedAction(admin, holder.target, holder.action);
-            else if (slot == 15) openTarget(admin, holder.target);
+            else if (slot == 15) {
+                if ("reset-quests".equals(holder.action)) openTargetQuestMenuForAdmin(admin, holder.target);
+                else openTarget(admin, holder.target);
+            }
             return;
         }
         if ("target".equals(holder.screen)) {
-            if (slot == 49) openOnlinePlayers(admin, 0);
+            if (slot == 45) openOnlinePlayers(admin, 0);
+            else if (slot == 49 && plugin.getMercenaryManager() != null)
+                plugin.getMercenaryManager().openAdminMenu(admin);
             else handleTargetAction(admin, holder.target, slot);
+            return;
+        }
+        if ("target-quests".equals(holder.screen)) {
+            if (slot == 22) openTarget(admin, holder.target);
+            else if (slot == 11 && plugin.getQuestCatalogManager() != null)
+                plugin.getQuestCatalogManager().openAdminCompletedQuests(admin, holder.target);
+            else if (slot == 15) confirm(admin, holder.target, "reset-quests");
         }
     }
 
@@ -264,9 +301,8 @@ public final class PlayerAdminManager implements Listener {
             case 14 -> confirm(admin, targetId, "clear-inventory");
             case 15 -> openDeathSnapshots(admin, targetId);
             case 16 -> {
-                if (plugin.getQuestCatalogManager() != null) plugin.getQuestCatalogManager().openAdminCompletedQuests(admin, targetId);
+                openTargetQuestMenuForAdmin(admin, targetId);
             }
-            case 19 -> confirm(admin, targetId, "reset-quests");
             case 20 -> confirm(admin, targetId, "clear-skills");
             case 21 -> confirm(admin, targetId, "reset-class");
             case 22 -> confirm(admin, targetId, "reset-all");
@@ -417,7 +453,8 @@ public final class PlayerAdminManager implements Listener {
             "§7Người chơi: §f" + Bukkit.getOfflinePlayer(target).getName(),
             "§cThao tác không thể hoàn tác tự động.")));
         menu.setItem(11, item(Material.LIME_CONCRETE, "§aXác nhận", List.of("§7Thực hiện thao tác.")));
-        menu.setItem(15, item(Material.RED_CONCRETE, "§cHủy", List.of("§7Quay lại hồ sơ người chơi.")));
+        menu.setItem(15, item(Material.RED_CONCRETE, "§cHủy", List.of("§7Quay lại "
+            + ("reset-quests".equals(action) ? "quản lý quest." : "hồ sơ người chơi."))));
         admin.openInventory(menu);
     }
 
@@ -492,7 +529,7 @@ public final class PlayerAdminManager implements Listener {
                         audit(admin, name, "reset-quests:" + count);
                         admin.sendMessage("§aĐã xóa " + count + " trạng thái quest.");
                     }
-                    openTarget(admin, targetId);
+                    openTargetQuestMenuForAdmin(admin, targetId);
                 }));
             return;
         } else if ("clear-skills".equals(action)) {

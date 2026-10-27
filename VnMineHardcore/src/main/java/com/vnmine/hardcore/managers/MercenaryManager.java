@@ -6594,7 +6594,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
 
    public void openAdminMenu(Player player) {
       if (this.hasAdminMenuAccess(player)) {
-         ServiceMenuHolder holder = this.createServiceMenu(player, MenuType.ADMIN, null, null, null, 0, 27,
+         ServiceMenuHolder holder = this.createServiceMenu(player, MenuType.ADMIN, null, null, null, 0, 54,
              "VnMine • Quản trị");
          holder.inventory.setItem(4, this.menuItem(Material.COMMAND_BLOCK, "§cCông cụ quản trị",
              List.of("§7Chọn nhóm chức năng cần quản lý.")));
@@ -6635,7 +6635,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             holder.inventory.setItem(24, this.menuItem(Material.SKELETON_SKULL, "§cQuản trị người chơi",
                 List.of("§7Ban, kick, mute và công cụ hồ sơ RPG.")));
          }
-         holder.inventory.setItem(26, this.menuItem(Material.ARROW, "§7Menu chính", List.of()));
+         holder.inventory.setItem(49, this.menuItem(Material.ARROW, "§7Menu chính", List.of()));
          player.openInventory(holder.inventory);
       }
    }
@@ -8871,7 +8871,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      if (plugin.getNpcManager() != null) plugin.getNpcManager().openAdminMenu(player);
                   } else if (slot == 24 && player.hasPermission("vnmine.command.playeradmin")) {
                      if (plugin.getPlayerAdminManager() != null) plugin.getPlayerAdminManager().open(player);
-                  } else if (slot == 26) {
+                  } else if (slot == 49) {
                      this.openMainMenu(player);
                   }
                   break;

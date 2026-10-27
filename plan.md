@@ -4,13 +4,16 @@
 
 - [x] Thêm `/vnplayeradmin`: danh sách online, nút offline có icon riêng, nhập tên qua chat với ví dụ và `!cancel`; hồ sơ quản trị có xác nhận Yes/No cho thao tác phá hủy.
 - [x] Thêm ban/unban, kick người đang online, mute/unmute và mute theo giây; lưu mute bền vững, giới hạn thời lượng cấu hình được, ghi audit actor/target/action.
+- [x] Sắp xếp lại menu quản trị thành 54 ô với nút về menu chính ở giữa hàng cuối; thêm nút điều hướng về menu quản trị vào danh sách/hồ sơ người chơi, đặt tìm người offline ở cuối hàng và thêm submenu quest trong hồ sơ để xem quest hoàn thành, mở lại quest hoặc reset toàn bộ.
 - [x] Xóa inventory online có xác nhận; duyệt tối đa 10 snapshot chết và phục hồi vào hàng đợi giao item bền vững, kể cả inventory đầy hoặc người chơi offline.
 - [x] Tra cứu có phân trang quest hoàn thành online/offline và đánh dấu một quest chưa hoàn thành; đồng bộ lại cache khi người chơi online, attempt thưởng mới dùng transaction ID riêng.
 - [x] Có thao tác reset toàn bộ quest, skill/quick slot, race/class (giữ quest) và toàn bộ hồ sơ RPG (giữ VNCOIN); hồ sơ reset race/class được phép đi lại luồng tạo nhân vật.
 - [x] Cấp level/EXP qua GUI tiến trình hiện có; picker item phân trang nay tổng hợp nguyên liệu quest ở mọi objective, sách skill đang được triển khai, loot/giáp boss theo config, item shop NPC, gear và token lính đánh thuê; giữ item factory/PDC gốc, cấp offline/túi đầy qua hàng đợi giao nhận bền vững.
 - [x] Quest editor có công tắc repeatable ON/OFF, nút tăng/giảm lượt/ngày 0–10; 0 không giới hạn. Lượt/ngày và source ID lưu SQLite, giới hạn được kiểm tra trong transaction completion.
 - [x] **Biên dịch/đóng gói:** Maven `clean package` thành công với Java 25 cho bản 2.20.0 lúc 2026-10-26 23:35 UTC; biên dịch 55 file Java, bộ test bỏ qua (`-DskipTests`), không xem đây là kiểm thử gameplay. JAR: `VnMineHardcore/target/VnMineHardcore-2.20.0.jar` (2,226,174 byte), SHA-256 `59afce5a638292d7db35c4b80ec9b66c172c224abdaf62f9c2a487816e6a7948`; kiểm tra plugin.yml là 2.20.0 và SQLite native chỉ có Linux x86_64.
+- [x] **Bản sửa giao diện 2.21.0:** Maven `clean package` thành công với Java 25 lúc 2026-10-27 02:17 UTC; biên dịch 55 file Java, bỏ qua test. JAR `VnMineHardcore/target/VnMineHardcore-2.21.0.jar` (2,227,102 byte), SHA-256 `602fa06a4f799aa36f26e891ec2b92ba40f7a8f7eb4351f4b57bd4f6d7ca4ed3`; plugin.yml xác nhận 2.21.0, SQLite native chỉ gồm Linux x86_64.
 - [ ] **Chấp nhận vận hành:** kiểm thử Paper/gameplay admin online/offline, chat cancel, target đổi trạng thái, death restore khi túi đầy, reset/cache sau relog, repeat 1/10/unlimited qua ngày và restart/crash không trả thưởng trùng.
+- [ ] **Chấp nhận giao diện:** xác minh trên server với JAR 2.21.0 vị trí nút offline, submenu quest trong hồ sơ và nút bật/tắt + giới hạn lặp lại trong quest editor.
 - [ ] **Chấp nhận vận hành:** kiểm tra từng loại item, PDC và khả năng dùng/trang bị, phân trang khi registry lớn, giao nhận offline/túi đầy và đối soát sau relog. Bản 2.20.0 đã build; gameplay trên Paper chưa được kiểm chứng trong lượt này.
 
 > Tài liệu này ghi nhận các vấn đề và đề xuất từ đợt rà soát mã nguồn, đồng thời xác định lộ trình hoàn thiện plugin cho server Minecraft RPG hardcore. Đây là kế hoạch triển khai; các hạng mục dưới đây không được coi là đã có trong mã hiện tại nếu chưa được triển khai và kiểm chứng.

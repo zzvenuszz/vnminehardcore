@@ -1,5 +1,8 @@
 # Changelog
 
+## [v2.21.0] - 2026-10-27
+- Làm rõ luồng quản trị người chơi: mở menu tìm offline tại cuối danh sách, có điều hướng về menu quản trị, thêm submenu quản lý quest để xem quest hoàn thành, mở lại quest hoặc reset toàn bộ; nút giới hạn lặp lại chỉ hoạt động khi bật repeatable.
+
 ## [v2.20.0] - 2026-10-26
 - Mở rộng picker `/vnplayeradmin` thành danh mục phân trang gồm nguyên liệu quest, sách skill đang được triển khai, item drop/giáp boss cấu hình, item shop NPC, gear và token lính đánh thuê; cấp item offline hoặc khi túi đầy bằng hàng đợi giao nhận bền vững, giữ nguyên PDC.
 

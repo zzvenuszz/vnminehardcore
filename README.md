@@ -237,6 +237,14 @@ profile reset preserves the VNCOIN wallet and starts character onboarding again.
 Quest history is paginated. Moderation and reset actions are logged with actor,
 target, and action under `[PlayerAdmin]` / `[Quest][Admin]`.
 
+Open player administration from **Admin → Player Administration** or with
+`/vnplayeradmin`. The bottom-center button returns to the admin menu; the
+ender-eye button at the end of the bottom row searches for an offline player.
+From a player's profile, choose **Manage Player Quests** to view completed
+quests, reopen one for that player, or reset all quest progress. In the quest
+editor, toggle **Lặp lại** on before using the `-1` and `+1` daily-limit
+buttons; a limit of `0` means unlimited repeats.
+
 Use **Quản lý quest → Edit quest** to set `repeatable.enabled` and adjust
 `repeatable.daily-limit` from 0 to 10. A value of 0 means unlimited completed
 runs per UTC day. Each completion records a unique run and reward transaction
