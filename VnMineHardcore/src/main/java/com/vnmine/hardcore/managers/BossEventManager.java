@@ -3918,6 +3918,11 @@ public class BossEventManager implements Listener {
       }
 
       if (enchantment != null && level >= 1) {
+         if (!enchantment.canEnchantItem(item)) {
+            this.logger.warning("[BossEvent] Skipping incompatible armor enchantment " + enchantmentKey
+               + " for material " + item.getType() + ".");
+            return;
+         }
          int appliedLevel = this.config.bossArmorAllowUnsafeEnchants
             ? Math.min(this.config.bossArmorMaximumEnchantLevel, level)
             : Math.min(enchantment.getMaxLevel(), level);

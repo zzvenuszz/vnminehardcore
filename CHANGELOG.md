@@ -1,5 +1,8 @@
 # Changelog
 
+## [v2.22.1] - 2026-10-27
+- Sửa lỗi picker Give item RPG không mở khi gặp enchantment không tương thích với giáp boss; bỏ qua enchantment lỗi, log nguyên nhân và tiếp tục hiển thị các danh mục item khác.
+
 ## [v2.22.0] - 2026-10-27
 - Đổi luồng quản trị hồ sơ thành **Menu chính → Admin → Người chơi → chọn online/offline → chức năng hồ sơ**; giữ các tiện ích teleport/gamemode trong mục riêng khi admin có quyền tương ứng.
 

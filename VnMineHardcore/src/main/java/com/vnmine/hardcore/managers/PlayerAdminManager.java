@@ -321,7 +321,7 @@ public final class PlayerAdminManager implements Listener {
     }
 
     private void openRpgItemPicker(Player admin, UUID targetId, int requestedPage) {
-        openRpgItemPicker(admin, targetId, getAdminRpgItems(), requestedPage);
+        openRpgItemPicker(admin, targetId, getAdminRpgItems(admin), requestedPage);
     }
 
     private void openRpgItemPicker(Player admin, UUID targetId, List<AdminItemChoice> items, int requestedPage) {
@@ -354,7 +354,7 @@ public final class PlayerAdminManager implements Listener {
         admin.openInventory(menu);
     }
 
-    private List<AdminItemChoice> getAdminRpgItems() {
+    private List<AdminItemChoice> getAdminRpgItems(Player admin) {
         List<AdminItemChoice> result = new ArrayList<>();
         if (plugin.getQuestCatalogManager() != null) {
             plugin.getQuestCatalogManager().getAdminRpgItems().forEach(entry -> result.add(
@@ -367,9 +367,15 @@ public final class PlayerAdminManager implements Listener {
                     "Sách kỹ năng", entry.material(), entry.item().clone())));
         }
         if (plugin.getBossEventManager() != null) {
-            plugin.getBossEventManager().getAdminRpgItems().forEach(entry -> result.add(
-                new AdminItemChoice(entry.id(), "Boss • " + entry.name(), "Vật phẩm boss",
-                    entry.material(), entry.item().clone())));
+            try {
+                plugin.getBossEventManager().getAdminRpgItems().forEach(entry -> result.add(
+                    new AdminItemChoice(entry.id(), "Boss • " + entry.name(), "Vật phẩm boss",
+                        entry.material(), entry.item().clone())));
+            } catch (RuntimeException exception) {
+                plugin.getLogger().log(Level.SEVERE,
+                    "[PlayerAdmin] Could not load boss RPG item catalog; continuing with other item sources.", exception);
+                admin.sendMessage("§eDanh mục vật phẩm boss lỗi; picker vẫn mở với các loại item khác.");
+            }
         }
         if (plugin.getMercenaryManager() != null) {
             plugin.getMercenaryManager().getAdminRpgItems().forEach(entry -> result.add(
