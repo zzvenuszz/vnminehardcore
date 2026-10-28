@@ -118,7 +118,12 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             "§7World này được tạo tự động nếu chưa tồn tại.", "§eNhấn để nhập tên world.")));
         menu.setItem(50, item(Material.COMPASS, "§bMôi trường world bắt đầu: §f"
             + plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"), List.of(
-                "§7Nhấn để đổi NORMAL → NETHER → THE_END.", "§7Áp dụng khi world được tạo mới.")));
+                "§7Nhấn để đổi NORMAL → NETHER → THE_END.",
+                "§cĐổi môi trường/seed sẽ backup world cũ và tạo world mới sau restart.")));
+        menu.setItem(52, item(Material.NAME_TAG, "§bSeed world bắt đầu: §f"
+            + optionalSeedText(plugin.getConfig().get("rpg.onboarding.start-world.seed")), List.of(
+                "§7Tùy chọn; bỏ trống để Minecraft tự sinh seed.",
+                "§7Nhập số nguyên 64-bit; ví dụ: §f123456789", "§eNhấn để nhập, !clear để xóa.")));
         boolean tutorialQuestEnabled = tutorialQuestEnabled();
         menu.setItem(51, item(tutorialQuestEnabled ? Material.WRITABLE_BOOK : Material.BARRIER,
             (tutorialQuestEnabled ? "§b" : "§c") + "Quest RPG và quest hướng dẫn", List.of(
@@ -171,8 +176,11 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         menu.setItem(16, item(Material.COMPASS,
             "§bMôi trường: §f" + worldEnvironment(realm.id()), List.of(
                 "§7Nhấn để đổi NORMAL → NETHER → THE_END.",
-                "§7Áp dụng khi world được plugin tạo mới.",
+                "§cĐổi môi trường/seed sẽ backup world cũ và tạo world mới sau restart.",
                 "§eĐây là thiết lập world cho realm này.")));
+        menu.setItem(22, item(Material.NAME_TAG, "§bSeed world: §f" + realmSeedText(realm.id()), List.of(
+            "§7Tùy chọn; bỏ trống để dùng seed hiện có hoặc seed ngẫu nhiên.",
+            "§7Nhập số nguyên 64-bit; ví dụ: §f-987654321", "§eNhấn để nhập, !clear để xóa.")));
         boolean availabilityLimited = realmAvailabilityEnabled(realm.id());
         menu.setItem(18, item(availabilityLimited ? Material.PLAYER_HEAD : Material.ENDER_EYE,
             "§dRace/class khả dụng: " + (availabilityLimited ? "§aTùy chỉnh" : "§eTất cả"), List.of(
@@ -261,6 +269,15 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             .getString("world.environment", "NORMAL");
     }
 
+    private String realmSeedText(String realmId) {
+        File file = findRealmFile(realmId);
+        return file == null ? "tự sinh" : optionalSeedText(YamlConfiguration.loadConfiguration(file).get("world.seed"));
+    }
+
+    private String optionalSeedText(Object seed) {
+        return seed instanceof Number ? seed.toString() : "tự sinh";
+    }
+
     private boolean realmAvailabilityEnabled(String realmId) {
         File file = findRealmFile(realmId);
         return file != null && YamlConfiguration.loadConfiguration(file)
@@ -270,7 +287,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
     private void openRealmRaces(Player player, String realmId) {
         var characterManager = plugin.getCharacterSelectionManager();
         var races = characterManager == null ? List.<CharacterSelectionManager.RaceDefinition>of()
-            : characterManager.getRaceDefinitions();
+            : characterManager.getConfiguredRaceDefinitions();
         File file = findRealmFile(realmId);
         YamlConfiguration yaml = file == null ? new YamlConfiguration() : YamlConfiguration.loadConfiguration(file);
         boolean limited = yaml.getBoolean("character-availability.enabled", false);
@@ -297,7 +314,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
 
     private void openRealmClasses(Player player, String realmId, String raceId) {
         var characterManager = plugin.getCharacterSelectionManager();
-        var race = characterManager == null ? null : characterManager.getRaceDefinitions().stream()
+        var race = characterManager == null ? null : characterManager.getConfiguredRaceDefinitions().stream()
             .filter(value -> value.id().equals(raceId)).findFirst().orElse(null);
         if (race == null) { openRealmRaces(player, realmId); return; }
         File file = findRealmFile(realmId);
@@ -327,7 +344,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             if (!config.getBoolean("character-availability.enabled", false)) {
                 var characters = plugin.getCharacterSelectionManager();
                 if (characters != null) {
-                    List<String> raceIds = characters.getRaceDefinitions().stream()
+                    List<String> raceIds = characters.getConfiguredRaceDefinitions().stream()
                         .map(CharacterSelectionManager.RaceDefinition::id).toList();
                     config.set("character-availability.races", raceIds);
                     for (String raceId : raceIds) config.set("character-availability.classes." + raceId,
@@ -354,8 +371,50 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             if (!player.isOnline()) return;
             if ("!cancel".equalsIgnoreCase(input)) {
                 player.sendMessage("§eĐã hủy nhập tên world.");
-                if ("__start__".equals(realmId)) openDashboard(player);
+                if ("__start__".equals(realmId) || "__start_seed__".equals(realmId)) openDashboard(player);
+                else if (realmId.startsWith("__seed__:")) openRealm(player, realmId.substring("__seed__:".length()));
                 else openWorlds(player, realmId, 0);
+                return;
+            }
+            if ("__start_seed__".equals(realmId) || realmId.startsWith("__seed__:")) {
+                boolean startWorld = "__start_seed__".equals(realmId);
+                String targetRealmId = startWorld ? null : realmId.substring("__seed__:".length());
+                if ("!clear".equalsIgnoreCase(input)) {
+                    if (startWorld) {
+                        plugin.getConfig().set("rpg.onboarding.start-world.seed", null);
+                        savePluginConfig(player, "clear rpg.onboarding.start-world.seed");
+                        openDashboard(player);
+                    } else {
+                        updateRealm(player, targetRealmId, config -> {
+                            config.set("world.seed", null);
+                            config.set("world.create-if-missing", true);
+                        }, "clear world.seed");
+                        openRealm(player, targetRealmId);
+                    }
+                    player.sendMessage("§aĐã bỏ seed tùy chỉnh.");
+                    return;
+                }
+                long seed;
+                try { seed = Long.parseLong(input); }
+                catch (NumberFormatException exception) {
+                    player.sendMessage("§cSeed phải là số nguyên 64-bit, ví dụ: §f123456789§c. Nhập lại hoặc !cancel.");
+                    pendingWorldNames.put(player.getUniqueId(), realmId);
+                    return;
+                }
+                if (startWorld) {
+                    plugin.getConfig().set("rpg.onboarding.start-world.seed", seed);
+                    plugin.getConfig().set("rpg.onboarding.start-world.create-if-missing", true);
+                    savePluginConfig(player, "set rpg.onboarding.start-world.seed=" + seed);
+                    player.sendMessage("§aĐã lưu seed. Thay đổi world sẽ được áp dụng khi khởi động lại server.");
+                    openDashboard(player);
+                } else {
+                    updateRealm(player, targetRealmId, config -> {
+                        config.set("world.seed", seed);
+                        config.set("world.create-if-missing", true);
+                    }, "set world.seed=" + seed);
+                    player.sendMessage("§aĐã lưu seed. Thay đổi world sẽ được áp dụng khi khởi động lại server.");
+                    openRealm(player, targetRealmId);
+                }
                 return;
             }
             if (!input.matches("[A-Za-z0-9_-]{1,64}")) {
@@ -497,6 +556,10 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 plugin.getConfig().set("rpg.onboarding.start-world.create-if-missing", true);
                 savePluginConfig(player, "rpg.onboarding.start-world.environment=" + next);
                 openDashboard(player);
+            } else if (slot == 52) {
+                pendingWorldNames.put(player.getUniqueId(), "__start_seed__");
+                player.closeInventory();
+                player.sendMessage("§eNhập seed số nguyên 64-bit cho world bắt đầu. Ví dụ: §f123456789§e. Gõ §f!clear §eđể seed tự sinh, §f!cancel §eđể hủy.");
             } else if (slot == 51) {
                 openTutorialQuestSetup(player);
             } else {
@@ -551,7 +614,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                     config.set("character-availability.enabled", !enabled);
                     if (!enabled) {
                         var characters = plugin.getCharacterSelectionManager();
-                        List<String> raceIds = characters == null ? List.of() : characters.getRaceDefinitions().stream()
+                        List<String> raceIds = characters == null ? List.of() : characters.getConfiguredRaceDefinitions().stream()
                             .map(CharacterSelectionManager.RaceDefinition::id).toList();
                         config.set("character-availability.races", raceIds);
                         if (characters != null) for (String raceId : raceIds) {
@@ -606,6 +669,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                         String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"
                             : "NETHER".equalsIgnoreCase(current) ? "THE_END" : "NORMAL";
                         config.set("world.environment", next);
+                        config.set("world.create-if-missing", true);
                     }, "cycle world environment");
                     openRealm(player, holder.realmId);
                 }
@@ -613,6 +677,11 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 case 20 -> {
                     var realm = plugin.getRpgWorldManager().getDefinitions().get(holder.realmId);
                     if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
+                }
+                case 22 -> {
+                    pendingWorldNames.put(player.getUniqueId(), "__seed__:" + holder.realmId);
+                    player.closeInventory();
+                    player.sendMessage("§eNhập seed số nguyên 64-bit cho world đại lục. Ví dụ: §f-987654321§e. Gõ §f!clear §eđể bỏ seed tùy chỉnh, §f!cancel §eđể hủy.");
                 }
                 case 28 -> saveCurrentSpawn(player, holder.realmId);
                 case 30 -> {
@@ -644,7 +713,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 if (world != null) {
                     updateRealm(player, holder.realmId, config -> {
                         config.set("world-name", world);
-                        config.set("world.create-if-missing", false);
+                        config.set("world.create-if-missing", true);
                     }, "set existing world=" + world);
                     openRealm(player, holder.realmId);
                 }
@@ -669,6 +738,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         Location location = player.getLocation();
         updateRealm(player, realmId, config -> {
             config.set("world-name", location.getWorld().getName());
+            config.set("world.create-if-missing", true);
             config.set("spawn.use-world-spawn", false);
             config.set("spawn.x", location.getX());
             config.set("spawn.y", location.getY());

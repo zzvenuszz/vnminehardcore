@@ -1,5 +1,11 @@
 # Changelog
 
+## [v2.28.0] - 2026-10-28
+- `/vninit` hiển thị toàn bộ chủng tộc cấu hình, kể cả race chưa có class mở được; khi khởi động, ghép các race/class mặc định còn thiếu trong bộ nhớ, không sửa file hay ghi đè cấu hình admin.
+- Quản lý world theo environment và seed tùy chọn 64-bit. Khi cấu hình khác với manifest lần trước (kể cả xóa seed đã cấu hình), world cũ được chuyển sang thư mục backup có timestamp rồi tạo world mới; nếu world đang được dùng hoặc không thể nạp an toàn, ghi lỗi và giữ dữ liệu.
+- Objective quest gặp NPC được ghi nhận ngay trong tương tác NPC, trước các nhánh hội thoại/tutorial; nếu dữ liệu quest đang tải, lượt gặp được xếp hàng và xử lý sau khi tải xong để objective có thể tiến tới bước tiếp theo, hoàn tất thưởng và quest tự giao.
+- Build `mvn -DskipTests clean package` bằng JDK 25 thành công lúc `2026-10-28 02:22:28 UTC`; 56 file Java biên dịch, test suite bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.28.0.jar` (2,286,615 bytes), SHA-256 `1422b42689f1c001b7f6f46c5a7a7128809e7172b990d02f8218f9474d0bd46e`; đã cài vào `DATA/VNMINE/plugins/`, backup 2.27.0 trong `.old-builds`. Chưa gameplay test.
+
 ## [v2.27.0] - 2026-10-28
 - Sửa reset quest quản trị: xóa session tracking, đặt lại onboarding và đưa người chơi online về world bắt đầu; reset cho người chơi offline được lưu chờ tới lần đăng nhập. Không còn khởi chạy lại quest hướng dẫn ngay trong callback reset.
 - Chuyển onboarding sang `/start`; người mới được nhắc lệnh thay vì tự bật GUI khi vào server. Chọn đại lục sẽ chuyển đến spawn đã cấu hình và quest First Steps/navigation nhắm NPC Tutorial của đại lục.

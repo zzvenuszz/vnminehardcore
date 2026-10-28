@@ -602,12 +602,12 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             return;
         }
         recordClassProgressionNpcVisit(player, npc.id());
+        if (plugin.getQuestCatalogManager() != null) {
+            plugin.getQuestCatalogManager().recordNpcVisit(player, npc.id());
+        }
         if (plugin.getCharacterSelectionManager() != null
                 && plugin.getCharacterSelectionManager().recordTutorialNpcVisit(player, npc.id())) {
             return;
-        }
-        if (plugin.getQuestCatalogManager() != null) {
-            plugin.getQuestCatalogManager().recordNpcVisit(player, npc.id());
         }
         if ("system-merchant".equals(npc.type())) {
             plugin.getEconomyManager().openMerchantMenu(player);

@@ -58,9 +58,18 @@ rpg:
     # [VI] World an toàn để người chơi reset quest/tân thủ bắt đầu trước khi chọn đại lục.
     # [EN] Safe world for new/reset players before they choose a realm.
     start-world:
+      # [VI] Tên world bắt đầu; mặc định world_start, chỉ nhận tên không có dấu phân cách thư mục.
+      # [EN] Start-world name; defaults to world_start and cannot contain path separators.
       name: world_start
+      # [VI] Tạo/nạp và quản lý world lúc plugin khởi động; environment/seed đổi sẽ archive world cũ.
+      # [EN] Create/load and manage the world at plugin startup; environment/seed changes archive the old world.
       create-if-missing: true
+      # [VI] Môi trường world: NORMAL, NETHER hoặc THE_END; mặc định NORMAL.
+      # [EN] World environment: NORMAL, NETHER, or THE_END; defaults to NORMAL.
       environment: NORMAL
+      # [VI] Seed tùy chọn 64-bit; bỏ trống để giữ seed hiện có, xóa seed đã dùng sẽ backup và tạo lại world với seed tự sinh.
+      # [EN] Optional 64-bit seed; omit to keep the current seed; clearing a configured seed backs up and regenerates the world.
+      # seed: 123456789
     # [VI] Vẽ đường particle navigation khi người chơi cùng world với NPC; mặc định true.
     # [EN] Render navigation particles when the player is in the NPC's world; defaults to true.
     navigation-enabled: true

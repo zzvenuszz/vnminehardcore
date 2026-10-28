@@ -620,11 +620,23 @@ display name, Paper world name, spawn behavior, fallback world, and safe-zone
 radius. The bundled defaults use the already-loaded `world`, its configured
 Paper spawn, and a 32-block horizontal safe zone.
 
-The plugin never creates or deletes worlds. If the configured realm is not
-loaded, the spawn resolver uses the configured fallback world's spawn; if
-neither is loaded, it logs the issue and returns no destination. The resolver
-does not teleport players automatically. `/vnreload` reloads this definition,
-and an invalid replacement leaves the last valid definition active.
+Realm worlds are not managed by default. When an administrator enables
+`world.create-if-missing` (also exposed by `/vninit`), the plugin creates or
+loads that world at startup and records its configured environment and optional
+64-bit seed. If a later restart finds a changed environment or configured seed,
+the old world folder is moved to a timestamped sibling backup before a new world
+is created. Clearing a previously configured seed also recreates it with a
+generated seed. Review the backup before removing it. A world that is currently
+in use and cannot be safely unloaded is left unchanged and reported in the
+server log. If world creation is disabled or fails, the spawn resolver uses the
+configured fallback world's spawn; if neither is loaded, it logs the issue and
+returns no destination. `/vnreload` reloads realm definitions; world replacement
+is applied on server restart.
+
+On startup, missing race and class definitions from the bundled defaults are
+merged in memory with existing `races.yml` and `player-classes.yml`. Server files
+and administrator edits are left untouched. This lets `/vninit` show races added
+in a plugin update even when the server already has older definition files.
 
 The safe zone is a circular area around the resolved spawn. It blocks player
 damage, attacks started inside the zone (including projectiles), hostile mob
@@ -901,8 +913,9 @@ The editor also supports AND requirements for minimum RPG level, completion of
 another quest, and an exact held item (including RPG metadata). Requirements
 are checked both when listing an NPC's quests and when accepting one. The
 objective screen can edit the first kill-mob objective and add/remove up to 44
-sequential objectives for killing mobs, collecting/turning in an exact item, or
-killing a configured system boss. Exact item matching preserves metadata/PDC.
+sequential objectives for visiting an NPC by ID, killing mobs, collecting/turning
+in an exact item, or killing a configured system boss. NPC visits count on normal
+interaction before the dialogue/menu branch opens. Exact item matching preserves metadata/PDC.
 Items are submitted to the quest's giver NPC and consumed only after checking the
 player's inventory; failed progress writes return items, using the persistent
 delivery queue if the player disconnects. Boss objectives use the system boss ID marker and count players

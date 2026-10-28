@@ -1,5 +1,18 @@
 # Kế hoạch hoàn thiện VnMineHardcore: RPG, VNCOIN và vận hành server
 
+## Bổ sung sửa race, quản lý world và objective gặp NPC — yêu cầu 2026-10-28
+
+- [x] `/vninit` dùng toàn bộ race definition hợp lệ thay vì chỉ các race có class đang khả dụng; ghép race/class mặc định còn thiếu từ tài nguyên plugin vào bộ nhớ khi server còn file cũ, không sửa file hay ghi đè nội dung admin.
+- [x] Quản lý world ghi manifest theo tên world, environment và seed tùy chọn. Khi restart thấy environment/seed đổi (bao gồm xóa seed tùy chỉnh), unload world an toàn, chuyển thư mục cũ sang backup timestamp và tạo world mới; nếu unload/create không an toàn thì từ chối thay đổi, log rõ và cố phục hồi thư mục cũ.
+- [x] Thêm nhập seed nguyên 64-bit tùy chọn trong `/vninit` cho world bắt đầu và từng realm; `!clear` bỏ seed tùy chỉnh. Đổi seed/environment chỉ áp dụng sau restart, có backup dữ liệu world cũ.
+- [x] Objective `VISIT_NPC` ghi nhận khi người chơi tương tác mở luồng NPC, trước khi xử lý tutorial/dialog/menu; khi quest state còn tải thì queue lượt gặp, sau khi tải xử lý objective để chuyển bước, hoàn tất quest, thưởng và kích hoạt quest successor theo luồng hiện tại.
+- [x] Tăng version nguồn lên 2.28.0; cập nhật README, CHANGELOG và ghi chú cấu hình world.
+- [x] Compile/đóng gói 2.28.0 bằng JDK 25 (`mvn -DskipTests clean package`) thành công lúc `2026-10-28 02:22:28 UTC`; biên dịch 56 source Java, 14 test source được compile nhưng test suite bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.28.0.jar`, 2,286,615 bytes, SHA-256 `1422b42689f1c001b7f6f46c5a7a7128809e7172b990d02f8218f9474d0bd46e`. Metadata xác nhận plugin.yml 2.28.0; archive chỉ chứa SQLite native Linux x86_64 và service metadata.
+- [x] Sao lưu `VnMineHardcore-2.27.0.jar` tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/`, cài 2.28.0 vào `/home/ubuntu/DATA/VNMINE/plugins/` và đối chiếu byte/hash với artifact build.
+- [ ] Gameplay test Paper: migration từ file race/class cũ, đủ race trong `/vninit`, config race/class theo realm, seed set/clear, đổi NORMAL↔THE_END sau restart, backup và rollback khi world không unload được.
+- [ ] Gameplay test objective gặp NPC ở objective đầu và giữa chuỗi; xác nhận GUI/dialog vẫn hiển thị, bước tiếp theo cập nhật, title/reward và quest tự giao chạy đúng, không ghi nhận nhầm khi admin shift-click để edit.
+- [x] Build và cài JAR 2.28.0; chưa kiểm thử gameplay Paper.
+
 ## Onboarding theo đại lục và sửa reset quest — yêu cầu 2026-10-28
 
 - [~] Sửa luồng admin reset quest: reset cả quest thường và tutorial, xóa session tracking trong bộ nhớ, lưu reset chờ cho người chơi offline và chuyển người chơi online về world bắt đầu. Không gọi lại bộ khởi tạo quest trong callback reset để tránh nhận EXP ngay lúc reset.

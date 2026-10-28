@@ -144,6 +144,13 @@ public final class CharacterSelectionManager implements Listener {
             .toList();
     }
 
+    /** All valid race definitions, including races whose classes are not selectable yet. */
+    public List<RaceDefinition> getConfiguredRaceDefinitions() {
+        return races.values().stream()
+            .sorted(Comparator.comparing(RaceDefinition::name, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    }
+
     public List<ClassDefinition> getClassDefinitions(String raceId) {
         return classesByRace.getOrDefault(raceId, List.of()).stream()
             .sorted(Comparator.comparing(ClassDefinition::name, String.CASE_INSENSITIVE_ORDER))
@@ -1347,6 +1354,12 @@ public final class CharacterSelectionManager implements Listener {
         File classFile = loadBundledConfig("player-classes.yml");
         YamlConfiguration raceConfig = loadStrictConfig(raceFile);
         YamlConfiguration classConfig = loadStrictConfig(classFile);
+        int addedRaces = mergeMissingDefinitions(raceConfig, "races", "races.yml");
+        int addedClasses = mergeMissingDefinitions(classConfig, "classes", "player-classes.yml");
+        if (addedRaces > 0 || addedClasses > 0) {
+            plugin.getLogger().info("[Character] Added missing bundled definitions in memory without changing server files: races="
+                + addedRaces + ", classes=" + addedClasses + ".");
+        }
         ConfigurationSection raceSection = raceConfig.getConfigurationSection("races");
         ConfigurationSection classSection = classConfig.getConfigurationSection("classes");
         if (raceSection == null || classSection == null) {
@@ -1478,13 +1491,6 @@ public final class CharacterSelectionManager implements Listener {
 
         validateClassInheritance();
 
-        races.entrySet().removeIf(entry -> {
-            List<ClassDefinition> classList = classesByRace.get(entry.getKey());
-            if (classList != null && !classList.isEmpty()) return false;
-            plugin.getLogger().warning("[Character] Skipping race '" + entry.getKey() + "' because it has no valid classes.");
-            classesByRace.remove(entry.getKey());
-            return true;
-        });
         if (races.isEmpty()) {
             throw new IllegalStateException("No valid race/class definitions were loaded.");
         }
@@ -1531,6 +1537,39 @@ public final class CharacterSelectionManager implements Listener {
             plugin.saveResource(fileName, false);
         }
         return file;
+    }
+
+    private int mergeMissingDefinitions(YamlConfiguration target, String sectionName, String resourceName) {
+        YamlConfiguration defaults;
+        try (java.io.InputStream stream = plugin.getResource(resourceName)) {
+            if (stream == null) return 0;
+            defaults = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(stream,
+                java.nio.charset.StandardCharsets.UTF_8));
+        } catch (IOException exception) {
+            plugin.getLogger().log(java.util.logging.Level.WARNING,
+                "[Character] Could not read bundled defaults from " + resourceName + ".", exception);
+            return 0;
+        }
+        ConfigurationSection defaultSection = defaults.getConfigurationSection(sectionName);
+        ConfigurationSection targetSection = target.getConfigurationSection(sectionName);
+        if (defaultSection == null) return 0;
+        int added = 0;
+        for (String id : defaultSection.getKeys(false)) {
+            if (targetSection != null && targetSection.contains(id)) continue;
+            ConfigurationSection definition = defaultSection.getConfigurationSection(id);
+            if (definition == null) continue;
+            copyConfigurationSection(definition, target, sectionName + "." + id);
+            added++;
+        }
+        return added;
+    }
+
+    private void copyConfigurationSection(ConfigurationSection source, YamlConfiguration target, String targetPath) {
+        for (String key : source.getKeys(false)) {
+            ConfigurationSection nested = source.getConfigurationSection(key);
+            if (nested == null) target.set(targetPath + "." + key, source.get(key));
+            else copyConfigurationSection(nested, target, targetPath + "." + key);
+        }
     }
 
     private YamlConfiguration loadStrictConfig(File file) {

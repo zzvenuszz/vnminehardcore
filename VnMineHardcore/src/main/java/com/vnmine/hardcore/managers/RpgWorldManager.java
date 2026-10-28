@@ -2,11 +2,18 @@ package com.vnmine.hardcore.managers;
 
 import com.vnmine.hardcore.VnMineHardcore;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -29,11 +36,24 @@ public final class RpgWorldManager implements Listener {
     private static final String HUMAN_REALM_ID = "human-realm";
     private final VnMineHardcore plugin;
     private final File definitionsFolder;
+    private final File worldManifestFile;
+    private final org.bukkit.configuration.file.YamlConfiguration worldManifest =
+        new org.bukkit.configuration.file.YamlConfiguration();
+    private final Map<String, String> requestedWorldSettings = new LinkedHashMap<>();
     private Map<String, HumanRealmDefinitionLoader.HumanRealmDefinition> definitions = Map.of();
     private boolean createWorldsOnNextReload = true;
 
     public RpgWorldManager(VnMineHardcore plugin) {
         this.plugin = plugin;
+        this.worldManifestFile = new File(plugin.getDataFolder(), "managed-worlds.yml");
+        if (worldManifestFile.isFile()) {
+            try { worldManifest.load(worldManifestFile); }
+            catch (org.bukkit.configuration.InvalidConfigurationException | IOException exception) {
+                plugin.getLogger().log(Level.SEVERE,
+                    "[World] Managed-world manifest is invalid; existing worlds will be checked against their live metadata.",
+                    exception);
+            }
+        }
         File worldsFolder = new File(plugin.getDataFolder(), "worlds");
         definitionsFolder = worldsFolder;
         if (!worldsFolder.isDirectory() && !worldsFolder.mkdirs()) {
@@ -58,9 +78,15 @@ public final class RpgWorldManager implements Listener {
                 plugin.getLogger().log(Level.SEVERE, "[World] Bundled yeu-realm.yml resource is missing.", exception);
             }
         }
-        createConfiguredWorld(plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"),
-            plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"),
-            plugin.getConfig().getBoolean("rpg.onboarding.start-world.create-if-missing", true), "onboarding start world");
+        String startSeedPath = "rpg.onboarding.start-world.seed";
+        Long startSeed = readOptionalSeed(plugin.getConfig(), startSeedPath, "onboarding start world");
+        boolean invalidStartSeed = plugin.getConfig().contains(startSeedPath)
+            && plugin.getConfig().get(startSeedPath) != null && startSeed == null;
+        if (!invalidStartSeed) {
+            createConfiguredWorld(plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"),
+                plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"), startSeed,
+                plugin.getConfig().getBoolean("rpg.onboarding.start-world.create-if-missing", true), "onboarding start world");
+        }
         reload();
     }
 
@@ -103,27 +129,181 @@ public final class RpgWorldManager implements Listener {
         org.bukkit.configuration.file.YamlConfiguration yaml =
             org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
         if (!yaml.getBoolean("world.create-if-missing", false)) return;
-        createConfiguredWorld(yaml.getString("world-name"), yaml.getString("world.environment", "NORMAL"), true,
+        Long seed = readOptionalSeed(yaml, "world.seed", "realm " + yaml.getString("id", file.getName()));
+        if (yaml.contains("world.seed") && seed == null) return;
+        createConfiguredWorld(yaml.getString("world-name"), yaml.getString("world.environment", "NORMAL"), seed, true,
             "realm " + yaml.getString("id", file.getName()));
     }
 
-    private void createConfiguredWorld(String name, String environmentName, boolean enabled, String reason) {
-        if (!enabled || name == null || name.isBlank() || Bukkit.getWorld(name) != null) return;
+    private Long readOptionalSeed(org.bukkit.configuration.ConfigurationSection configuration,
+            String path, String reason) {
+        if (!configuration.contains(path) || configuration.get(path) == null) return null;
+        Object raw = configuration.get(path);
+        if (raw instanceof Byte || raw instanceof Short || raw instanceof Integer || raw instanceof Long)
+            return ((Number) raw).longValue();
+        if (raw instanceof java.math.BigInteger integer) {
+            try { return integer.longValueExact(); }
+            catch (ArithmeticException ignored) { /* log below */ }
+        }
+        plugin.getLogger().severe("[World] Invalid seed at " + path + " for " + reason
+            + "; expected an integer from -9223372036854775808 to 9223372036854775807. World was not changed.");
+        return null;
+    }
+
+    private void createConfiguredWorld(String name, String environmentName, Long seed,
+            boolean enabled, String reason) {
+        if (!enabled || name == null || !name.matches("[A-Za-z0-9_-]{1,64}")) {
+            if (enabled) plugin.getLogger().severe("[World] Invalid world name for " + reason + "; world was not changed.");
+            return;
+        }
         World.Environment environment;
         try {
             environment = World.Environment.valueOf(environmentName == null ? "NORMAL"
                 : environmentName.trim().toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            plugin.getLogger().warning("[World] Invalid environment '" + environmentName + "' for " + reason
-                + "; using NORMAL.");
-            environment = World.Environment.NORMAL;
+            plugin.getLogger().severe("[World] Invalid environment '" + environmentName + "' for " + reason
+                + "; world was not changed.");
+            return;
         }
+        String requestedSettings = environment.name() + "/" + (seed == null ? "generated-or-existing" : seed);
+        String previousRequest = requestedWorldSettings.putIfAbsent(name, requestedSettings);
+        if (previousRequest != null && !previousRequest.equals(requestedSettings)) {
+            plugin.getLogger().severe("[World] Conflicting startup settings for shared world '" + name + "': "
+                + previousRequest + " vs '" + requestedSettings + "' (" + reason
+                + "); refusing to replace the world.");
+            return;
+        }
+        String manifestPath = "worlds." + name + ".environment";
+        String previousEnvironment = worldManifest.getString(manifestPath);
+        Long previousSeed = worldManifest.contains("worlds." + name + ".seed")
+            ? worldManifest.getLong("worlds." + name + ".seed") : null;
+        boolean manifestEnvironmentChanged = previousEnvironment != null
+            && !previousEnvironment.equalsIgnoreCase(environment.name());
+        boolean manifestHasSettings = worldManifest.contains(manifestPath);
+        boolean previousSeedConfigured = worldManifest.getBoolean("worlds." + name + ".seed-configured",
+            previousSeed != null);
+        boolean manifestSeedChanged = manifestHasSettings
+            && (previousSeedConfigured != (seed != null)
+                || (seed != null && !java.util.Objects.equals(seed, previousSeed)));
+        World world = Bukkit.getWorld(name);
         try {
-            World world = Bukkit.createWorld(new WorldCreator(name).environment(environment));
-            if (world == null) plugin.getLogger().severe("[World] Paper failed to create " + reason + " '" + name + "'.");
-            else plugin.getLogger().info("[World] Created " + reason + " '" + name + "' (" + environment + ").");
+            if (manifestEnvironmentChanged || manifestSeedChanged) {
+                plugin.getLogger().warning("[World] Stored world settings changed for '" + name + "': environment "
+                    + previousEnvironment + " -> " + environment + ", seed " + previousSeed + " -> " + seed + ".");
+                world = replaceWorld(world, name, environment, seed, reason);
+                if (world == null) return;
+                saveWorldManifest(name, environment, seed, world.getSeed());
+                return;
+            }
+            if (world == null) world = Bukkit.createWorld(worldCreator(name, environment, seed));
+            if (world == null) {
+                plugin.getLogger().severe("[World] Paper failed to load/create " + reason + " '" + name + "'.");
+                return;
+            }
+            boolean environmentChanged = world.getEnvironment() != environment;
+            boolean seedChanged = seed != null && world.getSeed() != seed;
+            if (!environmentChanged && !seedChanged) {
+                plugin.getLogger().info("[World] Ready " + reason + " '" + name + "' (" + environment
+                    + ", seed=" + (seed == null ? "existing/default" : seed) + ").");
+                saveWorldManifest(name, environment, seed, world.getSeed());
+                return;
+            }
+            plugin.getLogger().warning("[World] Configuration changed for '" + name + "': environment "
+                + world.getEnvironment() + " -> " + environment + ", seed " + world.getSeed() + " -> "
+                + (seed == null ? "unchanged" : seed) + ". Recreating world and preserving the old folder as backup.");
+            World replacement = replaceWorld(world, name, environment, seed, reason);
+            if (replacement != null) saveWorldManifest(name, environment, seed, replacement.getSeed());
         } catch (RuntimeException exception) {
-            plugin.getLogger().log(Level.SEVERE, "[World] Failed to create " + reason + " '" + name + "'.", exception);
+            plugin.getLogger().log(Level.SEVERE, "[World] Failed to load/create " + reason + " '" + name + "'.", exception);
+        }
+    }
+
+    private WorldCreator worldCreator(String name, World.Environment environment, Long seed) {
+        WorldCreator creator = new WorldCreator(name).environment(environment);
+        if (seed != null) creator.seed(seed);
+        return creator;
+    }
+
+    private World replaceWorld(World oldWorld, String name, World.Environment environment, Long seed, String reason) {
+        if (oldWorld != null && !Bukkit.unloadWorld(oldWorld, false)) {
+            plugin.getLogger().severe("[World] Could not unload '" + name + "'; refusing to replace it.");
+            return null;
+        }
+        Path container = plugin.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
+        Path worldFolder = container.resolve(name).normalize();
+        if (!worldFolder.startsWith(container)) {
+            plugin.getLogger().severe("[World] Resolved folder escapes the server world container; refusing replacement: " + name);
+            return null;
+        }
+        Path backup = null;
+        try {
+            if (Files.exists(worldFolder)) {
+                String stamp = LocalDateTime.now(java.time.ZoneOffset.UTC)
+                    .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+                backup = worldFolder.resolveSibling(name + ".backup-" + stamp);
+                int suffix = 1;
+                while (Files.exists(backup)) backup = worldFolder.resolveSibling(name + ".backup-" + stamp + "-" + suffix++);
+                moveWorldFolder(worldFolder, backup);
+                plugin.getLogger().warning("[World] Preserved previous world '" + name + "' at " + backup + ".");
+            }
+            World replacement = Bukkit.createWorld(worldCreator(name, environment, seed));
+            if (replacement == null || replacement.getEnvironment() != environment
+                    || (seed != null && replacement.getSeed() != seed)) {
+                if (replacement != null) Bukkit.unloadWorld(replacement, false);
+                Path failedFolder = worldFolder.resolveSibling(name + ".failed-" + System.currentTimeMillis());
+                if (Files.exists(worldFolder)) moveWorldFolder(worldFolder, failedFolder);
+                if (backup != null && Files.exists(backup) && !Files.exists(worldFolder)) moveWorldFolder(backup, worldFolder);
+                plugin.getLogger().severe("[World] New world did not match the requested environment/seed for "
+                    + reason + "; previous world folder was restored where possible.");
+                return null;
+            }
+            plugin.getLogger().info("[World] Recreated " + reason + " '" + name + "' (" + environment
+                + ", seed=" + (seed == null ? "generated" : seed) + ").");
+            return replacement;
+        } catch (IOException | RuntimeException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[World] Could not replace world '" + name + "'.", exception);
+            try {
+                if (backup != null && Files.exists(backup) && !Files.exists(worldFolder))
+                    moveWorldFolder(backup, worldFolder);
+            } catch (IOException restoreFailure) {
+                plugin.getLogger().log(Level.SEVERE, "[World] Failed restoring the previous world folder '"
+                    + name + "' from " + backup + ".", restoreFailure);
+            }
+            return null;
+        }
+    }
+
+    private void saveWorldManifest(String name, World.Environment environment, Long configuredSeed, long actualSeed) {
+        String base = "worlds." + name;
+        worldManifest.set(base + ".environment", environment.name());
+        worldManifest.set(base + ".seed", configuredSeed);
+        worldManifest.set(base + ".seed-configured", configuredSeed != null);
+        worldManifest.set(base + ".actual-seed", actualSeed);
+        try {
+            File parent = worldManifestFile.getParentFile();
+            if (parent != null && !parent.isDirectory() && !parent.mkdirs())
+                throw new IOException("Could not create plugin data directory.");
+            File temporary = new File(worldManifestFile.getParentFile(), worldManifestFile.getName() + ".tmp");
+            worldManifest.save(temporary);
+            try {
+                Files.move(temporary.toPath(), worldManifestFile.toPath(), StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporary.toPath(), worldManifestFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            plugin.getLogger().info("[World] Stored managed settings for '" + name + "' (" + environment
+                + ", seed=" + (configuredSeed == null ? "optional/unset" : configuredSeed)
+                + ", actualSeed=" + actualSeed + ").");
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[World] Could not save managed-world manifest for '" + name + "'.", exception);
+        }
+    }
+
+    private void moveWorldFolder(Path source, Path destination) throws IOException {
+        try {
+            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException exception) {
+            Files.move(source, destination);
         }
     }
 

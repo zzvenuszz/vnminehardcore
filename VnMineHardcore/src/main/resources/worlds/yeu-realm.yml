@@ -15,12 +15,15 @@ display-name: "Yêu giới"
 world-name: yeu_realm
 
 world:
-  # [VI] Nếu bật, tạo world khi plugin khởi động mà world chưa tồn tại; mặc định false.
-  # [EN] Create this world at plugin startup when missing; defaults to false.
+  # [VI] Nếu bật, plugin đảm bảo world được nạp lúc khởi động và áp dụng môi trường/seed; khi đổi cấu hình world cũ được lưu backup.
+  # [EN] When enabled, ensure the world is loaded at startup and apply environment/seed; old world data is backed up on change.
   create-if-missing: false
-  # [VI] Môi trường world mới: NORMAL, NETHER hoặc THE_END; mặc định NORMAL.
-  # [EN] Environment for a newly created world: NORMAL, NETHER, or THE_END; defaults to NORMAL.
+  # [VI] Môi trường world: NORMAL, NETHER hoặc THE_END; đổi môi trường/seed sẽ backup thư mục cũ và tạo world mới sau restart.
+  # [EN] World environment: NORMAL, NETHER, or THE_END; changing environment/seed backs up the old folder and recreates the world after restart.
   environment: NORMAL
+  # [VI] Seed tùy chọn, số nguyên 64-bit; bỏ trống để giữ seed hiện tại, nếu xóa seed đã cấu hình thì world được tạo lại với seed tự sinh.
+  # [EN] Optional 64-bit integer seed; omit to keep an existing seed; clearing a configured seed recreates the world with a generated seed.
+  # seed: 123456789
 
 # [VI] ID NPC loại tutorial đặt tại đại lục này; mặc định tutorial-yeu-realm. NPC phải được tạo trong đúng world-name.
 # [EN] ID of the tutorial NPC placed in this continent; defaults to tutorial-yeu-realm. The NPC must be in world-name.

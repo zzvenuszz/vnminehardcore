@@ -67,6 +67,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         new ConcurrentHashMap<>();
     private final Map<UUID, java.util.Set<String>> completedByPlayer = new ConcurrentHashMap<>();
     private final java.util.Set<UUID> questStateLoaded = ConcurrentHashMap.newKeySet();
+    private final java.util.Set<UUID> questStateLoading = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, java.util.Set<String>> pendingNpcVisits = new ConcurrentHashMap<>();
     private final Map<UUID, PendingTextInput> pendingTextInputs = new ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingRequirementItems = new ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingObjectiveItems = new ConcurrentHashMap<>();
@@ -300,7 +302,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 else if (player.isOnline()) {
                     activeByPlayer.put(id, data.active());
                     completedByPlayer.put(id, data.completed());
+                    questStateLoaded.add(id);
                     refreshBoard(player);
+                    java.util.Set<String> queuedVisits = pendingNpcVisits.remove(id);
+                    if (queuedVisits != null) queuedVisits.stream().sorted()
+                        .forEach(npcId -> recordLoadedNpcVisit(player, npcId));
                 }
             }));
     }
@@ -2338,8 +2344,23 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     public void recordNpcVisit(Player player, String npcId) {
         if (npcId == null || npcId.isBlank()) return;
+        UUID playerId = player.getUniqueId();
+        if (!questStateLoaded.contains(playerId)) {
+            pendingNpcVisits.computeIfAbsent(playerId, ignored -> ConcurrentHashMap.newKeySet())
+                .add(npcId.toLowerCase(Locale.ROOT));
+            debugQuest("npc-visit-queued player=" + player.getName() + ", npc=" + npcId
+                + ", reason=quest-state-not-loaded");
+            loadQuestState(player, "npc-interaction");
+            return;
+        }
+        recordLoadedNpcVisit(player, npcId);
+    }
+
+    private void recordLoadedNpcVisit(Player player, String npcId) {
         Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer
             .getOrDefault(player.getUniqueId(), Map.of());
+        debugQuest("npc-interaction player=" + player.getName() + ", npc=" + npcId
+            + ", quest-state-loaded=true, active=" + active.size());
         for (String questId : List.copyOf(active.keySet())) {
             QuestDefinition quest = definitions.get(questId);
             if (quest == null) continue;
@@ -2527,13 +2548,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
+        loadQuestState(event.getPlayer(), "join");
+    }
+
+    private void loadQuestState(Player player, String source) {
         UUID playerId = player.getUniqueId();
+        if (questStateLoaded.contains(playerId) || !questStateLoading.add(playerId)) return;
         PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
-        database.executeGameplayDatabaseTask("quest.load-active player=" + player.getName(),
+        database.executeGameplayDatabaseTask("quest.load-active player=" + player.getName() + " source=" + source,
                 () -> new QuestJoinData(database.getActiveQuestProgress(playerId.toString()),
                     database.getCompletedQuestIds(playerId.toString())))
             .whenComplete((data, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                questStateLoading.remove(playerId);
                 if (failure != null) {
                     plugin.getLogger().log(Level.SEVERE, "[Quest] Failed loading active quests for "
                         + player.getName(), failure);
@@ -2541,10 +2567,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     activeByPlayer.put(playerId, data.active());
                     completedByPlayer.put(playerId, data.completed());
                     questStateLoaded.add(playerId);
-                    debugQuest("load-active player=" + player.getName() + ", count=" + data.active().size()
-                        + ", completed=" + data.completed().size());
+                    debugQuest("load-active player=" + player.getName() + ", source=" + source
+                        + ", count=" + data.active().size() + ", completed=" + data.completed().size());
                     refreshBoard(player);
                     processPendingQuestSuccessors(player);
+                    java.util.Set<String> queuedVisits = pendingNpcVisits.remove(playerId);
+                    if (queuedVisits != null) queuedVisits.stream().sorted()
+                        .forEach(npcId -> recordLoadedNpcVisit(player, npcId));
                 }
             }));
     }
@@ -2622,6 +2651,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         activeByPlayer.remove(event.getPlayer().getUniqueId());
         completedByPlayer.remove(event.getPlayer().getUniqueId());
         questStateLoaded.remove(event.getPlayer().getUniqueId());
+        questStateLoading.remove(event.getPlayer().getUniqueId());
+        pendingNpcVisits.remove(event.getPlayer().getUniqueId());
         pendingTextInputs.remove(event.getPlayer().getUniqueId());
         pendingRequirementItems.remove(event.getPlayer().getUniqueId());
         pendingObjectiveItems.remove(event.getPlayer().getUniqueId());
@@ -2724,7 +2755,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         QuestObjective objective = quest.objectives().get(objectiveIndex);
         String expectedStep = Integer.toString(objectiveIndex);
         PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
-        database.executeGameplayDatabaseTask("quest.kill-progress player=" + player.getName()
+        database.executeGameplayDatabaseTask("quest.objective-progress player=" + player.getName()
                 + " quest=" + quest.id(), () -> database.incrementQuestObjectiveProgress(
                     playerId.toString(), quest.id(), expectedStep, Math.min(1000, amount), objective.amount(),
                     Instant.now().toString()))
