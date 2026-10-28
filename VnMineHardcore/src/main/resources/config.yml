@@ -41,6 +41,12 @@ menus:
     # [EN] Enable admin RPG tools for granting skill books/experience/levels; defaults to true.
     rpg-tools:
       enabled: true
+    # [VI] Thời gian cảnh báo trước khi gọi thiên tai/boss; mặc định 30 giây, hợp lệ 1-3600.
+    # [EN] Warning time before a disaster/boss is summoned; default 30 seconds, valid range 1-3600.
+    warning-seconds: 30
+    # [VI] Thời gian thiên tai/boss hoạt động; mặc định 120 giây, hợp lệ 1-86400.
+    # [EN] Disaster/boss active duration; default 120 seconds, valid range 1-86400.
+    duration-seconds: 120
 
 # [VI] Giới hạn và hiệu năng cho Schema Build; các giá trị áp dụng khi dựng/hiển thị preview.
 # [EN] Schema Build safety and performance limits; values apply while placing/rendering previews.
@@ -54,12 +60,22 @@ schema-build:
   # [VI] Số lần dựng có thể Undo mỗi admin (mặc định 10, hợp lệ 1-50; chỉ lưu trong phiên server hiện tại).
   # [EN] Number of builds each admin can undo (default 10, valid 1-50; session-only, not persisted across restarts).
   history-size: 10
-    # [VI] Thời gian cảnh báo trước khi gọi thiên tai/boss; mặc định 30 giây, hợp lệ 1-3600.
-    # [EN] Warning time before a disaster/boss is summoned; default 30 seconds, valid range 1-3600.
-    warning-seconds: 30
-    # [VI] Thời gian thiên tai/boss hoạt động; mặc định 120 giây, hợp lệ 1-86400.
-    # [EN] Disaster/boss active duration; default 120 seconds, valid range 1-86400.
-    duration-seconds: 120
+
+# [VI] Giới hạn an toàn cho lệnh chỉnh sửa vùng //set, //replace, //paste... của búa WorldEdit tích hợp.
+# [EN] Safety limits for integrated selection-wand editing commands such as //set, //replace, and //paste.
+worldedit:
+  # [VI] Số block thay đổi tối đa cho một thao tác; mặc định 32768, hợp lệ 1-250000.
+  # [EN] Maximum changed blocks per operation; defaults to 32768, valid range 1-250000.
+  max-blocks: 32768
+  # [VI] Số block áp dụng mỗi tick để giảm giật server; mặc định 512, hợp lệ 32-4096.
+  # [EN] Blocks applied each tick to reduce server stalls; defaults to 512, valid range 32-4096.
+  blocks-per-tick: 512
+  # [VI] Số chunk tối đa được giữ nạp cho một thao tác; mặc định 256, hợp lệ 1-2048.
+  # [EN] Maximum chunks kept loaded during one operation; defaults to 256, valid range 1-2048.
+  max-chunks-per-operation: 256
+  # [VI] Số thao tác có thể undo; history chỉ tồn tại trong phiên người chơi/server, mặc định 10, hợp lệ 1-50.
+  # [EN] Number of undoable operations; history is session-only, defaults to 10, valid range 1-50.
+  history-size: 10
 
 # [VI] Cài đặt tạo nhân vật RPG; mặc định được bật.
 # [EN] RPG character-creation settings; enabled by default.

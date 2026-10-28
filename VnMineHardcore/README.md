@@ -44,6 +44,7 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vnmenu` hoặc phím `F` | Mở menu chức năng; phím F thay thao tác đổi tay phụ | Không yêu cầu quyền riêng |
 | `/vninit` | Mở wizard setup RPG: chọn đại lục khởi đầu, world, NPC tutorial và spawn; mỗi thay đổi lưu ngay, thoát rồi chạy lại để tiếp tục | `vnmine.command.init` |
 | `/vnregion [wand]` | Mở quản lý vùng bảo vệ; `wand` cấp búa chọn hai góc, đặt tên và cấu hình flags | `vnmine.command.worldedit` |
+| `//set`, `//replace`, `//copy`, `//paste`, `//undo` và lệnh vùng khác | Chỉnh cuboid bằng búa WorldEdit tích hợp; gõ `//help` để xem danh sách | `vnmine.command.worldedit` |
 | `/vnbuild select` | Chọn công trình Schema Build gần nhất trong world hiện tại; sau đó dùng `!edit`, `!copy`, `!remove` | `vnmine.command.schemabuild` |
 | `/vngroup ...` | Tạo/xóa nhóm, xem nhóm, cấp/thu hồi quyền nhóm | `vnmine.command.groups.manage` |
 | `/vnuser ...` | Xem/gán nhóm, cấp/thu hồi quyền cá nhân, reset người chơi | `vnmine.command.users.manage` |
@@ -911,6 +912,44 @@ Menu **Admin → WorldEdit / WorldGuard** hoặc `/vnregion` mở danh sách vù
 Nhận búa gỗ từ menu, chuột trái chọn góc 1 và chuột phải chọn góc 2; tạo vùng
 đặt tên rồi cấu hình từng flag. Các vùng và flags lưu trong
 `protected-regions.yml`; vùng Schema Build được đồng bộ theo ID công trình.
+
+### Lệnh chỉnh vùng bằng búa
+
+Búa hỗ trợ cú pháp gần WorldEdit, có thể gõ lệnh `//...` trực tiếp hoặc dùng
+`/vnregion <lệnh>`:
+
+```text
+//pos1 [x,y,z]       //pos2 [x,y,z]       //hpos1 / //hpos2 / //chunk
+//set minecraft:stone
+//set 50%stone,50%minecraft:glass
+//replace minecraft:dirt minecraft:stone
+//walls stone        //faces stone        //overlay grass_block
+//center gold_block  //count diamond_ore
+//expand 5 up        //contract 3         //shift 10 north
+//move 5 east air    //stack 3 east
+//copy               //cut [air]           //paste [-a] [-o]
+//undo / //redo      //size / //desel      //limit 32768
+```
+
+Pattern nhận tên block/namespace, block state như
+`minecraft:oak_log[axis=x]` và các lựa chọn phân bố ngẫu nhiên có trọng số.
+Các thay đổi được áp dụng theo từng batch để giảm giật. Giới hạn mặc định là
+32,768 block mỗi thao tác, 512 block mỗi tick; chỉnh tại `worldedit.max-blocks`,
+`worldedit.blocks-per-tick`, và tối đa 256 chunk mỗi tác vụ tại
+`worldedit.max-chunks-per-operation`. Plugin giữ các chunk được sửa trong lúc
+batch đang chạy. Undo/redo giữ 10 thao tác; clipboard và history
+chỉ tồn tại trong phiên đăng nhập hiện tại. Hệ thống từ chối thao tác lên rương,
+bảng hiệu và các block entity khác vì không lưu nội dung của chúng.
+
+Các lệnh này hiện chỉ hỗ trợ vùng cuboid, block placement/replacement và
+clipboard block. Brush, generator, biome/entity editing và các loại selection
+phi cuboid chưa được đưa vào. Cách chia nhóm tính năng theo selection, region
+operations, clipboard, patterns và history dựa trên
+[tài liệu lệnh WorldEdit](https://worldedit.enginehub.org/en/latest/commands/),
+[chọn vùng](https://worldedit.enginehub.org/en/latest/usage/regions/selections/),
+[clipboard](https://worldedit.enginehub.org/en/latest/usage/clipboard/),
+[pattern](https://worldedit.enginehub.org/en/latest/usage/general/patterns/) và
+[undo/redo](https://worldedit.enginehub.org/en/latest/usage/general/history/).
 
 Giới hạn kích thước schema và số block hiển thị trong preview được đặt tại `schema-build.max-blocks` và `schema-build.preview-blocks` trong `config.yml`. Plugin đặt block state vanilla; dữ liệu block entity như inventory/sign, entity và biome trong file schematic chưa được dựng.
 

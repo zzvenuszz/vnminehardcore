@@ -789,3 +789,16 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Build và cài JAR 2.31.0: `mvn -DskipTests package` thành công lúc `2026-10-28 07:43:56 UTC`; JAR 2,356,451 bytes, SHA-256 `8e70bebc3b999eb53ba09b8873e2b9e3b4e4cfe1413af8d88096d4cbc1e92721`. Cài tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.31.0.jar`; backup 2.30.0 tại `.old-builds/`. Bản 2.29.0 trùng checksum với backup có sẵn nên file trong plugins được dời vào `.old-builds/VnMineHardcore-2.29.0-plugin-copy.jar`.
 - [ ] Gameplay test các cờ start-world, selection wand, flags/overlap, persistence qua restart, edit/copy/remove, block bị người chơi thay đổi và world chưa load.
 - Ghi chú giới hạn: quản lý vùng là cuboid nhẹ do plugin tự lưu, không thay thế toàn bộ WorldEdit/WorldGuard. Mô hình lưu block snapshot không bao gồm dữ liệu inventory/sign/entity; thao tác xóa được từ chối khi block đã thay đổi hoặc có tile entity. Region protection hiện có thể bypass bởi OP/permission quản trị.
+
+## Mở rộng lệnh WorldEdit cho búa gỗ — yêu cầu 2026-10-28
+
+- [x] Đọc docs WorldEdit 7.4 chính thức và dùng các nhóm command/selection/clipboard/pattern/history làm tham khảo; không nhúng thư viện WorldEdit.
+- [x] Chặn lệnh `//...` vào bộ xử lý plugin; chọn cuboid bằng búa, `//pos1`, `//pos2`, `//hpos1`, `//hpos2`, `//chunk`, điều chỉnh `//expand`, `//contract`, `//shift`; có `//size`, `//desel`.
+- [x] Thêm `//set`, `//replace`, `//walls`, `//faces`, `//overlay`, `//center`, `//count`, `//move`, `//stack`, `//copy`, `//cut`, `//paste [-a] [-o]`, `//undo`, `//redo`, `//clearhistory`, `//limit`; nhận material ID/block state và pattern block phân bố có trọng số.
+- [x] Thêm giới hạn khối/chunk, xác nhận chunks nạp/world border/chiều cao, từ chối tile entity để bảo toàn inventory/sign, giữ chunk trong khi áp dụng batch từng tick, lưu undo/redo và clipboard trong phiên; bổ sung help, permission, config, README và CHANGELOG. `config.yml` và `plugin.yml` parse YAML hợp lệ.
+- [x] Compile Java 25 bằng `mvn -DskipTests compile` thành công lúc `2026-10-28 08:16 UTC`; không chạy test suite.
+- [x] Build JAR 2.32.0 bằng Java 25 với `mvn -DskipTests clean package`; build thành công lúc `2026-10-28 08:21:03 UTC`, 2,390,476 bytes, SHA-256 `2cb94db0dd8b34cb4ecf37ca215bfd3d55565ad90e1440a3cfb5ecb3c2fcf9cd`. `plugin.yml` xác nhận phiên bản 2.32.0; JAR giữ SQLite JDBC/service metadata và chỉ đóng gói native Linux x86_64. Test suite được bỏ qua theo yêu cầu build.
+- [x] Sao lưu JAR 2.31.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.31.0.jar`, cài 2.32.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.32.0.jar`, đối chiếu byte/hash với artifact; gỡ JAR 2.31.0 khỏi thư mục plugin để Paper không nạp trùng phiên bản.
+- [ ] Commit và push thay đổi mã nguồn/tài liệu lên `origin/main`.
+- [ ] Kiểm thử trên server các lệnh set/replace/copy/paste/move/stack/undo/redo, pattern, giới hạn lệnh và tile entity; server cần restart để nạp 2.32.0.
+- Giới hạn hiện tại: cuboid-only; không có entity/biome edit, brush, generator, selection shapes phi cuboid, schematic I/O hoặc history xuyên restart. Clipboard/history mất khi thoát.
