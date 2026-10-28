@@ -45,8 +45,8 @@ menus:
 # [VI] Giới hạn và hiệu năng cho Schema Build; các giá trị áp dụng khi dựng/hiển thị preview.
 # [EN] Schema Build safety and performance limits; values apply while placing/rendering previews.
 schema-build:
-  # [VI] Số block tối đa trong một file .schema (mặc định 5000, hợp lệ 1-100000).
-  # [EN] Maximum blocks in one .schema file (default 5000, valid 1-100000).
+  # [VI] Số block tối đa trong một file Sponge .schem (mặc định 5000, hợp lệ 1-100000).
+  # [EN] Maximum blocks in one Sponge .schem file (default 5000, valid 1-100000).
   max-blocks: 5000
   # [VI] Số BlockDisplay tối đa trong preview; schema lớn hơn vẫn dựng đầy đủ nhưng preview bị rút gọn (mặc định 1200, hợp lệ 1-5000).
   # [EN] Maximum BlockDisplay entities in preview; larger schemas still place fully but preview is truncated (default 1200, valid 1-5000).
@@ -83,6 +83,16 @@ rpg:
       # [VI] Seed tùy chọn 64-bit; bỏ trống để giữ seed hiện có, xóa seed đã dùng sẽ backup và tạo lại world với seed tự sinh.
       # [EN] Optional 64-bit seed; omit to keep the current seed; clearing a configured seed backs up and regenerates the world.
       # seed: 123456789
+      # [VI] ID NPC loại tutorial đặt trong world bắt đầu/reset; có thể chọn trực tiếp trong /vninit.
+      # [EN] ID of a tutorial-type NPC in the start/reset world; select it directly in /vninit.
+      tutorial-npc-id: ""
+      tutorial:
+        # [VI] Dialog phát khi người chơi tương tác NPC tutorial world bắt đầu; chọn bằng /vninit hoặc edit NPC.
+        # [EN] Dialog played when a player interacts with the start-world tutorial NPC; set via /vninit or NPC editor.
+        dialog-id: ""
+        # [VI] Quest tự giao sau dialog; chỉ quest có giver NPC ID trùng với tutorial-npc-id mới được chọn.
+        # [EN] Quest accepted after the dialog; only quests whose giver NPC ID matches tutorial-npc-id are selectable.
+        auto-quest-id: ""
     # [VI] Vẽ đường particle navigation khi người chơi cùng world với NPC; mặc định true.
     # [EN] Render navigation particles when the player is in the NPC's world; defaults to true.
     navigation-enabled: true

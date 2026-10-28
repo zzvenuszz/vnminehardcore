@@ -609,6 +609,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 && plugin.getCharacterSelectionManager().recordTutorialNpcVisit(player, npc.id())) {
             return;
         }
+        if (plugin.getCharacterSelectionManager() != null
+                && plugin.getCharacterSelectionManager().recordStartWorldTutorialNpcVisit(player, npc.id())) {
+            return;
+        }
         if ("system-merchant".equals(npc.type())) {
             plugin.getEconomyManager().openMerchantMenu(player);
             return;

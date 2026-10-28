@@ -794,6 +794,47 @@ public final class CharacterSelectionManager implements Listener {
         return true;
     }
 
+    /** Handles the separately configured tutorial NPC in the onboarding start/reset world. */
+    public boolean recordStartWorldTutorialNpcVisit(Player player, String npcId) {
+        String configuredNpc = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+        if (configuredNpc.isBlank() || !configuredNpc.equalsIgnoreCase(npcId)) return false;
+        if (plugin.getNpcManager() == null
+                || plugin.getNpcManager().getNpcType(npcId).filter("tutorial"::equalsIgnoreCase).isEmpty()) return false;
+        String startWorld = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
+        var target = plugin.getNpcManager() == null ? java.util.Optional.<NpcManager.NpcTarget>empty()
+            : plugin.getNpcManager().getNpcTarget(npcId);
+        if (target.isEmpty() || !startWorld.equalsIgnoreCase(target.get().world())
+                || !player.getWorld().getName().equalsIgnoreCase(startWorld)) {
+            player.sendMessage("§cNPC hướng dẫn khu vực bắt đầu chưa được cấu hình đúng world.");
+            plugin.getLogger().warning("[Onboarding] Start-world tutorial NPC validation failed: player="
+                + player.getName() + ", npc=" + npcId + ", expectedWorld=" + startWorld
+                + ", actualNpcWorld=" + target.map(NpcManager.NpcTarget::world).orElse("missing")
+                + ", playerWorld=" + player.getWorld().getName());
+            return true;
+        }
+        String dialogId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial.dialog-id");
+        String questId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial.auto-quest-id");
+        Runnable afterDialogue = () -> {
+            if (!player.isOnline() || questId == null || questId.isBlank()
+                    || plugin.getQuestCatalogManager() == null) return;
+            plugin.getLogger().info("[Onboarding] Start-world tutorial auto-quest: player=" + player.getName()
+                + ", npc=" + npcId + ", quest=" + questId);
+            plugin.getQuestCatalogManager().acceptQuest(player, npcId, questId);
+        };
+        if (dialogId != null && !dialogId.isBlank() && plugin.getQuestDialogManager() != null
+                && plugin.getQuestDialogManager().hasDialog(dialogId)) {
+            String speaker = plugin.getNpcManager().getNpcDisplayName(npcId).orElse(npcId);
+            plugin.getQuestDialogManager().openQuestDialogue(player, dialogId, speaker, afterDialogue);
+        } else {
+            if (dialogId != null && !dialogId.isBlank()) {
+                plugin.getLogger().warning("[Onboarding] Start-world tutorial dialog is missing: npc="
+                    + npcId + ", dialog=" + dialogId);
+            }
+            afterDialogue.run();
+        }
+        return true;
+    }
+
     private void finishTutorialNpcVisit(Player player, String realmId, String npcId) {
         if (!player.isOnline()) return;
         lastCrossWorldHintTick.remove(player.getUniqueId());

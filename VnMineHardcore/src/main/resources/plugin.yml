@@ -165,7 +165,7 @@ permissions:
     description: Cho phép mở giao diện quản trị người chơi
     default: op
   vnmine.command.schemabuild:
-    description: Cho phép dựng công trình từ file .schema trong Schema Build
+    description: Cho phép dựng công trình từ file Sponge .schem trong Schema Build
     default: op
   vnmine.command.init:
     description: Cho phép mở trình hướng dẫn setup server RPG bằng /vninit

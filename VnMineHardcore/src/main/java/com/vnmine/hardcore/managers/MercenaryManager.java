@@ -6770,8 +6770,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
          }
          if (player.hasPermission("vnmine.command.schemabuild")) {
              holder.inventory.setItem(26, this.menuItem(Material.STRUCTURE_BLOCK, "§bSchema Build",
-                 List.of("§7Duyệt và dựng công trình từ file .schema.",
-                     "§7Có preview riêng, xoay X/Y/Z, Undo và Redo.")));
+                 List.of("§7Duyệt và dựng công trình Sponge .schem.",
+                     "§7Xoay/lật, preview ngoài world, !put để đặt.", "§7!back quay lại menu chỉnh sửa.")));
          }
          if (hasPlayerAdmin && hasLegacyPlayerTools) {
             holder.inventory.setItem(24, this.menuItem(Material.COMPASS, "§dTiện ích người chơi",

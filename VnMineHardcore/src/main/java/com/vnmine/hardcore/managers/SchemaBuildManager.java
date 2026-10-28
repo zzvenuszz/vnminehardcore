@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -22,9 +21,12 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.block.data.Rotatable;
+import org.bukkit.block.data.type.Stairs;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -32,6 +34,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -41,9 +44,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
-import org.bukkit.configuration.file.YamlConfiguration;
 
-/** Admin GUI for placing small-to-medium YAML .schema structures with a private BlockDisplay preview. */
+/** Admin GUI for placing Sponge .schem structures with a private BlockDisplay preview. */
 public final class SchemaBuildManager implements Listener {
     private static final String PERMISSION = "vnmine.command.schemabuild";
     private static final int PAGE_SIZE = 45;
@@ -52,7 +54,7 @@ public final class SchemaBuildManager implements Listener {
     private static final int DEFAULT_HISTORY_SIZE = 10;
     private final VnMineHardcore plugin;
     private final Path schemasRoot;
-    private final Map<UUID, BuildSession> sessions = new HashMap<>();
+    private final Map<UUID, BuildSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Deque<BuildOperation>> undoHistory = new HashMap<>();
     private final Map<UUID, Deque<BuildOperation>> redoHistory = new HashMap<>();
     private final BukkitTask previewTask;
@@ -61,12 +63,12 @@ public final class SchemaBuildManager implements Listener {
         this.plugin = plugin;
         this.schemasRoot = new File(plugin.getDataFolder(), "schemas").toPath().toAbsolutePath().normalize();
         Files.createDirectories(schemasRoot);
-        File example = schemasRoot.resolve("examples").resolve("small-platform.schema").toFile();
+        File example = schemasRoot.resolve("examples").resolve("small-platform.schem").toFile();
         if (!example.isFile()) {
             File parent = example.getParentFile();
             if (!parent.isDirectory() && !parent.mkdirs()) throw new IOException("Could not create schema example directory.");
             try {
-                plugin.saveResource("schemas/examples/small-platform.schema", false);
+                plugin.saveResource("schemas/examples/small-platform.schem", false);
             } catch (IllegalArgumentException missingBundledExample) {
                 plugin.getLogger().warning("[SchemaBuild] Bundled example schema is missing; schema folder remains usable.");
             }
@@ -98,11 +100,11 @@ public final class SchemaBuildManager implements Listener {
                 "§7Tên: §f" + file.schema().name(),
                 "§7Số block: §f" + file.schema().blocks().size(),
                 "§7Kích thước: §f" + file.schema().sizeX() + "×" + file.schema().sizeY() + "×" + file.schema().sizeZ(),
-                "§eNhấn để xem bóng mờ và đặt.")));
+                "§eNhấn để xoay/chỉnh preview.")));
         }
         if (files.isEmpty()) menu.setItem(22, icon(Material.BARRIER, "§cChưa có schema hợp lệ", List.of(
-            "§7Đặt file .schema theo định dạng YAML vào:", "§fplugins/VnMineHardcore/schemas/",
-            "§7Có thể tạo thư mục con để nhóm công trình.", "§eVí dụ: schemas/examples/small-platform.schema")));
+            "§7Đặt file Sponge Schematic .schem vào:", "§fplugins/VnMineHardcore/schemas/",
+            "§7Có thể tạo thư mục con để nhóm công trình.", "§eVí dụ: schemas/examples/small-platform.schem")));
         if (page > 0) menu.setItem(45, icon(Material.ARROW, "§eTrang trước", List.of()));
         menu.setItem(46, icon(Material.SPECTRAL_ARROW, "§bUndo build gần nhất", List.of("§7Chỉ lùi thay đổi Schema Build.")));
         menu.setItem(47, icon(Material.TIPPED_ARROW, "§dRedo build vừa Undo", List.of()));
@@ -117,7 +119,7 @@ public final class SchemaBuildManager implements Listener {
         try (var paths = Files.walk(schemasRoot)) {
             Path rootReal = schemasRoot.toRealPath();
             for (Path path : paths.filter(Files::isRegularFile)
-                    .filter(file -> file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".schema"))
+                    .filter(file -> file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".schem"))
                     .toList()) {
                 if (!path.toRealPath().startsWith(rootReal)) continue;
                 String relative = schemasRoot.relativize(path).toString().replace(File.separatorChar, '/');
@@ -137,52 +139,27 @@ public final class SchemaBuildManager implements Listener {
     }
 
     private SchemaDefinition loadSchema(Path file) throws IOException {
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
-        int schemaVersion = yaml.getInt("schema-version", -1);
-        if (schemaVersion != 1) throw new IllegalArgumentException("schema-version must be 1");
-        String name = yaml.getString("name", file.getFileName().toString().replaceFirst("(?i)\\.schema$", "")).trim();
-        List<Map<?, ?>> entries = yaml.getMapList("blocks");
         int maxBlocks = Math.max(1, Math.min(100_000,
             plugin.getConfig().getInt("schema-build.max-blocks", DEFAULT_MAX_BLOCKS)));
-        if (entries.isEmpty() || entries.size() > maxBlocks)
-            throw new IllegalArgumentException("blocks must contain 1.." + maxBlocks + " entries");
-        List<SchemaBlock> blocks = new ArrayList<>(entries.size());
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        java.util.Set<String> positions = new HashSet<>();
-        for (Map<?, ?> entry : entries) {
-            int x = integer(entry.get("x"), "x");
-            int y = integer(entry.get("y"), "y");
-            int z = integer(entry.get("z"), "z");
-            if (Math.abs((long) x) > 512 || Math.abs((long) y) > 512 || Math.abs((long) z) > 512)
-                throw new IllegalArgumentException("block coordinates must be within -512..512");
-            if (!positions.add(x + "," + y + "," + z))
-                throw new IllegalArgumentException("duplicate block position " + x + "," + y + "," + z);
-            Object materialValue = entry.get("material");
-            if (!(materialValue instanceof String materialText)) throw new IllegalArgumentException("material is required");
-            Material material = Material.matchMaterial(materialText);
-            if (material == null || !material.isBlock() || material.isAir())
-                throw new IllegalArgumentException("unknown/non-placeable block material: " + materialText);
-            Object dataValue = entry.get("block-data");
-            BlockData data;
-            try {
-                data = dataValue instanceof String text && !text.isBlank()
-                    ? Bukkit.createBlockData(text) : material.createBlockData();
-            } catch (IllegalArgumentException exception) {
-                throw new IllegalArgumentException("invalid block-data for " + materialText, exception);
+        SpongeSchematicReader.Schematic schematic = SpongeSchematicReader.read(file, maxBlocks);
+        List<SchemaBlock> blocks = new ArrayList<>(schematic.blockStates().size());
+        int index = 0;
+        for (int y = 0; y < schematic.height(); y++) {
+            for (int z = 0; z < schematic.length(); z++) {
+                for (int x = 0; x < schematic.width(); x++) {
+                    String state = schematic.blockStates().get(index++);
+                    BlockData data;
+                    try { data = Bukkit.createBlockData(state); }
+                    catch (IllegalArgumentException exception) {
+                        throw new IOException("unsupported block state in schematic: " + state, exception);
+                    }
+                    if (!data.getMaterial().isBlock()) throw new IOException("non-block palette entry: " + state);
+                    blocks.add(new SchemaBlock(x, y, z, data.getAsString()));
+                }
             }
-            if (data.getMaterial() != material) throw new IllegalArgumentException("block-data/material mismatch for " + materialText);
-            blocks.add(new SchemaBlock(x, y, z, data.getAsString()));
-            minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
-            maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z);
         }
-        return new SchemaDefinition(name, List.copyOf(blocks), maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1);
-    }
-
-    private int integer(Object value, String field) {
-        if (!(value instanceof Number number) || number.doubleValue() != number.intValue())
-            throw new IllegalArgumentException(field + " must be an integer");
-        return number.intValue();
+        return new SchemaDefinition(schematic.name(), List.copyOf(blocks), schematic.width(),
+            schematic.height(), schematic.length());
     }
 
     private void openBuilder(Player player, SchemaFile schema) {
@@ -203,26 +180,33 @@ public final class SchemaBuildManager implements Listener {
         menu.setItem(4, icon(Material.STRUCTURE_BLOCK, "§b" + session.schema.schema().name(), List.of(
             "§7Khối neo: §f" + locationText(session.anchor),
             "§7Xoay X/Y/Z: §f" + session.rotationX + "° / " + session.rotationY + "° / " + session.rotationZ + "°",
-            "§7Điểm neo bám theo mặt block bạn đang ngắm.")));
+            "§7Đối xứng X/Y/Z: §f" + session.flipX + " / " + session.flipY + " / " + session.flipZ,
+            "§7Preview ban đầu hiện phía trước bạn.")));
         menu.setItem(10, icon(Material.IRON_NUGGET, "§eXoay trục X −90°", List.of()));
         menu.setItem(16, icon(Material.GOLD_NUGGET, "§eXoay trục X +90°", List.of()));
         menu.setItem(19, icon(Material.IRON_INGOT, "§eXoay trục Y −90°", List.of()));
         menu.setItem(25, icon(Material.GOLD_INGOT, "§eXoay trục Y +90°", List.of()));
         menu.setItem(28, icon(Material.IRON_BLOCK, "§eXoay trục Z −90°", List.of()));
         menu.setItem(34, icon(Material.GOLD_BLOCK, "§eXoay trục Z +90°", List.of()));
+        menu.setItem(11, icon(session.flipX ? Material.LIME_DYE : Material.GRAY_DYE,
+            "§eLật trục X: " + (session.flipX ? "§aBẬT" : "§cTẮT"), List.of("§7Nhấn để đổi đối xứng.")));
+        menu.setItem(15, icon(session.flipY ? Material.LIME_DYE : Material.GRAY_DYE,
+            "§eLật trục Y: " + (session.flipY ? "§aBẬT" : "§cTẮT"), List.of("§7Nhấn để đổi đối xứng.")));
+        menu.setItem(20, icon(session.flipZ ? Material.LIME_DYE : Material.GRAY_DYE,
+            "§eLật trục Z: " + (session.flipZ ? "§aBẬT" : "§cTẮT"), List.of("§7Nhấn để đổi đối xứng.")));
         menu.setItem(37, icon(Material.SPECTRAL_ARROW, "§bUndo build gần nhất", List.of(
             "§7Chỉ lùi thay đổi do Schema Build thực hiện.", "§7Tối đa: §f" + historyLimit() + " bản.")));
-        menu.setItem(40, icon(Material.LIME_CONCRETE, "§aXÁC NHẬN DỰNG", List.of(
-            "§7Đặt §f" + session.schema.schema().blocks().size() + "§7 block tại vị trí bóng mờ.",
-            "§cVật thể dạng block entity sẽ được đặt rỗng; không lưu inventory/sign data.",
-            "§eNhấn để dựng.")));
+        menu.setItem(40, icon(Material.LIME_CONCRETE, "§aPreview ngoài world", List.of(
+            "§7Đóng menu và giữ bóng mờ trong world.",
+            "§7Di chuyển tự do để chọn vị trí đặt.",
+            "§eGõ !put để đặt hoặc !back để chỉnh lại.")));
         menu.setItem(43, icon(Material.TIPPED_ARROW, "§dRedo build vừa Undo", List.of()));
         menu.setItem(45, icon(Material.ARROW, "§eChọn schema khác", List.of()));
         menu.setItem(49, icon(Material.BARRIER, "§cHủy xem trước", List.of("§7Bóng mờ sẽ bị xóa.")));
         menu.setItem(53, icon(Material.COMPASS, "§bCách đặt", List.of(
-            "§7Di chuyển/ngắm mặt block để chuyển bóng mờ.",
-            "§7Các nút xoay thay đổi góc trên từng trục.",
-            "§7Schema giới hạn block và chỉ nhận file YAML version 1.")));
+            "§7Xoay và lật từng trục, rồi bật preview ngoài world.",
+            "§7Trong preview, di chuyển/ngắm mặt block để chọn vị trí.",
+            "§e!put đặt công trình; !back mở lại menu xoay/lật.")));
         player.openInventory(menu);
     }
 
@@ -250,12 +234,15 @@ public final class SchemaBuildManager implements Listener {
         switch (slot) {
             case 10 -> rotate(player, session, 'x', -1);
             case 16 -> rotate(player, session, 'x', 1);
+            case 11 -> toggleFlip(player, session, 'x');
+            case 15 -> toggleFlip(player, session, 'y');
+            case 20 -> toggleFlip(player, session, 'z');
             case 19 -> rotate(player, session, 'y', -1);
             case 25 -> rotate(player, session, 'y', 1);
             case 28 -> rotate(player, session, 'z', -1);
             case 34 -> rotate(player, session, 'z', 1);
             case 37 -> undo(player);
-            case 40 -> place(player, session);
+            case 40 -> enterPlacementPreview(player, session);
             case 43 -> redo(player);
             case 45 -> {
                 sessions.remove(player.getUniqueId());
@@ -280,6 +267,7 @@ public final class SchemaBuildManager implements Listener {
         Bukkit.getScheduler().runTask(plugin, () -> {
             BuildSession active = sessions.get(player.getUniqueId());
             if (active != holder.session) return;
+            if (active.placementPreview) return;
             if (player.getOpenInventory().getTopInventory().getHolder() instanceof SchemaHolder next
                     && next.session == holder.session) return;
             sessions.remove(player.getUniqueId());
@@ -299,6 +287,54 @@ public final class SchemaBuildManager implements Listener {
         openBuilderMenu(player, session);
     }
 
+    private void toggleFlip(Player player, BuildSession session, char axis) {
+        switch (axis) {
+            case 'x' -> session.flipX = !session.flipX;
+            case 'y' -> session.flipY = !session.flipY;
+            case 'z' -> session.flipZ = !session.flipZ;
+            default -> { }
+        }
+        updatePreview(player, session, true);
+        openBuilderMenu(player, session);
+    }
+
+    private void enterPlacementPreview(Player player, BuildSession session) {
+        session.placementPreview = true;
+        updatePreview(player, session, true);
+        player.closeInventory();
+        player.sendMessage("§bPreview schema đang bật. Di chuyển và ngắm để chọn vị trí; gõ §f!put §bđể đặt hoặc §f!back §bđể chỉnh xoay/lật.");
+        plugin.getLogger().info("[SchemaBuild] placement-preview player=" + player.getName() + ", schema="
+            + session.schema.relativePath() + ", anchor=" + locationText(session.anchor));
+    }
+
+    @EventHandler
+    public void onPlacementPreviewChat(AsyncPlayerChatEvent event) {
+        String input = event.getMessage().trim();
+        if (!"!put".equalsIgnoreCase(input) && !"!back".equalsIgnoreCase(input)) return;
+        UUID playerId = event.getPlayer().getUniqueId();
+        BuildSession session = sessions.get(playerId);
+        if (session == null || !session.placementPreview) return;
+        event.setCancelled(true);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player == null || !player.isOnline() || sessions.get(playerId) != session) return;
+            if (!player.hasPermission(PERMISSION)) {
+                sessions.remove(playerId);
+                removePreview(session);
+                player.sendMessage("§cBạn không còn quyền Schema Build; preview đã bị hủy.");
+                return;
+            }
+            if ("!put".equalsIgnoreCase(input)) {
+                place(player, session);
+            } else {
+                session.placementPreview = false;
+                updatePreview(player, session, true);
+                openBuilderMenu(player, session);
+                player.sendMessage("§eĐã quay lại menu xoay/lật schema.");
+            }
+        });
+    }
+
     private int wrap(int degrees) { return Math.floorMod(degrees, 360); }
 
     private void tickPreviews() {
@@ -314,16 +350,19 @@ public final class SchemaBuildManager implements Listener {
     }
 
     private void updatePreview(Player player, BuildSession session, boolean force) {
-        Location newAnchor = findAnchor(player);
+        Location newAnchor = findAnchor(player, session.placementPreview);
         if (session.anchor != null && sameBlock(session.anchor, newAnchor) && !force) return;
         session.anchor = newAnchor;
-        List<PlacedBlock> blocks = transform(session.schema.schema(), session.rotationX, session.rotationY, session.rotationZ);
+        List<PlacedBlock> blocks = transform(session.schema.schema(), session.rotationX, session.rotationY, session.rotationZ,
+            session.flipX, session.flipY, session.flipZ);
         int displayLimit = Math.max(1, Math.min(5000,
             plugin.getConfig().getInt("schema-build.preview-blocks", DEFAULT_PREVIEW_BLOCKS)));
-        int count = Math.min(blocks.size(), displayLimit);
+        List<PlacedBlock> visibleBlocks = blocks.stream()
+            .filter(placed -> !Bukkit.createBlockData(placed.blockData()).getMaterial().isAir()).toList();
+        int count = Math.min(visibleBlocks.size(), displayLimit);
         while (session.preview.size() > count) session.preview.remove(session.preview.size() - 1).remove();
         for (int index = 0; index < count; index++) {
-            PlacedBlock placed = blocks.get(index);
+            PlacedBlock placed = visibleBlocks.get(index);
             Location location = session.anchor.clone().add(placed.x(), placed.y(), placed.z());
             BlockDisplay display;
             if (index >= session.preview.size()) {
@@ -343,20 +382,28 @@ public final class SchemaBuildManager implements Listener {
                 player.showEntity(plugin, display);
             }
         }
-        session.previewTruncated = blocks.size() > displayLimit;
+        session.previewTruncated = visibleBlocks.size() > displayLimit;
         if (player.getOpenInventory().getTopInventory().getHolder() instanceof SchemaHolder holder
                 && holder.viewer.equals(player.getUniqueId()) && holder.view == View.BUILDER) {
             holder.inventory.setItem(4, icon(Material.STRUCTURE_BLOCK, "§b" + session.schema.schema().name(), List.of(
                 "§7Khối neo: §f" + locationText(session.anchor),
                 "§7Xoay X/Y/Z: §f" + session.rotationX + "° / " + session.rotationY + "° / " + session.rotationZ + "°",
+                "§7Lật X/Y/Z: §f" + session.flipX + " / " + session.flipY + " / " + session.flipZ,
                 session.previewTruncated ? "§cPreview rút gọn theo giới hạn cấu hình." : "§aPreview hiển thị đầy đủ.")));
         }
-        player.sendActionBar(net.kyori.adventure.text.Component.text(
-            "Schema: " + session.schema.relativePath() + " | " + locationText(session.anchor)
-                + " | X/Y/Z " + session.rotationX + "/" + session.rotationY + "/" + session.rotationZ));
+        if (session.placementPreview) {
+            player.sendActionBar(net.kyori.adventure.text.Component.text(
+                "Schema: " + session.schema.relativePath() + " | " + locationText(session.anchor)
+                    + " | X/Y/Z " + session.rotationX + "/" + session.rotationY + "/" + session.rotationZ
+                    + " | !put đặt / !back chỉnh"));
+        }
     }
 
-    private Location findAnchor(Player player) {
+    private Location findAnchor(Player player, boolean placementPreview) {
+        if (!placementPreview) {
+            Location ahead = player.getEyeLocation().add(player.getLocation().getDirection().normalize().multiply(4.0));
+            return new Location(player.getWorld(), ahead.getBlockX(), ahead.getBlockY(), ahead.getBlockZ());
+        }
         RayTraceResult ray = player.rayTraceBlocks(48.0);
         if (ray != null && ray.getHitBlock() != null) {
             Block block = ray.getHitBlock();
@@ -373,15 +420,17 @@ public final class SchemaBuildManager implements Listener {
             && a.getBlockY() == b.getBlockY() && a.getBlockZ() == b.getBlockZ();
     }
 
-    private List<PlacedBlock> transform(SchemaDefinition schema, int rotateX, int rotateY, int rotateZ) {
+    private List<PlacedBlock> transform(SchemaDefinition schema, int rotateX, int rotateY, int rotateZ,
+            boolean flipX, boolean flipY, boolean flipZ) {
         List<RotatedBlock> rotated = new ArrayList<>(schema.blocks().size());
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
         for (SchemaBlock block : schema.blocks()) {
-            Vector position = rotate(new Vector(block.x(), block.y(), block.z()), rotateX, rotateY, rotateZ);
+            Vector position = mirror(new Vector(block.x(), block.y(), block.z()), flipX, flipY, flipZ);
+            position = rotate(position, rotateX, rotateY, rotateZ);
             int x = position.getBlockX(), y = position.getBlockY(), z = position.getBlockZ();
             minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
             BlockData data = Bukkit.createBlockData(block.blockData());
-            rotateBlockData(data, rotateX, rotateY, rotateZ);
+            transformBlockData(data, rotateX, rotateY, rotateZ, flipX, flipY, flipZ);
             rotated.add(new RotatedBlock(x, y, z, data.getAsString()));
         }
         int originX = minX, originY = minY, originZ = minZ;
@@ -399,9 +448,11 @@ public final class SchemaBuildManager implements Listener {
         return value;
     }
 
-    private void rotateBlockData(BlockData data, int rotateX, int rotateY, int rotateZ) {
+    private void transformBlockData(BlockData data, int rotateX, int rotateY, int rotateZ,
+            boolean flipX, boolean flipY, boolean flipZ) {
         if (data instanceof Directional directional) {
-            Vector facing = rotate(faceVector(directional.getFacing()), rotateX, rotateY, rotateZ);
+            Vector facing = mirror(faceVector(directional.getFacing()), flipX, flipY, flipZ);
+            facing = rotate(facing, rotateX, rotateY, rotateZ);
             BlockFace mapped = vectorFace(facing);
             try { directional.setFacing(mapped); } catch (IllegalArgumentException ignored) { }
         }
@@ -416,11 +467,38 @@ public final class SchemaBuildManager implements Listener {
                 : Math.abs(rotated.getY()) > 0.5 ? org.bukkit.Axis.Y : org.bukkit.Axis.Z;
             if (orientable.getAxes().contains(newAxis)) orientable.setAxis(newAxis);
         }
-        if (data instanceof Rotatable rotatable && rotateY != 0) {
-            BlockFace face = rotatable.getRotation();
-            for (int turn = 0; turn < rotateY / 90; turn++) face = rotateHorizontal(face);
-            try { rotatable.setRotation(face); } catch (IllegalArgumentException ignored) { }
+        if (data instanceof MultipleFacing multipleFacing) {
+            List<BlockFace> originalFaces = List.copyOf(multipleFacing.getFaces());
+            for (BlockFace face : multipleFacing.getAllowedFaces()) multipleFacing.setFace(face, false);
+            for (BlockFace face : originalFaces) {
+                Vector facing = mirror(faceVector(face), flipX, flipY, flipZ);
+                facing = rotate(facing, rotateX, rotateY, rotateZ);
+                BlockFace mapped = vectorFace(facing);
+                if (multipleFacing.getAllowedFaces().contains(mapped)) multipleFacing.setFace(mapped, true);
+            }
         }
+        if (data instanceof Bisected bisected && flipY) {
+            bisected.setHalf(bisected.getHalf() == Bisected.Half.TOP ? Bisected.Half.BOTTOM : Bisected.Half.TOP);
+        }
+        if (data instanceof Stairs stairs && (flipX ^ flipZ)) {
+            stairs.setShape(switch (stairs.getShape()) {
+                case INNER_LEFT -> Stairs.Shape.INNER_RIGHT;
+                case INNER_RIGHT -> Stairs.Shape.INNER_LEFT;
+                case OUTER_LEFT -> Stairs.Shape.OUTER_RIGHT;
+                case OUTER_RIGHT -> Stairs.Shape.OUTER_LEFT;
+                default -> stairs.getShape();
+            });
+        }
+        if (data instanceof Rotatable rotatable) {
+            Vector facing = mirror(faceVector(rotatable.getRotation()), flipX, flipY, flipZ);
+            facing = rotate(facing, rotateX, rotateY, rotateZ);
+            try { rotatable.setRotation(vectorFace(facing)); } catch (IllegalArgumentException ignored) { }
+        }
+    }
+
+    private Vector mirror(Vector vector, boolean flipX, boolean flipY, boolean flipZ) {
+        return new Vector(flipX ? -vector.getX() : vector.getX(),
+            flipY ? -vector.getY() : vector.getY(), flipZ ? -vector.getZ() : vector.getZ());
     }
 
     private Vector faceVector(BlockFace face) { return new Vector(face.getModX(), face.getModY(), face.getModZ()); }
@@ -433,16 +511,9 @@ public final class SchemaBuildManager implements Listener {
         return BlockFace.SELF;
     }
 
-    private BlockFace rotateHorizontal(BlockFace face) {
-        Vector turned = rotate(faceVector(face), 0, 90, 0).normalize();
-        return java.util.Arrays.stream(BlockFace.values())
-            .filter(candidate -> candidate.getModY() == 0 && candidate != BlockFace.SELF)
-            .max(Comparator.comparingDouble(candidate -> faceVector(candidate).normalize().dot(turned)))
-            .orElse(face);
-    }
-
     private void place(Player player, BuildSession session) {
-        List<PlacedBlock> blocks = transform(session.schema.schema(), session.rotationX, session.rotationY, session.rotationZ);
+        List<PlacedBlock> blocks = transform(session.schema.schema(), session.rotationX, session.rotationY, session.rotationZ,
+            session.flipX, session.flipY, session.flipZ);
         if (session.anchor == null || session.anchor.getWorld() == null) {
             player.sendMessage("§cChưa xác định được vị trí đặt.");
             return;
@@ -475,8 +546,9 @@ public final class SchemaBuildManager implements Listener {
         for (BlockSnapshot snapshot : snapshots) {
             Block block = snapshot.location().getBlock();
             BlockData after = Bukkit.createBlockData(snapshot.afterData());
+            ItemStack placedItem = new ItemStack(after.getMaterial().isAir() ? Material.BARRIER : after.getMaterial());
             BlockPlaceEvent placeEvent = new BlockPlaceEvent(block, block.getState(), block.getRelative(BlockFace.DOWN),
-                new ItemStack(after.getMaterial()), player, true, EquipmentSlot.HAND);
+                placedItem, player, true, EquipmentSlot.HAND);
             Bukkit.getPluginManager().callEvent(placeEvent);
             if (placeEvent.isCancelled()) {
                 restoreSnapshots(snapshots.subList(0, applied), false);
@@ -613,6 +685,10 @@ public final class SchemaBuildManager implements Listener {
         private int rotationX;
         private int rotationY;
         private int rotationZ;
+        private boolean flipX;
+        private boolean flipY;
+        private boolean flipZ;
+        private volatile boolean placementPreview;
         private boolean previewTruncated;
         private BuildSession(SchemaFile schema) { this.schema = schema; }
     }

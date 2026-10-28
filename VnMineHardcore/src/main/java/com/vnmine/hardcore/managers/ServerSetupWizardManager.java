@@ -116,6 +116,12 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         menu.setItem(48, item(Material.OBSIDIAN, "§bWorld bắt đầu/reset", List.of(
             "§7Hiện tại: §f" + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"),
             "§7World này được tạo tự động nếu chưa tồn tại.", "§eNhấn để nhập tên world.")));
+        String startTutorialNpc = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+        menu.setItem(44, item(startTutorialNpc.isBlank() ? Material.NAME_TAG : Material.VILLAGER_SPAWN_EGG,
+            "§dNPC tutorial world bắt đầu: §f" + (startTutorialNpc.isBlank() ? "Chưa chọn" : startTutorialNpc), List.of(
+                "§7Chọn NPC tutorial được đặt trong world bắt đầu/reset.",
+                "§7NPC này có dialog và quest tự giao riêng.",
+                "§7Sau khi chọn, shift + chuột phải NPC để cấu hình thêm.", "§eNhấn để chọn.")));
         menu.setItem(50, item(Material.COMPASS, "§bMôi trường world bắt đầu: §f"
             + plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"), List.of(
                 "§7Nhấn để đổi NORMAL → NETHER → THE_END.",
@@ -215,6 +221,11 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             player.sendMessage("§cCần quyền quản trị NPC hoặc /vninit để sửa hội thoại NPC tutorial.");
             return;
         }
+        String startNpcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+        if (!startNpcId.isBlank() && startNpcId.equalsIgnoreCase(npcId)) {
+            openStartWorldTutorialNpcEditor(player, npcId);
+            return;
+        }
         var realm = plugin.getRpgWorldManager().getDefinitions().values().stream()
             .filter(value -> value.tutorialNpcId().equalsIgnoreCase(npcId)).findFirst().orElse(null);
         if (realm == null) {
@@ -238,6 +249,32 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         player.openInventory(menu);
     }
 
+    private void openStartWorldTutorialNpcEditor(Player player, String npcId) {
+        String startWorld = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
+        String npcWorld = plugin.getNpcManager() == null ? null
+            : plugin.getNpcManager().getNpcTarget(npcId).map(NpcManager.NpcTarget::world).orElse(null);
+        if (npcWorld == null || !npcWorld.equalsIgnoreCase(startWorld)) {
+            player.sendMessage("§cNPC tutorial world bắt đầu phải được đặt trong world §f" + startWorld + "§c.");
+            plugin.getLogger().warning("[ServerSetup] Start-world tutorial NPC world mismatch: npc=" + npcId
+                + ", expected=" + startWorld + ", actual=" + npcWorld);
+            return;
+        }
+        String root = "rpg.onboarding.start-world.tutorial";
+        String dialogId = plugin.getConfig().getString(root + ".dialog-id");
+        String questId = plugin.getConfig().getString(root + ".auto-quest-id");
+        SetupHolder holder = new SetupHolder(player, "start-tutorial-config", "__start__", 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "NPC Tutorial World bắt đầu • " + npcId);
+        holder.inventory = menu;
+        menu.setItem(11, item(Material.WRITABLE_BOOK, "§dDialog: §f" + (dialogId == null ? "Chưa chọn" : dialogId), List.of(
+            "§7Dialog sẽ phát khi người chơi tương tác NPC này.",
+            "§7Có thể tạo/sửa bằng /vnquestdialog admin.", "§eNhấn để chọn.")));
+        menu.setItem(15, item(Material.ENCHANTED_BOOK, "§bQuest tự giao: §f" + (questId == null ? "Chưa chọn" : questId), List.of(
+            "§7Chỉ liệt kê quest có giver NPC ID là §f" + npcId + "§7.",
+            "§7Quest được giao sau khi dialog kết thúc.", "§eNhấn để chọn.")));
+        menu.setItem(49, item(Material.ARROW, "§7Quay lại /vninit", List.of()));
+        player.openInventory(menu);
+    }
+
     private void openTutorialQuestChoices(Player player, String realmId) {
         var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
         List<String> quests = realm == null || plugin.getQuestCatalogManager() == null ? List.of()
@@ -258,6 +295,31 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         }
         if (quests.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có quest phù hợp", List.of(
             "§7Tạo quest trong /vnquest admin và đặt giver NPC ID thành:", "§f" + (realm == null ? "?" : realm.tutorialNpcId()))));
+        menu.setItem(45, item(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
+        menu.setItem(49, item(Material.ARROW, "§7Quay lại", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openStartTutorialQuestChoices(Player player) {
+        String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+        List<String> quests = npcId.isBlank() || plugin.getQuestCatalogManager() == null ? List.of()
+            : plugin.getQuestCatalogManager().getQuestIdsForNpc(npcId);
+        SetupHolder holder = new SetupHolder(player, "start-tutorial-quests", "__start__", 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Quest giao sau tutorial world bắt đầu");
+        holder.inventory = menu;
+        String current = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial.auto-quest-id");
+        for (int i = 0; i < quests.size() && i < CONTENT_SLOTS.length; i++) {
+            String questId = quests.get(i);
+            int slot = CONTENT_SLOTS[i];
+            holder.choices.put(slot, questId);
+            String title = plugin.getQuestCatalogManager().getQuestTitle(questId);
+            menu.setItem(slot, item(questId.equals(current) ? Material.ENCHANTED_BOOK : Material.BOOK,
+                (questId.equals(current) ? "§a✓ " : "§f") + title, List.of("§7ID: §f" + questId,
+                    "§7Giao bởi NPC: §f" + npcId, "§eNhấn để chọn.")));
+        }
+        if (quests.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có quest phù hợp", List.of(
+            "§7Tạo quest trong /vnquest admin và đặt giver NPC ID là:",
+            "§f" + (npcId.isBlank() ? "chưa chọn NPC" : npcId))));
         menu.setItem(45, item(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
         menu.setItem(49, item(Material.ARROW, "§7Quay lại", List.of()));
         player.openInventory(menu);
@@ -423,6 +485,14 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 return;
             }
             if ("__start__".equals(realmId)) {
+                String previousWorld = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
+                if (!previousWorld.equalsIgnoreCase(input)) {
+                    plugin.getConfig().set("rpg.onboarding.start-world.tutorial-npc-id", null);
+                    plugin.getConfig().set("rpg.onboarding.start-world.tutorial.dialog-id", null);
+                    plugin.getConfig().set("rpg.onboarding.start-world.tutorial.auto-quest-id", null);
+                    plugin.getLogger().info("[ServerSetup] Cleared start-world tutorial NPC binding after world rename: old="
+                        + previousWorld + ", new=" + input);
+                }
                 plugin.getConfig().set("rpg.onboarding.start-world.name", input);
                 plugin.getConfig().set("rpg.onboarding.start-world.create-if-missing", true);
                 savePluginConfig(player, "rpg.onboarding.start-world.name=" + input);
@@ -492,13 +562,21 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
 
     private void openTutorialNpcs(Player player, String realmId, int page) {
         NpcManager npcManager = plugin.getNpcManager();
+        boolean startWorldSelection = "__start__".equals(realmId);
+        var realm = startWorldSelection || plugin.getRpgWorldManager() == null ? null
+            : plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        String expectedWorld = startWorldSelection
+            ? plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start")
+            : realm == null ? "" : realm.worldName();
         List<String> npcs = npcManager == null ? List.of() : npcManager.getNpcIds().stream()
             .filter(id -> npcManager.getNpcType(id).filter("tutorial"::equalsIgnoreCase).isPresent())
+            .filter(id -> npcManager.getNpcTarget(id).map(target -> target.world().equalsIgnoreCase(expectedWorld)).orElse(false))
             .sorted(String.CASE_INSENSITIVE_ORDER).toList();
         int pages = Math.max(1, (npcs.size() + 26) / 27);
         int safePage = Math.max(0, Math.min(page, pages - 1));
-        SetupHolder holder = new SetupHolder(player, "npcs", realmId, safePage);
-        Inventory menu = Bukkit.createInventory(holder, 54, "VnMine • NPC tutorial " + (safePage + 1) + "/" + pages);
+        SetupHolder holder = new SetupHolder(player, startWorldSelection ? "start-world-npcs" : "npcs", realmId, safePage);
+        Inventory menu = Bukkit.createInventory(holder, 54, (startWorldSelection ? "NPC tutorial world bắt đầu " : "VnMine • NPC tutorial ")
+            + (safePage + 1) + "/" + pages);
         holder.inventory = menu;
         for (int index = safePage * 27; index < Math.min((safePage + 1) * 27, npcs.size()); index++) {
             String npcId = npcs.get(index);
@@ -507,17 +585,20 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             holder.choices.put(slot, npcId);
             menu.setItem(slot, item(Material.VILLAGER_SPAWN_EGG, "§d" + npcId, List.of(
                 "§7World đang đặt: §f" + npcWorld,
-                "§7Chỉ hợp lệ khi world khớp đại lục.", "§eNhấn để gán làm NPC hướng dẫn.")));
+                "§7World yêu cầu: §f" + expectedWorld, "§eNhấn để gán làm NPC hướng dẫn.")));
         }
         if (npcs.isEmpty()) {
             menu.setItem(22, item(Material.NAME_TAG, "§cChưa có NPC loại tutorial", List.of(
                 "§7Đóng GUI và tạo NPC bằng lệnh:",
                 "§f/vnnpc create <id> tutorial",
                 "§7Ví dụ: /vnnpc create tutorial-nhan-gioi tutorial",
-                "§7Đặt NPC trong đúng world, sau đó chạy lại /vninit.")));
+                "§7Đặt NPC trong world §f" + expectedWorld + "§7, sau đó mở lại /vninit.")));
         }
         if (safePage > 0) menu.setItem(45, item(Material.ARROW, "§eTrang trước", List.of()));
-        menu.setItem(49, item(Material.ARROW, "§7Quay lại đại lục", List.of()));
+        if (startWorldSelection) menu.setItem(47, item(Material.BARRIER, "§cBỏ chọn NPC tutorial world bắt đầu", List.of(
+            "§7NPC hiện tại: §f" + plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "Chưa chọn"),
+            "§eNhấn để xóa NPC đã gán.")));
+        menu.setItem(49, item(Material.ARROW, startWorldSelection ? "§7Quay lại /vninit" : "§7Quay lại đại lục", List.of()));
         if (safePage + 1 < pages) menu.setItem(53, item(Material.ARROW, "§eTrang sau", List.of()));
         player.openInventory(menu);
     }
@@ -548,6 +629,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 pendingWorldNames.put(player.getUniqueId(), "__start__");
                 player.closeInventory();
                 player.sendMessage("§eNhập tên world an toàn cho người mới/reset. Ví dụ: §fworld_start§e. Gõ §f!cancel §eđể hủy.");
+            } else if (slot == 44) {
+                openTutorialNpcs(player, "__start__", 0);
             } else if (slot == 50) {
                 String current = plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL");
                 String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"
@@ -589,6 +672,29 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                     openTutorialNpcEditor(player, plugin.getRpgWorldManager().getDefinitions().get(holder.realmId).tutorialNpcId());
                 });
             } else if (slot == 15) openTutorialQuestChoices(player, holder.realmId);
+            return;
+        }
+        if ("start-tutorial-config".equals(holder.type)) {
+            if (slot == 49) openDashboard(player);
+            else if (slot == 11 && plugin.getQuestDialogManager() != null) {
+                String current = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial.dialog-id");
+                plugin.getQuestDialogManager().openSelector(player, current, selected -> {
+                    saveStartWorldTutorialSetting(player, "dialog-id", selected);
+                    String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+                    openTutorialNpcEditor(player, npcId);
+                });
+            } else if (slot == 15) openStartTutorialQuestChoices(player);
+            return;
+        }
+        if ("start-tutorial-quests".equals(holder.type)) {
+            if (slot == 49) {
+                String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+                openTutorialNpcEditor(player, npcId);
+            } else if (slot == 45 || holder.choices.containsKey(slot)) {
+                saveStartWorldTutorialSetting(player, "auto-quest-id", slot == 45 ? null : holder.choices.get(slot));
+                String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+                openTutorialNpcEditor(player, npcId);
+            }
             return;
         }
         if ("tutorial-quests".equals(holder.type)) {
@@ -720,6 +826,26 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             }
             return;
         }
+        if ("start-world-npcs".equals(holder.type)) {
+            if (slot == 49) openDashboard(player);
+            else if (slot == 45 && holder.page > 0) openTutorialNpcs(player, "__start__", holder.page - 1);
+            else if (slot == 53) openTutorialNpcs(player, "__start__", holder.page + 1);
+            else if (slot == 47) {
+                plugin.getConfig().set("rpg.onboarding.start-world.tutorial-npc-id", null);
+                plugin.getConfig().set("rpg.onboarding.start-world.tutorial.dialog-id", null);
+                plugin.getConfig().set("rpg.onboarding.start-world.tutorial.auto-quest-id", null);
+                savePluginConfig(player, "clear start-world tutorial NPC");
+                openDashboard(player);
+            } else {
+                String npcId = holder.choices.get(slot);
+                if (npcId != null) {
+                    plugin.getConfig().set("rpg.onboarding.start-world.tutorial-npc-id", npcId);
+                    savePluginConfig(player, "set start-world tutorial NPC=" + npcId);
+                    openDashboard(player);
+                }
+            }
+            return;
+        }
         if ("npcs".equals(holder.type)) {
             if (slot == 49) openRealm(player, holder.realmId);
             else if (slot == 45 && holder.page > 0) openTutorialNpcs(player, holder.realmId, holder.page - 1);
@@ -811,6 +937,12 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             plugin.getLogger().log(Level.SEVERE, "[ServerSetup] Could not save config.yml.", exception);
             player.sendMessage("§cKhông thể lưu config.yml. Kiểm tra console.");
         }
+    }
+
+    private void saveStartWorldTutorialSetting(Player player, String field, String value) {
+        String path = "rpg.onboarding.start-world.tutorial." + field;
+        plugin.getConfig().set(path, value);
+        savePluginConfig(player, "set " + path + "=" + value);
     }
 
     private void toggleTutorialQuest(Player player) {

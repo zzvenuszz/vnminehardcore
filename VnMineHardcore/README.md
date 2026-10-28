@@ -890,6 +890,14 @@ sát thương người chơi, thông báo và tỷ lệ. Chạy `/vnreload` sau 
   global và giữ nguyên override riêng từng world.
 - `/vnhelp` chỉ liệt kê các lệnh bạn có quyền sử dụng; nhấn Tab để gợi ý tham số.
 
+## Schema Build (admin)
+
+Schema Build đọc file Sponge Schematic `.schem` đã nén gzip, phiên bản 2 hoặc 3. Đặt file vào `plugins/VnMineHardcore/schemas/`; có thể tạo thư mục con để nhóm công trình. YAML `.schema` riêng của các bản thử nghiệm cũ không còn được quét; hãy xuất lại các công trình thành định dạng Sponge `.schem` bằng WorldEdit hoặc công cụ tương thích.
+
+Mở **Menu chính → Admin → Schema Build**, chọn công trình để mở menu chỉnh. Bóng mờ ban đầu xuất hiện trước mặt admin. Dùng các nút để xoay 90° hoặc lật theo trục X/Y/Z, sau đó chọn **Preview ngoài world**. Menu đóng lại, bóng mờ cập nhật theo block admin đang ngắm để có thể tự do di chuyển chọn vị trí. Gõ `!put` để đặt hoặc `!back` để quay lại menu xoay/lật.
+
+Giới hạn kích thước schema và số block hiển thị trong preview được đặt tại `schema-build.max-blocks` và `schema-build.preview-blocks` trong `config.yml`. Plugin đặt block state vanilla; dữ liệu block entity như inventory/sign, entity và biome trong file schematic chưa được dựng.
+
 ## Build từ mã nguồn
 
 ```bash

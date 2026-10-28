@@ -3,16 +3,31 @@
 ## Schema Build cho admin — yêu cầu 2026-10-28
 
 - [x] Thêm mục **Schema Build** trong Menu chính → Admin và quyền `vnmine.command.schemabuild`; tự tạo `plugins/VnMineHardcore/schemas/` cùng file mẫu.
-- [x] Quét `.schema` theo cây thư mục con; nạp schema YAML version 1, kiểm tra material/block-data, số block, tọa độ và vị trí trùng; báo lỗi file riêng lẻ thay vì dừng toàn bộ danh sách.
-- [x] Khi chọn schema, dựng preview BlockDisplay chỉ người admin nhìn thấy; điểm neo theo block đang ngắm; nút GUI xoay X/Y/Z theo 90° và dựng tại vị trí preview.
+- [~] Quét `.schem` theo cây thư mục con; parser Sponge Schematic v2/v3 gzip NBT có kiểm tra palette/block state/kích thước/volume, nhưng chưa xác minh với các file xuất từ WorldEdit/Litematica thực tế.
+- [~] Khi chọn schema, dựng preview BlockDisplay riêng trước mặt admin; GUI hỗ trợ xoay/lật X/Y/Z. Nút preview ngoài world đóng GUI, cho admin tự di chuyển/ngắm vị trí; `!put` đặt, `!back` quay lại menu chỉnh.
 - [x] Thêm Undo/Redo trong preview và danh sách schema; lưu tối đa cấu hình số lượt trong phiên, chỉ áp dụng khi block hiện tại còn khớp trạng thái đã ghi. Dựng kiểm tra world border, chiều cao, chunk đã nạp và phát `BlockPlaceEvent` để plugin bảo vệ có thể chặn.
 - [x] Giới hạn max blocks và số entity preview qua `schema-build`; schema lớn hơn ngưỡng preview vẫn đặt đủ nhưng xem trước một phần. Tile entity data (inventory, sign text) chưa thuộc format; không ghi đè tile entity đang tồn tại, build có tile entity không thể Undo/Redo an toàn.
-- [x] Thêm mẫu `schemas/examples/small-platform.schema`, cập nhật README, permission, config và CHANGELOG; tăng version nguồn lên 2.29.0.
+- [x] Thêm mẫu Sponge `schemas/examples/small-platform.schem`, cập nhật README, permission/config và CHANGELOG cho Schema Build 2.29.0.
 - [x] Compile 57 file Java bằng JDK 25 (`mvn -DskipTests compile`) thành công; test suite chưa chạy.
 - [x] Build 2.29.0 (`mvn -DskipTests clean package`) bằng JDK 25 thành công lúc `2026-10-28 06:37:21 UTC`; 57 source Java và 14 test source biên dịch, test suite bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.29.0.jar`, 2,319,154 bytes, SHA-256 `defa905bcc92449f01958dd5f0db0b1e1279ce1fda78666443b855f9e794020f`. `plugin.yml` xác nhận version 2.29.0; archive chỉ chứa SQLite native Linux x86_64 và service metadata.
 - [x] Sao lưu JAR 2.28.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.28.0.jar`, cài 2.29.0 vào `/home/ubuntu/DATA/VNMINE/plugins/` và xác nhận hash/byte trùng artifact.
 - [ ] Gameplay test trên server: duyệt thư mục lồng nhau, preview khi di chuyển/ngắm, xoay X/Y/Z, vùng protection từ plugin ngoài, đặt/undo/redo, quit/disable xóa preview, schema quá giới hạn và file hỏng.
-- [ ] Xem xét mở rộng định dạng để mang theo block entity NBT như nội dung rương, sign, banner. Hiện chỉ hỗ trợ BlockData vanilla; item/entity/NBT tùy biến không được chụp từ `.schema`.
+- [ ] Xem xét dựng block entity NBT như nội dung rương, sign, banner và entity/biome từ `.schem`; parser hiện chỉ áp dụng block state vanilla.
+
+### Cập nhật preview tự do và định dạng Sponge — 2026-10-28
+
+- [x] Đổi scanner và file ví dụ từ YAML `.schema` sang Sponge `.schem` gzip NBT; parser hiện nhận version 2/3 và block palette vanilla. File YAML `.schema` cũ không còn được liệt kê, cần xuất/lưu lại dưới định dạng Sponge `.schem`.
+- [x] Tách hai giai đoạn: chọn schema mở menu xoay/lật với bóng mờ trước mặt; nút **Preview ngoài world** đóng GUI và bật cập nhật vị trí theo block đang ngắm.
+- [x] Trong preview ngoài world, `!put` xác nhận đặt; `!back` mở lại menu xoay/lật. Thoát/revoke quyền/quit vẫn dọn preview theo lifecycle của session.
+- [x] Build/package Java 25 cho 2.30.0 thành công; kiểm tra archive có file `.schem` mẫu, parser và SQLite native Linux x86_64.
+- [ ] Chưa gameplay test. Cần thử file Sponge `.schem` thực tế v2/v3, state xoay/lật của block đặc biệt, di chuyển/preview, `!put`/`!back`, giới hạn kích thước và protection.
+
+## Phát hành 2.30.0 — 2026-10-28
+
+- Tăng Maven version từ `2.29.0` lên `2.30.0` cho Sponge `.schem`, preview tự do/`!put`/`!back`, lật X/Y/Z và NPC tutorial world bắt đầu.
+- `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64 mvn -DskipTests clean package` thành công lúc `2026-10-28 07:22:19 UTC`; 58 source Java và 14 test source biên dịch, test suite bỏ qua.
+- JAR `VnMineHardcore/target/VnMineHardcore-2.30.0.jar`, 2,330,487 bytes, SHA-256 `de86ddc25fda424abbfd6510596a152610bce45f43c52a04135a200abb576fb8`. Metadata plugin 2.30.0; archive gồm `.schem` mẫu, parser Sponge, SQLite native Linux x86_64 và service metadata.
+- Sao lưu 2.29.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.29.0.jar`; cài 2.30.0 vào `/home/ubuntu/DATA/VNMINE/plugins/`, hash khớp artifact. Server chưa restart/gameplay test.
 
 ## Bổ sung sửa race, quản lý world và objective gặp NPC — yêu cầu 2026-10-28
 
@@ -755,3 +770,12 @@ Phần này ghi nhận yêu cầu và kết quả rà soát mã nguồn cho hàn
 5. Phase F end-to-end trước phát hành.
 
 Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thiện một số vertical slice trước rồi mở nhánh tiếp theo. Gắn realm ID tường minh thay vì suy từ tên world để hỗ trợ một đại lục nhiều world. Chưa bật mua system cho item chưa định giá; `0` phải luôn là không mua. Chưa chặn iron farm trước khi có quyết định riêng. Danh sách nghề theo từng race, mapping sách, NPC/tutorial theo đại lục và danh mục giá vanilla đầy đủ cần được chốt từ cấu hình/server data trước khi code các phase tương ứng.
+
+## Bổ sung NPC tutorial cho world bắt đầu/reset — 2026-10-28
+
+- [x] Thêm nút chọn NPC tutorial của world bắt đầu/reset vào dashboard `/vninit`; danh sách chỉ hiện NPC loại `tutorial` đang đặt trong world đã cấu hình.
+- [x] Cho phép bỏ lựa chọn NPC; lưu ID tại `rpg.onboarding.start-world.tutorial-npc-id`.
+- [x] Shift + chuột phải NPC đã chọn mở được phần cấu hình dialog và quest tự giao riêng cho world bắt đầu; quest chỉ xuất hiện nếu giver NPC ID khớp.
+- [x] Khi người chơi tương tác NPC tutorial đã chọn trong đúng world, phát dialog đã cấu hình rồi giao quest tùy chọn; có kiểm tra world và debug log.
+- [x] Compile Java 25 với `mvn -DskipTests compile` thành công; `git diff --check` sạch. Không chạy test suite.
+- [ ] Chưa chạy trên Paper. Cần xác nhận GUI chọn/bỏ NPC, chọn dialog/quest, tương tác NPC ở world bắt đầu và tương tác sai world; sau đó kiểm tra việc chuyển/đổi tên world có để lại NPC ID cũ hay không.
