@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.34.0 — 2026-10-28
+
+- Sửa tái tạo world khi environment/seed đổi trên Paper hiện đại: dùng đúng thư mục dimension thực tế thay vì giả định thư mục `<server>/<world>`.
+- Lưu đường dẫn tương đối của managed world vào manifest; world cũ được chuyển sang backup bên cạnh thư mục dimension trước khi tạo world mới.
+- Nếu không thể xác định duy nhất thư mục dữ liệu, từ chối thao tác và log lỗi thay vì đụng nhầm world.
+
 ## 2.33.0 — 2026-10-28
 
 - Sửa luồng onboarding: người chơi chưa có nhân vật được đưa tới world bắt đầu, gặp NPC Tutorial rồi chọn đại lục, race và class; objective First Steps nhận diện lần gặp NPC này.

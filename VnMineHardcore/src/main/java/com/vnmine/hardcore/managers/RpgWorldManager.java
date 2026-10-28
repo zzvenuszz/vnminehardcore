@@ -192,7 +192,7 @@ public final class RpgWorldManager implements Listener {
                     + previousEnvironment + " -> " + environment + ", seed " + previousSeed + " -> " + seed + ".");
                 world = replaceWorld(world, name, environment, seed, reason);
                 if (world == null) return;
-                saveWorldManifest(name, environment, seed, world.getSeed());
+                saveWorldManifest(name, environment, seed, world);
                 return;
             }
             if (world == null) world = Bukkit.createWorld(worldCreator(name, environment, seed));
@@ -205,14 +205,14 @@ public final class RpgWorldManager implements Listener {
             if (!environmentChanged && !seedChanged) {
                 plugin.getLogger().info("[World] Ready " + reason + " '" + name + "' (" + environment
                     + ", seed=" + (seed == null ? "existing/default" : seed) + ").");
-                saveWorldManifest(name, environment, seed, world.getSeed());
+                saveWorldManifest(name, environment, seed, world);
                 return;
             }
             plugin.getLogger().warning("[World] Configuration changed for '" + name + "': environment "
                 + world.getEnvironment() + " -> " + environment + ", seed " + world.getSeed() + " -> "
                 + (seed == null ? "unchanged" : seed) + ". Recreating world and preserving the old folder as backup.");
             World replacement = replaceWorld(world, name, environment, seed, reason);
-            if (replacement != null) saveWorldManifest(name, environment, seed, replacement.getSeed());
+            if (replacement != null) saveWorldManifest(name, environment, seed, replacement);
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.SEVERE, "[World] Failed to load/create " + reason + " '" + name + "'.", exception);
         }
@@ -225,14 +225,15 @@ public final class RpgWorldManager implements Listener {
     }
 
     private World replaceWorld(World oldWorld, String name, World.Environment environment, Long seed, String reason) {
-        if (oldWorld != null && !Bukkit.unloadWorld(oldWorld, false)) {
-            plugin.getLogger().severe("[World] Could not unload '" + name + "'; refusing to replace it.");
+        Path container = plugin.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
+        Path worldFolder = resolveManagedWorldFolder(name, oldWorld, container);
+        if (worldFolder == null || !worldFolder.startsWith(container)) {
+            plugin.getLogger().severe("[World] Could not safely resolve the managed folder for '" + name
+                + "'; refusing to replace the world.");
             return null;
         }
-        Path container = plugin.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
-        Path worldFolder = container.resolve(name).normalize();
-        if (!worldFolder.startsWith(container)) {
-            plugin.getLogger().severe("[World] Resolved folder escapes the server world container; refusing replacement: " + name);
+        if (oldWorld != null && !Bukkit.unloadWorld(oldWorld, false)) {
+            plugin.getLogger().severe("[World] Could not unload '" + name + "'; refusing to replace it.");
             return null;
         }
         Path backup = null;
@@ -273,12 +274,58 @@ public final class RpgWorldManager implements Listener {
         }
     }
 
-    private void saveWorldManifest(String name, World.Environment environment, Long configuredSeed, long actualSeed) {
+    private Path resolveManagedWorldFolder(String name, World loadedWorld, Path container) {
+        if (loadedWorld != null) {
+            Path folder = loadedWorld.getWorldFolder().toPath().toAbsolutePath().normalize();
+            if (folder.startsWith(container)) return folder;
+            plugin.getLogger().severe("[World] Loaded world '" + name + "' resolves outside the server world container: "
+                + folder);
+            return null;
+        }
+
+        String recorded = worldManifest.getString("worlds." + name + ".folder");
+        if (recorded != null && !recorded.isBlank()) {
+            Path folder = container.resolve(recorded).normalize();
+            if (folder.startsWith(container) && Files.exists(folder)) return folder;
+            plugin.getLogger().warning("[World] Ignoring stale/unsafe managed folder path for '" + name + "': "
+                + recorded);
+        }
+
+        java.util.LinkedHashSet<Path> existingCandidates = new java.util.LinkedHashSet<>();
+        Path legacyFolder = container.resolve(name).normalize();
+        if (Files.exists(legacyFolder)) existingCandidates.add(legacyFolder);
+        for (World rootWorld : Bukkit.getWorlds()) {
+            Path nestedFolder = rootWorld.getWorldFolder().toPath().toAbsolutePath().normalize()
+                .resolve("dimensions").resolve("minecraft").resolve(name).normalize();
+            if (nestedFolder.startsWith(container) && Files.exists(nestedFolder)) existingCandidates.add(nestedFolder);
+        }
+        if (existingCandidates.size() == 1) return existingCandidates.iterator().next();
+        if (existingCandidates.size() > 1) {
+            plugin.getLogger().severe("[World] Multiple existing folders match managed world '" + name + "': "
+                + existingCandidates + "; refusing an ambiguous replacement.");
+            return null;
+        }
+
+        // Modern Paper stores secondary dimensions under the primary world's dimension directory.
+        for (World rootWorld : Bukkit.getWorlds()) {
+            if (rootWorld.getEnvironment() != World.Environment.NORMAL) continue;
+            Path modernFolder = rootWorld.getWorldFolder().toPath().toAbsolutePath().normalize()
+                .resolve("dimensions").resolve("minecraft").resolve(name).normalize();
+            if (modernFolder.startsWith(container)) return modernFolder;
+        }
+        return legacyFolder;
+    }
+
+    private void saveWorldManifest(String name, World.Environment environment, Long configuredSeed, World world) {
         String base = "worlds." + name;
         worldManifest.set(base + ".environment", environment.name());
         worldManifest.set(base + ".seed", configuredSeed);
         worldManifest.set(base + ".seed-configured", configuredSeed != null);
-        worldManifest.set(base + ".actual-seed", actualSeed);
+        worldManifest.set(base + ".actual-seed", world.getSeed());
+        Path container = plugin.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
+        Path folder = world.getWorldFolder().toPath().toAbsolutePath().normalize();
+        worldManifest.set(base + ".folder", folder.startsWith(container)
+            ? container.relativize(folder).toString().replace(File.separatorChar, '/') : folder.toString());
         try {
             File parent = worldManifestFile.getParentFile();
             if (parent != null && !parent.isDirectory() && !parent.mkdirs())
@@ -293,7 +340,7 @@ public final class RpgWorldManager implements Listener {
             }
             plugin.getLogger().info("[World] Stored managed settings for '" + name + "' (" + environment
                 + ", seed=" + (configuredSeed == null ? "optional/unset" : configuredSeed)
-                + ", actualSeed=" + actualSeed + ").");
+                + ", actualSeed=" + world.getSeed() + ", folder=" + folder + ").");
         } catch (IOException exception) {
             plugin.getLogger().log(Level.SEVERE, "[World] Could not save managed-world manifest for '" + name + "'.", exception);
         }
