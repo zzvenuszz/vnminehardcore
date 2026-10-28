@@ -843,4 +843,4 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Compile Java 25 (`mvn -DskipTests compile`) thành công lúc `2026-10-28 11:09 UTC`; YAML `plugin.yml` và `permission.yml` hợp lệ, mọi command khai báo permission, `git diff --check` sạch. Không chạy test suite.
 - [x] Build JAR 2.35.0 bằng Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 11:10:42 UTC`; 2,420,868 bytes, SHA-256 `2ab208ba82666bb1f765ebff58eeaa797ea29bb27dfbbc4079f16b1194162851`. Đã xác minh JAR chỉ chứa native SQLite Linux x86_64 và plugin.yml báo version 2.35.0.
 - [x] Sao lưu JAR 2.34.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.34.1.jar`, cài 2.35.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.35.0.jar`; so sánh byte khớp và gỡ bản 2.34.1 khỏi thư mục plugin để Paper không nạp trùng.
-- [ ] Chưa chạy server Paper/gameplay test. Commit/push source và tài liệu đang thực hiện.
+- [ ] Chưa chạy server Paper/gameplay test. Source/tài liệu đã commit và push lên `origin/main` (commit `6573b20`).
