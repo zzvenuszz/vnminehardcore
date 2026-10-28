@@ -1,5 +1,11 @@
 # Changelog
 
+## [v2.29.0] - 2026-10-28
+- Thêm **Schema Build** vào menu Admin; duyệt đệ quy file `.schema`, mở preview BlockDisplay riêng cho admin và bám theo mặt block đang ngắm.
+- Hỗ trợ xoay cấu trúc theo trục X/Y/Z từng 90°, dựng block qua `BlockPlaceEvent`, giới hạn số block/chunk/world border, Undo/Redo có kiểm tra trạng thái block để tránh ghi đè thay đổi sau khi dựng.
+- Thêm định dạng YAML `.schema` version 1 và công trình mẫu; cấu hình giới hạn kích thước, số BlockDisplay preview và lịch sử Undo. Dữ liệu tile entity như inventory/sign chưa được lưu và build có tile entity không thể Undo/Redo.
+- Build `mvn -DskipTests clean package` bằng JDK 25 thành công lúc `2026-10-28 06:37:21 UTC`; 57 file Java biên dịch, test suite bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.29.0.jar` (2,319,154 bytes), SHA-256 `defa905bcc92449f01958dd5f0db0b1e1279ce1fda78666443b855f9e794020f`; đã cài vào `DATA/VNMINE/plugins/`, backup 2.28.0 trong `.old-builds`. Chưa gameplay test.
+
 ## [v2.28.0] - 2026-10-28
 - `/vninit` hiển thị toàn bộ chủng tộc cấu hình, kể cả race chưa có class mở được; khi khởi động, ghép các race/class mặc định còn thiếu trong bộ nhớ, không sửa file hay ghi đè cấu hình admin.
 - Quản lý world theo environment và seed tùy chọn 64-bit. Khi cấu hình khác với manifest lần trước (kể cả xóa seed đã cấu hình), world cũ được chuyển sang thư mục backup có timestamp rồi tạo world mới; nếu world đang được dùng hoặc không thể nạp an toàn, ghi lỗi và giữ dữ liệu.

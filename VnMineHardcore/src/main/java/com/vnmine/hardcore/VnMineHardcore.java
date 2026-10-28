@@ -55,6 +55,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private MercenaryManager mercenaryManager;
     private PlayerAdminManager playerAdminManager;
     private ServerSetupWizardManager serverSetupWizardManager;
+    private SchemaBuildManager schemaBuildManager;
     private TooltipManager tooltipManager;
     private VillagerDataManager villagerDataManager;
     private DeathListener deathListener;
@@ -187,6 +188,13 @@ public final class VnMineHardcore extends JavaPlugin {
         this.mercenaryManager = new MercenaryManager(this);
         this.playerAdminManager = new PlayerAdminManager(this);
         this.serverSetupWizardManager = new ServerSetupWizardManager(this);
+        try {
+            this.schemaBuildManager = new SchemaBuildManager(this);
+        } catch (java.io.IOException exception) {
+            getLogger().log(Level.SEVERE, "Could not initialize Schema Build directory.", exception);
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
         this.tooltipManager = new TooltipManager(this);
 
         // Create listeners (pass config)
@@ -199,6 +207,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(economyManager, this);
         Bukkit.getPluginManager().registerEvents(playerAdminManager, this);
         Bukkit.getPluginManager().registerEvents(serverSetupWizardManager, this);
+        Bukkit.getPluginManager().registerEvents(schemaBuildManager, this);
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
         this.combatListener = new CombatListener(this, deathListener, configManager);
         this.environmentListener = new EnvironmentListener(this, configManager);
@@ -353,6 +362,7 @@ public final class VnMineHardcore extends JavaPlugin {
         if (bossLeaderboardManager != null) bossLeaderboardManager.stop();
         if (graveManager != null) graveManager.stop();
         if (mercenaryManager != null) mercenaryManager.stop();
+        if (schemaBuildManager != null) schemaBuildManager.shutdown();
         if (npcMarkerManager != null) npcMarkerManager.close();
         if (tooltipManager != null) tooltipManager.stop();
         if (logManager != null) logManager.stop();
@@ -1254,6 +1264,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public QuestCatalogManager getQuestCatalogManager() { return questCatalogManager; }
     public QuestDialogManager getQuestDialogManager() { return questDialogManager; }
     public ServerSetupWizardManager getServerSetupWizardManager() { return serverSetupWizardManager; }
+    public SchemaBuildManager getSchemaBuildManager() { return schemaBuildManager; }
     public LogManager getLogManager() { return logManager; }
     public ThirstManager getThirstManager() { return thirstManager; }
     public DisasterManager getDisasterManager() { return disasterManager; }

@@ -1,5 +1,19 @@
 # Kế hoạch hoàn thiện VnMineHardcore: RPG, VNCOIN và vận hành server
 
+## Schema Build cho admin — yêu cầu 2026-10-28
+
+- [x] Thêm mục **Schema Build** trong Menu chính → Admin và quyền `vnmine.command.schemabuild`; tự tạo `plugins/VnMineHardcore/schemas/` cùng file mẫu.
+- [x] Quét `.schema` theo cây thư mục con; nạp schema YAML version 1, kiểm tra material/block-data, số block, tọa độ và vị trí trùng; báo lỗi file riêng lẻ thay vì dừng toàn bộ danh sách.
+- [x] Khi chọn schema, dựng preview BlockDisplay chỉ người admin nhìn thấy; điểm neo theo block đang ngắm; nút GUI xoay X/Y/Z theo 90° và dựng tại vị trí preview.
+- [x] Thêm Undo/Redo trong preview và danh sách schema; lưu tối đa cấu hình số lượt trong phiên, chỉ áp dụng khi block hiện tại còn khớp trạng thái đã ghi. Dựng kiểm tra world border, chiều cao, chunk đã nạp và phát `BlockPlaceEvent` để plugin bảo vệ có thể chặn.
+- [x] Giới hạn max blocks và số entity preview qua `schema-build`; schema lớn hơn ngưỡng preview vẫn đặt đủ nhưng xem trước một phần. Tile entity data (inventory, sign text) chưa thuộc format; không ghi đè tile entity đang tồn tại, build có tile entity không thể Undo/Redo an toàn.
+- [x] Thêm mẫu `schemas/examples/small-platform.schema`, cập nhật README, permission, config và CHANGELOG; tăng version nguồn lên 2.29.0.
+- [x] Compile 57 file Java bằng JDK 25 (`mvn -DskipTests compile`) thành công; test suite chưa chạy.
+- [x] Build 2.29.0 (`mvn -DskipTests clean package`) bằng JDK 25 thành công lúc `2026-10-28 06:37:21 UTC`; 57 source Java và 14 test source biên dịch, test suite bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.29.0.jar`, 2,319,154 bytes, SHA-256 `defa905bcc92449f01958dd5f0db0b1e1279ce1fda78666443b855f9e794020f`. `plugin.yml` xác nhận version 2.29.0; archive chỉ chứa SQLite native Linux x86_64 và service metadata.
+- [x] Sao lưu JAR 2.28.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.28.0.jar`, cài 2.29.0 vào `/home/ubuntu/DATA/VNMINE/plugins/` và xác nhận hash/byte trùng artifact.
+- [ ] Gameplay test trên server: duyệt thư mục lồng nhau, preview khi di chuyển/ngắm, xoay X/Y/Z, vùng protection từ plugin ngoài, đặt/undo/redo, quit/disable xóa preview, schema quá giới hạn và file hỏng.
+- [ ] Xem xét mở rộng định dạng để mang theo block entity NBT như nội dung rương, sign, banner. Hiện chỉ hỗ trợ BlockData vanilla; item/entity/NBT tùy biến không được chụp từ `.schema`.
+
 ## Bổ sung sửa race, quản lý world và objective gặp NPC — yêu cầu 2026-10-28
 
 - [x] `/vninit` dùng toàn bộ race definition hợp lệ thay vì chỉ các race có class đang khả dụng; ghép race/class mặc định còn thiếu từ tài nguyên plugin vào bộ nhớ khi server còn file cũ, không sửa file hay ghi đè nội dung admin.

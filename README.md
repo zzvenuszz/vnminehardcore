@@ -218,6 +218,7 @@ enabled: false  # in plugins/VnMineHardcore/disasters/chorus-explosion.yml
 | `/vntext ...` | Create and manage persistent, oriented, colored text displays | `vnmine.command.text.manage` |
 | `/vnquest admin` | Open the quest definition manager GUI | `vnmine.command.quest.admin` |
 | `/vnquestdialog admin` | Open the reusable quest-dialog manager | `vnmine.command.quest.admin` |
+| **Main Menu → Admin → Schema Build** | Browse nested `schemas/**/*.schema`, preview, rotate on X/Y/Z, place, undo and redo | `vnmine.command.schemabuild` |
 | `/vnquest journal` | Open active quests and completed quest history, with details, rewards, tracking, and cancel controls | No permission |
 | `/vnquest detail <id>` | Open details for an active or completed quest; also used to open a quest named on the scoreboard | No permission |
 | `/vnplayeradmin` | Open player administration for online players or search a previously joined offline player | `vnmine.command.playeradmin` |
@@ -236,6 +237,37 @@ cached by Paper; chat prompts show an example and accept `!cancel`. A full RPG
 profile reset preserves the VNCOIN wallet and starts character onboarding again.
 Quest history is paginated. Moderation and reset actions are logged with actor,
 target, and action under `[PlayerAdmin]` / `[Quest][Admin]`.
+
+### Schema Build
+
+Open **Main Menu → Admin → Schema Build**. The plugin scans
+`plugins/VnMineHardcore/schemas/` recursively for `.schema` files. A bundled
+example is installed at `schemas/examples/small-platform.schema`. Files use the
+plugin's YAML format, `schema-version: 1`, a display `name`, and a `blocks` list
+with integer `x/y/z`, `material`, and optional vanilla `block-data`. Coordinates
+are relative to the structure's minimum corner. The example can be copied and
+edited; one entry looks like:
+
+```yaml
+- x: 0
+  y: 0
+  z: 0
+  material: OAK_PLANKS
+  block-data: "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]"
+```
+
+Selecting a file opens a private BlockDisplay preview visible only to that admin.
+The anchor follows the face of the block they are looking at; the controls rotate
+the structure in 90-degree steps around X, Y, and Z. Placement is limited by
+`schema-build.max-blocks`, refuses unloaded chunks/out-of-border positions, and
+fires normal `BlockPlaceEvent`s so protection plugins can deny the build. Undo
+and redo are available from both the preview screen and schema list and only
+change blocks when the recorded state still matches. The in-memory history is
+session-only. Preview entities are capped by `schema-build.preview-blocks`; a
+larger structure is still built fully but its preview is partial. Tile entity
+contents (such as chest inventories and sign text) are not part of this format;
+existing tile entities cannot be overwritten. Build operations containing tile
+entities cannot be undone/redone because their internal data is not captured.
 
 Open player administration from **Main Menu → Admin → Người chơi**, or directly
 with `/vnplayeradmin`. That screen lists online players and has an offline-name

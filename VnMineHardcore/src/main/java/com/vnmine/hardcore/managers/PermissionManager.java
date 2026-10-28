@@ -497,15 +497,22 @@ public final class PermissionManager implements Listener, CommandExecutor, TabCo
             throw new InvalidConfigurationException("The built-in user and admin groups must exist.");
         }
         List<String> adminPermissions = new ArrayList<>(loaded.getStringList("groups.admin.permissions"));
+        boolean adminPermissionsChanged = false;
         if (!adminPermissions.contains("vnmine.command.army.admin")) {
             adminPermissions.add("vnmine.command.army.admin");
+            adminPermissionsChanged = true;
+        }
+        if (!adminPermissions.contains("vnmine.command.schemabuild")) {
+            adminPermissions.add("vnmine.command.schemabuild");
+            adminPermissionsChanged = true;
+        }
+        if (adminPermissionsChanged) {
             loaded.set("groups.admin.permissions", adminPermissions);
             try {
                 loaded.save(dataFile);
             } catch (IOException exception) {
                 plugin.getLogger().log(Level.WARNING,
-                    "[Permissions] Added the army admin permission in memory but could not persist permission.yml.",
-                    exception);
+                    "[Permissions] Added built-in admin permissions in memory but could not persist permission.yml.", exception);
             }
         }
         if (loaded.getConfigurationSection("users") == null) loaded.createSection("users");

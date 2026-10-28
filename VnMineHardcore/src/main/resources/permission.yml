@@ -55,6 +55,7 @@ groups:
       - vnmine.command.skillbook.admin
       - vnmine.command.quest.admin
       - vnmine.command.npc.admin
+      - vnmine.command.schemabuild
       - vnmine.command.army
       - vnmine.command.army.admin
       - vnmine.spawnprotection.bypass

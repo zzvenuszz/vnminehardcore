@@ -41,6 +41,19 @@ menus:
     # [EN] Enable admin RPG tools for granting skill books/experience/levels; defaults to true.
     rpg-tools:
       enabled: true
+
+# [VI] Giới hạn và hiệu năng cho Schema Build; các giá trị áp dụng khi dựng/hiển thị preview.
+# [EN] Schema Build safety and performance limits; values apply while placing/rendering previews.
+schema-build:
+  # [VI] Số block tối đa trong một file .schema (mặc định 5000, hợp lệ 1-100000).
+  # [EN] Maximum blocks in one .schema file (default 5000, valid 1-100000).
+  max-blocks: 5000
+  # [VI] Số BlockDisplay tối đa trong preview; schema lớn hơn vẫn dựng đầy đủ nhưng preview bị rút gọn (mặc định 1200, hợp lệ 1-5000).
+  # [EN] Maximum BlockDisplay entities in preview; larger schemas still place fully but preview is truncated (default 1200, valid 1-5000).
+  preview-blocks: 1200
+  # [VI] Số lần dựng có thể Undo mỗi admin (mặc định 10, hợp lệ 1-50; chỉ lưu trong phiên server hiện tại).
+  # [EN] Number of builds each admin can undo (default 10, valid 1-50; session-only, not persisted across restarts).
+  history-size: 10
     # [VI] Thời gian cảnh báo trước khi gọi thiên tai/boss; mặc định 30 giây, hợp lệ 1-3600.
     # [EN] Warning time before a disaster/boss is summoned; default 30 seconds, valid range 1-3600.
     warning-seconds: 30

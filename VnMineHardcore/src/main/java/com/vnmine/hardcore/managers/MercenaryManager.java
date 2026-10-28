@@ -6768,6 +6768,11 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
              holder.inventory.setItem(20, this.menuItem(Material.VILLAGER_SPAWN_EGG, "§eQuản lý NPC",
                  List.of("§7Tạo, sửa, di chuyển và xóa NPC.")));
          }
+         if (player.hasPermission("vnmine.command.schemabuild")) {
+             holder.inventory.setItem(26, this.menuItem(Material.STRUCTURE_BLOCK, "§bSchema Build",
+                 List.of("§7Duyệt và dựng công trình từ file .schema.",
+                     "§7Có preview riêng, xoay X/Y/Z, Undo và Redo.")));
+         }
          if (hasPlayerAdmin && hasLegacyPlayerTools) {
             holder.inventory.setItem(24, this.menuItem(Material.COMPASS, "§dTiện ích người chơi",
                 List.of("§7Dịch chuyển, chế độ chơi và tiện ích khác.")));
@@ -6784,7 +6789,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
             "vnmine.command.gamemode", "vnmine.command.scoreboard.reset", "vnmine.command.death.reset",
             "vnmine.command.skillbook.admin", "vnmine.command.progression.admin",
-            "vnmine.command.quest.admin", "vnmine.command.npc.admin", "vnmine.command.playeradmin")
+            "vnmine.command.quest.admin", "vnmine.command.npc.admin", "vnmine.command.playeradmin",
+            "vnmine.command.schemabuild")
             .stream().anyMatch(player::hasPermission)
             || player.hasPermission("vnmine.command.death.history");
     }
@@ -9117,6 +9123,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      if (plugin.getQuestCatalogManager() != null) plugin.getQuestCatalogManager().openAdmin(player);
                   } else if (slot == 20 && player.hasPermission("vnmine.command.npc.admin")) {
                      if (plugin.getNpcManager() != null) plugin.getNpcManager().openAdminMenu(player);
+                  } else if (slot == 26 && player.hasPermission("vnmine.command.schemabuild")) {
+                     if (plugin.getSchemaBuildManager() != null) plugin.getSchemaBuildManager().open(player);
                   } else if (slot == 24 && player.hasPermission("vnmine.command.playeradmin")
                           && hasAnyPermission(player, "vnmine.command.teleport.other",
                               "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
