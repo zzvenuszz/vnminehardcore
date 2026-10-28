@@ -291,6 +291,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             menu.setItem(18, createDialogueItem(Material.WRITTEN_BOOK, "§dChọn chapter cốt truyện", List.of(
                 "§7Chapter ID: §f" + chapterId, "§eNhấn để chọn nội dung NPC sẽ kể.")));
         }
+        if (npc.type().equals("tutorial")) {
+            menu.setItem(20, createDialogueItem(Material.WRITABLE_BOOK, "§dThiết lập tutorial", List.of(
+                "§7Chọn dialog và quest tự giao sau hội thoại.",
+                "§7Cấu hình được lưu theo đại lục trong /vninit.", "§eNhấn để mở.")));
+        }
         menu.setItem(49, createDialogueItem(Material.ARROW, "§eQuay lại danh sách", List.of()));
         player.openInventory(menu);
     }
@@ -408,6 +413,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         else if (slot == 18) {
             NpcRecord npc = npcs.get(holder.npcId);
             if (npc != null && "story".equals(npc.type())) openStoryChapterSelector(player, holder.npcId, 0);
+        } else if (slot == 20) {
+            NpcRecord npc = npcs.get(holder.npcId);
+            if (npc != null && "tutorial".equals(npc.type()) && plugin.getServerSetupWizardManager() != null)
+                plugin.getServerSetupWizardManager().openTutorialNpcEditor(player, npc.id());
         }
     }
 
@@ -587,7 +596,8 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
         Player player = event.getPlayer();
         if (player.isSneaking() && player.hasPermission(ADMIN_PERMISSION)
-                && ("story".equals(npc.type()) || "quest-giver".equals(npc.type()))) {
+                && ("story".equals(npc.type()) || "quest-giver".equals(npc.type())
+                    || "tutorial".equals(npc.type()))) {
             openNpcEditor(player, npc.id(), 0);
             return;
         }

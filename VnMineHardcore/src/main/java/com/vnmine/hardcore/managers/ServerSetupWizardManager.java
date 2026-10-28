@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -26,6 +27,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -41,6 +43,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
     };
 
     private final VnMineHardcore plugin;
+    private final java.util.Map<UUID, String> pendingWorldNames = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ServerSetupWizardManager(VnMineHardcore plugin) {
         this.plugin = plugin;
@@ -110,6 +113,12 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             "§7Gán sách theo chủng tộc và class.",
             "§7Dùng /vnskillbook config để mở GUI hiện có.",
             "§eThiết lập này quyết định sách được tặng sau khi chọn class.")));
+        menu.setItem(48, item(Material.OBSIDIAN, "§bWorld bắt đầu/reset", List.of(
+            "§7Hiện tại: §f" + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"),
+            "§7World này được tạo tự động nếu chưa tồn tại.", "§eNhấn để nhập tên world.")));
+        menu.setItem(50, item(Material.COMPASS, "§bMôi trường world bắt đầu: §f"
+            + plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"), List.of(
+                "§7Nhấn để đổi NORMAL → NETHER → THE_END.", "§7Áp dụng khi world được tạo mới.")));
         boolean tutorialQuestEnabled = tutorialQuestEnabled();
         menu.setItem(51, item(tutorialQuestEnabled ? Material.WRITABLE_BOOK : Material.BARRIER,
             (tutorialQuestEnabled ? "§b" : "§c") + "Quest RPG và quest hướng dẫn", List.of(
@@ -146,14 +155,29 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 "§7Có thể bật nhiều đại lục cùng lúc.", "§eNhấn để đổi và lưu ngay.")));
         menu.setItem(12, item(status.worldReady() ? Material.GRASS_BLOCK : Material.OBSIDIAN,
             "§bWorld chính: §f" + realm.worldName(), List.of(
-                "§7Chọn một world đang được server nạp.",
-                "§7NPC tutorial phải đặt trong cùng world.", "§eNhấn để chọn world.")));
+                "§7Có thể chọn world đang nạp hoặc nhập world mới.",
+                "§7World mới sẽ được tạo sau khi lưu và khởi động lại.",
+                "§eNhấn để chọn world đã có.")));
         menu.setItem(14, item(status.npcReady() ? Material.VILLAGER_SPAWN_EGG : Material.NAME_TAG,
             "§dNPC hướng dẫn: §f" + realm.tutorialNpcId(), List.of(
                 "§7Chọn NPC runtime có loại tutorial trong world chính.",
                 "§7NPC phải được tạo và đặt trước khi chọn.",
                 "§7Ví dụ tạo: /vnnpc create tutorial-nhan-gioi tutorial",
                 "§eNhấn để chọn NPC tutorial.")));
+        menu.setItem(20, item(Material.WRITABLE_BOOK, "§dDialog và quest tutorial", List.of(
+            "§7Chọn hội thoại chạy trong action bar.",
+            "§7Chọn quest giao tự động sau khi hội thoại kết thúc.",
+            "§7Được chỉnh tại NPC bằng shift + chuột phải.", "§eNhấn để cấu hình.")));
+        menu.setItem(16, item(Material.COMPASS,
+            "§bMôi trường: §f" + worldEnvironment(realm.id()), List.of(
+                "§7Nhấn để đổi NORMAL → NETHER → THE_END.",
+                "§7Áp dụng khi world được plugin tạo mới.",
+                "§eĐây là thiết lập world cho realm này.")));
+        boolean availabilityLimited = realmAvailabilityEnabled(realm.id());
+        menu.setItem(18, item(availabilityLimited ? Material.PLAYER_HEAD : Material.ENDER_EYE,
+            "§dRace/class khả dụng: " + (availabilityLimited ? "§aTùy chỉnh" : "§eTất cả"), List.of(
+                "§7Chọn chủng tộc và class cho người mới realm này.",
+                "§7Mặc định cho phép mọi race/class hợp lệ.", "§eNhấn để cấu hình.")));
         Location current = player.getLocation();
         menu.setItem(28, item(status.spawnReady() ? Material.RESPAWN_ANCHOR : Material.LODESTONE,
             "§6Lưu vị trí hiện tại làm spawn", List.of(
@@ -178,6 +202,185 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         player.openInventory(menu);
     }
 
+    public void openTutorialNpcEditor(Player player, String npcId) {
+        if (!player.hasPermission(PERMISSION) && !player.hasPermission("vnmine.command.npc.admin")) {
+            player.sendMessage("§cCần quyền quản trị NPC hoặc /vninit để sửa hội thoại NPC tutorial.");
+            return;
+        }
+        var realm = plugin.getRpgWorldManager().getDefinitions().values().stream()
+            .filter(value -> value.tutorialNpcId().equalsIgnoreCase(npcId)).findFirst().orElse(null);
+        if (realm == null) {
+            player.sendMessage("§cNPC " + npcId + " chưa được gán làm NPC tutorial trong /vninit.");
+            return;
+        }
+        File file = findRealmFile(realm.id());
+        YamlConfiguration yaml = file == null ? new YamlConfiguration() : YamlConfiguration.loadConfiguration(file);
+        String dialogId = yaml.getString("tutorial.dialog-id");
+        String questId = yaml.getString("tutorial.auto-quest-id");
+        SetupHolder holder = new SetupHolder(player, "tutorial-config", realm.id(), 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "NPC Tutorial • " + npcId);
+        holder.inventory = menu;
+        menu.setItem(11, item(Material.WRITABLE_BOOK, "§dDialog: §f" + (dialogId == null ? "Chưa chọn" : dialogId), List.of(
+            "§7Chọn quest-dialog dùng khi người chơi gặp NPC.", "§7Có thể tạo/sửa nội dung bằng /vnquestdialog admin.",
+            "§eNhấn để chọn.")));
+        menu.setItem(15, item(Material.ENCHANTED_BOOK, "§bQuest tự giao: §f" + (questId == null ? "Chưa chọn" : questId), List.of(
+            "§7Chỉ quest có giver NPC ID đúng là §f" + npcId + " §7mới được liệt kê.",
+            "§7Quest sẽ được giao sau khi hội thoại tutorial kết thúc.", "§eNhấn để chọn.")));
+        menu.setItem(49, item(Material.ARROW, "§7Quay lại cấu hình đại lục", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openTutorialQuestChoices(Player player, String realmId) {
+        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        List<String> quests = realm == null || plugin.getQuestCatalogManager() == null ? List.of()
+            : plugin.getQuestCatalogManager().getQuestIdsForNpc(realm.tutorialNpcId());
+        SetupHolder holder = new SetupHolder(player, "tutorial-quests", realmId, 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Quest giao sau tutorial");
+        holder.inventory = menu;
+        File file = findRealmFile(realmId);
+        String current = file == null ? null : YamlConfiguration.loadConfiguration(file).getString("tutorial.auto-quest-id");
+        for (int i = 0; i < quests.size() && i < CONTENT_SLOTS.length; i++) {
+            String questId = quests.get(i);
+            int slot = CONTENT_SLOTS[i];
+            holder.choices.put(slot, questId);
+            String title = plugin.getQuestCatalogManager().getQuestTitle(questId);
+            menu.setItem(slot, item(questId.equals(current) ? Material.ENCHANTED_BOOK : Material.BOOK,
+                (questId.equals(current) ? "§a✓ " : "§f") + title, List.of("§7ID: §f" + questId,
+                    "§7Giao bởi NPC: §f" + realm.tutorialNpcId(), "§eNhấn để chọn.")));
+        }
+        if (quests.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có quest phù hợp", List.of(
+            "§7Tạo quest trong /vnquest admin và đặt giver NPC ID thành:", "§f" + (realm == null ? "?" : realm.tutorialNpcId()))));
+        menu.setItem(45, item(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
+        menu.setItem(49, item(Material.ARROW, "§7Quay lại", List.of()));
+        player.openInventory(menu);
+    }
+
+    private String worldEnvironment(String realmId) {
+        File file = findRealmFile(realmId);
+        return file == null ? "NORMAL" : YamlConfiguration.loadConfiguration(file)
+            .getString("world.environment", "NORMAL");
+    }
+
+    private boolean realmAvailabilityEnabled(String realmId) {
+        File file = findRealmFile(realmId);
+        return file != null && YamlConfiguration.loadConfiguration(file)
+            .getBoolean("character-availability.enabled", false);
+    }
+
+    private void openRealmRaces(Player player, String realmId) {
+        var characterManager = plugin.getCharacterSelectionManager();
+        var races = characterManager == null ? List.<CharacterSelectionManager.RaceDefinition>of()
+            : characterManager.getRaceDefinitions();
+        File file = findRealmFile(realmId);
+        YamlConfiguration yaml = file == null ? new YamlConfiguration() : YamlConfiguration.loadConfiguration(file);
+        boolean limited = yaml.getBoolean("character-availability.enabled", false);
+        SetupHolder holder = new SetupHolder(player, "availability-races", realmId, 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Race khả dụng • " + realmId);
+        holder.inventory = menu;
+        int index = 0;
+        for (var race : races) {
+            int slot = CONTENT_SLOTS[index++];
+            boolean selected = !limited || yaml.getStringList("character-availability.races").contains(race.id());
+            holder.choices.put(slot, race.id());
+            menu.setItem(slot, item(selected ? race.material() : Material.GRAY_DYE,
+                (selected ? "§a✓ " : "§c✗ ") + race.name(), List.of(
+                    "§7ID: §f" + race.id(), "§7Trạng thái: " + (selected ? "§aCho phép" : "§cẨn"),
+                    "§eChuột trái: cấu hình class.", "§eChuột phải: bật/tắt race.")));
+        }
+        menu.setItem(4, item(limited ? Material.LIME_DYE : Material.GRAY_DYE,
+            "§eGiới hạn race/class: " + (limited ? "§aBẬT" : "§cTẮT"), List.of(
+                "§7Tắt: mọi lựa chọn hợp lệ đều được phép.",
+                "§7Bật: chỉ race/class được đánh dấu mới xuất hiện.", "§eNhấn để đổi.")));
+        menu.setItem(49, item(Material.ARROW, "§7Quay lại realm", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openRealmClasses(Player player, String realmId, String raceId) {
+        var characterManager = plugin.getCharacterSelectionManager();
+        var race = characterManager == null ? null : characterManager.getRaceDefinitions().stream()
+            .filter(value -> value.id().equals(raceId)).findFirst().orElse(null);
+        if (race == null) { openRealmRaces(player, realmId); return; }
+        File file = findRealmFile(realmId);
+        YamlConfiguration yaml = file == null ? new YamlConfiguration() : YamlConfiguration.loadConfiguration(file);
+        boolean limited = yaml.getBoolean("character-availability.enabled", false);
+        SetupHolder holder = new SetupHolder(player, "availability-classes", realmId, 0);
+        holder.raceId = raceId;
+        Inventory menu = Bukkit.createInventory(holder, 54, "Class khả dụng • " + race.name());
+        holder.inventory = menu;
+        List<CharacterSelectionManager.ClassDefinition> classes = characterManager.getClassDefinitions(raceId);
+        for (int i = 0; i < classes.size() && i < CONTENT_SLOTS.length; i++) {
+            var klass = classes.get(i);
+            int slot = CONTENT_SLOTS[i];
+            boolean selected = !limited || yaml.getStringList("character-availability.classes." + raceId)
+                .contains(klass.id());
+            holder.choices.put(slot, klass.id());
+            menu.setItem(slot, item(selected ? klass.material() : Material.GRAY_DYE,
+                (selected ? "§a✓ " : "§c✗ ") + klass.name(), List.of("§7ID: §f" + klass.id(),
+                    "§7Trạng thái: " + (selected ? "§aCho phép" : "§cẨn"), "§eNhấn để đổi.")));
+        }
+        menu.setItem(49, item(Material.ARROW, "§7Quay lại danh sách race", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void toggleAvailability(Player player, String realmId, String path, String id, boolean currentlySelected) {
+        updateRealm(player, realmId, config -> {
+            if (!config.getBoolean("character-availability.enabled", false)) {
+                var characters = plugin.getCharacterSelectionManager();
+                if (characters != null) {
+                    List<String> raceIds = characters.getRaceDefinitions().stream()
+                        .map(CharacterSelectionManager.RaceDefinition::id).toList();
+                    config.set("character-availability.races", raceIds);
+                    for (String raceId : raceIds) config.set("character-availability.classes." + raceId,
+                        characters.getClassDefinitions(raceId).stream()
+                            .map(CharacterSelectionManager.ClassDefinition::id).toList());
+                }
+                config.set("character-availability.enabled", true);
+            }
+            List<String> values = new java.util.ArrayList<>(config.getStringList(path));
+            if (currentlySelected) values.remove(id); else if (!values.contains(id)) values.add(id);
+            values.sort(String.CASE_INSENSITIVE_ORDER);
+            config.set(path, values);
+        }, "toggle " + path + " " + id);
+    }
+
+    @EventHandler
+    public void onWorldNameChat(AsyncPlayerChatEvent event) {
+        String realmId = pendingWorldNames.remove(event.getPlayer().getUniqueId());
+        if (realmId == null) return;
+        event.setCancelled(true);
+        String input = event.getMessage().trim();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player player = event.getPlayer();
+            if (!player.isOnline()) return;
+            if ("!cancel".equalsIgnoreCase(input)) {
+                player.sendMessage("§eĐã hủy nhập tên world.");
+                if ("__start__".equals(realmId)) openDashboard(player);
+                else openWorlds(player, realmId, 0);
+                return;
+            }
+            if (!input.matches("[A-Za-z0-9_-]{1,64}")) {
+                player.sendMessage("§cTên world không hợp lệ. Ví dụ: world_start. Hãy nhập lại hoặc !cancel.");
+                pendingWorldNames.put(player.getUniqueId(), realmId);
+                return;
+            }
+            if ("__start__".equals(realmId)) {
+                plugin.getConfig().set("rpg.onboarding.start-world.name", input);
+                plugin.getConfig().set("rpg.onboarding.start-world.create-if-missing", true);
+                savePluginConfig(player, "rpg.onboarding.start-world.name=" + input);
+                player.sendMessage("§aĐã lưu world bắt đầu §f" + input + "§a. World sẽ được tạo khi khởi động lại server.");
+                openDashboard(player);
+                return;
+            }
+            updateRealm(player, realmId, config -> {
+                config.set("world-name", input);
+                config.set("world.create-if-missing", true);
+                config.set("world.environment", config.getString("world.environment", "NORMAL"));
+            }, "set/create world=" + input);
+            player.sendMessage("§aĐã lưu tên world. World mới sẽ được tạo khi server khởi động lại.");
+            openRealm(player, realmId);
+        });
+    }
+
     private void openTutorialQuestSetup(Player player) {
         File file = new File(plugin.getDataFolder(), "quests/tutorial/first-steps.yml");
         YamlConfiguration quest = file.isFile() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration();
@@ -187,8 +390,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         holder.inventory = menu;
         menu.setItem(13, item(enabled ? Material.WRITABLE_BOOK : Material.BARRIER,
             enabled ? "§aFirst Steps đang bật" : "§cFirst Steps đang tắt / thiếu file", List.of(
-                "§7Quest này tự được khởi tạo sau khi người chơi nhận sách skill.",
-                "§7Spawn đích được chọn theo world đã lưu trong hồ sơ người chơi.",
+                "§7Người chơi dùng /start; quest dẫn tới NPC Tutorial của đại lục.",
+                "§7Hồ sơ cũ: bắt đầu sau khi chọn đại lục; người mới: sau khi chọn class và nhận sách.",
                 "§7Chi tiết phần thưởng, nội dung và tracking ở:",
                 "§fplugins/VnMineHardcore/quests/tutorial/first-steps.yml")));
         menu.setItem(29, item(enabled ? Material.REDSTONE_TORCH : Material.LEVER,
@@ -220,6 +423,9 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 "§7Environment: §f" + world.getEnvironment().name(), "§eNhấn để gán world cho đại lục.")));
         }
         if (safePage > 0) menu.setItem(45, item(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(48, item(Material.ANVIL, "§aNhập tên world / tạo world mới", List.of(
+            "§7Tên world phải gồm chữ, số, _ hoặc -.",
+            "§7Ví dụ: world_start", "§eNhấn rồi nhập tên trong chat; !cancel để hủy.")));
         menu.setItem(49, item(Material.ARROW, "§7Quay lại đại lục", List.of()));
         if (safePage + 1 < pages) menu.setItem(53, item(Material.ARROW, "§eTrang sau", List.of()));
         player.openInventory(menu);
@@ -262,7 +468,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         if (!(event.getWhoClicked() instanceof Player player)
                 || !(event.getView().getTopInventory().getHolder() instanceof SetupHolder holder)) return;
         event.setCancelled(true);
-        if (!holder.adminId.equals(player.getUniqueId()) || !player.hasPermission(PERMISSION)) return;
+        if (!holder.adminId.equals(player.getUniqueId())
+                || (!player.hasPermission(PERMISSION) && !player.hasPermission("vnmine.command.npc.admin"))) return;
         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
         int slot = event.getRawSlot();
         if ("dashboard".equals(holder.type)) {
@@ -278,6 +485,18 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             } else if (slot == 47) {
                 player.closeInventory();
                 Bukkit.dispatchCommand(player, "vnskillbook config");
+            } else if (slot == 48) {
+                pendingWorldNames.put(player.getUniqueId(), "__start__");
+                player.closeInventory();
+                player.sendMessage("§eNhập tên world an toàn cho người mới/reset. Ví dụ: §fworld_start§e. Gõ §f!cancel §eđể hủy.");
+            } else if (slot == 50) {
+                String current = plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL");
+                String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"
+                    : "NETHER".equalsIgnoreCase(current) ? "THE_END" : "NORMAL";
+                plugin.getConfig().set("rpg.onboarding.start-world.environment", next);
+                plugin.getConfig().set("rpg.onboarding.start-world.create-if-missing", true);
+                savePluginConfig(player, "rpg.onboarding.start-world.environment=" + next);
+                openDashboard(player);
             } else if (slot == 51) {
                 openTutorialQuestSetup(player);
             } else {
@@ -296,6 +515,80 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             }
             return;
         }
+        if ("tutorial-config".equals(holder.type)) {
+            if (slot == 49) openRealm(player, holder.realmId);
+            else if (slot == 11 && plugin.getQuestDialogManager() != null) {
+                File file = findRealmFile(holder.realmId);
+                String current = file == null ? null : YamlConfiguration.loadConfiguration(file).getString("tutorial.dialog-id");
+                plugin.getQuestDialogManager().openSelector(player, current, selected -> {
+                    updateRealm(player, holder.realmId, config -> config.set("tutorial.dialog-id", selected),
+                        "set tutorial dialog=" + selected);
+                    openTutorialNpcEditor(player, plugin.getRpgWorldManager().getDefinitions().get(holder.realmId).tutorialNpcId());
+                });
+            } else if (slot == 15) openTutorialQuestChoices(player, holder.realmId);
+            return;
+        }
+        if ("tutorial-quests".equals(holder.type)) {
+            if (slot == 49) {
+                var realm = plugin.getRpgWorldManager().getDefinitions().get(holder.realmId);
+                if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
+            } else if (slot == 45 || holder.choices.containsKey(slot)) {
+                String questId = slot == 45 ? null : holder.choices.get(slot);
+                updateRealm(player, holder.realmId, config -> config.set("tutorial.auto-quest-id", questId),
+                    "set tutorial auto quest=" + questId);
+                var realm = plugin.getRpgWorldManager().getDefinitions().get(holder.realmId);
+                if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
+            }
+            return;
+        }
+        if ("availability-races".equals(holder.type)) {
+            File file = findRealmFile(holder.realmId);
+            YamlConfiguration yaml = file == null ? new YamlConfiguration() : YamlConfiguration.loadConfiguration(file);
+            if (slot == 49) { openRealm(player, holder.realmId); return; }
+            if (slot == 4) {
+                boolean enabled = yaml.getBoolean("character-availability.enabled", false);
+                updateRealm(player, holder.realmId, config -> {
+                    config.set("character-availability.enabled", !enabled);
+                    if (!enabled) {
+                        var characters = plugin.getCharacterSelectionManager();
+                        List<String> raceIds = characters == null ? List.of() : characters.getRaceDefinitions().stream()
+                            .map(CharacterSelectionManager.RaceDefinition::id).toList();
+                        config.set("character-availability.races", raceIds);
+                        if (characters != null) for (String raceId : raceIds) {
+                            config.set("character-availability.classes." + raceId,
+                                characters.getClassDefinitions(raceId).stream()
+                                    .map(CharacterSelectionManager.ClassDefinition::id).toList());
+                        }
+                    }
+                }, "toggle realm character availability");
+                openRealmRaces(player, holder.realmId);
+                return;
+            }
+            String raceId = holder.choices.get(slot);
+            if (raceId != null) {
+                if (event.getClick().isRightClick()) {
+                    boolean selected = !yaml.getBoolean("character-availability.enabled", false)
+                        || yaml.getStringList("character-availability.races").contains(raceId);
+                    toggleAvailability(player, holder.realmId, "character-availability.races", raceId, selected);
+                    openRealmRaces(player, holder.realmId);
+                } else openRealmClasses(player, holder.realmId, raceId);
+            }
+            return;
+        }
+        if ("availability-classes".equals(holder.type)) {
+            if (slot == 49) { openRealmRaces(player, holder.realmId); return; }
+            String classId = holder.choices.get(slot);
+            if (classId != null) {
+                String path = "character-availability.classes." + holder.raceId;
+                File file = findRealmFile(holder.realmId);
+                YamlConfiguration yaml = file == null ? new YamlConfiguration() : YamlConfiguration.loadConfiguration(file);
+                boolean selected = !yaml.getBoolean("character-availability.enabled", false)
+                    || yaml.getStringList(path).contains(classId);
+                toggleAvailability(player, holder.realmId, path, classId, selected);
+                openRealmClasses(player, holder.realmId, holder.raceId);
+            }
+            return;
+        }
         if ("realm".equals(holder.type)) {
             switch (slot) {
                 case 10 -> {
@@ -307,6 +600,20 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 }
                 case 12 -> openWorlds(player, holder.realmId, 0);
                 case 14 -> openTutorialNpcs(player, holder.realmId, 0);
+                case 16 -> {
+                    updateRealm(player, holder.realmId, config -> {
+                        String current = config.getString("world.environment", "NORMAL");
+                        String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"
+                            : "NETHER".equalsIgnoreCase(current) ? "THE_END" : "NORMAL";
+                        config.set("world.environment", next);
+                    }, "cycle world environment");
+                    openRealm(player, holder.realmId);
+                }
+                case 18 -> openRealmRaces(player, holder.realmId);
+                case 20 -> {
+                    var realm = plugin.getRpgWorldManager().getDefinitions().get(holder.realmId);
+                    if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
+                }
                 case 28 -> saveCurrentSpawn(player, holder.realmId);
                 case 30 -> {
                     updateRealm(player, holder.realmId, config -> {
@@ -327,10 +634,18 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             if (slot == 49) openRealm(player, holder.realmId);
             else if (slot == 45 && holder.page > 0) openWorlds(player, holder.realmId, holder.page - 1);
             else if (slot == 53 && (holder.page + 1) * 27 < Bukkit.getWorlds().size()) openWorlds(player, holder.realmId, holder.page + 1);
+            else if (slot == 48) {
+                pendingWorldNames.put(player.getUniqueId(), holder.realmId);
+                player.closeInventory();
+                player.sendMessage("§eNhập tên world để realm sử dụng. Ví dụ: §fworld_start§e. World chưa tồn tại sẽ được tạo sau khi khởi động lại; gõ §f!cancel §eđể hủy.");
+            }
             else {
                 String world = holder.choices.get(slot);
                 if (world != null) {
-                    updateRealm(player, holder.realmId, config -> config.set("world-name", world), "set world=" + world);
+                    updateRealm(player, holder.realmId, config -> {
+                        config.set("world-name", world);
+                        config.set("world.create-if-missing", false);
+                    }, "set existing world=" + world);
                     openRealm(player, holder.realmId);
                 }
             }
@@ -514,6 +829,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         private final String type;
         private final String realmId;
         private final int page;
+        private String raceId;
         private final Map<Integer, String> choices = new HashMap<>();
         private Inventory inventory;
 

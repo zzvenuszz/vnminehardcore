@@ -153,6 +153,9 @@ commands:
     description: Mở trình hướng dẫn setup RPG lần đầu cho server
     usage: /vninit
     permission: vnmine.command.init
+  start:
+    description: Chọn đại lục và bắt đầu hoặc tiếp tục hành trình RPG
+    usage: /start
   quatanthu:
     description: Nhận túi quà tân thủ và chọn token triệu hồi bậc 1
     usage: /quatanthu

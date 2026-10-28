@@ -11,6 +11,7 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.WorldCreator;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
@@ -29,6 +30,7 @@ public final class RpgWorldManager implements Listener {
     private final VnMineHardcore plugin;
     private final File definitionsFolder;
     private Map<String, HumanRealmDefinitionLoader.HumanRealmDefinition> definitions = Map.of();
+    private boolean createWorldsOnNextReload = true;
 
     public RpgWorldManager(VnMineHardcore plugin) {
         this.plugin = plugin;
@@ -56,6 +58,9 @@ public final class RpgWorldManager implements Listener {
                 plugin.getLogger().log(Level.SEVERE, "[World] Bundled yeu-realm.yml resource is missing.", exception);
             }
         }
+        createConfiguredWorld(plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"),
+            plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"),
+            plugin.getConfig().getBoolean("rpg.onboarding.start-world.create-if-missing", true), "onboarding start world");
         reload();
     }
 
@@ -69,6 +74,7 @@ public final class RpgWorldManager implements Listener {
         Arrays.sort(definitionFiles, Comparator.comparing(File::getName));
         Map<String, HumanRealmDefinitionLoader.HumanRealmDefinition> loaded = new LinkedHashMap<>();
         for (File file : definitionFiles) {
+            if (createWorldsOnNextReload) createRealmWorldIfConfigured(file);
             Optional<HumanRealmDefinitionLoader.HumanRealmDefinition> definition =
                 HumanRealmDefinitionLoader.load(file, plugin.getLogger());
             if (definition.isEmpty()) continue;
@@ -86,10 +92,39 @@ public final class RpgWorldManager implements Listener {
         }
 
         definitions = java.util.Collections.unmodifiableMap(loaded);
+        createWorldsOnNextReload = false;
         if (!definitions.containsKey(HUMAN_REALM_ID)) {
             plugin.getLogger().warning("[World] The default human-realm definition is missing.");
         }
         return true;
+    }
+
+    private void createRealmWorldIfConfigured(File file) {
+        org.bukkit.configuration.file.YamlConfiguration yaml =
+            org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+        if (!yaml.getBoolean("world.create-if-missing", false)) return;
+        createConfiguredWorld(yaml.getString("world-name"), yaml.getString("world.environment", "NORMAL"), true,
+            "realm " + yaml.getString("id", file.getName()));
+    }
+
+    private void createConfiguredWorld(String name, String environmentName, boolean enabled, String reason) {
+        if (!enabled || name == null || name.isBlank() || Bukkit.getWorld(name) != null) return;
+        World.Environment environment;
+        try {
+            environment = World.Environment.valueOf(environmentName == null ? "NORMAL"
+                : environmentName.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            plugin.getLogger().warning("[World] Invalid environment '" + environmentName + "' for " + reason
+                + "; using NORMAL.");
+            environment = World.Environment.NORMAL;
+        }
+        try {
+            World world = Bukkit.createWorld(new WorldCreator(name).environment(environment));
+            if (world == null) plugin.getLogger().severe("[World] Paper failed to create " + reason + " '" + name + "'.");
+            else plugin.getLogger().info("[World] Created " + reason + " '" + name + "' (" + environment + ").");
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[World] Failed to create " + reason + " '" + name + "'.", exception);
+        }
     }
 
     public Optional<HumanRealmDefinitionLoader.HumanRealmDefinition> getDefinition() {

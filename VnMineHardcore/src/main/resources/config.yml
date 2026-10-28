@@ -55,6 +55,12 @@ rpg:
     # [VI] Bật flow chọn đại lục và gặp NPC tutorial trước khi tạo nhân vật; mặc định true.
     # [EN] Require continent selection and a tutorial NPC visit before character creation; defaults to true.
     enabled: true
+    # [VI] World an toàn để người chơi reset quest/tân thủ bắt đầu trước khi chọn đại lục.
+    # [EN] Safe world for new/reset players before they choose a realm.
+    start-world:
+      name: world_start
+      create-if-missing: true
+      environment: NORMAL
     # [VI] Vẽ đường particle navigation khi người chơi cùng world với NPC; mặc định true.
     # [EN] Render navigation particles when the player is in the NPC's world; defaults to true.
     navigation-enabled: true

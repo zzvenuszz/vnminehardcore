@@ -1,5 +1,19 @@
 # Kế hoạch hoàn thiện VnMineHardcore: RPG, VNCOIN và vận hành server
 
+## Onboarding theo đại lục và sửa reset quest — yêu cầu 2026-10-28
+
+- [~] Sửa luồng admin reset quest: reset cả quest thường và tutorial, xóa session tracking trong bộ nhớ, lưu reset chờ cho người chơi offline và chuyển người chơi online về world bắt đầu. Không gọi lại bộ khởi tạo quest trong callback reset để tránh nhận EXP ngay lúc reset.
+- [~] Chuyển người mới sang luồng tường minh `/start`: đăng nhập chỉ nhắc lệnh; người chơi chọn đại lục, được chuyển tới spawn đã cấu hình, theo dõi “Bước chân đầu tiên” tới NPC Tutorial đúng realm. Quest tutorial nhận thêm objective `visit-tutorial-npc`, vẫn đọc được type cũ.
+- [~] Tại NPC Tutorial chạy quest-dialog qua action bar; sau hội thoại người mới chỉ thấy race/class được allowlist của realm cho phép, rồi nhận sách skill cấu hình và quest tự giao. Người có hồ sơ reset quest được đi lại bước NPC mà không bị yêu cầu tạo lại race/class.
+- [~] Trong `/vninit`, admin nhập tên world cho realm/world bắt đầu, chọn NORMAL/NETHER/THE_END và bật giới hạn race/class theo allowlist. Cấu hình realm đặt tại `worlds/<realm>.yml`; world được đánh dấu tạo mới sẽ được tạo lúc plugin khởi động, không bị tạo/xóa bởi thao tác lưu khi server đang chạy.
+- [~] Shift + chuột phải NPC loại `tutorial` mở editor để chọn dialog và quest tự giao. Quest picker chỉ liệt kê quest đang bật có giver NPC ID đúng với NPC tutorial; dialog được quản lý bằng `/vnquestdialog admin`.
+- [x] Compile 56 file Java với JDK 25 (`mvn -DskipTests compile`) thành công; không chạy test suite.
+- [x] Build 2.27.0 bằng `mvn -DskipTests clean package` lúc `2026-10-28 01:08:35 UTC`; 56 source Java biên dịch, test suite bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.27.0.jar` (2,278,153 bytes), SHA-256 `913821f731252653f9e60c1492d0085987a50e36b83e87b42c46f4cceaf8073b`. Metadata xác nhận version 2.27.0; SQLite native duy nhất là Linux x86_64, kèm `META-INF/services/java.sql.Driver`.
+- [x] Cài JAR 2.27.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.27.0.jar`, so sánh byte với artifact build; giữ 2.26.0 tại plugin folder và sao chép backup vào `.old-builds/`.
+- [ ] Gameplay test Paper: kiểm tra người chơi mới, hồ sơ cũ, reset online/offline, pending reset qua restart, world thiếu/tên sai, chuyển realm, allowlist rỗng, dialog bị xóa, quest auto-give đầy 3 slot/đã hoàn thành, inventory đầy khi giao sách và tránh thưởng trùng.
+- [ ] Chốt UX trường hợp world `world_start`: hiện đây là staging world an toàn; `/start` vẫn là bước chọn đại lục để teleport tới realm và NPC Tutorial tại đó. Kiểm thử xác nhận admin mong muốn dùng world này như lobby bắt đầu/reset.
+- Mã nguồn đã thay đổi, compile/build thành công và JAR đã cài; gameplay test chưa chạy nên checklist vận hành vẫn mở.
+
 ## Wizard setup server RPG — yêu cầu 2026-10-27
 
 - [x] Thêm `/vninit` và quyền `vnmine.command.init` (mặc định OP; admin group VnMine được cấp). Dashboard GUI nêu trạng thái onboarding, các đại lục đang khai báo, mapping sách khởi đầu và quest hướng dẫn; có thể mở GUI cấu hình sách/quest hiện hành.

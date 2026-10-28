@@ -106,6 +106,17 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         openAdminList(player, 0);
     }
 
+    public List<String> getQuestIdsForNpc(String npcId) {
+        if (npcId == null) return List.of();
+        return definitions.values().stream().filter(quest -> quest.enabled() && quest.giverNpcId().equals(npcId))
+            .map(QuestDefinition::id).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+    }
+
+    public String getQuestTitle(String questId) {
+        QuestDefinition quest = definitions.get(questId);
+        return quest == null ? questId : quest.title();
+    }
+
     public void openAdminCompletedQuests(Player admin, UUID targetId) {
         openAdminCompletedQuests(admin, targetId, 0);
     }

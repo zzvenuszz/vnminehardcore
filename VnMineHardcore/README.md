@@ -833,6 +833,12 @@ sát thương người chơi, thông báo và tỷ lệ. Chạy `/vnreload` sau 
 
 ## Changelog
 
+### v2.27.0 (đang hoàn thiện, chưa build)
+- Reset quest đưa nhân vật về world bắt đầu và chờ `/start`; hỗ trợ cả người chơi offline bằng hàng đợi reset bền vững.
+- Người mới dùng `/start` chọn đại lục, được chuyển tới spawn và tracking tới NPC Tutorial; quest hướng dẫn dùng vị trí NPC.
+- `/vninit` cấu hình world bắt đầu/world đại lục, môi trường world, allowlist race/class theo đại lục, dialog tutorial và quest tự giao. Shift + chuột phải NPC tutorial mở cấu hình dialog/quest.
+- World được đánh dấu tạo tự động sẽ được tạo khi plugin khởi động. Build JDK 25 thành công; JAR đã cài tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.27.0.jar`, backup 2.26.0 nằm trong `.old-builds`. Chưa gameplay test.
+
 ### v2.26.0
 - Thêm `/vninit` với dashboard trạng thái setup, cấu hình đại lục/world/NPC tutorial/spawn qua GUI, lưu nguyên tử từng thao tác và bật/tắt onboarding.
 - Quest `first-steps` định tuyến spawn theo `homeWorld` của người chơi để hỗ trợ nhiều đại lục bắt đầu; tutorial realm ID không còn bị cố định vào `human-realm`.

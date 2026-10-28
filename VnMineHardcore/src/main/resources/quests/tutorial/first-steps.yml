@@ -17,7 +17,7 @@ quest:
 
   # [VI] Mô tả ngắn mục đích quest; mặc định hướng dẫn người chơi tìm điểm an toàn.
   # [EN] Short quest description; defaults to guiding players to the safe arrival point.
-  description: "Hãy tìm điểm an toàn đầu tiên tại Nhân giới."
+  description: "Hãy tìm NPC Tutorial tại đại lục bạn đã chọn để bắt đầu hành trình."
 
   reward:
     # [VI] Loại thưởng: character-exp (XP RPG) hoặc vncoin; mặc định character-exp.
@@ -33,9 +33,9 @@ quest:
     # [EN] Stable objective ID used to resume progress; defaults to reach-human-realm-spawn.
     id: reach-human-realm-spawn
 
-    # [VI] Loại mục tiêu được hỗ trợ trong phần này; chỉ chấp nhận visit-realm-spawn.
-    # [EN] Objective type supported in this slice; only visit-realm-spawn is accepted.
-    type: visit-realm-spawn
+    # [VI] Mục tiêu đến NPC Tutorial của realm đã chọn; visit-realm-spawn cũ vẫn được đọc tương thích.
+    # [EN] Visit the selected realm's Tutorial NPC; legacy visit-realm-spawn remains readable.
+    type: visit-tutorial-npc
 
     # [VI] Realm dự phòng; mặc định human-realm. Người chơi mới tự được dẫn tới realm có world khớp homeWorld đã chọn.
     # [EN] Fallback realm; defaults to human-realm. New players are routed to the realm matching their selected homeWorld.
@@ -65,10 +65,10 @@ quest:
     # [EN] Maximum distance for drawing particles; defaults to 48 blocks, valid range 8..64 blocks.
     waypoint-particle-range-blocks: 48
 
-    # [VI] Hướng dẫn khi quest tự bắt đầu; mặc định chỉ người chơi tới điểm spawn, không cần lệnh.
-    # [EN] Guidance shown when the quest auto-starts; defaults to visiting the spawn, no command required.
-    start-message: "Đi tới điểm spawn an toàn của Nhân giới để hoàn thành hướng dẫn."
+    # [VI] Hướng dẫn khi quest bắt đầu; người chơi chọn realm bằng /start rồi tìm NPC Tutorial.
+    # [EN] Quest guidance; players choose a realm with /start and find its Tutorial NPC.
+    start-message: "Dùng /start để chọn đại lục, sau đó gặp NPC Tutorial tại đó."
 
-    # [VI] Thông báo khi objective hoàn tất; mặc định xác nhận đã tới điểm an toàn.
-    # [EN] Completion feedback; defaults to confirming arrival at the safe point.
-    complete-message: "Bạn đã tới điểm an toàn. Tiến trình đã được lưu."
+    # [VI] Thông báo khi objective hoàn tất; mặc định xác nhận đã gặp NPC Tutorial.
+    # [EN] Completion feedback; defaults to confirming the Tutorial NPC visit.
+    complete-message: "Bạn đã gặp NPC Tutorial. Tiến trình đã được lưu."

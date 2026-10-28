@@ -14,7 +14,8 @@ import org.yaml.snakeyaml.error.YAMLException;
 public final class TutorialQuestDefinitionLoader {
     private static final int SUPPORTED_SCHEMA_VERSION = 1;
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
-    private static final String SUPPORTED_OBJECTIVE_TYPE = "visit-realm-spawn";
+    private static final java.util.Set<String> SUPPORTED_OBJECTIVE_TYPES =
+        java.util.Set.of("visit-realm-spawn", "visit-tutorial-npc");
 
     private TutorialQuestDefinitionLoader() {
     }
@@ -92,9 +93,9 @@ public final class TutorialQuestDefinitionLoader {
             valid = false;
         }
         String objectiveType = readRequiredText(objective, "type", file, "quest.objective", logger);
-        if (objectiveType != null && !SUPPORTED_OBJECTIVE_TYPE.equals(objectiveType)) {
+        if (objectiveType != null && !SUPPORTED_OBJECTIVE_TYPES.contains(objectiveType)) {
             logger.warning("[Quest] Unsupported objective type '" + objectiveType + "' at " +
-                file.getName() + ".quest.objective.type; only '" + SUPPORTED_OBJECTIVE_TYPE + "' is supported.");
+                file.getName() + ".quest.objective.type; supported values: " + SUPPORTED_OBJECTIVE_TYPES + ".");
             valid = false;
         }
         String realmId = readRequiredText(objective, "realm-id", file, "quest.objective", logger);

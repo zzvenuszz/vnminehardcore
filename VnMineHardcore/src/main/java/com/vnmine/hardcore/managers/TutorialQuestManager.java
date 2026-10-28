@@ -98,7 +98,7 @@ public final class TutorialQuestManager implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        initializePlayer(event.getPlayer(), true);
+        initializePlayer(event.getPlayer(), true, false);
     }
 
     @EventHandler
@@ -118,7 +118,10 @@ public final class TutorialQuestManager implements Listener {
         }
         if (definition == null || !definition.enabled()
                 || !activeQuestSessions.containsKey(player.getUniqueId())) return List.of();
-        return List.of("§d§lNHIỆM VỤ", "§fTới: Nhân giới", "§7Mục tiêu: Đi tới spawn");
+        String realmId = targetRealmId(player);
+        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        String destination = realm == null ? "NPC Tutorial" : "NPC Tutorial • " + realm.displayName();
+        return List.of("§d§lNHIỆM VỤ", "§fTới: " + destination, "§7Mục tiêu: Gặp NPC Tutorial");
     }
 
     private void refreshQuestSidebar(Player player) {
@@ -287,11 +290,19 @@ public final class TutorialQuestManager implements Listener {
     }
 
     public void initializePlayer(Player player) {
-        initializePlayer(player, true);
+        initializePlayer(player, true, true);
     }
 
     private void initializePlayer(Player player, boolean showReminder) {
+        initializePlayer(player, showReminder, true);
+    }
+
+    private void initializePlayer(Player player, boolean showReminder, boolean startIfMissing) {
         CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+        if (characters != null && characters.isWaitingForJourneyStart(player)) {
+            debugQuest("initialize-deferred player=" + player.getName() + ", reason=awaiting-start-command");
+            return;
+        }
         if (characters != null && characters.isStarterTutorialPending(player)) {
             debugQuest("initialize-deferred player=" + player.getName()
                 + ", reason=starter-skill-book-delivery-pending");
@@ -326,7 +337,7 @@ public final class TutorialQuestManager implements Listener {
             Optional<PlayerProfileDatabaseManager.QuestProgress> progress =
                 database.getQuestProgress(playerId.toString(), quest.id());
             boolean startedNow = false;
-            if (progress.isEmpty()) {
+            if (progress.isEmpty() && startIfMissing) {
                 String startedAt = Instant.now().toString();
                 if (database.startQuestProgress(playerId.toString(), quest.id(),
                         quest.objective().id(), startedAt)) {
@@ -412,7 +423,19 @@ public final class TutorialQuestManager implements Listener {
     }
 
     public void refreshPlayerAfterAdminQuestReset(Player player) {
-        if (player != null && player.isOnline()) initializePlayer(player, false);
+        clearSessionAfterAdminQuestReset(player);
+    }
+
+    public void clearSessionAfterAdminQuestReset(Player player) {
+        if (player == null) return;
+        UUID playerId = player.getUniqueId();
+        activeQuestSessions.remove(playerId);
+        sessionRealmIds.remove(playerId);
+        lastWaypointAtMillis.remove(playerId);
+        QuestWaypointRenderer.forget(playerId);
+        pendingQuestCompletions.remove(playerId);
+        if (player.isOnline()) refreshQuestSidebar(player);
+        debugQuest("admin-reset-session-cleared player=" + player.getName());
     }
 
     private record QuestInitData(PlayerProfileDatabaseManager.PlayerProfile profile,
@@ -502,7 +525,7 @@ public final class TutorialQuestManager implements Listener {
                 var targetRealm = plugin.getRpgWorldManager().getDefinitions().get(targetRealmId);
                 String targetRealmName = targetRealm == null ? targetRealmId : targetRealm.displayName();
                 inventory.setItem(17, createJournalItem(Material.COMPASS, "§bĐiểm đến: " + targetRealmName,
-                    List.of("§7Mục tiêu: Đi tới spawn của " + targetRealmName + ".",
+                    List.of("§7Mục tiêu: Gặp NPC Tutorial của " + targetRealmName + ".",
                         "§eBấm để bật particle tracking tới điểm này.")));
             }
             boolean rewardClaimed = progress.isPresent()
@@ -538,11 +561,8 @@ public final class TutorialQuestManager implements Listener {
         if (definition == null || location.getWorld() == null) {
             return false;
         }
-        Optional<RpgWorldManager.ResolvedSpawn> target =
-            plugin.getRpgWorldManager().resolveSpawn(targetRealmId(player));
-        if (target.isEmpty()) return false;
-
-        Location center = target.get().location();
+        Location center = resolveObjectiveTarget(player);
+        if (center == null) return false;
         return location.getWorld() == center.getWorld()
             && isWithinObjectiveRadius(center.getX(), center.getZ(), location.getX(), location.getZ(),
                 definition.objective().radiusBlocks());
@@ -559,13 +579,12 @@ public final class TutorialQuestManager implements Listener {
         String realmId = targetRealmId(player);
         var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
         String realmName = realm == null ? realmId : realm.displayName();
-        Optional<RpgWorldManager.ResolvedSpawn> resolvedTarget = plugin.getRpgWorldManager().resolveSpawn(realmId);
-        if (resolvedTarget.isEmpty()) return;
-        Location target = resolvedTarget.get().location();
+        Location target = resolveObjectiveTarget(player);
+        if (target == null) return;
         String targetPosition = "§fX " + target.getBlockX() + " Y " + target.getBlockY()
             + " Z " + target.getBlockZ();
         if (playerLocation.getWorld() != target.getWorld()) {
-            player.sendActionBar("§eĐi tới spawn " + target.getWorld().getName() + " §7(" + targetPosition + "§7)");
+            player.sendActionBar("§eTới NPC hướng dẫn tại " + target.getWorld().getName() + " §7(" + targetPosition + "§7)");
             return;
         }
 
@@ -573,7 +592,7 @@ public final class TutorialQuestManager implements Listener {
         double dy = target.getY() - playerLocation.getY();
         double dz = target.getZ() - playerLocation.getZ();
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        player.sendActionBar("§eĐi tới spawn " + realmName + " §7(" + targetPosition + "§7) §8• §f"
+        player.sendActionBar("§eTới NPC hướng dẫn " + realmName + " §7(" + targetPosition + "§7) §8• §f"
             + Math.round(Math.sqrt(dx * dx + dz * dz)) + " block");
         if (distance > definition.objective().waypointParticleRangeBlocks()) return;
 
@@ -581,7 +600,23 @@ public final class TutorialQuestManager implements Listener {
             definition.objective().waypointParticleRangeBlocks(), definition.objective().targetMarkerEnabled());
     }
 
+    private Location resolveObjectiveTarget(Player player) {
+        String realmId = targetRealmId(player);
+        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        if (realm != null && plugin.getNpcManager() != null) {
+            var npc = plugin.getNpcManager().getNpcTarget(realm.tutorialNpcId());
+            if (npc.isPresent() && npc.get().location() != null
+                    && npc.get().world().equals(realm.worldName())) return npc.get().location().clone();
+        }
+        return plugin.getRpgWorldManager().resolveSpawn(realmId)
+            .map(RpgWorldManager.ResolvedSpawn::location).orElse(null);
+    }
+
     private String targetRealmId(Player player) {
+        CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+        String selectedRealm = characters == null ? null : characters.getOnboardingRealm(player);
+        if (selectedRealm != null && plugin.getRpgWorldManager().getDefinitions().containsKey(selectedRealm))
+            return selectedRealm;
         return sessionRealmIds.computeIfAbsent(player.getUniqueId(), ignored ->
             resolveTargetRealmId(currentHomeWorld(player)));
     }

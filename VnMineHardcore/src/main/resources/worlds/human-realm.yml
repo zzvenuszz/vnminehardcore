@@ -10,13 +10,36 @@ id: human-realm
 # [EN] Display name in RPG interfaces; defaults to Nhân giới and must not be blank.
 display-name: "Nhân giới"
 
-# [VI] Tên world Paper đã được nạp; mặc định world. Plugin không tự tạo hoặc xóa world.
-# [EN] Name of an already loaded Paper world; defaults to world. The plugin never creates or deletes worlds.
+# [VI] Tên world của đại lục; có thể nhập world mới trong /vninit. Mặc định world.
+# [EN] Realm world name; use /vninit to enter a new world name. Defaults to world.
 world-name: world
+
+world:
+  # [VI] Nếu bật, tạo world khi plugin khởi động mà world chưa tồn tại; mặc định false.
+  # [EN] Create this world at plugin startup when missing; defaults to false.
+  create-if-missing: false
+  # [VI] Môi trường world mới: NORMAL, NETHER hoặc THE_END; mặc định NORMAL.
+  # [EN] Environment for a newly created world: NORMAL, NETHER, or THE_END; defaults to NORMAL.
+  environment: NORMAL
 
 # [VI] ID NPC loại tutorial đặt tại đại lục này; mặc định tutorial-guide. NPC phải được tạo trong đúng world-name.
 # [EN] ID of the tutorial NPC placed in this continent; defaults to tutorial-guide. The NPC must be in world-name.
 tutorial-npc-id: tutorial-guide
+
+tutorial:
+  # [VI] ID quest-dialog chạy sau khi người chơi tương tác NPC; để trống nếu không dùng.
+  # [EN] Quest-dialog ID played after the player interacts with this NPC; blank disables it.
+  dialog-id: ""
+  # [VI] ID quest có giver NPC trùng tutorial-npc-id để giao tự động sau hội thoại.
+  # [EN] Quest ID with a giver NPC matching tutorial-npc-id, automatically accepted after dialogue.
+  auto-quest-id: ""
+
+character-availability:
+  # [VI] false cho phép mọi race/class hợp lệ; true chỉ hiện các ID trong allowlist bên dưới.
+  # [EN] False allows all valid races/classes; true restricts to the allowlists below.
+  enabled: false
+  races: []
+  classes: {}
 
 # [VI] Cho phép người mới chọn đại lục này; mặc định true cho đại lục mở.
 # [EN] Allow new players to choose this as their starting continent; defaults to true for an open realm.

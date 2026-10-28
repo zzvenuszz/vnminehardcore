@@ -271,6 +271,14 @@ public final class VnMineHardcore extends JavaPlugin {
             return true;
         }, (sender, command, alias, args) -> List.of());
         registerCommand("vninit", serverSetupWizardManager, serverSetupWizardManager);
+        registerCommand("start", (sender, command, label, args) -> {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("Lệnh /start chỉ dùng trong game.");
+                return true;
+            }
+            characterSelectionManager.startJourney(player);
+            return true;
+        }, (sender, command, alias, args) -> List.of());
         startProfileDatabaseBackupTask();
 
         getLogger().info("§a  VnMineHardcore enabled - Hell difficulty!");
@@ -1245,6 +1253,7 @@ public final class VnMineHardcore extends JavaPlugin {
 
     public QuestCatalogManager getQuestCatalogManager() { return questCatalogManager; }
     public QuestDialogManager getQuestDialogManager() { return questDialogManager; }
+    public ServerSetupWizardManager getServerSetupWizardManager() { return serverSetupWizardManager; }
     public LogManager getLogManager() { return logManager; }
     public ThirstManager getThirstManager() { return thirstManager; }
     public DisasterManager getDisasterManager() { return disasterManager; }

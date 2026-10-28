@@ -14,9 +14,32 @@ display-name: "Yêu giới"
 # [EN] Paper world name that admins must create/load; defaults to yeu_realm. The plugin never creates worlds.
 world-name: yeu_realm
 
+world:
+  # [VI] Nếu bật, tạo world khi plugin khởi động mà world chưa tồn tại; mặc định false.
+  # [EN] Create this world at plugin startup when missing; defaults to false.
+  create-if-missing: false
+  # [VI] Môi trường world mới: NORMAL, NETHER hoặc THE_END; mặc định NORMAL.
+  # [EN] Environment for a newly created world: NORMAL, NETHER, or THE_END; defaults to NORMAL.
+  environment: NORMAL
+
 # [VI] ID NPC loại tutorial đặt tại đại lục này; mặc định tutorial-yeu-realm. NPC phải được tạo trong đúng world-name.
 # [EN] ID of the tutorial NPC placed in this continent; defaults to tutorial-yeu-realm. The NPC must be in world-name.
 tutorial-npc-id: tutorial-yeu-realm
+
+tutorial:
+  # [VI] ID quest-dialog chạy sau khi người chơi tương tác NPC; để trống nếu không dùng.
+  # [EN] Quest-dialog ID played after the player interacts with this NPC; blank disables it.
+  dialog-id: ""
+  # [VI] ID quest có giver NPC trùng tutorial-npc-id để giao tự động sau hội thoại.
+  # [EN] Quest ID with a giver NPC matching tutorial-npc-id, automatically accepted after dialogue.
+  auto-quest-id: ""
+
+character-availability:
+  # [VI] false cho phép mọi race/class hợp lệ; true chỉ hiện các ID trong allowlist bên dưới.
+  # [EN] False allows all valid races/classes; true restricts to the allowlists below.
+  enabled: false
+  races: []
+  classes: {}
 
 # [VI] Cho phép bắt đầu trực tiếp tại đại lục này; mặc định false vì realm đang có khóa quest.
 # [EN] Allow players to start directly in this realm; defaults to false because this realm is quest-locked.

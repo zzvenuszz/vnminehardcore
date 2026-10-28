@@ -1,5 +1,12 @@
 # Changelog
 
+## [v2.27.0] - 2026-10-28
+- Sửa reset quest quản trị: xóa session tracking, đặt lại onboarding và đưa người chơi online về world bắt đầu; reset cho người chơi offline được lưu chờ tới lần đăng nhập. Không còn khởi chạy lại quest hướng dẫn ngay trong callback reset.
+- Chuyển onboarding sang `/start`; người mới được nhắc lệnh thay vì tự bật GUI khi vào server. Chọn đại lục sẽ chuyển đến spawn đã cấu hình và quest First Steps/navigation nhắm NPC Tutorial của đại lục.
+- Mở rộng `/vninit`: nhập tên world, chọn môi trường world mới, cấu hình world bắt đầu/reset, allowlist race/class theo đại lục, dialog tutorial và quest tự giao sau hội thoại. Shift + chuột phải NPC tutorial mở phần cấu hình riêng.
+- Tạo các world được đánh dấu `world.create-if-missing` cùng world onboarding lúc plugin khởi động; không tự xóa world.
+- Build `mvn -DskipTests clean package` bằng JDK 25 thành công lúc `2026-10-28 01:08:35 UTC`; 56 file biên dịch, test suite bỏ qua. JAR `VnMineHardcore/target/VnMineHardcore-2.27.0.jar` (2,278,153 bytes), SHA-256 `913821f731252653f9e60c1492d0085987a50e36b83e87b42c46f4cceaf8073b`; đã cài vào `DATA/VNMINE/plugins/`, backup 2.26.0 trong `.old-builds`. Chưa gameplay test.
+
 ## [v2.23.0] - 2026-10-27
 - Chia menu Give item RPG theo vật phẩm người chơi, trang bị lính và token; thêm phân cấp class/vật liệu/sao/set/món, cấp lẻ hoặc nguyên set.
 - Sửa mẫu gear theo vai trò từng class, bỏ khiên mặc định ở các lớp không dùng khiên và cộng chỉ số gear cả hai tay; thêm bonus cho bùa Xạ Thủ, sách Tu sĩ rừng và ống nhòm Trinh Sát.

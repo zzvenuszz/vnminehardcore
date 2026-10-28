@@ -836,8 +836,8 @@ public final class PlayerAdminManager implements Listener {
                     } else {
                         if (target != null && plugin.getQuestCatalogManager() != null)
                             plugin.getQuestCatalogManager().reloadQuestCache(target);
-                        if (target != null && plugin.getTutorialQuestManager() != null)
-                            plugin.getTutorialQuestManager().refreshPlayerAfterAdminQuestReset(target);
+                        if (plugin.getCharacterSelectionManager() != null)
+                            plugin.getCharacterSelectionManager().queueQuestJourneyReset(targetId);
                         audit(admin, name, "reset-quests:" + count);
                         admin.sendMessage("§aĐã xóa " + count + " trạng thái quest.");
                     }
@@ -887,8 +887,8 @@ public final class PlayerAdminManager implements Listener {
                             plugin.getCharacterSelectionManager().refreshLoadedProfile(target);
                         if (target != null && plugin.getQuestCatalogManager() != null)
                             plugin.getQuestCatalogManager().reloadQuestCache(target);
-                        if (target != null && plugin.getTutorialQuestManager() != null)
-                            plugin.getTutorialQuestManager().refreshPlayerAfterAdminQuestReset(target);
+                        if (plugin.getCharacterSelectionManager() != null)
+                            plugin.getCharacterSelectionManager().queueQuestJourneyReset(targetId);
                         audit(admin, name, "reset-rpg-profile");
                         admin.sendMessage("§aĐã xóa hồ sơ RPG; ví VNCOIN vẫn được giữ.");
                     }
