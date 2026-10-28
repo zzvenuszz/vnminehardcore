@@ -56,6 +56,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private PlayerAdminManager playerAdminManager;
     private ServerSetupWizardManager serverSetupWizardManager;
     private SchemaBuildManager schemaBuildManager;
+    private RegionProtectionManager regionProtectionManager;
     private TooltipManager tooltipManager;
     private VillagerDataManager villagerDataManager;
     private DeathListener deathListener;
@@ -178,6 +179,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.graveManager = new GraveManager(this, configManager);
         this.spawnProtectionManager = new SpawnProtectionManager(this);
         this.permissionManager = new PermissionManager(this);
+        this.regionProtectionManager = new RegionProtectionManager(this);
         try {
             this.portalManager = new PortalManager(this);
         } catch (java.io.IOException | InvalidConfigurationException | YAMLException exception) {
@@ -207,6 +209,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(economyManager, this);
         Bukkit.getPluginManager().registerEvents(playerAdminManager, this);
         Bukkit.getPluginManager().registerEvents(serverSetupWizardManager, this);
+        Bukkit.getPluginManager().registerEvents(regionProtectionManager, this);
         Bukkit.getPluginManager().registerEvents(schemaBuildManager, this);
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
         this.combatListener = new CombatListener(this, deathListener, configManager);
@@ -280,6 +283,8 @@ public final class VnMineHardcore extends JavaPlugin {
             return true;
         }, (sender, command, alias, args) -> List.of());
         registerCommand("vninit", serverSetupWizardManager, serverSetupWizardManager);
+        registerCommand("vnregion", regionProtectionManager, regionProtectionManager);
+        registerCommand("vnbuild", schemaBuildManager, schemaBuildManager);
         registerCommand("start", (sender, command, label, args) -> {
             if (!(sender instanceof Player player)) {
                 sender.sendMessage("Lệnh /start chỉ dùng trong game.");
@@ -1265,6 +1270,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public QuestDialogManager getQuestDialogManager() { return questDialogManager; }
     public ServerSetupWizardManager getServerSetupWizardManager() { return serverSetupWizardManager; }
     public SchemaBuildManager getSchemaBuildManager() { return schemaBuildManager; }
+    public RegionProtectionManager getRegionProtectionManager() { return regionProtectionManager; }
     public LogManager getLogManager() { return logManager; }
     public ThirstManager getThirstManager() { return thirstManager; }
     public DisasterManager getDisasterManager() { return disasterManager; }

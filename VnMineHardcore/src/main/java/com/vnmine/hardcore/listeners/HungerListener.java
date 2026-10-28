@@ -64,6 +64,8 @@ public class HungerListener implements Listener {
             @Override
             public void run() {
                 for (Player player : plugin.getServer().getOnlinePlayers()) {
+                    if (plugin.getRegionProtectionManager() != null
+                            && plugin.getRegionProtectionManager().isHungerDrainDisabled(player)) continue;
                     int foodLevel = player.getFoodLevel();
 
                     if (foodLevel > 0) {
@@ -97,6 +99,12 @@ public class HungerListener implements Listener {
     // Cancel vanilla food changes completely - plugin controls food
     @EventHandler(priority = EventPriority.LOWEST)
     public void onFoodLevelChange(FoodLevelChangeEvent event) {
+        if (event.getEntity() instanceof Player player && plugin.getRegionProtectionManager() != null
+                && plugin.getRegionProtectionManager().isHungerDrainDisabled(player)
+                && event.getFoodLevel() < player.getFoodLevel()) {
+            event.setCancelled(true);
+            return;
+        }
         if (!config.hungerEnabled) return;
         if (!(event.getEntity() instanceof Player)) return;
         event.setCancelled(true);

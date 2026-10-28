@@ -67,6 +67,11 @@ public class TimeControlManager {
 
         for (World world : Bukkit.getWorlds()) {
             if (world.getEnvironment() == World.Environment.NETHER) continue;
+            if (plugin.getRegionProtectionManager() != null
+                    && plugin.getRegionProtectionManager().isTimeProgressionDisabled(world)) {
+                disableVanillaDaylightCycle(world);
+                continue;
+            }
             if (worldsWithoutClock.contains(world.getUID())) continue;
             disableVanillaDaylightCycle(world);
 

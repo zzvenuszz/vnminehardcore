@@ -153,6 +153,14 @@ commands:
     description: Mở trình hướng dẫn setup RPG lần đầu cho server
     usage: /vninit
     permission: vnmine.command.init
+  vnregion:
+    description: Quản lý vùng WorldEdit/WorldGuard bằng GUI
+    usage: /vnregion [wand]
+    permission: vnmine.command.worldedit
+  vnbuild:
+    description: Chọn và quản lý công trình Schema Build gần nhất
+    usage: /vnbuild select
+    permission: vnmine.command.schemabuild
   start:
     description: Chọn đại lục và bắt đầu hoặc tiếp tục hành trình RPG
     usage: /start
@@ -166,6 +174,9 @@ permissions:
     default: op
   vnmine.command.schemabuild:
     description: Cho phép dựng công trình từ file Sponge .schem trong Schema Build
+    default: op
+  vnmine.command.worldedit:
+    description: Cho phép dùng búa chọn vùng và quản lý cờ bảo vệ bằng /vnregion
     default: op
   vnmine.command.init:
     description: Cho phép mở trình hướng dẫn setup server RPG bằng /vninit

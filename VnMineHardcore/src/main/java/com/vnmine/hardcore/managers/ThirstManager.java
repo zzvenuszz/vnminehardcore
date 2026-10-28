@@ -91,6 +91,13 @@ public class ThirstManager {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     UUID uuid = player.getUniqueId();
 
+                    if (plugin.getRegionProtectionManager() != null
+                            && plugin.getRegionProtectionManager().isThirstDrainDisabled(player)) {
+                        // Reset the timer while protected so leaving the region does not apply accumulated thirst loss.
+                        lastDrink.put(uuid, System.currentTimeMillis());
+                        continue;
+                    }
+
                     thirstLevel.putIfAbsent(uuid, getEffectiveMaxThirst(player));
                     lastDrink.putIfAbsent(uuid, System.currentTimeMillis());
 

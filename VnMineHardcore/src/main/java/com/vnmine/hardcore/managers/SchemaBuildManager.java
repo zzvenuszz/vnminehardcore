@@ -14,10 +14,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.LinkedHashMap;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
@@ -44,9 +46,15 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 
 /** Admin GUI for placing Sponge .schem structures with a private BlockDisplay preview. */
-public final class SchemaBuildManager implements Listener {
+public final class SchemaBuildManager implements Listener, CommandExecutor, TabCompleter {
     private static final String PERMISSION = "vnmine.command.schemabuild";
     private static final int PAGE_SIZE = 45;
     private static final int DEFAULT_MAX_BLOCKS = 5000;
@@ -54,6 +62,9 @@ public final class SchemaBuildManager implements Listener {
     private static final int DEFAULT_HISTORY_SIZE = 10;
     private final VnMineHardcore plugin;
     private final Path schemasRoot;
+    private final File buildsFile;
+    private final Map<String, BuildRecord> builds = new LinkedHashMap<>();
+    private final Map<UUID, String> selectedBuilds = new HashMap<>();
     private final Map<UUID, BuildSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Deque<BuildOperation>> undoHistory = new HashMap<>();
     private final Map<UUID, Deque<BuildOperation>> redoHistory = new HashMap<>();
@@ -62,7 +73,9 @@ public final class SchemaBuildManager implements Listener {
     public SchemaBuildManager(VnMineHardcore plugin) throws IOException {
         this.plugin = plugin;
         this.schemasRoot = new File(plugin.getDataFolder(), "schemas").toPath().toAbsolutePath().normalize();
+        this.buildsFile = new File(plugin.getDataFolder(), "builds.yml");
         Files.createDirectories(schemasRoot);
+        loadBuilds();
         File example = schemasRoot.resolve("examples").resolve("small-platform.schem").toFile();
         if (!example.isFile()) {
             File parent = example.getParentFile();
@@ -82,6 +95,32 @@ public final class SchemaBuildManager implements Listener {
             return;
         }
         openList(player, 0);
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player player)) { sender.sendMessage("Lệnh này chỉ dùng trong game."); return true; }
+        if (!player.hasPermission(PERMISSION)) { player.sendMessage("§cBạn không có quyền Schema Build."); return true; }
+        if (args.length == 1 && "select".equalsIgnoreCase(args[0])) {
+            BuildRecord nearest = builds.values().stream()
+                .filter(record -> record.world.equals(player.getWorld().getName()))
+                .min(Comparator.comparingDouble(record -> distanceSquared(record.anchor, player.getLocation())))
+                .orElse(null);
+            if (nearest == null) { player.sendMessage("§eKhông tìm thấy công trình đã đăng ký trong world hiện tại."); return true; }
+            nearest = resolveWorld(nearest, player.getWorld());
+            builds.put(nearest.id, nearest);
+            selectedBuilds.put(player.getUniqueId(), nearest.id);
+            player.sendMessage("§aĐã chọn công trình §f" + nearest.id + "§a. Gõ §f!edit§a, §f!copy §ahoặc §f!remove§a trong chat.");
+            plugin.getLogger().info("[SchemaBuild] selected-build player=" + player.getName() + ", id=" + nearest.id);
+            return true;
+        }
+        player.sendMessage("§eDùng /vnbuild select để chọn công trình gần nhất trong world hiện tại.");
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        return args.length == 1 ? List.of("select") : List.of();
     }
 
     private void openList(Player player, int requestedPage) {
@@ -163,9 +202,24 @@ public final class SchemaBuildManager implements Listener {
     }
 
     private void openBuilder(Player player, SchemaFile schema) {
+        openBuilder(player, schema, null);
+    }
+
+    private void openBuilder(Player player, SchemaFile schema, BuildRecord existing) {
         BuildSession previous = sessions.remove(player.getUniqueId());
         if (previous != null) removePreview(previous);
         BuildSession session = new BuildSession(schema);
+        if (existing != null) {
+            session.buildId = existing.id;
+            session.protect = existing.protect;
+            session.anchor = existing.anchor.clone();
+            session.rotationX = existing.rotationX;
+            session.rotationY = existing.rotationY;
+            session.rotationZ = existing.rotationZ;
+            session.flipX = existing.flipX;
+            session.flipY = existing.flipY;
+            session.baseline = existing.blocks;
+        }
         sessions.put(player.getUniqueId(), session);
         updatePreview(player, session, true);
         openBuilderMenu(player, session);
@@ -187,6 +241,9 @@ public final class SchemaBuildManager implements Listener {
         menu.setItem(19, icon(Material.IRON_INGOT, "§eXoay trục Y −90°", List.of()));
         menu.setItem(25, icon(Material.GOLD_INGOT, "§eXoay trục Y +90°", List.of()));
         menu.setItem(28, icon(Material.IRON_BLOCK, "§eXoay trục Z −90°", List.of()));
+        menu.setItem(31, icon(session.protect ? Material.LIME_DYE : Material.GRAY_DYE,
+            "§6Bảo vệ sau khi đặt: " + (session.protect ? "§aON" : "§cOFF"),
+            List.of("§7ON chặn người thường đặt/phá block trong cấu trúc.", "§eNhấn để đổi.")));
         menu.setItem(34, icon(Material.GOLD_BLOCK, "§eXoay trục Z +90°", List.of()));
         menu.setItem(11, icon(session.flipX ? Material.LIME_DYE : Material.GRAY_DYE,
             "§eLật trục X: " + (session.flipX ? "§aBẬT" : "§cTẮT"), List.of("§7Nhấn để đổi đối xứng.")));
@@ -241,6 +298,7 @@ public final class SchemaBuildManager implements Listener {
             case 25 -> rotate(player, session, 'y', 1);
             case 28 -> rotate(player, session, 'z', -1);
             case 34 -> rotate(player, session, 'z', 1);
+            case 31 -> { session.protect = !session.protect; openBuilderMenu(player, session); }
             case 37 -> undo(player);
             case 40 -> enterPlacementPreview(player, session);
             case 43 -> redo(player);
@@ -335,7 +393,166 @@ public final class SchemaBuildManager implements Listener {
         });
     }
 
+    @EventHandler
+    public void onBuildManagementChat(AsyncPlayerChatEvent event) {
+        String input = event.getMessage().trim().toLowerCase(Locale.ROOT);
+        if (!List.of("!edit", "!copy", "!remove").contains(input)) return;
+        UUID playerId = event.getPlayer().getUniqueId();
+        String selectedId = selectedBuilds.get(playerId);
+        if (selectedId == null) return;
+        event.setCancelled(true);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player player = Bukkit.getPlayer(playerId);
+            BuildRecord record = builds.get(selectedId);
+            if (player == null || !player.isOnline() || record == null) return;
+            if (!player.hasPermission(PERMISSION)) { player.sendMessage("§cBạn không còn quyền Schema Build."); return; }
+            switch (input) {
+                case "!edit" -> {
+                    SchemaFile schema = loadRecordedSchema(player, record);
+                    if (schema != null) openBuilder(player, schema, record);
+                }
+                case "!copy" -> {
+                    SchemaFile schema = loadRecordedSchema(player, record);
+                    if (schema == null) return;
+                    BuildSession copy = new BuildSession(schema);
+                    copy.anchor = record.anchor.clone(); copy.rotationX = record.rotationX;
+                    copy.rotationY = record.rotationY; copy.rotationZ = record.rotationZ;
+                    copy.flipX = record.flipX; copy.flipY = record.flipY; copy.flipZ = record.flipZ;
+                    copy.protect = record.protect;
+                    sessions.put(playerId, copy);
+                    updatePreview(player, copy, true);
+                    openBuilderMenu(player, copy);
+                    player.sendMessage("§eBản sao sẽ nhận ID mới sau khi !put.");
+                }
+                case "!remove" -> removeBuild(player, record);
+                default -> { }
+            }
+        });
+    }
+
+    private SchemaFile loadRecordedSchema(Player player, BuildRecord record) {
+        try {
+            Path path = schemasRoot.resolve(record.schemaPath).normalize();
+            if (!path.startsWith(schemasRoot) || !Files.isRegularFile(path)) throw new IOException("schema file is missing");
+            return new SchemaFile(record.schemaPath, loadSchema(path));
+        } catch (IOException | IllegalArgumentException exception) {
+            player.sendMessage("§cKhông thể mở schema của công trình. Kiểm tra file và console.");
+            plugin.getLogger().log(Level.WARNING, "[SchemaBuild] Could not load stored build id=" + record.id, exception);
+            return null;
+        }
+    }
+
+    private void removeBuild(Player player, BuildRecord record) {
+        if (record.blocks.stream().anyMatch(snapshot -> snapshot.location().getWorld() == null
+                || !snapshot.location().getWorld().isChunkLoaded(snapshot.location().getBlockX() >> 4,
+                    snapshot.location().getBlockZ() >> 4))) {
+            player.sendMessage("§cHãy đến gần công trình để nạp toàn bộ chunk trước khi xóa."); return;
+        }
+        if (record.blocks.stream().anyMatch(snapshot -> !snapshot.location().getBlock().getBlockData().getAsString().equals(snapshot.afterData()))) {
+            player.sendMessage("§cKhông xóa được an toàn: có block công trình đã bị thay đổi. Khôi phục thủ công hoặc dùng !edit."); return;
+        }
+        if (record.blocks.stream().anyMatch(snapshot -> snapshot.location().getBlock().getState() instanceof org.bukkit.block.TileState)) {
+            player.sendMessage("§cKhông xóa được an toàn: công trình có block entity như rương/sign."); return;
+        }
+        BuildRecord removed = builds.remove(record.id);
+        if (!saveBuilds()) { builds.put(record.id, removed); player.sendMessage("§cKhông lưu được danh sách công trình."); return; }
+        if (plugin.getRegionProtectionManager() != null
+                && !plugin.getRegionProtectionManager().removeRegion(record.id)
+                && plugin.getRegionProtectionManager().getRegion(record.id) != null) {
+            builds.put(record.id, removed); saveBuilds();
+            player.sendMessage("§cKhông thể gỡ bảo vệ công trình; không xóa block nào."); return;
+        }
+        restoreSnapshots(record.blocks, false);
+        selectedBuilds.remove(player.getUniqueId());
+        player.sendMessage("§aĐã xóa công trình §f" + record.id + "§a và khôi phục block nền.");
+        plugin.getLogger().info("[SchemaBuild] build-removed player=" + player.getName() + ", id=" + record.id);
+    }
+
     private int wrap(int degrees) { return Math.floorMod(degrees, 360); }
+
+    private String nextBuildId(String world, String schemaName) {
+        String worldPart = sanitizeIdPart(world, 18);
+        String schemaPart = sanitizeIdPart(schemaName, 18);
+        String prefix = worldPart + "_" + schemaPart + "_";
+        int next = builds.keySet().stream().filter(id -> id.startsWith(prefix))
+            .map(id -> id.substring(prefix.length())).filter(value -> value.matches("\\d+"))
+            .mapToInt(value -> { try { return Integer.parseInt(value); } catch (NumberFormatException ignored) { return 0; } })
+            .max().orElse(0) + 1;
+        return prefix + next;
+    }
+
+    private String sanitizeIdPart(String value, int maxLength) {
+        String normalized = value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]+", "_").replaceAll("_+", "_");
+        if (normalized.isBlank()) normalized = "build";
+        return normalized.substring(0, Math.min(maxLength, normalized.length()));
+    }
+
+    private String locationKey(Location location) {
+        return location.getWorld().getName() + ":" + location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ();
+    }
+
+    private double distanceSquared(Location first, Location second) {
+        double dx = first.getX() - second.getX(), dy = first.getY() - second.getY(), dz = first.getZ() - second.getZ();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private BuildRecord resolveWorld(BuildRecord record, World world) {
+        Location anchor = new Location(world, record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(),
+            record.anchor.getYaw(), record.anchor.getPitch());
+        List<BlockSnapshot> blocks = record.blocks.stream().map(snapshot -> new BlockSnapshot(
+            new Location(world, snapshot.location().getBlockX(), snapshot.location().getBlockY(), snapshot.location().getBlockZ()),
+            snapshot.beforeData(), snapshot.afterData(), snapshot.baselineBeforeData())).toList();
+        return new BuildRecord(record.id, record.schemaPath, record.world, anchor, record.rotationX, record.rotationY,
+            record.rotationZ, record.flipX, record.flipY, record.flipZ, record.protect, blocks);
+    }
+
+    private void loadBuilds() {
+        if (!buildsFile.isFile()) return;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(buildsFile);
+        ConfigurationSection entries = yaml.getConfigurationSection("builds");
+        if (entries == null) return;
+        for (String id : entries.getKeys(false)) {
+            String path = "builds." + id;
+            String worldName = yaml.getString(path + ".world", "");
+            World world = Bukkit.getWorld(worldName);
+            Location anchor = new Location(world, yaml.getDouble(path + ".anchor.x"), yaml.getDouble(path + ".anchor.y"), yaml.getDouble(path + ".anchor.z"));
+            List<BlockSnapshot> snapshots = new ArrayList<>();
+            for (Map<?, ?> raw : yaml.getMapList(path + ".blocks")) {
+                try {
+                    int x = ((Number) raw.get("x")).intValue(), y = ((Number) raw.get("y")).intValue(), z = ((Number) raw.get("z")).intValue();
+                    String before = String.valueOf(raw.get("before")), after = String.valueOf(raw.get("after"));
+                    snapshots.add(new BlockSnapshot(new Location(world, x, y, z), before, after, before));
+                } catch (RuntimeException exception) { plugin.getLogger().warning("[SchemaBuild] Invalid block record for " + id); }
+            }
+            BuildRecord record = new BuildRecord(id, yaml.getString(path + ".schema", ""), worldName, anchor,
+                yaml.getInt(path + ".rotation.x"), yaml.getInt(path + ".rotation.y"), yaml.getInt(path + ".rotation.z"),
+                yaml.getBoolean(path + ".flip.x"), yaml.getBoolean(path + ".flip.y"), yaml.getBoolean(path + ".flip.z"),
+                yaml.getBoolean(path + ".protect"), List.copyOf(snapshots));
+            if (!record.schemaPath.isBlank() && !record.blocks.isEmpty()) builds.put(id.toLowerCase(Locale.ROOT), record);
+        }
+        plugin.getLogger().info("[SchemaBuild] Loaded " + builds.size() + " persistent build record(s).");
+    }
+
+    private boolean saveBuilds() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        for (BuildRecord record : builds.values()) {
+            String path = "builds." + record.id;
+            yaml.set(path + ".schema", record.schemaPath); yaml.set(path + ".world", record.world);
+            yaml.set(path + ".anchor.x", record.anchor.getX()); yaml.set(path + ".anchor.y", record.anchor.getY()); yaml.set(path + ".anchor.z", record.anchor.getZ());
+            yaml.set(path + ".rotation.x", record.rotationX); yaml.set(path + ".rotation.y", record.rotationY); yaml.set(path + ".rotation.z", record.rotationZ);
+            yaml.set(path + ".flip.x", record.flipX); yaml.set(path + ".flip.y", record.flipY); yaml.set(path + ".flip.z", record.flipZ);
+            yaml.set(path + ".protect", record.protect);
+            List<Map<String, Object>> blocks = new ArrayList<>();
+            for (BlockSnapshot snapshot : record.blocks) {
+                Map<String, Object> block = new LinkedHashMap<>();
+                block.put("x", snapshot.location().getBlockX()); block.put("y", snapshot.location().getBlockY()); block.put("z", snapshot.location().getBlockZ());
+                block.put("before", snapshot.baselineBeforeData()); block.put("after", snapshot.afterData()); blocks.add(block);
+            }
+            yaml.set(path + ".blocks", blocks);
+        }
+        try { yaml.save(buildsFile); return true; }
+        catch (IOException exception) { plugin.getLogger().log(Level.SEVERE, "[SchemaBuild] Could not save builds.yml", exception); return false; }
+    }
 
     private void tickPreviews() {
         for (Map.Entry<UUID, BuildSession> entry : List.copyOf(sessions.entrySet())) {
@@ -520,6 +737,9 @@ public final class SchemaBuildManager implements Listener {
         }
         var border = session.anchor.getWorld().getWorldBorder();
         List<BlockSnapshot> snapshots = new ArrayList<>(blocks.size());
+        Map<String, BlockSnapshot> baselineByLocation = new HashMap<>();
+        if (session.baseline != null) for (BlockSnapshot saved : session.baseline) baselineByLocation.put(locationKey(saved.location()), saved);
+        java.util.Set<String> newLocations = new java.util.HashSet<>();
         for (PlacedBlock placed : blocks) {
             int x = session.anchor.getBlockX() + placed.x();
             int y = session.anchor.getBlockY() + placed.y();
@@ -540,7 +760,23 @@ public final class SchemaBuildManager implements Listener {
                 return;
             }
             BlockData after = Bukkit.createBlockData(placed.blockData());
-            snapshots.add(new BlockSnapshot(location, block.getBlockData().getAsString(), after.getAsString()));
+            String key = locationKey(location);
+            newLocations.add(key);
+            BlockSnapshot baseline = baselineByLocation.get(key);
+            snapshots.add(new BlockSnapshot(location, block.getBlockData().getAsString(), after.getAsString(),
+                baseline == null ? block.getBlockData().getAsString() : baseline.beforeData()));
+        }
+        if (session.baseline != null) {
+            for (BlockSnapshot old : session.baseline) {
+                if (newLocations.contains(locationKey(old.location()))) continue;
+                Location location = old.location();
+                if (location.getWorld() == null || !location.getWorld().equals(session.anchor.getWorld())
+                        || !location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
+                    player.sendMessage("§cKhông thể cập nhật công trình: vùng cũ không còn được nạp."); return;
+                }
+                Block block = location.getBlock();
+                snapshots.add(new BlockSnapshot(location, block.getBlockData().getAsString(), old.beforeData(), old.beforeData()));
+            }
         }
         int applied = 0;
         for (BlockSnapshot snapshot : snapshots) {
@@ -562,15 +798,48 @@ public final class SchemaBuildManager implements Listener {
             applied++;
         }
         BuildOperation operation = new BuildOperation(session.schema.relativePath(), List.copyOf(snapshots));
+        List<BlockSnapshot> persistedSnapshots = snapshots.stream().map(snapshot -> new BlockSnapshot(snapshot.location(),
+            snapshot.baselineBeforeData(), snapshot.afterData(), snapshot.baselineBeforeData())).toList();
+        String buildId = session.buildId == null ? nextBuildId(session.anchor.getWorld().getName(), session.schema.schema().name()) : session.buildId;
+        BuildRecord previousRecord = builds.get(buildId);
+        BuildRecord record = new BuildRecord(buildId, session.schema.relativePath(), session.anchor.clone(),
+            session.rotationX, session.rotationY, session.rotationZ, session.flipX, session.flipY, session.flipZ,
+            session.protect, List.copyOf(persistedSnapshots));
+        builds.put(buildId, record);
+        if (!saveBuilds()) {
+            if (previousRecord == null) builds.remove(buildId); else builds.put(buildId, previousRecord);
+            restoreSnapshots(snapshots, false);
+            player.sendMessage("§cKhông thể lưu ID công trình; block đã được hoàn tác."); return;
+        }
+        if (plugin.getRegionProtectionManager() != null) {
+            Location min = new Location(session.anchor.getWorld(),
+                blocks.stream().mapToInt(block -> session.anchor.getBlockX() + block.x()).min().orElse(session.anchor.getBlockX()),
+                blocks.stream().mapToInt(block -> session.anchor.getBlockY() + block.y()).min().orElse(session.anchor.getBlockY()),
+                blocks.stream().mapToInt(block -> session.anchor.getBlockZ() + block.z()).min().orElse(session.anchor.getBlockZ()));
+            Location max = new Location(session.anchor.getWorld(),
+                blocks.stream().mapToInt(block -> session.anchor.getBlockX() + block.x()).max().orElse(session.anchor.getBlockX()),
+                blocks.stream().mapToInt(block -> session.anchor.getBlockY() + block.y()).max().orElse(session.anchor.getBlockY()),
+                blocks.stream().mapToInt(block -> session.anchor.getBlockZ() + block.z()).max().orElse(session.anchor.getBlockZ()));
+            if (!plugin.getRegionProtectionManager().upsertBuildRegion(buildId, min, max, session.protect)) {
+                if (previousRecord == null) builds.remove(buildId); else builds.put(buildId, previousRecord);
+                saveBuilds();
+                restoreSnapshots(snapshots, false);
+                player.sendMessage("§cKhông thể lưu bảo vệ công trình; thao tác dựng đã được hoàn tác.");
+                plugin.getLogger().warning("[SchemaBuild] Protection save failed; rolled back build id=" + buildId);
+                return;
+            }
+        }
+        selectedBuilds.put(player.getUniqueId(), buildId);
         Deque<BuildOperation> undo = undoHistory.computeIfAbsent(player.getUniqueId(), ignored -> new ArrayDeque<>());
         undo.push(operation);
         while (undo.size() > historyLimit()) undo.removeLast();
         redoHistory.remove(player.getUniqueId());
-        player.sendMessage("§aĐã dựng schema §f" + session.schema.schema().name() + "§a: " + snapshots.size() + " block.");
+        player.sendMessage("§aĐã dựng schema §f" + session.schema.schema().name() + "§a: " + snapshots.size() + " block. ID: §f" + buildId);
         plugin.getLogger().info("[SchemaBuild] build-complete player=" + player.getName() + ", schema="
             + session.schema.relativePath() + ", blocks=" + snapshots.size() + ", world="
             + session.anchor.getWorld().getName() + ", anchor=" + locationText(session.anchor)
-            + ", rotation=" + session.rotationX + "/" + session.rotationY + "/" + session.rotationZ);
+            + ", rotation=" + session.rotationX + "/" + session.rotationY + "/" + session.rotationZ + ", id=" + buildId
+            + ", protect=" + session.protect);
         sessions.remove(player.getUniqueId());
         removePreview(session);
         openList(player, 0);
@@ -674,9 +943,28 @@ public final class SchemaBuildManager implements Listener {
     private record SchemaBlock(int x, int y, int z, String blockData) { }
     private record RotatedBlock(int x, int y, int z, String blockData) { }
     private record PlacedBlock(int x, int y, int z, String blockData) { }
-    private record BlockSnapshot(Location location, String beforeData, String afterData) { }
+    private record BlockSnapshot(Location location, String beforeData, String afterData, String baselineBeforeData) { }
     private record BuildOperation(String schema, List<BlockSnapshot> blocks) { }
     private enum View { LIST, BUILDER }
+
+    private static final class BuildRecord {
+        private final String id, schemaPath, world;
+        private final Location anchor;
+        private final int rotationX, rotationY, rotationZ;
+        private final boolean flipX, flipY, flipZ, protect;
+        private final List<BlockSnapshot> blocks;
+        private BuildRecord(String id, String schemaPath, Location anchor, int rotationX, int rotationY, int rotationZ,
+                            boolean flipX, boolean flipY, boolean flipZ, boolean protect, List<BlockSnapshot> blocks) {
+            this(id, schemaPath, anchor.getWorld().getName(), anchor, rotationX, rotationY, rotationZ,
+                flipX, flipY, flipZ, protect, blocks);
+        }
+        private BuildRecord(String id, String schemaPath, String world, Location anchor, int rotationX, int rotationY, int rotationZ,
+                            boolean flipX, boolean flipY, boolean flipZ, boolean protect, List<BlockSnapshot> blocks) {
+            this.id = id; this.schemaPath = schemaPath; this.anchor = anchor.clone();
+            this.world = world; this.rotationX = rotationX; this.rotationY = rotationY; this.rotationZ = rotationZ;
+            this.flipX = flipX; this.flipY = flipY; this.flipZ = flipZ; this.protect = protect; this.blocks = blocks;
+        }
+    }
 
     private static final class BuildSession {
         private final SchemaFile schema;
@@ -688,6 +976,9 @@ public final class SchemaBuildManager implements Listener {
         private boolean flipX;
         private boolean flipY;
         private boolean flipZ;
+        private boolean protect;
+        private String buildId;
+        private List<BlockSnapshot> baseline;
         private volatile boolean placementPreview;
         private boolean previewTruncated;
         private BuildSession(SchemaFile schema) { this.schema = schema; }

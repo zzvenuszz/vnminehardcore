@@ -779,3 +779,13 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Khi người chơi tương tác NPC tutorial đã chọn trong đúng world, phát dialog đã cấu hình rồi giao quest tùy chọn; có kiểm tra world và debug log.
 - [x] Compile Java 25 với `mvn -DskipTests compile` thành công; `git diff --check` sạch. Không chạy test suite.
 - [ ] Chưa chạy trên Paper. Cần xác nhận GUI chọn/bỏ NPC, chọn dialog/quest, tương tác NPC ở world bắt đầu và tương tác sai world; sau đó kiểm tra việc chuyển/đổi tên world có để lại NPC ID cũ hay không.
+
+## WorldGuard/WorldEdit và quản lý công trình Schema — yêu cầu 2026-10-28
+
+- [~] `/vninit` có mục cài đặt start-world: công tắc bảo vệ chung và đặt/phá/tương tác riêng; PvP, sinh mob, chu kỳ ngày/đêm, tiêu hao đói/khát có công tắc riêng. Áp dụng bảo vệ vào sự kiện Bukkit và hệ drain tùy chỉnh; cần compile và kiểm chứng trong server.
+- [~] Thêm menu Admin → WorldEdit/WorldGuard và `/vnregion`: cấp búa gỗ nhận diện bằng PDC, chọn hai góc, nhập ID vùng, lưu YAML, GUI flags cho đặt/phá/tương tác/PvP/mob/đói/khát.
+- [~] Schema Build tạo ID `<world>_<schema>_<số>`, lưu block nền/trạng thái sau đặt cùng thông tin xoay/lật/bảo vệ tại `builds.yml`; `protect: ON` đăng ký vùng cùng ID. `/vnbuild select` chọn công trình gần nhất cùng world; `!edit` giữ ID, `!copy` tạo ID mới, `!remove` phục hồi block nền khi trạng thái block còn khớp.
+- [x] Compile Java 25 bằng `mvn -DskipTests compile` thành công; `git diff --check` sạch. Không chạy test suite.
+- [x] Build và cài JAR 2.31.0: `mvn -DskipTests package` thành công lúc `2026-10-28 07:43:56 UTC`; JAR 2,356,451 bytes, SHA-256 `8e70bebc3b999eb53ba09b8873e2b9e3b4e4cfe1413af8d88096d4cbc1e92721`. Cài tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.31.0.jar`; backup 2.30.0 tại `.old-builds/`. Bản 2.29.0 trùng checksum với backup có sẵn nên file trong plugins được dời vào `.old-builds/VnMineHardcore-2.29.0-plugin-copy.jar`.
+- [ ] Gameplay test các cờ start-world, selection wand, flags/overlap, persistence qua restart, edit/copy/remove, block bị người chơi thay đổi và world chưa load.
+- Ghi chú giới hạn: quản lý vùng là cuboid nhẹ do plugin tự lưu, không thay thế toàn bộ WorldEdit/WorldGuard. Mô hình lưu block snapshot không bao gồm dữ liệu inventory/sign/entity; thao tác xóa được từ chối khi block đã thay đổi hoặc có tile entity. Region protection hiện có thể bypass bởi OP/permission quản trị.

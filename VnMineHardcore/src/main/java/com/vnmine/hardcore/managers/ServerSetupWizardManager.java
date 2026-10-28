@@ -39,7 +39,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
     private static final String PERMISSION = "vnmine.command.init";
     private static final int[] CONTENT_SLOTS = {
         10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25,
-        28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43
+        28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42
     };
 
     private final VnMineHardcore plugin;
@@ -122,6 +122,9 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 "§7Chọn NPC tutorial được đặt trong world bắt đầu/reset.",
                 "§7NPC này có dialog và quest tự giao riêng.",
                 "§7Sau khi chọn, shift + chuột phải NPC để cấu hình thêm.", "§eNhấn để chọn.")));
+        menu.setItem(43, item(Material.SHIELD, "§6Bảo vệ World bắt đầu/reset", List.of(
+            "§7Thiết lập block, tương tác, PvP, quái, thời gian, đói/khát.",
+            "§eNhấn để mở cài đặt chi tiết.")));
         menu.setItem(50, item(Material.COMPASS, "§bMôi trường world bắt đầu: §f"
             + plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"), List.of(
                 "§7Nhấn để đổi NORMAL → NETHER → THE_END.",
@@ -631,6 +634,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 player.sendMessage("§eNhập tên world an toàn cho người mới/reset. Ví dụ: §fworld_start§e. Gõ §f!cancel §eđể hủy.");
             } else if (slot == 44) {
                 openTutorialNpcs(player, "__start__", 0);
+            } else if (slot == 43) {
+                if (plugin.getRegionProtectionManager() != null) plugin.getRegionProtectionManager().openStartWorldSettings(player);
             } else if (slot == 50) {
                 String current = plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL");
                 String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"

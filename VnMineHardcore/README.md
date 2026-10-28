@@ -43,6 +43,8 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vnhelp`, `/vn help` | Hiển thị lệnh theo quyền người dùng; admin/OP thấy thêm lệnh quản trị | `vnmine.command.help`, `.utility` |
 | `/vnmenu` hoặc phím `F` | Mở menu chức năng; phím F thay thao tác đổi tay phụ | Không yêu cầu quyền riêng |
 | `/vninit` | Mở wizard setup RPG: chọn đại lục khởi đầu, world, NPC tutorial và spawn; mỗi thay đổi lưu ngay, thoát rồi chạy lại để tiếp tục | `vnmine.command.init` |
+| `/vnregion [wand]` | Mở quản lý vùng bảo vệ; `wand` cấp búa chọn hai góc, đặt tên và cấu hình flags | `vnmine.command.worldedit` |
+| `/vnbuild select` | Chọn công trình Schema Build gần nhất trong world hiện tại; sau đó dùng `!edit`, `!copy`, `!remove` | `vnmine.command.schemabuild` |
 | `/vngroup ...` | Tạo/xóa nhóm, xem nhóm, cấp/thu hồi quyền nhóm | `vnmine.command.groups.manage` |
 | `/vnuser ...` | Xem/gán nhóm, cấp/thu hồi quyền cá nhân, reset người chơi | `vnmine.command.users.manage` |
 | `/vnarmy ...` | Thuê/quản lý lính, đổi chế độ AI và trang bị | `vnmine.command.army` |
@@ -399,6 +401,10 @@ lục và catalog được nạp lại. Có thể đóng menu ở bất kỳ bư
 `/vninit`. Dashboard có nút mở cấu hình sách khởi đầu (`/vnskillbook config`) và
 quản lý quest RPG do NPC giao (`/vnquest admin`); quest First Steps có cấu hình
 riêng tại `plugins/VnMineHardcore/quests/tutorial/first-steps.yml`.
+
+Dashboard có nút **Bảo vệ World bắt đầu/reset** để bật/tắt bảo vệ đặt/phá khối,
+tương tác, PvP, sinh quái, chu kỳ ngày/đêm và tiêu hao đói/khát. Các tùy chọn
+được lưu trong `rpg.onboarding.start-world` của `config.yml`.
 
 ## Cấu hình (config.yml)
 
@@ -894,7 +900,17 @@ sát thương người chơi, thông báo và tỷ lệ. Chạy `/vnreload` sau 
 
 Schema Build đọc file Sponge Schematic `.schem` đã nén gzip, phiên bản 2 hoặc 3. Đặt file vào `plugins/VnMineHardcore/schemas/`; có thể tạo thư mục con để nhóm công trình. YAML `.schema` riêng của các bản thử nghiệm cũ không còn được quét; hãy xuất lại các công trình thành định dạng Sponge `.schem` bằng WorldEdit hoặc công cụ tương thích.
 
-Mở **Menu chính → Admin → Schema Build**, chọn công trình để mở menu chỉnh. Bóng mờ ban đầu xuất hiện trước mặt admin. Dùng các nút để xoay 90° hoặc lật theo trục X/Y/Z, sau đó chọn **Preview ngoài world**. Menu đóng lại, bóng mờ cập nhật theo block admin đang ngắm để có thể tự do di chuyển chọn vị trí. Gõ `!put` để đặt hoặc `!back` để quay lại menu xoay/lật.
+Mở **Menu chính → Admin → Schema Build**, chọn công trình để mở menu chỉnh. Bóng mờ ban đầu xuất hiện trước mặt admin. Dùng các nút để xoay 90° hoặc lật theo trục X/Y/Z, bật/tắt `protect: ON/OFF`, sau đó chọn **Preview ngoài world**. Menu đóng lại, bóng mờ cập nhật theo block admin đang ngắm để có thể tự do di chuyển chọn vị trí. Gõ `!put` để đặt hoặc `!back` để quay lại menu xoay/lật. Mỗi công trình được cấp ID `<world>_<schema>_<số>` và lưu cùng trạng thái block nền trong `builds.yml`.
+
+Chạy `/vnbuild select` để chọn công trình gần nhất trong world hiện tại. Sau đó
+gõ `!edit` để sửa và đặt lại với ID cũ, `!copy` để tạo bản mới có ID tăng dần,
+hoặc `!remove` để xóa và khôi phục block nền nếu công trình chưa bị chỉnh tay.
+`protect: ON` chặn người thường đặt/phá trong khối bao công trình.
+
+Menu **Admin → WorldEdit / WorldGuard** hoặc `/vnregion` mở danh sách vùng.
+Nhận búa gỗ từ menu, chuột trái chọn góc 1 và chuột phải chọn góc 2; tạo vùng
+đặt tên rồi cấu hình từng flag. Các vùng và flags lưu trong
+`protected-regions.yml`; vùng Schema Build được đồng bộ theo ID công trình.
 
 Giới hạn kích thước schema và số block hiển thị trong preview được đặt tại `schema-build.max-blocks` và `schema-build.preview-blocks` trong `config.yml`. Plugin đặt block state vanilla; dữ liệu block entity như inventory/sign, entity và biome trong file schematic chưa được dựng.
 

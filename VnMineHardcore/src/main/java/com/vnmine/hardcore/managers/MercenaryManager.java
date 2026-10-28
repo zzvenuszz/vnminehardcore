@@ -6773,6 +6773,11 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                  List.of("§7Duyệt và dựng công trình Sponge .schem.",
                      "§7Xoay/lật, preview ngoài world, !put để đặt.", "§7!back quay lại menu chỉnh sửa.")));
          }
+         if (player.hasPermission(RegionProtectionManager.ADMIN_PERMISSION)) {
+            holder.inventory.setItem(25, this.menuItem(Material.WOODEN_AXE, "§6WorldEdit / WorldGuard",
+                List.of("§7Chọn vùng, đặt tên và cấu hình bảo vệ.",
+                    "§7Quản lý bảo vệ world bắt đầu/reset.")));
+         }
          if (hasPlayerAdmin && hasLegacyPlayerTools) {
             holder.inventory.setItem(24, this.menuItem(Material.COMPASS, "§dTiện ích người chơi",
                 List.of("§7Dịch chuyển, chế độ chơi và tiện ích khác.")));
@@ -6790,7 +6795,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             "vnmine.command.gamemode", "vnmine.command.scoreboard.reset", "vnmine.command.death.reset",
             "vnmine.command.skillbook.admin", "vnmine.command.progression.admin",
             "vnmine.command.quest.admin", "vnmine.command.npc.admin", "vnmine.command.playeradmin",
-            "vnmine.command.schemabuild")
+            "vnmine.command.schemabuild", RegionProtectionManager.ADMIN_PERMISSION)
             .stream().anyMatch(player::hasPermission)
             || player.hasPermission("vnmine.command.death.history");
     }
@@ -9125,6 +9130,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      if (plugin.getNpcManager() != null) plugin.getNpcManager().openAdminMenu(player);
                   } else if (slot == 26 && player.hasPermission("vnmine.command.schemabuild")) {
                      if (plugin.getSchemaBuildManager() != null) plugin.getSchemaBuildManager().open(player);
+                  } else if (slot == 25 && player.hasPermission(RegionProtectionManager.ADMIN_PERMISSION)) {
+                     if (plugin.getRegionProtectionManager() != null) plugin.getRegionProtectionManager().openAdminMenu(player);
                   } else if (slot == 24 && player.hasPermission("vnmine.command.playeradmin")
                           && hasAnyPermission(player, "vnmine.command.teleport.other",
                               "vnmine.command.users.manage", "vnmine.command.fly", "vnmine.command.nodame",
