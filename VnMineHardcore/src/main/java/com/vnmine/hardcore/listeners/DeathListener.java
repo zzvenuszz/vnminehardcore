@@ -11,6 +11,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.GameMode;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.Bukkit;
@@ -40,6 +41,7 @@ import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerShearEntityEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -61,6 +63,7 @@ public class DeathListener implements Listener {
     private final DeathPenaltyManager deathPenaltyManager;
     private final ConfigManager config;
     private final Logger logger;
+    private final NamespacedKey operatorGameModeKey;
     private final Map<UUID, Long> combatTagged = new HashMap<>();
     private final Map<UUID, RespawnLock> respawnLocks = new HashMap<>();
     private final Set<UUID> awaitingRespawnChoice = new HashSet<>();
@@ -88,6 +91,7 @@ public class DeathListener implements Listener {
         this.deathPenaltyManager = deathPenaltyManager;
         this.config = config;
         this.logger = plugin.getLogger();
+        this.operatorGameModeKey = new NamespacedKey(plugin, "operator_game_mode");
 
         // Load combat tag duration from config (default 30s)
         reloadCombatTagDuration();
@@ -471,6 +475,20 @@ public class DeathListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        if (player.isOp()) {
+            String savedMode = player.getPersistentDataContainer().get(operatorGameModeKey, PersistentDataType.STRING);
+            if (savedMode != null) {
+                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                    if (!player.isOnline() || !player.isOp()) return;
+                    try {
+                        player.setGameMode(GameMode.valueOf(savedMode));
+                        logger.info("[Death] Restored operator game mode for " + player.getName() + ": " + savedMode);
+                    } catch (IllegalArgumentException exception) {
+                        logger.warning("[Death] Ignored invalid stored operator game mode for " + player.getName() + ": " + savedMode);
+                    }
+                }, 1L);
+            }
+        }
         if (!player.isOp() && player.getGameMode() == GameMode.SPECTATOR) {
             player.setGameMode(GameMode.SURVIVAL);
             player.sendMessage("§cChế độ Quan sát đã bị tắt trên máy chủ này. Bạn đã được chuyển về Sinh tồn.");
@@ -506,6 +524,11 @@ public class DeathListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+
+        if (player.isOp()) {
+            player.getPersistentDataContainer().set(operatorGameModeKey, PersistentDataType.STRING, player.getGameMode().name());
+            player.saveData();
+        }
 
         if (isCombatTagged(player)) {
             logger.info("[Death] " + player.getName() + " left while combat-tagged; no ban applied.");

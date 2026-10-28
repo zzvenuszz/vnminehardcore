@@ -135,6 +135,7 @@ commands:
   vnquest:
     description: Mở nhật ký quest hoặc giao diện quản trị quest RPG
     usage: /vnquest <journal|detail <id>|admin>
+    permission: vnmine.command.quest
   vnquestdialog:
     description: Mở giao diện quản lý hội thoại quest RPG
     usage: /vnquestdialog admin
@@ -142,12 +143,37 @@ commands:
   vnmenu:
     description: Mở menu chức năng của VnMineHardcore
     usage: /vnmenu
+    permission: vnmine.command.menu
   vncoin:
     description: Xem ví, lịch sử hoặc quản trị tiền tệ VNCOIN
     usage: /vncoin [balance|history [người_chơi]|stats|give|take <người_chơi> <số> [lý_do]]
+    permission: vnmine.command.coin
   vnplayeradmin:
     description: Mở giao diện quản trị người chơi online và offline
     usage: /vnplayeradmin
+    permission: vnmine.command.playeradmin
+  feed:
+    description: Hồi đầy thanh thức ăn
+    usage: /feed
+    permission: vnmine.command.feed
+  heal:
+    description: Hồi đầy máu
+    usage: /heal
+    permission: vnmine.command.heal
+
+permissions:
+  vnmine.command.menu:
+    default: false
+  vnmine.command.quest:
+    default: false
+  vnmine.command.coin:
+    default: false
+  vnmine.command.feed:
+    default: op
+  vnmine.command.heal:
+    default: op
+  vnmine.command.playeradmin:
+    default: op
     permission: vnmine.command.playeradmin
   vninit:
     description: Mở trình hướng dẫn setup RPG lần đầu cho server
@@ -164,14 +190,22 @@ commands:
   start:
     description: Chọn đại lục và bắt đầu hoặc tiếp tục hành trình RPG
     usage: /start
+    permission: vnmine.command.start
   quatanthu:
     description: Nhận túi quà tân thủ và chọn token triệu hồi bậc 1
     usage: /quatanthu
+    permission: vnmine.command.newbie-gift
 
 permissions:
   vnmine.command.playeradmin:
     description: Cho phép mở giao diện quản trị người chơi
     default: op
+  vnmine.command.start:
+    description: Cho phép bắt đầu hoặc tiếp tục hành trình RPG
+    default: false
+  vnmine.command.newbie-gift:
+    description: Cho phép nhận quà tân thủ khi đủ điều kiện
+    default: false
   vnmine.command.schemabuild:
     description: Cho phép dựng công trình từ file Sponge .schem trong Schema Build
     default: op

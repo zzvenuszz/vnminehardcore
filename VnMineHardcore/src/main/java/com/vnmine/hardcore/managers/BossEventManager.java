@@ -2616,6 +2616,15 @@ public class BossEventManager implements Listener {
    private void trySpawnBoss() {
       if (!Bukkit.getOnlinePlayers().isEmpty()) {
          if (this.pendingBoss == null) {
+            boolean hasEligiblePlayer = Bukkit.getOnlinePlayers().stream().anyMatch(player ->
+               this.plugin.getWorldSettingsManager() == null
+                  || this.plugin.getWorldSettingsManager().isBossSpawningEnabled(player.getWorld()));
+            if (!hasEligiblePlayer) {
+               this.logger.info("[BossEvent] Scheduled boss event cancelled: all online players are in worlds with boss spawning disabled.");
+               this.timeSinceLastBoss = 0;
+               this.bossEventIntervalSeconds = this.sampleBossEventInterval();
+               return;
+            }
             List<Entry<String, ConfigManager.BossConfig>> enabledBosses = new ArrayList<>();
 
             for (Entry<String, ConfigManager.BossConfig> entry : this.config.bossConfigs.entrySet()) {

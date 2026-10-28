@@ -24,6 +24,13 @@ groups:
       - vnmine.command.respawn
       - vnmine.command.leave
       - vnmine.hardcore.stats
+      - vnmine.command.menu
+      - vnmine.command.quest
+      - vnmine.command.coin
+      - vnmine.command.skills
+      - vnmine.command.army
+      - vnmine.command.start
+      - vnmine.command.newbie-gift
   admin:
     # [VI] Nhóm quản trị được cấp toàn bộ quyền plugin, bao gồm bỏ qua spawn protection.
     # [EN] Administrators receive all plugin permissions, including spawn-protection bypass.
@@ -58,6 +65,21 @@ groups:
       - vnmine.command.schemabuild
       - vnmine.command.army
       - vnmine.command.army.admin
+      - vnmine.command.playeradmin
+      - vnmine.command.feed
+      - vnmine.command.heal
+      - vnmine.command.coin
+      - vnmine.command.menu
+      - vnmine.command.quest
+      - vnmine.command.start
+      - vnmine.command.race.admin
+      - vnmine.command.progression.admin
+      - vnmine.command.world.manage
+      - vnmine.command.worldedit
+      - vnmine.command.portal.admin
+      - vnmine.command.text.manage
+      - vnmine.command.vncoin.admin
+      - vnmine.command.vncoin.history.others
       - vnmine.spawnprotection.bypass
       - vnmine.hardcore.stats
       - vnmine.hardcore.admin

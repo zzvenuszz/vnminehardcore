@@ -44,6 +44,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
 
     private final VnMineHardcore plugin;
     private final java.util.Map<UUID, String> pendingWorldNames = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, RealmDraft> pendingRealmDrafts = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ServerSetupWizardManager(VnMineHardcore plugin) {
         this.plugin = plugin;
@@ -125,6 +126,11 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         menu.setItem(43, item(Material.SHIELD, "§6Bảo vệ World bắt đầu/reset", List.of(
             "§7Thiết lập block, tương tác, PvP, quái, thời gian, đói/khát.",
             "§eNhấn để mở cài đặt chi tiết.")));
+        menu.setItem(27, item(Material.MAP, "§aQuản lý đại lục / world", List.of(
+            "§7Thêm đại lục với ID, tên hiển thị và tên world do bạn chọn.",
+            "§7Sửa tên/world, environment, spawn, NPC và allowlist race/class.",
+            "§7Xóa có xác nhận; world riêng sẽ được archive sau restart.",
+            "§eNhấn để mở danh sách.")));
         menu.setItem(50, item(Material.COMPASS, "§bMôi trường world bắt đầu: §f"
             + plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"), List.of(
                 "§7Nhấn để đổi NORMAL → NETHER → THE_END.",
@@ -152,8 +158,219 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         player.openInventory(menu);
     }
 
+    private void openWorldManager(Player player) {
+        List<HumanRealmDefinitionLoader.HumanRealmDefinition> configured = realms();
+        SetupHolder holder = new SetupHolder(player, "world-manager", null, 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "VnMine • Quản lý đại lục/world");
+        holder.inventory = menu;
+        for (int index = 0; index < configured.size() && index < CONTENT_SLOTS.length; index++) {
+            var realm = configured.get(index);
+            int slot = CONTENT_SLOTS[index];
+            holder.choices.put(slot, realm.id());
+            menu.setItem(slot, item(Material.GRASS_BLOCK, "§b" + realm.displayName(), List.of(
+                "§7ID: §f" + realm.id(), "§7World: §f" + realm.worldName(),
+                "§7Môi trường: §f" + worldEnvironment(realm.id()),
+                "§eNhấn để sửa cài đặt đại lục.")));
+        }
+        menu.setItem(45, item(Material.LIME_DYE, "§aThêm đại lục/world", List.of(
+            "§7Tạo ID, tên hiển thị và tên world theo từng bước.",
+            "§7World sẽ được tạo khi khởi động lại server.", "§eNhấn để bắt đầu.")));
+        menu.setItem(49, item(Material.ARROW, "§7Quay lại /vninit", List.of()));
+        menu.setItem(53, item(Material.BARRIER, "§cĐóng", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openEnvironmentConfirmation(Player player, String realmId) {
+        var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
+        if (realm == null) { openWorldManager(player); return; }
+        String current = worldEnvironment(realmId).toUpperCase(Locale.ROOT);
+        String next = switch (current) {
+            case "NORMAL" -> "NETHER";
+            case "NETHER" -> "THE_END";
+            default -> "NORMAL";
+        };
+        SetupHolder holder = new SetupHolder(player, "confirm-environment", realmId, 0);
+        holder.raceId = next;
+        Inventory menu = Bukkit.createInventory(holder, 27, "§cXác nhận đổi môi trường world");
+        holder.inventory = menu;
+        menu.setItem(13, item(Material.TNT, "§cĐổi " + realm.worldName() + " sang " + next + "?", List.of(
+            "§7Khi xác nhận, server sẽ backup folder world cũ", "§7và tạo world mới theo môi trường " + next,
+            "§7ở lần khởi động tiếp theo.", "§cDữ liệu trong world mới sẽ bắt đầu lại.",
+            "§7Backup cũ được giữ nguyên để phục hồi thủ công.",
+            hasOtherRealmUsingWorld(realmId, realm.worldName())
+                ? "§cWorld đang được realm khác dùng; hãy đổi realm kia trước." : "§aWorld không bị realm khác dùng.")));
+        menu.setItem(11, item(Material.LIME_WOOL, "§aXác nhận đổi world", List.of("§7Lưu yêu cầu và áp dụng sau restart.")));
+        menu.setItem(15, item(Material.RED_WOOL, "§cHủy", List.of("§7Không thay đổi cấu hình.")));
+        player.openInventory(menu);
+    }
+
+    private void openDeleteConfirmation(Player player, String realmId) {
+        var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
+        if (realm == null) { openWorldManager(player); return; }
+        SetupHolder holder = new SetupHolder(player, "confirm-delete-realm", realmId, 0);
+        Inventory menu = Bukkit.createInventory(holder, 27, "§cXác nhận xóa đại lục");
+        holder.inventory = menu;
+        menu.setItem(13, item(Material.TNT, "§cXóa " + realm.displayName() + "?", List.of(
+            "§7File cấu hình sẽ được đưa vào worlds/deleted/.",
+            "§7Nếu world không được dùng chung, dữ liệu sẽ được archive sau restart.",
+            "§cKhông thể xóa đại lục cuối cùng.", "§eBackup world không bị xóa vĩnh viễn.")));
+        menu.setItem(11, item(Material.LIME_WOOL, "§aXác nhận xóa", List.of("§7Xóa cấu hình đại lục.")));
+        menu.setItem(15, item(Material.RED_WOOL, "§cHủy", List.of("§7Quay lại cấu hình đại lục.")));
+        player.openInventory(menu);
+    }
+
+    private void deleteRealmDefinition(Player player, String realmId) {
+        var definitions = plugin.getRpgWorldManager().getDefinitions();
+        var definition = definitions.get(realmId);
+        if (definition == null || definitions.size() <= 1) {
+            player.sendMessage("§cKhông thể xóa đại lục cuối cùng hoặc đại lục không còn tồn tại.");
+            openWorldManager(player);
+            return;
+        }
+        String worldName = definition.worldName();
+        boolean shared = hasOtherRealmUsingWorld(realmId, worldName);
+        File source = findRealmFile(realmId);
+        if (source == null) { player.sendMessage("§cKhông tìm thấy file cấu hình đại lục."); openWorldManager(player); return; }
+        File archiveDir = new File(plugin.getDataFolder(), "worlds/deleted");
+        File archived = new File(archiveDir, source.getName() + ".deleted-" + System.currentTimeMillis());
+        try {
+            if (!archiveDir.isDirectory() && !archiveDir.mkdirs()) throw new IOException("Cannot create deleted definitions archive");
+            try { Files.move(source.toPath(), archived.toPath(), StandardCopyOption.ATOMIC_MOVE); }
+            catch (AtomicMoveNotSupportedException ignored) { Files.move(source.toPath(), archived.toPath()); }
+            if (!shared && !plugin.getRpgWorldManager().scheduleWorldArchive(worldName)) {
+                restoreArchivedDefinition(archived, source);
+                player.sendMessage("§cKhông lưu được yêu cầu archive world; cấu hình đã được khôi phục.");
+                openRealm(player, realmId);
+                return;
+            }
+            if (!plugin.getRpgWorldManager().reload()) {
+                if (!shared) plugin.getRpgWorldManager().cancelWorldArchive(worldName);
+                restoreArchivedDefinition(archived, source);
+                player.sendMessage("§cKhông nạp được catalog; file cấu hình đã được khôi phục.");
+                openRealm(player, realmId);
+                return;
+            }
+            plugin.getLogger().info("[ServerSetup] admin=" + player.getName() + ", action=delete-realm, id="
+                + realmId + ", world=" + worldName + ", shared=" + shared + ", configArchive=" + archived);
+            player.sendMessage(shared
+                ? "§aĐã archive cấu hình. World " + worldName + " vẫn được giữ vì đang dùng chung hoặc là start world."
+                : "§aĐã archive cấu hình. Dữ liệu world " + worldName + " sẽ được archive khi server khởi động lại.");
+            openWorldManager(player);
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[ServerSetup] Could not archive realm definition " + realmId, exception);
+            player.sendMessage("§cKhông thể archive cấu hình; chưa xóa đại lục.");
+            openRealm(player, realmId);
+        }
+    }
+
+    private boolean hasOtherRealmUsingWorld(String realmId, String worldName) {
+        boolean sharedRealm = plugin.getRpgWorldManager().getDefinitions().values().stream()
+            .anyMatch(other -> !other.id().equals(realmId) && other.worldName().equalsIgnoreCase(worldName));
+        String startWorld = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
+        return sharedRealm || worldName.equalsIgnoreCase(startWorld);
+    }
+
+    private void restoreArchivedDefinition(File archived, File original) throws IOException {
+        try { Files.move(archived.toPath(), original.toPath(), StandardCopyOption.ATOMIC_MOVE); }
+        catch (AtomicMoveNotSupportedException ignored) {
+            Files.move(archived.toPath(), original.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void promptNewRealm(Player player) {
+        pendingWorldNames.put(player.getUniqueId(), "__create_realm_id__");
+        player.closeInventory();
+        player.sendMessage("§6[Setup đại lục] §eNhập ID mới, ví dụ: §fma-gioi§e. Chỉ dùng chữ thường, số và dấu gạch nối. §c!cancel §eđể hủy.");
+    }
+
+    private boolean handleRealmCreationChat(Player player, String token, String input) {
+        if (!token.startsWith("__create_realm_")) return false;
+        if ("!cancel".equalsIgnoreCase(input)) {
+            pendingRealmDrafts.remove(player.getUniqueId());
+            player.sendMessage("§eĐã hủy tạo đại lục; chưa có file nào được tạo.");
+            openWorldManager(player);
+            return true;
+        }
+        if ("__create_realm_id__".equals(token)) {
+            if (!input.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || input.length() > 48
+                    || plugin.getRpgWorldManager().getRealmDefinition(input) != null
+                    || new File(plugin.getDataFolder(), "worlds/" + input + ".yml").exists()) {
+                player.sendMessage("§cID không hợp lệ hoặc đã tồn tại. Ví dụ: §fma-gioi§c. Nhập lại hoặc !cancel.");
+                pendingWorldNames.put(player.getUniqueId(), token);
+                return true;
+            }
+            pendingRealmDrafts.put(player.getUniqueId(), new RealmDraft(input, null));
+            pendingWorldNames.put(player.getUniqueId(), "__create_realm_display__");
+            player.sendMessage("§6[Setup đại lục] §eNhập tên hiển thị, ví dụ: §fMa Giới§e. §c!cancel §eđể hủy.");
+            return true;
+        }
+        if ("__create_realm_display__".equals(token)) {
+            RealmDraft draft = pendingRealmDrafts.get(player.getUniqueId());
+            if (draft == null) { player.sendMessage("§cPhiên tạo đại lục đã hết hạn; hãy bắt đầu lại."); openWorldManager(player); return true; }
+            if (input.isBlank() || input.length() > 48) {
+                player.sendMessage("§cTên hiển thị phải có 1–48 ký tự. Ví dụ: §fMa Giới§c. Nhập lại hoặc !cancel.");
+                pendingWorldNames.put(player.getUniqueId(), token);
+                return true;
+            }
+            pendingRealmDrafts.put(player.getUniqueId(), new RealmDraft(draft.id(), input));
+            pendingWorldNames.put(player.getUniqueId(), "__create_realm_world__");
+            player.sendMessage("§6[Setup đại lục] §eNhập tên world, ví dụ: §fworld_magioi§e. Chỉ dùng chữ, số, _ hoặc -. §c!cancel §eđể hủy.");
+            return true;
+        }
+        if ("__create_realm_world__".equals(token)) {
+            RealmDraft draft = pendingRealmDrafts.remove(player.getUniqueId());
+            if (draft == null) { player.sendMessage("§cPhiên tạo đại lục đã hết hạn; hãy bắt đầu lại."); openWorldManager(player); return true; }
+            if (!input.matches("[A-Za-z0-9_-]{1,64}")) {
+                pendingRealmDrafts.put(player.getUniqueId(), draft);
+                player.sendMessage("§cTên world không hợp lệ. Ví dụ: §fworld_magioi§c. Nhập lại hoặc !cancel.");
+                pendingWorldNames.put(player.getUniqueId(), token);
+                return true;
+            }
+            createRealmDefinition(player, draft, input);
+            return true;
+        }
+        return false;
+    }
+
+    private void createRealmDefinition(Player player, RealmDraft draft, String worldName) {
+        File target = new File(plugin.getDataFolder(), "worlds/" + draft.id() + ".yml");
+        if (target.exists()) { player.sendMessage("§cID vừa nhập đã được tạo bởi thao tác khác."); openWorldManager(player); return; }
+        try (var resource = plugin.getResource("worlds/human-realm.yml")) {
+            if (resource == null) throw new IOException("Bundled realm template missing");
+            YamlConfiguration definition = new YamlConfiguration();
+            definition.options().parseComments(true);
+            definition.loadFromString(new String(resource.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            definition.set("id", draft.id());
+            definition.set("display-name", draft.displayName());
+            definition.set("world-name", worldName);
+            definition.set("world.create-if-missing", true);
+            definition.set("world.environment", "NORMAL");
+            definition.set("world.revision", 0L);
+            definition.set("world.seed", null);
+            definition.set("tutorial-npc-id", "tutorial-" + draft.id());
+            definition.set("starting-selectable", false);
+            File folder = target.getParentFile();
+            if (folder != null && !folder.isDirectory() && !folder.mkdirs()) throw new IOException("Could not create worlds folder");
+            saveAtomically(definition, target);
+            if (!plugin.getRpgWorldManager().reload()) {
+                target.delete();
+                player.sendMessage("§cKhông nạp được đại lục mới; file vừa tạo đã được gỡ. Kiểm tra console.");
+                openWorldManager(player);
+                return;
+            }
+            plugin.getLogger().info("[ServerSetup] admin=" + player.getName() + ", action=create-realm, id="
+                + draft.id() + ", name=" + draft.displayName() + ", world=" + worldName);
+            player.sendMessage("§aĐã tạo cấu hình đại lục §f" + draft.id() + "§a. Mở lại menu để chỉnh NPC, spawn, race/class và environment; world được tạo sau restart.");
+            openRealm(player, draft.id());
+        } catch (IOException | InvalidConfigurationException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[ServerSetup] Could not create realm " + draft.id(), exception);
+            player.sendMessage("§cKhông tạo được cấu hình đại lục. Xem console.");
+            openWorldManager(player);
+        }
+    }
+
     private void openRealm(Player player, String realmId) {
-        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
         if (realm == null) {
             player.sendMessage("§cKhông tìm thấy đại lục này trong cấu hình đang tải. Hãy tải lại /vninit.");
             openDashboard(player);
@@ -167,11 +384,21 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             "§eĐại lục khởi đầu: " + (realm.startingSelectable() ? "§aBẬT" : "§cTẮT"), List.of(
                 "§7Bật nếu người mới được chọn đại lục này khi đăng nhập.",
                 "§7Có thể bật nhiều đại lục cùng lúc.", "§eNhấn để đổi và lưu ngay.")));
+        menu.setItem(11, item(Material.NAME_TAG, "§bTên hiển thị: §f" + realm.displayName(), List.of(
+            "§7Tên hiển thị tách biệt với ID kỹ thuật.",
+            "§eNhấn để nhập tên mới, ví dụ: §fMa Giới§e.")));
+        menu.setItem(13, item(Material.NAME_TAG, "§bID đại lục: §f" + realm.id(), List.of(
+            "§7ID cũ vẫn được giữ làm bí danh để profile đang làm dở tiếp tục hoạt động.",
+            "§eNhấn để đổi ID, ví dụ: §fma-gioi§e.")));
         menu.setItem(12, item(status.worldReady() ? Material.GRASS_BLOCK : Material.OBSIDIAN,
             "§bWorld chính: §f" + realm.worldName(), List.of(
                 "§7Có thể chọn world đang nạp hoặc nhập world mới.",
                 "§7World mới sẽ được tạo sau khi lưu và khởi động lại.",
                 "§eNhấn để chọn world đã có.")));
+        menu.setItem(26, item(Material.ANVIL, "§bĐổi/nhập tên world: §f" + realm.worldName(), List.of(
+            "§7Nhập world hiện có hoặc tên world mới.",
+            "§7Đổi tên world nguồn sẽ tạo world mới sau restart; world cũ được backup.",
+            "§eNhấn để nhập tên world.")));
         menu.setItem(14, item(status.npcReady() ? Material.VILLAGER_SPAWN_EGG : Material.NAME_TAG,
             "§dNPC hướng dẫn: §f" + realm.tutorialNpcId(), List.of(
                 "§7Chọn NPC runtime có loại tutorial trong world chính.",
@@ -190,6 +417,10 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         menu.setItem(22, item(Material.NAME_TAG, "§bSeed world: §f" + realmSeedText(realm.id()), List.of(
             "§7Tùy chọn; bỏ trống để dùng seed hiện có hoặc seed ngẫu nhiên.",
             "§7Nhập số nguyên 64-bit; ví dụ: §f-987654321", "§eNhấn để nhập, !clear để xóa.")));
+        menu.setItem(24, item(Material.TNT, "§cXóa định nghĩa đại lục", List.of(
+            "§7Xóa sau bước xác nhận. Không thể xóa đại lục cuối cùng.",
+            "§7Nếu world không dùng nơi khác, dữ liệu world sẽ được archive sau restart.",
+            "§eNhấn để xem xác nhận.")));
         boolean availabilityLimited = realmAvailabilityEnabled(realm.id());
         menu.setItem(18, item(availabilityLimited ? Material.PLAYER_HEAD : Material.ENDER_EYE,
             "§dRace/class khả dụng: " + (availabilityLimited ? "§aTùy chỉnh" : "§eTất cả"), List.of(
@@ -279,7 +510,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
     }
 
     private void openTutorialQuestChoices(Player player, String realmId) {
-        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
         List<String> quests = realm == null || plugin.getQuestCatalogManager() == null ? List.of()
             : plugin.getQuestCatalogManager().getQuestIdsForNpc(realm.tutorialNpcId());
         SetupHolder holder = new SetupHolder(player, "tutorial-quests", realmId, 0);
@@ -435,10 +666,56 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             Player player = event.getPlayer();
             if (!player.isOnline()) return;
             if ("!cancel".equalsIgnoreCase(input)) {
+                if (handleRealmCreationChat(player, realmId, input)) return;
                 player.sendMessage("§eĐã hủy nhập tên world.");
                 if ("__start__".equals(realmId) || "__start_seed__".equals(realmId)) openDashboard(player);
                 else if (realmId.startsWith("__seed__:")) openRealm(player, realmId.substring("__seed__:".length()));
+                else if (realmId.startsWith("__edit_display__:") || realmId.startsWith("__edit_world__:")
+                        || realmId.startsWith("__edit_id__:"))
+                    openRealm(player, realmId.substring(realmId.indexOf(':') + 1));
                 else openWorlds(player, realmId, 0);
+                return;
+            }
+            if (handleRealmCreationChat(player, realmId, input)) return;
+            if (realmId.startsWith("__edit_display__:")) {
+                String targetId = realmId.substring("__edit_display__:".length());
+                if (input.isBlank() || input.length() > 48) {
+                    player.sendMessage("§cTên hiển thị phải có 1–48 ký tự. Nhập lại hoặc !cancel.");
+                    pendingWorldNames.put(player.getUniqueId(), realmId);
+                    return;
+                }
+                updateRealm(player, targetId, config -> config.set("display-name", input), "set display-name=" + input);
+                openRealm(player, targetId);
+                return;
+            }
+            if (realmId.startsWith("__edit_id__:")) {
+                String targetId = realmId.substring("__edit_id__:".length());
+                if (!input.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || input.length() > 48) {
+                    player.sendMessage("§cID chỉ gồm chữ thường, số và dấu gạch nối. Ví dụ: §fma-gioi§c. Nhập lại hoặc !cancel.");
+                    pendingWorldNames.put(player.getUniqueId(), realmId);
+                    return;
+                }
+                renameRealmId(player, targetId, input);
+                return;
+            }
+            if (realmId.startsWith("__edit_world__:")) {
+                String targetId = realmId.substring("__edit_world__:".length());
+                if (!input.matches("[A-Za-z0-9_-]{1,64}")) {
+                    player.sendMessage("§cTên world không hợp lệ; ví dụ: §fworld_magioi§c. Nhập lại hoặc !cancel.");
+                    pendingWorldNames.put(player.getUniqueId(), realmId);
+                    return;
+                }
+                updateRealm(player, targetId, config -> {
+                    String previous = config.getString("world-name", "");
+                    if (!previous.equalsIgnoreCase(input)) {
+                        config.set("tutorial-npc-id", null);
+                        config.set("tutorial.dialog-id", null);
+                        config.set("tutorial.auto-quest-id", null);
+                    }
+                    config.set("world-name", input);
+                    config.set("world.create-if-missing", true);
+                }, "set world-name=" + input);
+                openRealm(player, targetId);
                 return;
             }
             if ("__start_seed__".equals(realmId) || realmId.startsWith("__seed__:")) {
@@ -567,7 +844,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         NpcManager npcManager = plugin.getNpcManager();
         boolean startWorldSelection = "__start__".equals(realmId);
         var realm = startWorldSelection || plugin.getRpgWorldManager() == null ? null
-            : plugin.getRpgWorldManager().getDefinitions().get(realmId);
+            : plugin.getRpgWorldManager().getRealmDefinition(realmId);
         String expectedWorld = startWorldSelection
             ? plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start")
             : realm == null ? "" : realm.worldName();
@@ -652,10 +929,46 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 player.sendMessage("§eNhập seed số nguyên 64-bit cho world bắt đầu. Ví dụ: §f123456789§e. Gõ §f!clear §eđể seed tự sinh, §f!cancel §eđể hủy.");
             } else if (slot == 51) {
                 openTutorialQuestSetup(player);
+            } else if (slot == 27) {
+                openWorldManager(player);
             } else {
                 String realmId = holder.choices.get(slot);
                 if (realmId != null) openRealm(player, realmId);
             }
+            return;
+        }
+        if ("world-manager".equals(holder.type)) {
+            if (slot == 49) openDashboard(player);
+            else if (slot == 45) promptNewRealm(player);
+            else {
+                String realmId = holder.choices.get(slot);
+                if (realmId != null) openRealm(player, realmId);
+            }
+            return;
+        }
+        if ("confirm-environment".equals(holder.type)) {
+            if (slot == 11) {
+                var realm = plugin.getRpgWorldManager().getRealmDefinition(holder.realmId);
+                if (realm != null && hasOtherRealmUsingWorld(holder.realmId, realm.worldName())) {
+                    player.sendMessage("§cKhông thể đổi environment vì world này còn được start-world hoặc đại lục khác sử dụng. Hãy gán world riêng trước.");
+                    openRealm(player, holder.realmId);
+                    return;
+                }
+                String selectedEnvironment = holder.raceId;
+                updateRealm(player, holder.realmId, config -> {
+                    config.set("world.environment", selectedEnvironment);
+                    config.set("world.revision", config.getLong("world.revision", 0L) + 1L);
+                    config.set("world.create-if-missing", true);
+                }, "confirmed environment=" + selectedEnvironment);
+                player.sendMessage("§eĐã xác nhận. World cũ sẽ được archive, world §f" + selectedEnvironment
+                    + " §esẽ được tạo ở lần khởi động kế tiếp.");
+                openRealm(player, holder.realmId);
+            } else if (slot == 15 || slot == 18) openRealm(player, holder.realmId);
+            return;
+        }
+        if ("confirm-delete-realm".equals(holder.type)) {
+            if (slot == 11) deleteRealmDefinition(player, holder.realmId);
+            else if (slot == 15 || slot == 18) openRealm(player, holder.realmId);
             return;
         }
         if ("tutorial-quest".equals(holder.type)) {
@@ -676,7 +989,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 plugin.getQuestDialogManager().openSelector(player, current, selected -> {
                     updateRealm(player, holder.realmId, config -> config.set("tutorial.dialog-id", selected),
                         "set tutorial dialog=" + selected);
-                    openTutorialNpcEditor(player, plugin.getRpgWorldManager().getDefinitions().get(holder.realmId).tutorialNpcId());
+                    openTutorialNpcEditor(player, plugin.getRpgWorldManager().getRealmDefinition(holder.realmId).tutorialNpcId());
                 });
             } else if (slot == 15) openTutorialQuestChoices(player, holder.realmId);
             return;
@@ -706,13 +1019,13 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         }
         if ("tutorial-quests".equals(holder.type)) {
             if (slot == 49) {
-                var realm = plugin.getRpgWorldManager().getDefinitions().get(holder.realmId);
+                var realm = plugin.getRpgWorldManager().getRealmDefinition(holder.realmId);
                 if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
             } else if (slot == 45 || holder.choices.containsKey(slot)) {
                 String questId = slot == 45 ? null : holder.choices.get(slot);
                 updateRealm(player, holder.realmId, config -> config.set("tutorial.auto-quest-id", questId),
                     "set tutorial auto quest=" + questId);
-                var realm = plugin.getRpgWorldManager().getDefinitions().get(holder.realmId);
+                var realm = plugin.getRpgWorldManager().getRealmDefinition(holder.realmId);
                 if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
             }
             return;
@@ -774,28 +1087,39 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                     }, "toggle starting-selectable");
                     openRealm(player, holder.realmId);
                 }
+                case 11 -> {
+                    pendingWorldNames.put(player.getUniqueId(), "__edit_display__:" + holder.realmId);
+                    player.closeInventory();
+                    player.sendMessage("§eNhập tên hiển thị mới cho §f" + holder.realmId
+                        + "§e. Ví dụ: §fMa Giới§e. §c!cancel §eđể hủy.");
+                }
+                case 13 -> {
+                    pendingWorldNames.put(player.getUniqueId(), "__edit_id__:" + holder.realmId);
+                    player.closeInventory();
+                    player.sendMessage("§eNhập ID mới cho đại lục §f" + holder.realmId
+                        + "§e, ví dụ: §fma-gioi§e. ID cũ được lưu làm bí danh. §c!cancel §eđể hủy.");
+                }
                 case 12 -> openWorlds(player, holder.realmId, 0);
                 case 14 -> openTutorialNpcs(player, holder.realmId, 0);
                 case 16 -> {
-                    updateRealm(player, holder.realmId, config -> {
-                        String current = config.getString("world.environment", "NORMAL");
-                        String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"
-                            : "NETHER".equalsIgnoreCase(current) ? "THE_END" : "NORMAL";
-                        config.set("world.environment", next);
-                        config.set("world.revision", config.getLong("world.revision", 0L) + 1L);
-                        config.set("world.create-if-missing", true);
-                    }, "cycle world environment");
-                    openRealm(player, holder.realmId);
+                    openEnvironmentConfirmation(player, holder.realmId);
                 }
                 case 18 -> openRealmRaces(player, holder.realmId);
                 case 20 -> {
-                    var realm = plugin.getRpgWorldManager().getDefinitions().get(holder.realmId);
+                    var realm = plugin.getRpgWorldManager().getRealmDefinition(holder.realmId);
                     if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
                 }
                 case 22 -> {
                     pendingWorldNames.put(player.getUniqueId(), "__seed__:" + holder.realmId);
                     player.closeInventory();
                     player.sendMessage("§eNhập seed số nguyên 64-bit cho world đại lục. Ví dụ: §f-987654321§e. Gõ §f!clear §eđể bỏ seed tùy chỉnh, §f!cancel §eđể hủy.");
+                }
+                case 24 -> openDeleteConfirmation(player, holder.realmId);
+                case 26 -> {
+                    pendingWorldNames.put(player.getUniqueId(), "__edit_world__:" + holder.realmId);
+                    player.closeInventory();
+                    player.sendMessage("§eNhập tên world cho đại lục §f" + holder.realmId
+                        + "§e, ví dụ: §fworld_magioi§e. World tạo sau restart. §c!cancel §eđể hủy.");
                 }
                 case 28 -> saveCurrentSpawn(player, holder.realmId);
                 case 30 -> {
@@ -910,7 +1234,53 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         }
     }
 
+    private void renameRealmId(Player player, String oldId, String newId) {
+        var worldManager = plugin.getRpgWorldManager();
+        if (oldId.equals(newId)) { player.sendMessage("§eID không thay đổi."); openRealm(player, oldId); return; }
+        if (worldManager.getRealmDefinition(newId) != null) {
+            player.sendMessage("§cID này đang được dùng hoặc là bí danh của một đại lục. Nhập ID khác.");
+            pendingWorldNames.put(player.getUniqueId(), "__edit_id__:" + oldId);
+            return;
+        }
+        File file = findRealmFile(oldId);
+        if (file == null) { player.sendMessage("§cKhông tìm thấy file cấu hình đại lục."); openWorldManager(player); return; }
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.options().parseComments(true);
+        try {
+            yaml.load(file);
+            String originalId = yaml.getString("id", oldId);
+            yaml.set("id", newId);
+            saveAtomically(yaml, file);
+            if (!worldManager.saveRealmIdAlias(oldId, newId)) {
+                yaml.set("id", originalId);
+                saveAtomically(yaml, file);
+                player.sendMessage("§cKhông lưu được bí danh ID; thay đổi đã được hoàn tác.");
+                openRealm(player, oldId);
+                return;
+            }
+            if (!worldManager.reload()) {
+                yaml.set("id", originalId);
+                saveAtomically(yaml, file);
+                worldManager.removeRealmIdAlias(oldId);
+                worldManager.reload();
+                player.sendMessage("§cKhông nạp được ID mới; thay đổi đã được hoàn tác.");
+                openRealm(player, oldId);
+                return;
+            }
+            plugin.getLogger().info("[ServerSetup] admin=" + player.getName() + ", action=rename-realm-id, old="
+                + oldId + ", new=" + newId);
+            player.sendMessage("§aĐã đổi ID từ §f" + oldId + " §asang §f" + newId
+                + "§a. ID cũ được giữ làm bí danh để profile/onboarding đã lưu tiếp tục nhận diện đại lục.");
+            openRealm(player, newId);
+        } catch (IOException | InvalidConfigurationException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[ServerSetup] Could not rename realm ID " + oldId + " -> " + newId, exception);
+            player.sendMessage("§cKhông thể đổi ID đại lục. Xem console.");
+            openRealm(player, oldId);
+        }
+    }
+
     private File findRealmFile(String realmId) {
+        realmId = plugin.getRpgWorldManager().resolveRealmId(realmId);
         File folder = new File(plugin.getDataFolder(), "worlds");
         File[] files = folder.listFiles((dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".yml"));
         if (files == null) return null;
@@ -1028,6 +1398,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
     }
 
     private record RealmStatus(boolean starting, boolean worldReady, boolean spawnReady, boolean npcReady, boolean ready) { }
+    private record RealmDraft(String id, String displayName) { }
 
     @FunctionalInterface
     private interface ConfigUpdate {

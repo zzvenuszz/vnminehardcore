@@ -284,6 +284,7 @@ public final class CharacterSelectionManager implements Listener {
     }
 
     private org.bukkit.configuration.file.YamlConfiguration loadRealmYaml(String realmId) {
+        realmId = plugin.getRpgWorldManager().resolveRealmId(realmId);
         File folder = new File(plugin.getDataFolder(), "worlds");
         File[] files = folder.listFiles((directory, name) -> name.toLowerCase(java.util.Locale.ROOT).endsWith(".yml"));
         if (files != null) for (File file : files) {
@@ -581,7 +582,7 @@ public final class CharacterSelectionManager implements Listener {
         String continentId = onboardingContinent(player);
         HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null
             || plugin.getRpgWorldManager() == null ? null
-            : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+            : plugin.getRpgWorldManager().getRealmDefinition(continentId);
         return realm != null && realm.tutorialNpcId().equalsIgnoreCase(npcId);
     }
 
@@ -615,7 +616,7 @@ public final class CharacterSelectionManager implements Listener {
             String continentId = onboardingContinent(player);
             HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null
                 || plugin.getRpgWorldManager() == null ? null
-                : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+                : plugin.getRpgWorldManager().getRealmDefinition(continentId);
             if (realm != null) return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 0/1",
                 "§7Gặp NPC Tutorial: 0/1", "§8" + realm.tutorialNpcId() + " • " + realm.worldName());
         }
@@ -834,7 +835,7 @@ public final class CharacterSelectionManager implements Listener {
             return;
         }
         HumanRealmDefinitionLoader.HumanRealmDefinition realm = plugin.getRpgWorldManager() == null ? null
-            : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+            : plugin.getRpgWorldManager().getRealmDefinition(continentId);
         if (!isStartingRealmAvailable(realm)) {
             player.sendMessage("§cĐại lục này chưa sẵn sàng. Không có dữ liệu nào bị thay đổi.");
             openContinentMenu(player);
@@ -851,7 +852,7 @@ public final class CharacterSelectionManager implements Listener {
         if (!isOnboardingEnabled() || !"awaiting-tutorial".equals(onboardingStage(player))) return false;
         String continentId = onboardingContinent(player);
         HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null || plugin.getRpgWorldManager() == null
-            ? null : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+            ? null : plugin.getRpgWorldManager().getRealmDefinition(continentId);
         if (realm == null || !realm.tutorialNpcId().equalsIgnoreCase(npcId)) return false;
         var target = plugin.getNpcManager().getNpcTarget(npcId);
         if (target.isEmpty() || target.get().location() == null
@@ -984,7 +985,7 @@ public final class CharacterSelectionManager implements Listener {
             if (!"awaiting-tutorial".equals(stage)) continue;
             String continentId = onboardingContinent(player);
             HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null || plugin.getRpgWorldManager() == null
-                ? null : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+                ? null : plugin.getRpgWorldManager().getRealmDefinition(continentId);
             var target = realm == null || plugin.getNpcManager() == null
                 ? java.util.Optional.<NpcManager.NpcTarget>empty()
                 : plugin.getNpcManager().getNpcTarget(realm.tutorialNpcId());
@@ -1427,7 +1428,7 @@ public final class CharacterSelectionManager implements Listener {
         String selectedContinentId = onboardingContinent(player);
         HumanRealmDefinitionLoader.HumanRealmDefinition startRealm = selectedContinentId == null
             || plugin.getRpgWorldManager() == null ? null
-            : plugin.getRpgWorldManager().getDefinitions().get(selectedContinentId);
+            : plugin.getRpgWorldManager().getRealmDefinition(selectedContinentId);
         String startingContinent = startRealm == null ? profile.homeWorld()
             : startRealm.displayName() + " (§7" + startRealm.worldName() + "§f)";
         CharacterMenuHolder holder = new CharacterMenuHolder(
@@ -1518,7 +1519,7 @@ public final class CharacterSelectionManager implements Listener {
         String continentId = onboardingContinent(player);
         HumanRealmDefinitionLoader.HumanRealmDefinition startingRealm = continentId == null
             || plugin.getRpgWorldManager() == null ? null
-            : plugin.getRpgWorldManager().getDefinitions().get(continentId);
+            : plugin.getRpgWorldManager().getRealmDefinition(continentId);
         String homeWorld = startingRealm == null ? null : startingRealm.worldName();
         if (isOnboardingEnabled()) {
             player.getPersistentDataContainer().set(starterBookPendingKey, PersistentDataType.BYTE, (byte) 1);

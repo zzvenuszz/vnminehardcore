@@ -39,6 +39,31 @@ public final class PermissionManager implements Listener, CommandExecutor, TabCo
     private static final Pattern GROUP_NAME_PATTERN = Pattern.compile("[a-z0-9_-]{1,32}");
     private static final Pattern PERMISSION_PATTERN =
         Pattern.compile("[a-z0-9_-]+(?:\\.[a-z0-9_-]+)*");
+    private static final List<String> DEFAULT_USER_PERMISSIONS = List.of(
+        "vnmine.command.stats", "vnmine.command.help", "vnmine.command.utility",
+        "vnmine.command.reward", "vnmine.command.respawn", "vnmine.command.leave",
+        "vnmine.command.menu", "vnmine.command.quest", "vnmine.command.coin",
+        "vnmine.command.skills", "vnmine.command.army", "vnmine.command.start",
+        "vnmine.command.newbie-gift",
+        "vnmine.hardcore.stats");
+    private static final List<String> BUILTIN_ADMIN_PERMISSIONS = List.of(
+        "vnmine.command.playeradmin", "vnmine.command.feed", "vnmine.command.heal",
+        "vnmine.command.race.admin", "vnmine.command.progression.admin", "vnmine.command.world.manage",
+        "vnmine.command.worldedit", "vnmine.command.portal.admin", "vnmine.command.portal.use",
+        "vnmine.command.text.manage", "vnmine.command.vncoin.admin", "vnmine.command.vncoin.history.others",
+        "vnmine.command.coin", "vnmine.command.menu", "vnmine.command.quest", "vnmine.command.start",
+        "vnmine.command.newbie-gift",
+        "vnmine.command.stats", "vnmine.command.status", "vnmine.command.reload", "vnmine.command.disasters",
+        "vnmine.command.bosses", "vnmine.command.utility", "vnmine.command.death.reset",
+        "vnmine.command.death.history", "vnmine.command.reward", "vnmine.command.respawn",
+        "vnmine.command.leave", "vnmine.command.fly", "vnmine.command.nodame", "vnmine.command.spawn",
+        "vnmine.command.gamemode", "vnmine.command.scoreboard.reset", "vnmine.command.time.manage",
+        "vnmine.command.day.manage", "vnmine.command.spawn.manage", "vnmine.command.teleport.other",
+        "vnmine.command.help", "vnmine.command.groups.manage", "vnmine.command.users.manage",
+        "vnmine.command.init", "vnmine.command.skillbook.admin", "vnmine.command.quest.admin",
+        "vnmine.command.npc.admin", "vnmine.command.schemabuild", "vnmine.command.army",
+        "vnmine.command.army.admin", "vnmine.spawnprotection.bypass", "vnmine.hardcore.stats",
+        "vnmine.hardcore.admin", "vnmine.hardcore.bypass");
 
     private final VnMineHardcore plugin;
     private final File dataFile;
@@ -498,6 +523,29 @@ public final class PermissionManager implements Listener, CommandExecutor, TabCo
         }
         List<String> adminPermissions = new ArrayList<>(loaded.getStringList("groups.admin.permissions"));
         boolean adminPermissionsChanged = false;
+        String configuredDefault = loaded.getString("default-group", "user");
+        List<String> userPermissions = new ArrayList<>(loaded.getStringList("groups." + configuredDefault + ".permissions"));
+        boolean userPermissionsChanged = false;
+        for (String permission : DEFAULT_USER_PERMISSIONS) {
+            if (!userPermissions.contains(permission)) {
+                userPermissions.add(permission);
+                userPermissionsChanged = true;
+            }
+        }
+        if (userPermissionsChanged) loaded.set("groups." + configuredDefault + ".permissions", userPermissions);
+        for (String permission : BUILTIN_ADMIN_PERMISSIONS) {
+            if (!adminPermissions.contains(permission)) {
+                adminPermissions.add(permission);
+                adminPermissionsChanged = true;
+            }
+        }
+        for (Map.Entry<String, Map<String, Object>> command : plugin.getDescription().getCommands().entrySet()) {
+            Object node = command.getValue().get("permission");
+            if (node instanceof String permission && !adminPermissions.contains(permission)) {
+                adminPermissions.add(permission);
+                adminPermissionsChanged = true;
+            }
+        }
         if (!adminPermissions.contains("vnmine.command.army.admin")) {
             adminPermissions.add("vnmine.command.army.admin");
             adminPermissionsChanged = true;
@@ -508,22 +556,44 @@ public final class PermissionManager implements Listener, CommandExecutor, TabCo
         }
         if (adminPermissionsChanged) {
             loaded.set("groups.admin.permissions", adminPermissions);
+        }
+        if (adminPermissionsChanged || userPermissionsChanged) {
             try {
                 loaded.save(dataFile);
             } catch (IOException exception) {
-                plugin.getLogger().log(Level.WARNING,
-                    "[Permissions] Added built-in admin permissions in memory but could not persist permission.yml.", exception);
+                plugin.getLogger().log(Level.WARNING, "[Permissions] Added built-in user/admin permissions in memory but could not persist permission.yml.", exception);
             }
         }
         if (loaded.getConfigurationSection("users") == null) loaded.createSection("users");
-        String configuredDefault = loaded.getString("default-group", "user");
         if (configuredDefault == null || !loaded.isConfigurationSection("groups." + configuredDefault)) {
             throw new InvalidConfigurationException("default-group must reference an existing group.");
         }
         this.data = loaded;
         this.defaultGroup = configuredDefault;
+        registerConfiguredPermissionNodes(loaded);
         plugin.getLogger().info("[Permissions] Loaded " + getGroupNames().size()
             + " group(s), default group '" + defaultGroup + "'.");
+    }
+
+    private void registerConfiguredPermissionNodes(YamlConfiguration loaded) {
+        Set<String> nodes = new HashSet<>();
+        ConfigurationSection groups = loaded.getConfigurationSection("groups");
+        if (groups != null) for (String group : groups.getKeys(false))
+            nodes.addAll(loaded.getStringList("groups." + group + ".permissions"));
+        ConfigurationSection users = loaded.getConfigurationSection("users");
+        if (users != null) for (String uuid : users.getKeys(false))
+            nodes.addAll(loaded.getStringList("users." + uuid + ".permissions"));
+        for (Map<String, Object> command : plugin.getDescription().getCommands().values()) {
+            Object node = command.get("permission");
+            if (node instanceof String permission) nodes.add(permission);
+        }
+        for (String node : nodes) {
+            if (node == null || !PERMISSION_PATTERN.matcher(node).matches()) continue;
+            if (Bukkit.getPluginManager().getPermission(node) == null) {
+                try { Bukkit.getPluginManager().addPermission(new Permission(node, org.bukkit.permissions.PermissionDefault.FALSE)); }
+                catch (IllegalArgumentException ignored) { /* another plugin registered this node during enable */ }
+            }
+        }
     }
 
     private boolean save() {

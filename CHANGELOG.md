@@ -1,5 +1,14 @@
 # Changelog
 
+## [v2.35.0] - 2026-10-28
+- Mở rộng `/vninit` với menu quản lý đại lục: tạo và sửa ID/tên/world theo lựa chọn, lưu bí danh ID cũ cho profile/onboarding; xóa cấu hình có xác nhận; archive cấu hình riêng và chỉ archive world khi world không dùng chung/start-world.
+- Đổi environment đại lục yêu cầu xác nhận; revision ghi nhận yêu cầu tái tạo khi restart, world cũ được giữ dạng backup trước khi tạo world mới.
+- Nếu đến lượt scheduled boss/thiên tai nhưng tất cả người chơi đang ở world đã tắt loại sự kiện đó, hủy lượt và đặt lại interval thay vì roll dồn khi điều kiện chưa phù hợp.
+- Lưu gamemode của OP trong PersistentDataContainer khi thoát và phục hồi sau khi vào lại. Thêm `/feed` và `/heal` với quyền riêng.
+- Migration permission khi plugin khởi tạo: nhóm `user` được bổ sung các quyền cơ bản còn thiếu; nhóm admin được bổ sung command permissions tích hợp.
+- Viết lại README với mục lục, hướng dẫn cài đặt/onboarding, mô tả tính năng, cấu hình, lệnh, permission theo nhóm và ghi rõ dự án do một người phát triển.
+- Compile Java 25 (`mvn -DskipTests compile`) thành công lúc `2026-10-28 11:09 UTC`; test suite chưa chạy. Chưa build JAR hoặc gameplay test.
+
 ## [v2.29.0] - 2026-10-28
 - Thêm **Schema Build** vào menu Admin; duyệt đệ quy file `.schema`, mở preview BlockDisplay riêng cho admin và bám theo mặt block đang ngắm.
 - Hỗ trợ xoay cấu trúc theo trục X/Y/Z từng 90°, dựng block qua `BlockPlaceEvent`, giới hạn số block/chunk/world border, Undo/Redo có kiểm tra trạng thái block để tránh ghi đè thay đổi sau khi dựng.

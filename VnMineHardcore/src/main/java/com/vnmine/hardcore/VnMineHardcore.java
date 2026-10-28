@@ -264,7 +264,7 @@ public final class VnMineHardcore extends JavaPlugin {
         for (String commandName : List.of("vnstats", "vnhardcore", "vnreload", "vnhelp",
                 "vnevent", "vnboss", "vn", "reward", "vnrespawn", "vnleave", "fly",
                 "nodame", "spawn", "gm0", "gm1", "gm2", "gm3", "scoreboard",
-                "vntime", "vnday", "vnspawn", "tp")) {
+                "vntime", "vnday", "vnspawn", "tp", "feed", "heal")) {
             registerCommand(commandName, this, this);
         }
         registerCommand("vnskills", skillManager, skillManager);
@@ -391,6 +391,28 @@ public final class VnMineHardcore extends JavaPlugin {
         }
         if (command.getName().equalsIgnoreCase("tp")) {
             return handleTeleportToWorldSpawn(sender, args);
+        }
+
+        if (command.getName().equalsIgnoreCase("feed") || command.getName().equalsIgnoreCase("heal")) {
+            boolean feed = command.getName().equalsIgnoreCase("feed");
+            String permission = feed ? "vnmine.command.feed" : "vnmine.command.heal";
+            if (!permissionManager.hasPermission(sender, permission)) {
+                sender.sendMessage("§cBạn không có quyền!");
+                return true;
+            }
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("Lệnh này chỉ dành cho người chơi.");
+                return true;
+            }
+            if (feed) {
+                player.setFoodLevel(20);
+                player.setSaturation(20.0f);
+                player.sendMessage("§aĐã hồi đầy thức ăn.");
+            } else {
+                player.setHealth(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue());
+                player.sendMessage("§aĐã hồi đầy máu.");
+            }
+            return true;
         }
 
         if (command.getName().equalsIgnoreCase("vnspawn")) {
@@ -666,6 +688,9 @@ public final class VnMineHardcore extends JavaPlugin {
                 "§e/vnreload §7- Tải lại cấu hình và các hệ thống.");
             sendHelpLine(sender, "vnmine.command.init",
                 "§e/vninit §7- Mở wizard setup đại lục, world, NPC tutorial và onboarding RPG.");
+            sendHelpLine(sender, "vnmine.command.feed", "§e/feed §7- Hồi đầy thanh thức ăn.");
+            sendHelpLine(sender, "vnmine.command.heal", "§e/heal §7- Hồi đầy máu.");
+            sendHelpLine(sender, "vnmine.command.start", "§e/start §7- Bắt đầu hoặc tiếp tục hành trình RPG.");
             sendHelpLine(sender, "vnmine.command.users.manage",
                 "§e/vnuser info <player> §7- Xem nhóm/quyền người chơi.");
             sendHelpLine(sender, "vnmine.command.users.manage",

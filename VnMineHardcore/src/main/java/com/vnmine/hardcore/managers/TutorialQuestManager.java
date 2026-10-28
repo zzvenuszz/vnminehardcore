@@ -120,7 +120,7 @@ public final class TutorialQuestManager implements Listener {
         if (definition == null || !definition.enabled()
                 || !activeQuestSessions.containsKey(player.getUniqueId())) return List.of();
         String realmId = targetRealmId(player);
-        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
         String destination = "visit-start-world-tutorial-npc".equals(definition.objective().type())
             ? "NPC Tutorial • " + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start")
             : realm == null ? "NPC Tutorial" : "NPC Tutorial • " + realm.displayName();
@@ -518,14 +518,14 @@ public final class TutorialQuestManager implements Listener {
                     : "§7Chỉ bật tracking khi có nhiệm vụ đang thực hiện.")));
             List<String> journalLore = new ArrayList<>(buildJournalLore(definition, progress));
             String activeRealmId = targetRealmId(player);
-            var activeRealm = plugin.getRpgWorldManager().getDefinitions().get(activeRealmId);
+            var activeRealm = plugin.getRpgWorldManager().getRealmDefinition(activeRealmId);
             String activeRealmName = activeRealm == null ? activeRealmId : activeRealm.displayName();
             journalLore.replaceAll(line -> line.startsWith("§eĐiểm đến:")
                 ? "§eĐiểm đến: §f" + activeRealmName : line);
             inventory.setItem(13, createJournalItem(Material.WRITABLE_BOOK, "§6" + definition.title(), journalLore));
             if (activeQuest) {
                 String targetRealmId = targetRealmId(player);
-                var targetRealm = plugin.getRpgWorldManager().getDefinitions().get(targetRealmId);
+                var targetRealm = plugin.getRpgWorldManager().getRealmDefinition(targetRealmId);
                 String targetRealmName = targetRealm == null ? targetRealmId : targetRealm.displayName();
                 inventory.setItem(17, createJournalItem(Material.COMPASS, "§bĐiểm đến: " + targetRealmName,
                     List.of("§7Mục tiêu: Gặp NPC Tutorial của " + targetRealmName + ".",
@@ -584,7 +584,7 @@ public final class TutorialQuestManager implements Listener {
         lastWaypointAtMillis.put(player.getUniqueId(), now);
 
         String realmId = targetRealmId(player);
-        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
         String realmName = "visit-start-world-tutorial-npc".equals(definition.objective().type())
             ? "world bắt đầu" : realm == null ? realmId : realm.displayName();
         Location target = resolveObjectiveTarget(player);
@@ -620,7 +620,7 @@ public final class TutorialQuestManager implements Listener {
             return world == null ? null : world.getSpawnLocation();
         }
         String realmId = targetRealmId(player);
-        var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
+        var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
         if (realm != null && plugin.getNpcManager() != null) {
             var npc = plugin.getNpcManager().getNpcTarget(realm.tutorialNpcId());
             if (npc.isPresent() && npc.get().location() != null
@@ -633,7 +633,7 @@ public final class TutorialQuestManager implements Listener {
     private String targetRealmId(Player player) {
         CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
         String selectedRealm = characters == null ? null : characters.getOnboardingRealm(player);
-        if (selectedRealm != null && plugin.getRpgWorldManager().getDefinitions().containsKey(selectedRealm))
+        if (selectedRealm != null && plugin.getRpgWorldManager().getRealmDefinition(selectedRealm) != null)
             return selectedRealm;
         return sessionRealmIds.computeIfAbsent(player.getUniqueId(), ignored ->
             resolveTargetRealmId(currentHomeWorld(player)));

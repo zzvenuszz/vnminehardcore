@@ -828,3 +828,19 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Sao lưu 2.34.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.34.0.jar`, cài 2.34.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.34.1.jar`; checksum khớp và chỉ còn một plugin JAR.
 - [x] Commit/push thay đổi lên `origin/main`.
 - [ ] Kiểm chứng trên Paper: THE_END → NORMAL sau restart; xác nhận dimension backup tồn tại cạnh folder cũ và world mới có environment NORMAL.
+
+
+## Quản lý đại lục, permission, tiện ích và tài liệu — yêu cầu 2026-10-28
+
+- [~] `/vninit` có menu quản lý đại lục riêng: thêm theo ID/tên hiển thị/tên world, sửa ID/tên/world và xóa sau xác nhận. Đổi ID lưu bí danh cũ trong `realm-id-aliases.yml`; onboarding/profile có ID cũ sẽ được canonical hóa khi tra cứu.
+- [~] Đổi environment đại lục có GUI xác nhận, tăng revision để đánh dấu tái tạo sau restart. Thao tác từ chối nếu world là start-world hoặc đang được đại lục khác dùng; dữ liệu world cũ được chuyển thành backup có timestamp.
+- [~] Xóa đại lục archive file cấu hình; chỉ đặt lịch archive folder world nếu world không dùng chung. Nếu ghi manifest hoặc reload catalog thất bại, cố gắng khôi phục file cấu hình và hủy marker archive.
+- [~] Scheduled boss/thiên tai không roll khi người chơi chỉ ở các world tắt sự kiện; lượt bị hủy và timer được reset để không roll dồn khi người chơi đổi world.
+- [~] OP lưu gamemode trong PersistentDataContainer lúc thoát, phục hồi sau join. Đã thêm `/feed` và `/heal` với node permission riêng.
+- [~] PermissionManager tự bổ sung các permission command còn thiếu vào nhóm admin, các quyền cơ bản vào nhóm mặc định `user`, đăng ký node theo cấu hình khi khởi tạo; nhóm user không tự nhận feed/heal.
+- [x] Viết lại README thành tài liệu hướng dẫn có mục lục, chức năng, onboarding, cấu hình, lệnh, permissions, vận hành và thông tin nhóm phát triển một người.
+- Cần kiểm chứng đổi nhiều lần ID liên tiếp, alias chain sau restart, người chơi offline đang ở bước onboarding và rollback khi YAML/manifest lỗi.
+- [x] Compile Java 25 (`mvn -DskipTests compile`) thành công lúc `2026-10-28 11:09 UTC`; YAML `plugin.yml` và `permission.yml` hợp lệ, mọi command khai báo permission, `git diff --check` sạch. Không chạy test suite.
+- [x] Build JAR 2.35.0 bằng Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 11:10:42 UTC`; 2,420,868 bytes, SHA-256 `2ab208ba82666bb1f765ebff58eeaa797ea29bb27dfbbc4079f16b1194162851`. Đã xác minh JAR chỉ chứa native SQLite Linux x86_64 và plugin.yml báo version 2.35.0.
+- [x] Sao lưu JAR 2.34.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.34.1.jar`, cài 2.35.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.35.0.jar`; so sánh byte khớp và gỡ bản 2.34.1 khỏi thư mục plugin để Paper không nạp trùng.
+- [ ] Chưa chạy server Paper/gameplay test. Commit/push source và tài liệu đang thực hiện.

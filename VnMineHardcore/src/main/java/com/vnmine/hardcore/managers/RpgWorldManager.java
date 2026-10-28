@@ -10,6 +10,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.time.LocalDateTime;
@@ -39,6 +41,8 @@ public final class RpgWorldManager implements Listener {
     private final File worldManifestFile;
     private final org.bukkit.configuration.file.YamlConfiguration worldManifest =
         new org.bukkit.configuration.file.YamlConfiguration();
+    private final File realmAliasesFile;
+    private final Map<String, String> realmIdAliases = new HashMap<>();
     private final Map<String, String> requestedWorldSettings = new LinkedHashMap<>();
     private Map<String, HumanRealmDefinitionLoader.HumanRealmDefinition> definitions = Map.of();
     private boolean createWorldsOnNextReload = true;
@@ -46,6 +50,8 @@ public final class RpgWorldManager implements Listener {
     public RpgWorldManager(VnMineHardcore plugin) {
         this.plugin = plugin;
         this.worldManifestFile = new File(plugin.getDataFolder(), "managed-worlds.yml");
+        this.realmAliasesFile = new File(plugin.getDataFolder(), "realm-id-aliases.yml");
+        loadRealmAliases();
         if (worldManifestFile.isFile()) {
             try { worldManifest.load(worldManifestFile); }
             catch (org.bukkit.configuration.InvalidConfigurationException | IOException exception) {
@@ -61,23 +67,17 @@ public final class RpgWorldManager implements Listener {
             return;
         }
 
-        File humanRealmFile = new File(worldsFolder, "human-realm.yml");
-        if (!humanRealmFile.isFile()) {
-            try {
-                plugin.saveResource("worlds/human-realm.yml", false);
-            } catch (IllegalArgumentException exception) {
-                plugin.getLogger().log(Level.SEVERE, "[World] Bundled human-realm.yml resource is missing.", exception);
-                return;
+        File[] configuredRealmFiles = worldsFolder.listFiles((directory, name) ->
+            name.toLowerCase(java.util.Locale.ROOT).endsWith(".yml"));
+        if (configuredRealmFiles != null && configuredRealmFiles.length == 0) {
+            for (String resource : List.of("worlds/human-realm.yml", "worlds/yeu-realm.yml")) {
+                try { plugin.saveResource(resource, false); }
+                catch (IllegalArgumentException exception) {
+                    plugin.getLogger().log(Level.SEVERE, "[World] Bundled default definition is missing: " + resource, exception);
+                }
             }
         }
-        File yeuRealmFile = new File(worldsFolder, "yeu-realm.yml");
-        if (!yeuRealmFile.isFile()) {
-            try {
-                plugin.saveResource("worlds/yeu-realm.yml", false);
-            } catch (IllegalArgumentException exception) {
-                plugin.getLogger().log(Level.SEVERE, "[World] Bundled yeu-realm.yml resource is missing.", exception);
-            }
-        }
+        archivePendingWorldDeletions();
         String startSeedPath = "rpg.onboarding.start-world.seed";
         Long startSeed = readOptionalSeed(plugin.getConfig(), startSeedPath, "onboarding start world");
         boolean invalidStartSeed = plugin.getConfig().contains(startSeedPath)
@@ -120,9 +120,6 @@ public final class RpgWorldManager implements Listener {
 
         definitions = java.util.Collections.unmodifiableMap(loaded);
         createWorldsOnNextReload = false;
-        if (!definitions.containsKey(HUMAN_REALM_ID)) {
-            plugin.getLogger().warning("[World] The default human-realm definition is missing.");
-        }
         return true;
     }
 
@@ -354,6 +351,80 @@ public final class RpgWorldManager implements Listener {
         }
     }
 
+    /** Queue a managed world folder for archival after its realm definition is deleted. */
+    public boolean scheduleWorldArchive(String worldName) {
+        if (worldName == null || !worldName.matches("[A-Za-z0-9_-]{1,64}")) return false;
+        String path = "worlds." + worldName + ".delete-on-next-start";
+        Object old = worldManifest.get(path);
+        worldManifest.set(path, true);
+        if (saveManifestFile()) return true;
+        worldManifest.set(path, old);
+        return false;
+    }
+
+    public boolean cancelWorldArchive(String worldName) {
+        if (worldName == null || !worldName.matches("[A-Za-z0-9_-]{1,64}")) return false;
+        String path = "worlds." + worldName + ".delete-on-next-start";
+        Object old = worldManifest.get(path);
+        worldManifest.set(path, null);
+        if (saveManifestFile()) return true;
+        worldManifest.set(path, old);
+        return false;
+    }
+
+    private void archivePendingWorldDeletions() {
+        var worlds = worldManifest.getConfigurationSection("worlds");
+        if (worlds == null) return;
+        for (String worldName : List.copyOf(worlds.getKeys(false))) {
+            if (!worldManifest.getBoolean("worlds." + worldName + ".delete-on-next-start", false)) continue;
+            World loaded = Bukkit.getWorld(worldName);
+            Path container = plugin.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
+            Path folder = resolveManagedWorldFolder(worldName, loaded, container);
+            if (folder == null || !folder.startsWith(container)) {
+                plugin.getLogger().severe("[World] Pending archive has no safe folder for '" + worldName + "'; keeping marker.");
+                continue;
+            }
+            if (loaded != null && !Bukkit.unloadWorld(loaded, false)) {
+                plugin.getLogger().severe("[World] Could not unload deleted realm world '" + worldName + "'; keeping marker.");
+                continue;
+            }
+            try {
+                if (Files.exists(folder)) {
+                    String stamp = LocalDateTime.now(java.time.ZoneOffset.UTC)
+                        .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+                    Path archive = folder.resolveSibling(worldName + ".deleted-" + stamp);
+                    int suffix = 1;
+                    while (Files.exists(archive)) archive = folder.resolveSibling(worldName + ".deleted-" + stamp + "-" + suffix++);
+                    moveWorldFolder(folder, archive);
+                    plugin.getLogger().warning("[World] Archived deleted realm world '" + worldName + "' at " + archive + ".");
+                }
+                worldManifest.set("worlds." + worldName, null);
+                saveManifestFile();
+            } catch (IOException exception) {
+                plugin.getLogger().log(Level.SEVERE, "[World] Could not archive deleted realm world '" + worldName + "'; marker retained.", exception);
+            }
+        }
+    }
+
+    private boolean saveManifestFile() {
+        File parent = worldManifestFile.getParentFile();
+        File temporary = new File(parent, worldManifestFile.getName() + ".tmp");
+        try {
+            if (parent != null && !parent.isDirectory() && !parent.mkdirs()) throw new IOException("Could not create plugin data directory.");
+            worldManifest.save(temporary);
+            try {
+                Files.move(temporary.toPath(), worldManifestFile.toPath(), StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporary.toPath(), worldManifestFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[World] Could not persist managed-world manifest.", exception);
+            return false;
+        }
+    }
+
     private void moveWorldFolder(Path source, Path destination) throws IOException {
         try {
             Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
@@ -363,19 +434,85 @@ public final class RpgWorldManager implements Listener {
     }
 
     public Optional<HumanRealmDefinitionLoader.HumanRealmDefinition> getDefinition() {
-        return Optional.ofNullable(definitions.get(HUMAN_REALM_ID));
+        return Optional.ofNullable(defaultRealm());
     }
 
     public Map<String, HumanRealmDefinitionLoader.HumanRealmDefinition> getDefinitions() {
         return definitions;
     }
 
+    public HumanRealmDefinitionLoader.HumanRealmDefinition getRealmDefinition(String realmId) {
+        return definitions.get(resolveRealmId(realmId));
+    }
+
+    public String resolveRealmId(String realmId) {
+        if (realmId == null) return null;
+        String current = realmId;
+        java.util.HashSet<String> visited = new java.util.HashSet<>();
+        while (realmIdAliases.containsKey(current) && visited.add(current)) current = realmIdAliases.get(current);
+        return current;
+    }
+
+    public boolean saveRealmIdAlias(String oldId, String newId) {
+        if (oldId == null || newId == null || !oldId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                || !newId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) return false;
+        Map<String, String> previous = new HashMap<>(realmIdAliases);
+        realmIdAliases.replaceAll((key, value) -> resolveRealmId(value).equals(oldId) ? newId : value);
+        realmIdAliases.remove(newId);
+        if (!oldId.equals(newId)) realmIdAliases.put(oldId, newId);
+        if (saveRealmAliases()) return true;
+        realmIdAliases.clear();
+        realmIdAliases.putAll(previous);
+        return false;
+    }
+
+    public boolean removeRealmIdAlias(String oldId) {
+        String previous = realmIdAliases.remove(oldId);
+        if (previous == null) return true;
+        realmIdAliases.replaceAll((key, value) -> value.equals(previous) ? oldId : value);
+        if (saveRealmAliases()) return true;
+        realmIdAliases.replaceAll((key, value) -> value.equals(oldId) ? previous : value);
+        realmIdAliases.put(oldId, previous);
+        return false;
+    }
+
+    private void loadRealmAliases() {
+        if (!realmAliasesFile.isFile()) return;
+        org.bukkit.configuration.file.YamlConfiguration yaml =
+            org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(realmAliasesFile);
+        var section = yaml.getConfigurationSection("aliases");
+        if (section == null) return;
+        for (String oldId : section.getKeys(false)) {
+            String newId = section.getString(oldId);
+            if (oldId.matches("[a-z0-9]+(?:-[a-z0-9]+)*") && newId != null
+                    && newId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) realmIdAliases.put(oldId, newId);
+        }
+    }
+
+    private boolean saveRealmAliases() {
+        var yaml = new org.bukkit.configuration.file.YamlConfiguration();
+        realmIdAliases.forEach((oldId, newId) -> yaml.set("aliases." + oldId, newId));
+        File temporary = new File(realmAliasesFile.getParentFile(), realmAliasesFile.getName() + ".tmp");
+        try {
+            if (!temporary.getParentFile().isDirectory() && !temporary.getParentFile().mkdirs())
+                throw new IOException("Could not create plugin data directory.");
+            yaml.save(temporary);
+            try { Files.move(temporary.toPath(), realmAliasesFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
+            catch (AtomicMoveNotSupportedException exception) { Files.move(temporary.toPath(), realmAliasesFile.toPath(), StandardCopyOption.REPLACE_EXISTING); }
+            return true;
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[World] Could not persist realm ID aliases.", exception);
+            return false;
+        }
+    }
+
     public Optional<ResolvedSpawn> resolveHumanRealmSpawn() {
-        return resolveSpawn(HUMAN_REALM_ID);
+        HumanRealmDefinitionLoader.HumanRealmDefinition fallback = defaultRealm();
+        return fallback == null ? Optional.empty() : resolveSpawn(fallback.id());
     }
 
     public Optional<ResolvedSpawn> resolveSpawn(String realmId) {
-        HumanRealmDefinitionLoader.HumanRealmDefinition definition = definitions.get(realmId);
+        HumanRealmDefinitionLoader.HumanRealmDefinition definition = getRealmDefinition(realmId);
         if (definition == null) return Optional.empty();
 
         World realmWorld = Bukkit.getWorld(definition.worldName());
@@ -393,18 +530,23 @@ public final class RpgWorldManager implements Listener {
     }
 
     public boolean isInSafeZone(Location location) {
-        HumanRealmDefinitionLoader.HumanRealmDefinition humanRealm = definitions.get(HUMAN_REALM_ID);
-        if (location == null || location.getWorld() == null || humanRealm == null
-            || !humanRealm.safeZone().enabled()) {
-            return false;
+        if (location == null || location.getWorld() == null) return false;
+        for (HumanRealmDefinitionLoader.HumanRealmDefinition definition : definitions.values()) {
+            if (!definition.safeZone().enabled()) continue;
+            Optional<ResolvedSpawn> resolvedSpawn = resolveSpawn(definition.id());
+            if (resolvedSpawn.isEmpty()) continue;
+            Location center = resolvedSpawn.get().location();
+            if (location.getWorld() == center.getWorld() && isWithinRadius(center.getX(), center.getZ(),
+                    location.getX(), location.getZ(), definition.safeZone().radius())) return true;
         }
-        Optional<ResolvedSpawn> resolvedSpawn = resolveHumanRealmSpawn();
-        if (resolvedSpawn.isEmpty()) return false;
+        return false;
+    }
 
-        Location center = resolvedSpawn.get().location();
-        if (location.getWorld() != center.getWorld()) return false;
-        return isWithinRadius(center.getX(), center.getZ(), location.getX(), location.getZ(),
-            humanRealm.safeZone().radius());
+    private HumanRealmDefinitionLoader.HumanRealmDefinition defaultRealm() {
+        HumanRealmDefinitionLoader.HumanRealmDefinition configured = definitions.get(HUMAN_REALM_ID);
+        if (configured != null) return configured;
+        return definitions.values().stream().filter(HumanRealmDefinitionLoader.HumanRealmDefinition::startingSelectable)
+            .findFirst().orElseGet(() -> definitions.values().stream().findFirst().orElse(null));
     }
 
     static boolean isWithinRadius(double centerX, double centerZ, double x, double z, int radius) {

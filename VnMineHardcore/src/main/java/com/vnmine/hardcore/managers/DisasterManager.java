@@ -544,7 +544,17 @@ public class DisasterManager {
             eligibleDisasters.add(entry);
         }
 
-        if (eligibleDisasters.isEmpty()) return;
+        if (eligibleDisasters.isEmpty()) {
+            boolean hasOnlinePlayers = !Bukkit.getOnlinePlayers().isEmpty();
+            boolean hasDisasterEnabledPlayer = Bukkit.getOnlinePlayers().stream().anyMatch(player ->
+                plugin.getWorldSettingsManager() == null
+                    || plugin.getWorldSettingsManager().isDisasterEnabled(player.getWorld()));
+            if (hasOnlinePlayers && !hasDisasterEnabledPlayer) {
+                timeSinceLastDisaster = 0;
+                plugin.getLogger().info("[Disaster] Scheduled roll cancelled: all online players are in worlds with disasters disabled; next interval will be used.");
+            }
+            return;
+        }
 
         int totalChance = 0;
         for (Map.Entry<String, ConfigManager.DisasterConfig> entry : eligibleDisasters) {

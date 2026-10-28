@@ -9100,7 +9100,7 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                             this.openWorldMap(player, holder.page + 1);
                         } else if (choice != null) {
                             HumanRealmDefinitionLoader.HumanRealmDefinition realm =
-                                plugin.getRpgWorldManager().getDefinitions().get(choice);
+                                plugin.getRpgWorldManager().getRealmDefinition(choice);
                             if (realm != null) this.travelToRealm(player, realm);
                         }
                         break;
