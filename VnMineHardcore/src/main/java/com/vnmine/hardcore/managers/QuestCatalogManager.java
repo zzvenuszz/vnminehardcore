@@ -587,7 +587,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(10, adminItem(Material.NAME_TAG, "§eĐổi tên hiển thị", List.of("§7Hiện tại: §f" + quest.title(),
             "§eNhấn rồi nhập tên vào chat.")));
         menu.setItem(12, adminItem(Material.VILLAGER_SPAWN_EGG, "§eĐổi NPC giao quest", List.of(
-            "§7ID hiện tại: §f" + quest.giverNpcId(), "§eNhấn rồi nhập NPC ID vào chat.")));
+            "§7NPC hiện tại: §f" + npcDisplayLabel(quest.giverNpcId()), "§eNhấn để chọn NPC trong danh sách.")));
         menu.setItem(14, adminItem(quest.enabled() ? Material.LIME_DYE : Material.GRAY_DYE,
             quest.enabled() ? "§aTắt quest" : "§eBật lại quest", List.of("§7Quest đang "
                 + (quest.enabled() ? "bật" : "tắt") + " trong hệ thống.")));
@@ -702,6 +702,44 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             catch (IllegalArgumentException exception) { return; }
             if (slot == 11) resetAdminQuest(player, targetId, holder.questId, holder.page);
             else if (slot == 15) openAdminCompletedQuests(player, targetId, holder.page);
+            return;
+        }
+        if (holder.menu == QuestMenu.NPC_SELECT) {
+            event.setCancelled(true);
+            if (!player.hasPermission(ADMIN_PERMISSION)
+                    || event.getClickedInventory() != event.getView().getTopInventory()) return;
+            if (slot == 49) {
+                if (holder.npcSelectPurpose == NpcSelectPurpose.GIVER) openQuestEditor(player, holder.questId);
+                else openObjectivesMenu(player, holder.questId);
+            } else if (slot == 46 && holder.page > 0) {
+                openNpcSelector(player, holder.questId, holder.npcSelectPurpose, holder.page - 1);
+            } else if (slot == 50) {
+                openNpcSelector(player, holder.questId, holder.npcSelectPurpose, holder.page + 1);
+            } else if (holder.questSlots.containsKey(slot)) {
+                applyNpcSelection(player, holder.questId, holder.npcSelectPurpose, holder.questSlots.get(slot));
+            }
+            return;
+        }
+        if (holder.menu == QuestMenu.BOSS_SELECT) {
+            event.setCancelled(true);
+            if (!player.hasPermission(ADMIN_PERMISSION)
+                    || event.getClickedInventory() != event.getView().getTopInventory()) return;
+            if (slot == 49) {
+                openObjectivesMenu(player, holder.questId);
+            } else if (slot == 46 && holder.page > 0) {
+                openBossSelector(player, holder.questId, holder.page - 1);
+            } else if (slot == 50) {
+                openBossSelector(player, holder.questId, holder.page + 1);
+            } else if (holder.questSlots.containsKey(slot)) {
+                String bossId = holder.questSlots.get(slot);
+                if (plugin.getBossEventManager() == null
+                        || !plugin.getBossEventManager().getBossIds().contains(bossId)) {
+                    player.sendMessage("§cBoss này không còn trong cấu hình. Hãy chọn lại.");
+                    openBossSelector(player, holder.questId, 0);
+                    return;
+                }
+                prompt(player, new PendingTextInput(TextField.ADD_BOSS_AMOUNT, holder.questId, 0, bossId));
+            }
             return;
         }
         if (holder.menu == QuestMenu.NPC_ACCEPT || holder.menu == QuestMenu.NPC_SUBMIT) {
@@ -882,7 +920,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         } else if (slot == 10) {
             prompt(player, new PendingTextInput(TextField.RENAME, quest.id(), holder.page));
         } else if (slot == 12) {
-            prompt(player, new PendingTextInput(TextField.GIVER, quest.id(), holder.page));
+            openNpcSelector(player, quest.id(), NpcSelectPurpose.GIVER, 0);
         } else if (slot == 14) {
             replaceDefinition(quest, quest.withEnabled(!quest.enabled()));
             openQuestEditor(player, quest.id());
@@ -973,10 +1011,121 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(50, adminItem(Material.WITHER_SKELETON_SKULL, "§cThêm mục tiêu hạ boss", List.of(
             "§7Yêu cầu boss hệ thống với ID hợp lệ.", "§7Ví dụ: winter-tyrant")));
         menu.setItem(51, adminItem(Material.VILLAGER_SPAWN_EGG, "§bThêm mục tiêu gặp NPC", List.of(
-            "§7Nhập ID NPC cần gặp, ví dụ: hunter.", "§7Mỗi lần tương tác hợp lệ tăng tiến độ 1.")));
+            "§7Chọn NPC đã tạo trong danh sách.", "§7Mỗi lần tương tác hợp lệ tăng tiến độ 1.")));
         menu.setItem(52, adminItem(Material.NAME_TAG, "§dĐặt bước đầu: gặp NPC", List.of(
-            "§7Thay bước đầu hiện tại bằng mục tiêu gặp NPC.", "§7Nhập NPC ID, ví dụ: hunter.")));
+            "§7Chọn NPC đã tạo để làm bước đầu tiên.")));
         player.openInventory(menu);
+    }
+
+    private void openNpcSelector(Player player, String questId, NpcSelectPurpose purpose, int requestedPage) {
+        QuestDefinition quest = definitions.get(questId);
+        if (quest == null || plugin.getNpcManager() == null) return;
+        List<String> npcIds = plugin.getNpcManager().getNpcIds();
+        int pageCount = Math.max(1, (npcIds.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.NPC_SELECT, questId, page);
+        holder.npcSelectPurpose = purpose;
+        Inventory menu = Bukkit.createInventory(holder, 54, "Chọn NPC • " + quest.title());
+        holder.inventory = menu;
+        for (int index = 0; index < 45; index++) {
+            int choiceIndex = page * 45 + index;
+            if (choiceIndex >= npcIds.size()) break;
+            String npcId = npcIds.get(choiceIndex);
+            String name = npcDisplayLabel(npcId);
+            boolean selected = purpose == NpcSelectPurpose.GIVER && quest.giverNpcId().equalsIgnoreCase(npcId);
+            String world = plugin.getNpcManager().getNpcTarget(npcId)
+                .map(NpcManager.NpcTarget::world).orElse("world chưa tải");
+            menu.setItem(index, adminItem(Material.VILLAGER_SPAWN_EGG,
+                (selected ? "§a✓ " : "§e") + name, List.of("§7NPC ID: §f" + npcId,
+                    "§7World: §f" + world, selected ? "§aĐang được chọn" : "§eNhấn để chọn.")));
+            holder.questSlots.put(index, npcId);
+        }
+        if (npcIds.isEmpty()) menu.setItem(22, adminItem(Material.BARRIER, "§cChưa có NPC nào", List.of(
+            "§7Tạo NPC bằng /vnnpc trước, rồi chọn tại đây.")));
+        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại", List.of()));
+        if (page > 0) menu.setItem(46, adminItem(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(48, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
+            List.of("§7Tổng NPC đã lưu: " + npcIds.size())));
+        if (page + 1 < pageCount) menu.setItem(50, adminItem(Material.ARROW, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openBossSelector(Player player, String questId, int requestedPage) {
+        QuestDefinition quest = definitions.get(questId);
+        if (quest == null || plugin.getBossEventManager() == null) return;
+        List<String> bossIds = plugin.getBossEventManager().getBossIds().stream()
+            .sorted(String.CASE_INSENSITIVE_ORDER).toList();
+        int pageCount = Math.max(1, (bossIds.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.BOSS_SELECT, questId, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Chọn boss hệ thống • " + quest.title());
+        holder.inventory = menu;
+        for (int index = 0; index < 45; index++) {
+            int choiceIndex = page * 45 + index;
+            if (choiceIndex >= bossIds.size()) break;
+            String bossId = bossIds.get(choiceIndex);
+            String bossName = plugin.getBossEventManager().getBossName(bossId);
+            holder.questSlots.put(index, bossId);
+            menu.setItem(index, adminItem(Material.WITHER_SKELETON_SKULL, "§c" + bossName, List.of(
+                "§7Boss ID: §f" + bossId,
+                plugin.getBossEventManager().getEnabledBossIds().contains(bossId)
+                    ? "§aĐang bật" : "§eĐang tắt (vẫn cấu hình được)",
+                "§eNhấn để chọn, sau đó nhập số lần cần hạ.")));
+        }
+        if (bossIds.isEmpty()) menu.setItem(22, adminItem(Material.BARRIER, "§cChưa có boss hệ thống", List.of(
+            "§7Hãy tạo boss trước trong phần quản lý boss.")));
+        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại mục tiêu", List.of()));
+        if (page > 0) menu.setItem(46, adminItem(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(48, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
+            List.of("§7Boss đã lưu: " + bossIds.size())));
+        if (page + 1 < pageCount) menu.setItem(50, adminItem(Material.ARROW, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private String npcDisplayLabel(String npcId) {
+        if (npcId == null || npcId.isBlank() || plugin.getNpcManager() == null) return "Chưa chọn";
+        String displayName = plugin.getNpcManager().getNpcDisplayName(npcId).orElse(npcId);
+        return org.bukkit.ChatColor.stripColor(org.bukkit.ChatColor.translateAlternateColorCodes('&', displayName));
+    }
+
+    private void applyNpcSelection(Player player, String questId, NpcSelectPurpose purpose, String npcId) {
+        QuestDefinition quest = definitions.get(questId);
+        if (quest == null || plugin.getNpcManager() == null || !plugin.getNpcManager().hasNpc(npcId)) {
+            player.sendMessage("§cNPC này không còn tồn tại. Hãy chọn lại từ danh sách.");
+            openNpcSelector(player, questId, purpose, 0);
+            return;
+        }
+        if (hasActiveQuest(questId)) {
+            player.sendMessage("§cKhông thể sửa tham chiếu NPC khi người chơi đang làm quest này.");
+            if (purpose == NpcSelectPurpose.GIVER) openQuestEditor(player, questId);
+            else openObjectivesMenu(player, questId);
+            return;
+        }
+        switch (purpose) {
+            case GIVER -> {
+                replaceDefinition(quest, quest.withGiverNpcId(npcId));
+                debugQuest("giver-npc-selected admin=" + player.getName() + ", quest=" + questId + ", npc=" + npcId);
+                openQuestEditor(player, questId);
+            }
+            case ADD_OBJECTIVE -> {
+                List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+                if (objectives.size() >= 45) {
+                    player.sendMessage("§cQuest đã đạt tối đa 45 mục tiêu.");
+                } else {
+                    objectives.add(new QuestObjective(ObjectiveType.VISIT_NPC, EntityType.ZOMBIE,
+                        1, npcId, null, "", 0));
+                    replaceDefinition(quest, quest.withObjectives(objectives));
+                }
+                openObjectivesMenu(player, questId);
+            }
+            case SET_PRIMARY -> {
+                List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+                objectives.set(0, new QuestObjective(ObjectiveType.VISIT_NPC, EntityType.ZOMBIE,
+                    1, npcId, null, "", 0));
+                replaceDefinition(quest, quest.withObjectives(objectives));
+                openObjectivesMenu(player, questId);
+            }
+        }
     }
 
     private void handleObjectiveMenuClick(Player player, QuestMenuHolder holder, int slot) {
@@ -1015,11 +1164,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             pendingObjectiveItems.put(player.getUniqueId(), required);
             prompt(player, new PendingTextInput(TextField.ADD_SUBMIT_ITEM_AMOUNT, quest.id(), 0));
         } else if (slot == 50) {
-            prompt(player, new PendingTextInput(TextField.ADD_BOSS_ID, quest.id(), 0));
+            openBossSelector(player, quest.id(), 0);
         } else if (slot == 51) {
-            prompt(player, new PendingTextInput(TextField.ADD_OBJECTIVE_NPC_ID, quest.id(), 0));
+            openNpcSelector(player, quest.id(), NpcSelectPurpose.ADD_OBJECTIVE, 0);
         } else if (slot == 52) {
-            prompt(player, new PendingTextInput(TextField.SET_PRIMARY_NPC_ID, quest.id(), 0));
+            openNpcSelector(player, quest.id(), NpcSelectPurpose.SET_PRIMARY, 0);
         } else if (holder.questSlots.containsKey(slot)) {
             int index = Integer.parseInt(holder.questSlots.get(slot));
             if (index == 0) {
@@ -3209,7 +3358,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         }
     }
 
-    private enum QuestMenu { LIST, EDIT, CONFIRM_DELETE, CONFIRM_ABANDON, REQUIREMENTS,
+    private enum QuestMenu { LIST, EDIT, CONFIRM_DELETE, CONFIRM_ABANDON, REQUIREMENTS, NPC_SELECT, BOSS_SELECT,
         PREREQUISITE_SELECT, SUCCESSOR_SELECT, OBJECTIVES, REWARD_ITEMS, PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS,
         NPC_ACCEPT, NPC_SUBMIT, ADMIN_PLAYER_HISTORY, ADMIN_RESET_CONFIRM }
     private enum QuestDialogStage {
@@ -3218,6 +3367,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         private final String displayName;
         QuestDialogStage(String displayName) { this.displayName = displayName; }
     }
+    private enum NpcSelectPurpose { GIVER, ADD_OBJECTIVE, SET_PRIMARY }
     private record QuestDialogRefs(String available, String inProgress, String completed, String unavailable) {
         private static final QuestDialogRefs EMPTY = new QuestDialogRefs(null, null, null, null);
         private String forStage(QuestDialogStage stage) {
@@ -3250,6 +3400,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         private final String questId;
         private final int page;
         private String npcId;
+        private NpcSelectPurpose npcSelectPurpose;
         private final Map<Integer, String> questSlots = new LinkedHashMap<>();
         private final Map<Integer, String> trackingSlots = new LinkedHashMap<>();
         private Inventory inventory;

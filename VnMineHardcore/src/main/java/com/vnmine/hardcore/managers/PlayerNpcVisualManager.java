@@ -30,6 +30,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -47,12 +49,31 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 /** Packet-backed player-model overlays for managed NPCs, while Bukkit villagers remain their server hitboxes. */
-final class PlayerNpcVisualManager {
+final class PlayerNpcVisualManager implements Listener {
+    private static final long VIEWER_LOGIN_SETTLE_TICKS = 40L;
+    private static final char[] RAINBOW_COLORS = {'c', '6', 'e', 'a', 'b', '9', 'd'};
+    private static final EnumSet<EnumWrappers.PlayerInfoAction> PLAYER_INFO_ADD_ACTIONS = EnumSet.of(
+        EnumWrappers.PlayerInfoAction.ADD_PLAYER,
+        EnumWrappers.PlayerInfoAction.UPDATE_LISTED,
+        EnumWrappers.PlayerInfoAction.UPDATE_LATENCY,
+        EnumWrappers.PlayerInfoAction.UPDATE_GAME_MODE,
+        EnumWrappers.PlayerInfoAction.UPDATE_DISPLAY_NAME);
     private static final Pattern UUID_PATTERN = Pattern.compile("\\\"id\\\"\\s*:\\s*\\\"([0-9a-fA-F]{32})\\\"");
     private static final Pattern TEXTURES_PATTERN = Pattern.compile(
         "\\\"name\\\"\\s*:\\s*\\\"textures\\\"\\s*,\\s*\\\"value\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"\\s*,\\s*\\\"signature\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
+    private static final WrappedDataWatcher.Serializer CHAT_COMPONENT_SERIALIZER =
+        WrappedDataWatcher.Registry.getChatComponentSerializer(false);
+    private static final WrappedDataWatcher.Serializer INTEGER_SERIALIZER =
+        WrappedDataWatcher.Registry.get(Integer.class);
+    private static final WrappedDataWatcher.Serializer BYTE_SERIALIZER =
+        WrappedDataWatcher.Registry.get(Byte.class);
+    private static final AtomicInteger NEXT_NAMEPLATE_ENTITY_ID = new AtomicInteger(-1_000_000);
 
     private final VnMineHardcore plugin;
     private final NpcManager npcManager;
@@ -68,6 +89,7 @@ final class PlayerNpcVisualManager {
         .connectTimeout(Duration.ofSeconds(5)).build();
     private final Map<UUID, Map<String, FakeNpc>> visibleByViewer = new ConcurrentHashMap<>();
     private final Map<UUID, Map<Integer, String>> interactableByViewer = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> viewerReadyAtTick = new ConcurrentHashMap<>();
     private final Map<String, SkinProperty> skinsByOwner = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<SkinProperty>> pendingSkins = new ConcurrentHashMap<>();
     private final Map<String, String> skinFailures = new ConcurrentHashMap<>();
@@ -75,12 +97,14 @@ final class PlayerNpcVisualManager {
     private final AtomicInteger nextEntityId = new AtomicInteger(-1);
     private final PacketAdapter interactionListener;
     private final BukkitTask updateTask;
+    private final BukkitTask animationTask;
     private boolean playerModelAvailable = true;
 
     PlayerNpcVisualManager(VnMineHardcore plugin, NpcManager npcManager) {
         this.plugin = plugin;
         this.npcManager = npcManager;
         this.protocolManager = ProtocolLibrary.getProtocolManager();
+        Bukkit.getPluginManager().registerEvents(this, plugin);
         this.interactionListener = new PacketAdapter(plugin, ListenerPriority.NORMAL,
                 PacketType.Play.Client.USE_ENTITY) {
             @Override public void onPacketReceiving(PacketEvent event) {
@@ -107,13 +131,29 @@ final class PlayerNpcVisualManager {
         };
         protocolManager.addPacketListener(interactionListener);
         this.updateTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateVisibleNpcs, 1L, 10L);
+        this.animationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateAnimatedNameplates, 4L, 4L);
     }
 
     void shutdown() {
         updateTask.cancel();
+        animationTask.cancel();
         protocolManager.removePacketListener(interactionListener);
         for (Player viewer : Bukkit.getOnlinePlayers()) clearViewer(viewer);
         skinExecutor.shutdownNow();
+    }
+
+    @EventHandler
+    public void onViewerJoin(PlayerJoinEvent event) {
+        viewerReadyAtTick.put(event.getPlayer().getUniqueId(),
+            (long) Bukkit.getCurrentTick() + VIEWER_LOGIN_SETTLE_TICKS);
+    }
+
+    @EventHandler
+    public void onViewerQuit(PlayerQuitEvent event) {
+        UUID viewerId = event.getPlayer().getUniqueId();
+        viewerReadyAtTick.remove(viewerId);
+        visibleByViewer.remove(viewerId);
+        interactableByViewer.remove(viewerId);
     }
 
     private void updateVisibleNpcs() {
@@ -137,6 +177,8 @@ final class PlayerNpcVisualManager {
             plugin.getConfig().getDouble("rpg.npc.player-model.view-distance-blocks", 48.0)));
         double viewDistanceSquared = viewDistance * viewDistance;
         for (Player viewer : Bukkit.getOnlinePlayers()) {
+            long readyAt = viewerReadyAtTick.getOrDefault(viewer.getUniqueId(), Long.MIN_VALUE);
+            if (Bukkit.getCurrentTick() < readyAt) continue;
             Map<String, FakeNpc> current = visibleByViewer.computeIfAbsent(viewer.getUniqueId(), ignored -> new ConcurrentHashMap<>());
             for (Map.Entry<String, FakeNpc> entry : List.copyOf(current.entrySet())) {
                 NpcVisual npc = byId.get(entry.getKey());
@@ -148,6 +190,7 @@ final class PlayerNpcVisualManager {
                 String profileKey = profileKey(npc.skinOwner());
                 FakeNpc old = current.get(npc.id());
                 if (old == null || !old.profileKey().equals(profileKey)
+                        || !Objects.equals(old.displayName(), npc.displayName())
                         || old.location().distanceSquared(npc.location()) > 0.01) {
                     if (old != null) remove(viewer, old);
                     spawn(viewer, npc, profileKey);
@@ -158,6 +201,21 @@ final class PlayerNpcVisualManager {
         }
         visibleByViewer.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
         interactableByViewer.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
+        viewerReadyAtTick.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
+    }
+
+    private void updateAnimatedNameplates() {
+        if (!playerModelAvailable || !plugin.getConfig().getBoolean("rpg.npc.player-model.enabled", true)) return;
+        long now = Bukkit.getCurrentTick();
+        for (Map.Entry<UUID, Map<String, FakeNpc>> viewerEntry : visibleByViewer.entrySet()) {
+            Player viewer = Bukkit.getPlayer(viewerEntry.getKey());
+            if (viewer == null || !viewer.isOnline()) continue;
+            for (FakeNpc fake : viewerEntry.getValue().values()) {
+                if (fake.nameplateEntityId() == 0 || !containsRainbow(fake.displayName())) continue;
+                long age = Math.max(0L, now - fake.animationStartedAtTick());
+                sendNameplateMetadata(viewer, fake.nameplateEntityId(), renderNpcName(fake.displayName(), age));
+            }
+        }
     }
 
     private boolean isVisibleTo(Player viewer, NpcVisual npc, double rangeSquared) {
@@ -255,8 +313,9 @@ final class PlayerNpcVisualManager {
 
     private void spawnPlayerEntity(Player viewer, NpcVisual npc, String profileKey) {
         UUID profileId = UUID.nameUUIDFromBytes((plugin.getName() + ":npc:" + npc.id()).getBytes(StandardCharsets.UTF_8));
-        String profileName = "vn" + Integer.toUnsignedString(npc.id().hashCode(), 36);
-        if (profileName.length() > 16) profileName = profileName.substring(0, 16);
+        // An empty profile name suppresses the client's plain white player nametag;
+        // the colored TextDisplay below renders the configured NPC name instead.
+        String profileName = "";
         WrappedGameProfile profile = new WrappedGameProfile(profileId, profileName);
         SkinProperty skin = npc.skinOwner() == null ? null : skinsByOwner.get(npc.skinOwner().toLowerCase(java.util.Locale.ROOT));
         if (skin != null) profile.getProperties().put("textures",
@@ -265,10 +324,9 @@ final class PlayerNpcVisualManager {
         int entityId = nextEntityId.getAndDecrement();
         if (entityId == Integer.MIN_VALUE) nextEntityId.compareAndSet(Integer.MIN_VALUE, -1);
         PacketContainer info = protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO);
-        info.getPlayerInfoActions().write(0, EnumSet.of(EnumWrappers.PlayerInfoAction.ADD_PLAYER));
+        info.getPlayerInfoActions().write(0, PLAYER_INFO_ADD_ACTIONS);
         info.getPlayerInfoDataLists().write(0, List.of(new PlayerInfoData(profileId, 0, false,
-            EnumWrappers.NativeGameMode.SURVIVAL, profile, WrappedChatComponent.fromLegacyText(npc.displayName()),
-            false, 0, null)));
+            EnumWrappers.NativeGameMode.SURVIVAL, profile, null)));
         if (!send(viewer, info)) return;
 
         Location location = npc.location();
@@ -286,25 +344,185 @@ final class PlayerNpcVisualManager {
             removePlayerInfo(viewer, profileId);
             return;
         }
-        PacketContainer metadata = protocolManager.createPacket(PacketType.Play.Server.ENTITY_METADATA);
-        metadata.getIntegers().write(0, entityId);
-        WrappedChatComponent customName = WrappedChatComponent.fromLegacyText(npc.displayName());
-        metadata.getDataValueCollectionModifier().write(0, List.of(
-            new WrappedDataValue(2, WrappedDataWatcher.Registry.getChatComponentSerializer(true),
-                java.util.Optional.of(customName.getHandle())),
-            new WrappedDataValue(3, WrappedDataWatcher.Registry.get(Boolean.class), true),
-            new WrappedDataValue(17, WrappedDataWatcher.Registry.get(Byte.class), (byte) 0x7f)));
-        if (!send(viewer, metadata)) {
-            destroy(viewer, entityId);
-            removePlayerInfo(viewer, profileId);
-            return;
-        }
-        FakeNpc fake = new FakeNpc(npc.id(), entityId, profileId, profileKey, location.clone(), location.getYaw());
+        // Do not send ENTITY_METADATA for the fake Player: some 26.x clients
+        // disconnect while decoding that packet. A separate TextDisplay uses the
+        // metadata schema already used by the NPC quest markers and preserves colors.
+        long animationStartedAtTick = Bukkit.getCurrentTick();
+        int nameplateId = spawnNameplate(viewer, npc, location);
+        FakeNpc fake = new FakeNpc(npc.id(), npc.displayName(), entityId, nameplateId, profileId,
+            profileKey, location.clone(), location.getYaw(), animationStartedAtTick);
         visibleByViewer.computeIfAbsent(viewer.getUniqueId(), ignored -> new ConcurrentHashMap<>()).put(npc.id(), fake);
         interactableByViewer.computeIfAbsent(viewer.getUniqueId(), ignored -> new ConcurrentHashMap<>()).put(entityId, npc.id());
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (viewer.isOnline()) removePlayerInfo(viewer, profileId);
         }, 40L);
+    }
+
+    private static String renderNpcName(String source, long ageTicks) {
+        String text = source == null ? "NPC" : source;
+        StringBuilder rendered = new StringBuilder(text.length() * 3);
+        FormatState format = new FormatState();
+        RainbowMode mode = null;
+        int segmentIndex = 0;
+        int segmentLength = 0;
+        for (int offset = 0; offset < text.length();) {
+            RainbowToken token = rainbowTokenAt(text, offset);
+            if (token != null) {
+                mode = token.mode();
+                offset += token.length();
+                segmentIndex = 0;
+                segmentLength = countSegmentCharacters(text, offset);
+                continue;
+            }
+            if (offset + 1 < text.length() && isLegacyMarker(text.charAt(offset))) {
+                ChatColor code = ChatColor.getByChar(Character.toLowerCase(text.charAt(offset + 1)));
+                if (code != null) {
+                    rendered.append(ChatColor.COLOR_CHAR).append(code.getChar());
+                    format.apply(code);
+                    offset += 2;
+                    continue;
+                }
+            }
+            int codePoint = text.codePointAt(offset);
+            if (mode == null) {
+                rendered.appendCodePoint(codePoint);
+            } else {
+                rendered.append(ChatColor.COLOR_CHAR).append(rainbowColor(mode, segmentIndex,
+                    segmentLength, ageTicks));
+                format.appendDecorations(rendered);
+                rendered.appendCodePoint(codePoint);
+                segmentIndex++;
+            }
+            offset += Character.charCount(codePoint);
+        }
+        return rendered.toString();
+    }
+
+    private static int countSegmentCharacters(String text, int start) {
+        int count = 0;
+        for (int offset = start; offset < text.length();) {
+            if (rainbowTokenAt(text, offset) != null) break;
+            if (offset + 1 < text.length() && isLegacyMarker(text.charAt(offset))
+                    && ChatColor.getByChar(Character.toLowerCase(text.charAt(offset + 1))) != null) {
+                offset += 2;
+                continue;
+            }
+            int codePoint = text.codePointAt(offset);
+            count++;
+            offset += Character.charCount(codePoint);
+        }
+        return count;
+    }
+
+    private static RainbowToken rainbowTokenAt(String text, int offset) {
+        if (offset + 2 >= text.length() || !isLegacyMarker(text.charAt(offset))
+                || Character.toLowerCase(text.charAt(offset + 1)) != 'r') return null;
+        char effect = Character.toLowerCase(text.charAt(offset + 2));
+        RainbowMode mode = switch (effect) {
+            case 'l' -> RainbowMode.LINE;
+            case '1' -> RainbowMode.LEFT_TO_RIGHT;
+            case '2' -> RainbowMode.RIGHT_TO_LEFT;
+            case '3' -> RainbowMode.CENTER_OUT;
+            default -> null;
+        };
+        if (mode == null) return null;
+        if (effect == 'l' && (offset + 3 >= text.length() || text.charAt(offset + 3) != ':')) return null;
+        boolean hasColon = offset + 3 < text.length() && text.charAt(offset + 3) == ':';
+        return new RainbowToken(mode, hasColon ? 4 : 3);
+    }
+
+    private static boolean containsRainbow(String text) {
+        if (text == null || text.isEmpty()) return false;
+        for (int offset = 0; offset < text.length();) {
+            RainbowToken token = rainbowTokenAt(text, offset);
+            if (token != null) return true;
+            int codePoint = text.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+        }
+        return false;
+    }
+
+    private static boolean isLegacyMarker(char value) {
+        return value == '&' || value == ChatColor.COLOR_CHAR;
+    }
+
+    private static char rainbowColor(RainbowMode mode, int index, int length, long ageTicks) {
+        long frame = ageTicks / 4L;
+        if (mode == RainbowMode.LINE) return RAINBOW_COLORS[(int) ((frame / 2L) % RAINBOW_COLORS.length)];
+        int delay = switch (mode) {
+            case LEFT_TO_RIGHT -> index;
+            case RIGHT_TO_LEFT -> Math.max(0, length - index - 1);
+            case CENTER_OUT -> Math.min(Math.abs(index - (length - 1) / 2), Math.abs(index - length / 2));
+            case LINE -> 0;
+        };
+        if (frame < delay) return RAINBOW_COLORS[0];
+        return RAINBOW_COLORS[(int) (((frame - delay) / 2L) % RAINBOW_COLORS.length)];
+    }
+
+    private enum RainbowMode { LINE, LEFT_TO_RIGHT, RIGHT_TO_LEFT, CENTER_OUT }
+    private record RainbowToken(RainbowMode mode, int length) { }
+
+    private static final class FormatState {
+        private boolean obfuscated;
+        private boolean bold;
+        private boolean strikethrough;
+        private boolean underlined;
+        private boolean italic;
+
+        private void apply(ChatColor code) {
+            if (code.isColor() || code == ChatColor.RESET) {
+                obfuscated = bold = strikethrough = underlined = italic = false;
+                return;
+            }
+            switch (code) {
+                case MAGIC -> obfuscated = true;
+                case BOLD -> bold = true;
+                case STRIKETHROUGH -> strikethrough = true;
+                case UNDERLINE -> underlined = true;
+                case ITALIC -> italic = true;
+                default -> { }
+            }
+        }
+
+        private void appendDecorations(StringBuilder output) {
+            if (obfuscated) output.append(ChatColor.MAGIC);
+            if (bold) output.append(ChatColor.BOLD);
+            if (strikethrough) output.append(ChatColor.STRIKETHROUGH);
+            if (underlined) output.append(ChatColor.UNDERLINE);
+            if (italic) output.append(ChatColor.ITALIC);
+        }
+    }
+
+    private int spawnNameplate(Player viewer, NpcVisual npc, Location location) {
+        int nameplateId = NEXT_NAMEPLATE_ENTITY_ID.getAndDecrement();
+        UUID nameplateUuid = UUID.randomUUID();
+        PacketContainer spawn = protocolManager.createPacket(PacketType.Play.Server.SPAWN_ENTITY);
+        spawn.getIntegers().write(0, nameplateId).write(1, 0);
+        spawn.getUUIDs().write(0, nameplateUuid);
+        spawn.getEntityTypeModifier().write(0, EntityType.TEXT_DISPLAY);
+        spawn.getDoubles().write(0, location.getX()).write(1, location.getY() + 1.95)
+            .write(2, location.getZ());
+        spawn.getBytes().write(0, (byte) 0).write(1, (byte) 0).write(2, (byte) 0);
+        spawn.getVectors().write(0, new Vector());
+        if (!send(viewer, spawn)) return 0;
+
+        String legacyName = renderNpcName(npc.displayName(), 0L);
+        if (sendNameplateMetadata(viewer, nameplateId, legacyName)) return nameplateId;
+        destroy(viewer, nameplateId);
+        return 0;
+    }
+
+    private boolean sendNameplateMetadata(Player viewer, int nameplateId, String legacyName) {
+        PacketContainer metadata = protocolManager.createPacket(PacketType.Play.Server.ENTITY_METADATA);
+        metadata.getIntegers().write(0, nameplateId);
+        metadata.getDataValueCollectionModifier().write(0, List.of(
+            new WrappedDataValue(15, BYTE_SERIALIZER, (byte) 3),
+            new WrappedDataValue(23, CHAT_COMPONENT_SERIALIZER,
+                WrappedChatComponent.fromLegacyText(legacyName).getHandle()),
+            new WrappedDataValue(25, INTEGER_SERIALIZER, 0),
+            new WrappedDataValue(26, BYTE_SERIALIZER, (byte) -1),
+            new WrappedDataValue(27, BYTE_SERIALIZER, (byte) 0)));
+        return send(viewer, metadata);
     }
 
     private void disablePlayerModels(RuntimeException failure) {
@@ -340,8 +558,7 @@ final class PlayerNpcVisualManager {
     }
 
     private void remove(Player viewer, FakeNpc fake) {
-        destroy(viewer, fake.entityId());
-        removePlayerInfo(viewer, fake.profileId());
+        destroy(viewer, fake);
         Map<String, FakeNpc> visible = visibleByViewer.get(viewer.getUniqueId());
         if (visible != null) visible.remove(fake.npcId(), fake);
         Map<Integer, String> ids = interactableByViewer.get(viewer.getUniqueId());
@@ -351,8 +568,7 @@ final class PlayerNpcVisualManager {
     private void clearViewer(Player viewer) {
         Map<String, FakeNpc> entries = visibleByViewer.remove(viewer.getUniqueId());
         if (entries != null) for (FakeNpc fake : List.copyOf(entries.values())) {
-            destroy(viewer, fake.entityId());
-            removePlayerInfo(viewer, fake.profileId());
+            destroy(viewer, fake);
         }
         interactableByViewer.remove(viewer.getUniqueId());
     }
@@ -363,6 +579,12 @@ final class PlayerNpcVisualManager {
         send(viewer, destroy);
     }
 
+    private void destroy(Player viewer, FakeNpc fake) {
+        destroy(viewer, fake.entityId());
+        if (fake.nameplateEntityId() != 0) destroy(viewer, fake.nameplateEntityId());
+        removePlayerInfo(viewer, fake.profileId());
+    }
+
     private void removePlayerInfo(Player viewer, UUID profileId) {
         PacketContainer packet = protocolManager.createPacket(PacketType.Play.Server.PLAYER_INFO_REMOVE);
         packet.getUUIDLists().write(0, List.of(profileId));
@@ -371,7 +593,8 @@ final class PlayerNpcVisualManager {
 
     private boolean send(Player viewer, PacketContainer packet) {
         try {
-            protocolManager.sendServerPacket(viewer, packet);
+            // Virtual NPC packets must bypass other plugins' listeners for real entities.
+            protocolManager.sendServerPacket(viewer, packet, false);
             return true;
         } catch (RuntimeException exception) {
             plugin.getLogger().warning("[NPC][PlayerModel] Packet send failed for viewer=" + viewer.getName()
@@ -395,8 +618,12 @@ final class PlayerNpcVisualManager {
 
     private record SkinProperty(String value, String signature) { }
 
-    private record FakeNpc(String npcId, int entityId, UUID profileId, String profileKey,
-                           Location location, float yaw) {
-        private FakeNpc withYaw(float nextYaw) { return new FakeNpc(npcId, entityId, profileId, profileKey, location, nextYaw); }
+    private record FakeNpc(String npcId, String displayName, int entityId, int nameplateEntityId,
+                           UUID profileId, String profileKey, Location location, float yaw,
+                           long animationStartedAtTick) {
+        private FakeNpc withYaw(float nextYaw) {
+            return new FakeNpc(npcId, displayName, entityId, nameplateEntityId, profileId, profileKey,
+                location, nextYaw, animationStartedAtTick);
+        }
     }
 }

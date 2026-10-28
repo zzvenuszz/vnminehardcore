@@ -1,3 +1,44 @@
+## Chọn tham chiếu đã lưu bằng GUI — yêu cầu 2026-10-28
+
+- [x] Trình sửa quest tải NPC đã lưu để chọn NPC giao quest, NPC mục tiêu và NPC của bước đầu; giữ lại nhập chat cho dữ liệu mới như tên quest, số lượng, loại entity và ID mới.
+- [x] Thêm GUI chọn boss từ cấu hình boss hiện có trước khi nhập số lần hạ.
+- [x] Quản lý race tải các quest đang bật để admin bấm gán quest tự giao sau khi chọn race; hỗ trợ phân trang và bỏ gán.
+- [x] Kiểm tra lại tham chiếu khi lưu để tránh dùng NPC/quest đã bị xóa hoặc vô hiệu hóa trong lúc GUI đang mở.
+- [x] Tăng version source lên 2.36.6; ghi nhận thay đổi trong README/CHANGELOG.
+- [x] Build JAR 2.36.6 bằng Java 25 (`mvn -DskipTests package`) lúc `2026-10-28 15:12 UTC`; SHA-256 `6116149fa9dd4d795aca7fd9b34b03c606d8fe919c1224cf122615a425c529c2`. Xác minh SQLite native Linux x86_64/AArch64; test suite bỏ qua.
+- [x] Backup 2.36.5 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.5.jar`, cài 2.36.6 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.6.jar`; checksum khớp và chỉ còn một JAR plugin ở thư mục gốc.
+- [ ] Kiểm thử trong game: gán NPC giao quest, thêm NPC objective, chọn NPC bước đầu, thêm boss objective, gán/bỏ quest tự giao cho race.
+
+## Animation rainbow cho tên NPC — yêu cầu 2026-10-28
+
+- [x] Thêm `&rl:`/`§rl:`: toàn đoạn đổi đồng màu; `&r1:`/`§r1:`: từng ký tự bắt đầu đổi màu từ trái sang phải; `&r2:`: từ phải sang trái; `&r3:`: bắt đầu ở giữa rồi lan ra hai phía. `r1`–`r3` nhận cả dạng rút gọn không có `:`, như `&r3123456`.
+- [x] Hiệu ứng chạy lặp vô hạn, bảng màu cầu vồng 7 màu; nhiều đoạn được tạo bằng cách mở một mã hiệu ứng mới. Đoạn hiệu ứng kết thúc tại mã rainbow kế tiếp hoặc hết tên.
+- [x] Giữ màu/format legacy trong tên, xử lý mã hiệu ứng trước `&r` reset. Cập nhật gợi ý trong GUI edit NPC và tài liệu README.
+- [x] Chỉ cập nhật TextDisplay mỗi 4 tick cho NPC có animation, đang trong phạm vi viewer; không gửi animation packet cho tên tĩnh.
+- [x] Tăng version source lên 2.36.5.
+- [x] Build JAR 2.36.5 bằng Java 25 (`mvn -DskipTests package`) lúc `2026-10-28 14:28:04 UTC`; 3.024.962 bytes, SHA-256 `89852b2b8cf7f8e1df1116543094137219493eba4fc72c2ef278c98ae612d191`. Xác minh SQLite native Linux x86_64/AArch64; test suite bỏ qua.
+- [x] Backup 2.36.4 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.4.jar`, cài 2.36.5 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.5.jar`; checksum khớp artifact và thư mục plugin chỉ còn một JAR VnMineHardcore.
+- [ ] Gameplay test: thử cả bốn mã, màu/format đi kèm, nhiều đoạn trong một tên, rút gọn `&r3123456`, đổi tên/di chuyển NPC và ngắt kết nối viewer; kiểm tra tải packet khi đông NPC.
+
+## Khôi phục tên/màu NPC player sau sửa protocol — phản hồi 2026-10-28
+
+- Sau bản 2.36.3, NPC không còn gây ngắt kết nối nhưng `&4Welcome` hiện thành `Welcome_3e2s` màu trắng vì tên được lấy từ profile của fake-player.
+- [x] Ẩn profile name của fake-player; tạo nhãn TextDisplay riêng từ tên NPC đã parse mã màu legacy `&`, giữ nguyên tên và màu.
+- [x] Dọn TextDisplay khi NPC rời phạm vi, đổi world hoặc viewer thoát; không gửi lại `ENTITY_METADATA` cho entity Player.
+- [x] Tăng phiên bản source lên 2.36.4; cập nhật README/CHANGELOG.
+- [x] Build JAR 2.36.4 bằng Java 25 (`mvn -DskipTests package`) lúc `2026-10-28 14:04:56 UTC`; 3.018.268 bytes, SHA-256 `dc2fd884855a3d83227c932b93c2d446ff6e5bc9e15652b78b50b919b1df706b`. Đã xác minh native SQLite Linux x86_64/AArch64; test suite bỏ qua.
+- [x] Backup 2.36.3 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.3.jar`, cài 2.36.4 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.4.jar`; checksum khớp và chỉ còn một JAR plugin ở cấp thư mục.
+- [ ] Gameplay test Paper 26.3: `&4Welcome` hiển thị đỏ sẫm, các màu/format khác giữ đúng; đăng nhập không bị disconnect.
+
+## Sửa disconnect sau khi NPC player xuất hiện — phản hồi test 2026-10-28
+
+- Người chơi kết nối được, thấy NPC thoáng qua dưới dạng player, rồi client báo lỗi giao thức và ngắt. Server chỉ ghi `lost connection: Disconnected`, không có decoder stack trace; thời điểm lỗi trùng lúc packet fake-player được gửi.
+- [x] Bỏ `ENTITY_METADATA` tạo bằng chỉ số hard-code để tránh gói metadata không tương thích client 26.3. Player dùng metadata mặc định; tên NPC được làm sạch thành profile name hợp lệ (tối đa 16 ký tự).
+- [x] Tăng phiên bản source lên 2.36.3; cập nhật CHANGELOG/README.
+- [x] Build JAR 2.36.3 bằng Java 25 (`mvn -DskipTests package`) lúc `2026-10-28 13:57:25 UTC`; 3.017.703 bytes, SHA-256 `3f3e292db72eadf3683f70253f92e02996de703fd5309befc304ddbdc9d6d012`. Xác minh JAR chứa SQLite native Linux x86_64 và AArch64; test suite được bỏ qua.
+- [x] Sao lưu 2.36.2 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.2.jar`, cài 2.36.3 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.3.jar`; checksum cài khớp artifact và thư mục plugin chỉ còn một JAR VnMineHardcore.
+- [ ] Chưa thể xác nhận hết disconnect khi chưa có client log hoặc lần thử sau khi cài bản sửa. Nếu còn lỗi, cần `logs/latest.log` cùng `logs/debug.log` phía client tại thời điểm disconnect.
+
 # Kế hoạch hoàn thiện VnMineHardcore: RPG, VNCOIN và vận hành server
 
 ## Schema Build cho admin — yêu cầu 2026-10-28
@@ -899,3 +940,13 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Sao lưu 2.36.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.0.jar`, cài 2.36.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.1.jar`; checksum khớp và chỉ còn một JAR VnMineHardcore trong thư mục plugin.
 - [x] Commit `28389a6` đã push lên `origin/main`.
 - [ ] Chưa gameplay test. Khởi động lại server để nạp bản sửa, sau đó xác nhận NPC/skin `Notch` cùng log không còn lặp packet exception.
+
+## Sửa client ngắt kết nối khi nhận packet NPC — log 2026-10-28
+
+- Server log 2.36.1 ghi nhận người chơi xác thực và vào `world_start`, rồi `lost connection: Disconnected` ngay sau đó; không có stack trace server-side. Skin `notch` tải thành công sau lúc client ngắt.
+- [x] Cập nhật `PLAYER_INFO` với đủ action cho profile player hiện đại; tên hiển thị tiếp tục đặt qua metadata thực thể.
+- [x] Gửi packet thực thể NPC ảo không kích hoạt packet listener cho entity thật; chờ 40 tick sau `PlayerJoinEvent` trước khi gửi packet NPC.
+- [x] Tăng phiên bản source lên 2.36.2.
+- [x] Build JAR 2.36.2 bằng Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 13:50:30 UTC`; 3.017.729 bytes, SHA-256 `55ee211f91279c2e7ee54d5596a47c7a6edcd6c2e5364c236d67676177a771e2`. Đã xác minh SQLite native Linux x86_64 và AArch64; test suite bỏ qua.
+- [x] Sao lưu 2.36.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.1.jar`, cài 2.36.2 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.2.jar`; checksum khớp artifact và chỉ còn một JAR VnMineHardcore.
+- [ ] Chưa xác minh client protocol trên Paper; restart server rồi thử đăng nhập. Nếu vẫn ngắt, cần lấy log client Minecraft để xác định decoder exception cụ thể.

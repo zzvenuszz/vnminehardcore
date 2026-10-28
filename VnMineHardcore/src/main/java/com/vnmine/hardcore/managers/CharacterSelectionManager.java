@@ -31,7 +31,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
@@ -72,7 +71,6 @@ public final class CharacterSelectionManager implements Listener {
     private final Map<String, Integer> promotionRpgItemAmountByClass = new LinkedHashMap<>();
     private final Map<String, String> starterBookMappings = new LinkedHashMap<>();
     private final Map<String, String> raceOnboardingQuestIds = new LinkedHashMap<>();
-    private final Map<UUID, String> pendingRaceQuestInputs = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
     private final Set<UUID> profileLookupComplete = new java.util.HashSet<>();
     private final Set<UUID> pendingProfileCreates = new java.util.HashSet<>();
@@ -374,7 +372,24 @@ public final class CharacterSelectionManager implements Listener {
                 if (plugin.getMercenaryManager() != null) plugin.getMercenaryManager().openAdminMenu(player);
             } else {
                 String raceId = holder.choices.get(slot);
-                if (raceId != null) promptRaceQuest(player, raceId);
+                if (raceId != null) openRaceQuestChoices(player, raceId, 0);
+            }
+            return;
+        }
+
+        if ("race-quest-choices".equals(holder.type)) {
+            if (!player.hasPermission("vnmine.command.race.admin")) {
+                player.sendMessage("§cBạn không có quyền quản lý race.");
+                return;
+            }
+            if (slot == 49) openRaceAdminMenu(player);
+            else if (slot == 45) saveRaceQuestSelection(player, holder.raceId, null);
+            else if (slot == 46 && holder.page > 0)
+                openRaceQuestChoices(player, holder.raceId, holder.page - 1);
+            else if (slot == 50) openRaceQuestChoices(player, holder.raceId, holder.page + 1);
+            else {
+                String questId = holder.choices.get(slot);
+                if (questId != null) saveRaceQuestSelection(player, holder.raceId, questId);
             }
             return;
         }
@@ -486,18 +501,7 @@ public final class CharacterSelectionManager implements Listener {
         loadedProfiles.remove(playerId);
         profileLookupComplete.remove(playerId);
         lastCrossWorldHintTick.remove(playerId);
-        pendingRaceQuestInputs.remove(playerId);
         pendingStartNpcInteractions.remove(playerId);
-    }
-
-    @EventHandler
-    public void onRaceAdminChat(AsyncPlayerChatEvent event) {
-        String raceId = pendingRaceQuestInputs.remove(event.getPlayer().getUniqueId());
-        if (raceId == null) return;
-        event.setCancelled(true);
-        String input = event.getMessage().trim();
-        Player player = event.getPlayer();
-        Bukkit.getScheduler().runTask(plugin, () -> saveRaceQuestInput(player, raceId, input));
     }
 
     public Optional<PlayerProfileDatabaseManager.PlayerProfile> getLoadedProfile(UUID playerId) {
@@ -1060,43 +1064,55 @@ public final class CharacterSelectionManager implements Listener {
             inventory.setItem(slot, createActionItem(race.material(), "§d" + race.name(), List.of(
                 "§7Race ID: §f" + race.id(), "§7Quest sau khi tạo nhân vật: §e" + questTitle,
                 "§7Quest ID: §f" + (questId == null ? "(chưa gán)" : questId),
-                "§eNhấn để nhập quest ID.")));
+                "§eNhấn để chọn quest đã lưu.")));
         }
         inventory.setItem(49, createActionItem(Material.ARROW, "§7Quay lại Admin", List.of()));
         player.openInventory(inventory);
     }
 
-    private void promptRaceQuest(Player player, String raceId) {
+    private void openRaceQuestChoices(Player player, String raceId, int requestedPage) {
         RaceDefinition race = races.get(raceId);
-        if (race == null) return;
-        pendingRaceQuestInputs.put(player.getUniqueId(), raceId);
-        player.closeInventory();
-        List<String> examples = plugin.getQuestCatalogManager() == null ? List.of()
-            : plugin.getQuestCatalogManager().getEnabledQuestIds();
-        String example = examples.isEmpty() ? "quest-id-da-bat" : examples.get(0);
-        player.sendMessage("§6[Quản lý race] §eNhập §fID quest tự giao §echo chủng tộc §d" + race.name()
-            + "§e. Ví dụ hợp lệ: §f" + example + "§e. Quest phải đang bật.");
-        player.sendMessage("§7Gõ §c!clear §7để bỏ quest, §c!cancel §7để hủy và quay lại menu.");
+        if (race == null || plugin.getQuestCatalogManager() == null) return;
+        List<String> quests = plugin.getQuestCatalogManager().getEnabledQuestIds();
+        int pageCount = Math.max(1, (quests.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(),
+            "race-quest-choices", raceId, null, new HashMap<>(), page);
+        Inventory inventory = Bukkit.createInventory(holder, 54, "Quest tự giao • " + race.name());
+        holder.inventory = inventory;
+        String current = raceOnboardingQuestIds.get(raceId);
+        for (int index = 0; index < 45; index++) {
+            int choiceIndex = page * 45 + index;
+            if (choiceIndex >= quests.size()) break;
+            String questId = quests.get(choiceIndex);
+            String title = plugin.getQuestCatalogManager().getQuestTitle(questId);
+            holder.choices.put(index, questId);
+            inventory.setItem(index, createActionItem(Material.BOOK,
+                (questId.equals(current) ? "§a✓ " : "§f") + title,
+                List.of("§7Quest ID: §f" + questId,
+                    questId.equals(current) ? "§aĐang được gán" : "§eNhấn để chọn.")));
+        }
+        inventory.setItem(45, createActionItem(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
+        if (page > 0) inventory.setItem(46, createActionItem(Material.ARROW, "§eTrang trước", List.of()));
+        inventory.setItem(48, createActionItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
+            List.of("§7Quest đang bật: " + quests.size())));
+        inventory.setItem(49, createActionItem(Material.ARROW, "§eQuay lại danh sách race", List.of()));
+        if (page + 1 < pageCount) inventory.setItem(50, createActionItem(Material.ARROW, "§eTrang sau", List.of()));
+        if (quests.isEmpty()) inventory.setItem(22, createActionItem(Material.BARRIER,
+            "§cKhông có quest đang bật", List.of("§7Bật hoặc tạo quest trước trong /vnquest admin.")));
+        player.openInventory(inventory);
     }
 
-    private void saveRaceQuestInput(Player player, String raceId, String input) {
+    private void saveRaceQuestSelection(Player player, String raceId, String questId) {
         if (!player.isOnline()) return;
         if (!player.hasPermission("vnmine.command.race.admin")) {
             player.sendMessage("§cBạn không còn quyền quản lý race.");
             return;
         }
-        if ("!cancel".equalsIgnoreCase(input)) {
-            player.sendMessage("§eĐã hủy; cấu hình race không thay đổi.");
-            openRaceAdminMenu(player);
-            return;
-        }
-        String questId = "!clear".equalsIgnoreCase(input) || input.isBlank() ? null : input.toLowerCase(java.util.Locale.ROOT);
         if (questId != null && (plugin.getQuestCatalogManager() == null
                 || !plugin.getQuestCatalogManager().isEnabledQuest(questId))) {
-            player.sendMessage("§cQuest không tồn tại hoặc đang tắt. Hãy nhập ID quest đang bật, ví dụ: §f"
-                + (plugin.getQuestCatalogManager() == null
-                    ? "quest-id-da-bat" : plugin.getQuestCatalogManager().getEnabledQuestIds().stream().findFirst().orElse("quest-id-da-bat")));
-            openRaceAdminMenu(player);
+            player.sendMessage("§cQuest không còn tồn tại hoặc đã bị tắt. Hãy chọn lại.");
+            openRaceQuestChoices(player, raceId, 0);
             return;
         }
         String previous = raceOnboardingQuestIds.get(raceId);
@@ -1954,15 +1970,22 @@ public final class CharacterSelectionManager implements Listener {
         private final String raceId;
         private final String classId;
         private final Map<Integer, String> choices;
+        private final int page;
         private Inventory inventory;
 
         private CharacterMenuHolder(UUID viewer, String type, String raceId, String classId,
                                     Map<Integer, String> choices) {
+            this(viewer, type, raceId, classId, choices, 0);
+        }
+
+        private CharacterMenuHolder(UUID viewer, String type, String raceId, String classId,
+                                    Map<Integer, String> choices, int page) {
             this.viewer = viewer;
             this.type = type;
             this.raceId = raceId;
             this.classId = classId;
             this.choices = choices;
+            this.page = page;
         }
 
         @Override

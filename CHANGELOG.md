@@ -1,5 +1,42 @@
 # Changelog
 
+## [v2.36.6] - 2026-10-28
+
+- Trong trình sửa quest, chọn NPC giao nhiệm vụ, NPC mục tiêu và NPC bước đầu bằng GUI tải từ danh sách NPC đã lưu; chọn boss mục tiêu từ danh sách boss đã cấu hình.
+- Trong quản lý race, chọn quest tự giao bằng GUI phân trang từ danh sách quest đang bật, có thể bỏ lựa chọn; không cần nhập ID quest.
+- NPC, quest hoặc boss đã xóa trong lúc GUI đang mở sẽ được kiểm tra lại trước khi lưu; trường tên, ID mới và số lượng vẫn nhập chat khi cần tạo giá trị mới.
+- Build bằng Java 25 (`mvn -DskipTests package`); SHA-256 `6116149fa9dd4d795aca7fd9b34b03c606d8fe919c1224cf122615a425c529c2`. Đã xác minh SQLite native Linux x86_64/AArch64; test suite bỏ qua.
+- Backup 2.36.5 trong `plugins/.old-builds/`, cài 2.36.6 trong `plugins/`; checksum artifact và file cài khớp.
+
+## [v2.36.5] - 2026-10-28
+
+- Thêm tên NPC rainbow lặp vô hạn: `&rl:` cả đoạn đổi cùng màu; `&r1:` wave trái→phải; `&r2:` phải→trái; `&r3:` từ giữa ra hai bên. Mã `r1`–`r3` hỗ trợ không có dấu `:` như `&r3123456`.
+- Các animation chỉ gửi cập nhật TextDisplay cho NPC đang được viewer nhìn thấy, mỗi 4 tick; định dạng legacy màu/đậm/nghiêng/gạch/obfuscated được giữ lại.
+- Build JAR Java 25 bằng `mvn -DskipTests package` lúc `2026-10-28 14:28:04 UTC`; 3.024.962 bytes, SHA-256 `89852b2b8cf7f8e1df1116543094137219493eba4fc72c2ef278c98ae612d191`.
+- Backup 2.36.4 vào `plugins/.old-builds/`, cài 2.36.5 vào `plugins/`; checksum khớp và chỉ còn một JAR VnMineHardcore ở thư mục plugin.
+
+## [v2.36.4] - 2026-10-28
+
+- Giữ nguyên màu tên NPC như `&4Welcome`: dùng TextDisplay tên có màu, ẩn profile name trắng của fake-player.
+- Không khôi phục metadata hard-code trên entity Player để tránh lặp lỗi ngắt kết nối giao thức.
+- Build JAR Java 25 bằng `mvn -DskipTests package` lúc `2026-10-28 14:04:56 UTC`; 3.018.268 bytes, SHA-256 `dc2fd884855a3d83227c932b93c2d446ff6e5bc9e15652b78b50b919b1df706b`.
+- Backup 2.36.3 vào `plugins/.old-builds/`, cài 2.36.4 vào `plugins/`; checksum khớp, chỉ còn một JAR VnMineHardcore tại thư mục plugin.
+
+## [v2.36.3] - 2026-10-28
+
+- Sửa client ngắt kết nối ngay sau khi fake-player NPC xuất hiện: bỏ gói `ENTITY_METADATA` với các chỉ số hard-code trên Minecraft 26.3; player dùng metadata mặc định của client.
+- Chuyển nhãn NPC sang tên profile đã làm sạch, hợp lệ tối đa 16 ký tự để vẫn có tên trên mô hình player.
+- Build JAR Java 25 bằng `mvn -DskipTests package` lúc `2026-10-28 13:57:25 UTC`; 3.017.703 bytes, SHA-256 `3f3e292db72eadf3683f70253f92e02996de703fd5309befc304ddbdc9d6d012`.
+- Đã backup 2.36.2 vào `plugins/.old-builds/`, cài 2.36.3 vào `plugins/`; checksum khớp, chỉ còn một JAR VnMineHardcore trong thư mục plugin. Chưa xác minh gameplay client trên Paper; cần restart server và thử đăng nhập lại.
+
+## [v2.36.2] - 2026-10-28
+
+- Hoàn thiện gói `PLAYER_INFO` cho fake player theo giao thức hiện đại, dùng các action Add/Listed/Latency/GameMode/DisplayName; tên hiển thị tiếp tục đặt qua entity metadata.
+- Gửi packet NPC ảo bỏ qua listener xử lý packet của entity thật để tránh bị listener khác thay đổi payload.
+- Trì hoãn hiển thị packet NPC 2 giây sau khi người chơi vào server để tránh chen packet ảo vào pha đồng bộ đăng nhập.
+- Build JAR Java 25 bằng `mvn -DskipTests package` lúc `2026-10-28 13:50:30 UTC`; 3.017.729 bytes, SHA-256 `55ee211f91279c2e7ee54d5596a47c7a6edcd6c2e5364c236d67676177a771e2`. JAR chứa SQLite native Linux x86_64 và AArch64; test suite bỏ qua.
+- Đã backup 2.36.1 vào `plugins/.old-builds/`, cài 2.36.2 vào `plugins/`; checksum khớp, chỉ còn một JAR VnMineHardcore trong thư mục plugin. Chưa Paper gameplay test.
+
 ## [v2.36.1] - 2026-10-28
 
 - Sửa packet spawn fake player cho Paper 26.3: dùng `SPAWN_ENTITY` với entity type `PLAYER` và đúng thứ tự yaw/pitch/head-yaw; tránh packet `NAMED_ENTITY_SPAWN` không được ProtocolLib ánh xạ.

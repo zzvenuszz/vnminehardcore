@@ -112,12 +112,13 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 
 ### Quest, NPC và merchant
 
-- `/vnquest admin`: tạo, sửa, vô hiệu hóa, xóa quest; đặt điều kiện mở/hoàn thành, reward, repeat limit và quest nối tiếp.
+- `/vnquest admin`: tạo, sửa, vô hiệu hóa, xóa quest; đặt điều kiện mở/hoàn thành, reward, repeat limit và quest nối tiếp. NPC giao quest, NPC objective, boss objective và quest tự giao theo race được chọn từ danh sách GUI đã lưu; chat chỉ dùng cho giá trị cần tạo mới như tên quest hoặc số lượng.
 - `/vnquestdialog admin`: tạo hội thoại cho trạng thái quest.
 - `/vnnpc create <id> <type>` và `/vnnpc edit <id>`: tạo/chỉnh NPC; shift + chuột phải mở editor theo loại NPC.
 - NPC được hiển thị như người chơi; trong editor chọn **Cấu hình skin Player**, nhập username Minecraft Java, ví dụ `Notch`. Hệ thống lấy skin theo tài khoản Mojang; nhập `!default` để bỏ skin tùy chỉnh. Skin tải ở nền, được cache tới khi server tắt và tự thử lại sau timeout.
 - “Player” là kiểu hiển thị. Loại chức năng của NPC vẫn là `merchant`, `quest-giver`, `story` hoặc `tutorial`; các luồng tương tác hiện tại tiếp tục hoạt động.
-- Tên NPC, nội dung `/vntext` và chữ ghi lên bảng hiệu hỗ trợ mã màu/format legacy như `&6` (vàng), `&l` (đậm), `&o` (nghiêng), `&r` (đặt lại); ví dụ tên `Thợ săn &6Cổ đại`.
+- Player model được gửi sau khi người chơi vào server ổn định; packet NPC ảo không đi qua listener của entity thật. Tên NPC có màu/format được hiển thị bằng TextDisplay riêng; tên mặc định của fake-player được để trống để không lộ profile name.
+- Nội dung `/vntext`, chữ ghi lên bảng hiệu và tên NPC hỗ trợ mã màu/format legacy như `&6` (vàng), `&l` (đậm), `&o` (nghiêng), `&r` (đặt lại). Tên NPC có animation lặp vô hạn: `&rl:` (cả đoạn cùng màu), `&r1:` (trái sang phải), `&r2:` (phải sang trái), `&r3:` (từ giữa ra hai bên); `&r1`–`&r3` cũng nhận dạng khi bỏ dấu `:`. Hiệu ứng tác động từ mã đó đến mã rainbow kế tiếp hoặc hết tên.
 - NPC tự xoay về người chơi gần nhất cùng world trong tầm `rpg.npc.look-at.range-blocks`; tắt bằng `rpg.npc.look-at.enabled`.
 - Mô hình player và khoảng cách gửi tới người chơi được chỉnh trong `rpg.npc.player-model`; cần cài ProtocolLib (đã là dependency bắt buộc).
 - Merchant editor cho phép đặt item RPG và cấu hình lượng/giá bằng nút tăng giảm.

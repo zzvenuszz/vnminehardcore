@@ -349,7 +349,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         menu.setItem(4, createDialogueItem(Material.VILLAGER_SPAWN_EGG, "§e" + npc.displayName(), List.of(
             "§7ID cố định: §f" + npc.id(), "§7Loại: §b" + npc.type())));
         menu.setItem(10, createDialogueItem(Material.NAME_TAG, "§eĐổi tên hiển thị", List.of(
-            "§7Hiện tại: §f" + npc.displayName(), "§7Tối đa 64 ký tự; hỗ trợ mã màu &.")));
+            "§7Hiện tại: §f" + npc.displayName(), "§7Tối đa 64 ký tự; màu & format dùng & hoặc §.",
+            "§bRainbow: &rl: cùng màu; &r1: trái→phải; &r2: phải→trái;",
+            "§b&r3: từ giữa ra hai bên. Hiệu ứng kéo dài tới mã rainbow kế tiếp/hết tên.")));
         menu.setItem(12, createDialogueItem(Material.WRITABLE_BOOK, "§eĐổi loại NPC", List.of(
             "§7Hiện tại: §f" + npc.type(), "§7Nhập một loại được liệt kê trong prompt chat.")));
         menu.setItem(14, createDialogueItem(Material.COMPASS, "§bDi chuyển tới vị trí hiện tại", List.of(
