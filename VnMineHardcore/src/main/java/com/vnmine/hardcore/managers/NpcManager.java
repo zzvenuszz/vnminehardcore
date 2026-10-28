@@ -41,6 +41,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityCombustEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityTransformEvent;
+import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.ClickType;
@@ -56,6 +57,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.Material;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.scheduler.BukkitTask;
 import org.yaml.snakeyaml.error.YAMLException;
 
 public final class NpcManager implements Listener, CommandExecutor, TabCompleter {
@@ -70,6 +72,8 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     private final NamespacedKey classVisitedNpcsKey;
     private final Map<String, NpcDefinitionLoader.NpcDefinition> definitions;
     private final Map<String, NpcRecord> npcs = new LinkedHashMap<>();
+    private final BukkitTask lookAtTask;
+    private final PlayerNpcVisualManager playerNpcVisualManager;
     private final Map<String, LinkedHashMap<Integer, MerchantListing>> merchantListings = new LinkedHashMap<>();
     private final Map<String, LinkedHashMap<Integer, MerchantBuyOrder>> merchantBuyOrders = new LinkedHashMap<>();
     private final Map<UUID, PendingNpcInput> pendingNpcInputs = new ConcurrentHashMap<>();
@@ -87,6 +91,73 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         loadNpcs();
         if (!storageFile.isFile()) saveNpcs();
         reconcileLoadedNpcs();
+        this.lookAtTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateNpcFacing, 1L, 10L);
+        this.playerNpcVisualManager = new PlayerNpcVisualManager(plugin, this);
+    }
+
+    public void shutdown() {
+        lookAtTask.cancel();
+        playerNpcVisualManager.shutdown();
+    }
+
+    List<PlayerNpcVisualManager.NpcVisual> getPlayerVisuals() {
+        List<PlayerNpcVisualManager.NpcVisual> result = new ArrayList<>(npcs.size());
+        for (NpcRecord npc : npcs.values()) {
+            World world = Bukkit.getWorld(npc.world());
+            if (world == null) continue;
+            Location location = toLocation(npc, world);
+            Entity entity = Bukkit.getEntity(npc.entityId());
+            if (entity != null && entity.isValid()) location.setYaw(entity.getLocation().getYaw());
+            result.add(new PlayerNpcVisualManager.NpcVisual(npc.id(), npc.displayName(), npc.skinOwner(), location));
+        }
+        return List.copyOf(result);
+    }
+
+    void handlePlayerNpcInteract(Player player, String npcId) {
+        handleNpcInteraction(player, npcId);
+    }
+
+    UUID entityIdFor(String npcId) {
+        NpcRecord npc = npcs.get(npcId);
+        return npc == null ? null : npc.entityId();
+    }
+
+    private void updateNpcFacing() {
+        if (!plugin.getConfig().getBoolean("rpg.npc.look-at.enabled", true)) return;
+        double range = Math.max(1.0, Math.min(64.0,
+            plugin.getConfig().getDouble("rpg.npc.look-at.range-blocks", 16.0)));
+        double rangeSquared = range * range;
+        for (NpcRecord record : npcs.values()) {
+            Entity entity = Bukkit.getEntity(record.entityId());
+            if (!(entity instanceof Villager villager) || !villager.isValid() || villager.isDead()) continue;
+            Location eye = villager.getEyeLocation();
+            Player nearest = null;
+            double nearestDistanceSquared = rangeSquared;
+            for (Player player : eye.getWorld().getPlayers()) {
+                if (!player.isOnline() || player.isDead()) continue;
+                Location target = player.getEyeLocation();
+                double dx = target.getX() - eye.getX();
+                double dy = target.getY() - eye.getY();
+                double dz = target.getZ() - eye.getZ();
+                double distanceSquared = dx * dx + dy * dy + dz * dz;
+                if (distanceSquared < nearestDistanceSquared) {
+                    nearestDistanceSquared = distanceSquared;
+                    nearest = player;
+                }
+            }
+            if (nearest == null) continue;
+            Location target = nearest.getEyeLocation();
+            double dx = target.getX() - eye.getX();
+            double dz = target.getZ() - eye.getZ();
+            float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+            Location current = villager.getLocation();
+            float yawDelta = Math.abs(((current.getYaw() - yaw + 540.0f) % 360.0f) - 180.0f);
+            float bodyYawDelta = Math.abs(((villager.getBodyYaw() - yaw + 540.0f) % 360.0f) - 180.0f);
+            if (yawDelta > 1.0f || bodyYawDelta > 1.0f) {
+                villager.setRotation(yaw, 0.0f);
+                villager.setBodyYaw(yaw);
+            }
+        }
     }
 
     public boolean isManagedNpc(Entity entity) {
@@ -286,6 +357,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 + formatCoordinate(npc.y()) + ", " + formatCoordinate(npc.z()), "§eNhấn để di chuyển NPC.")));
         menu.setItem(16, createDialogueItem(Material.REDSTONE, "§cXóa NPC", List.of(
             "§7Sẽ xóa thực thể NPC và dữ liệu shop liên quan.", "§eNhấn để xác nhận.")));
+        menu.setItem(22, createDialogueItem(Material.PLAYER_HEAD, "§bCấu hình skin Player", List.of(
+            "§7Skin account: §f" + (npc.skinOwner() == null ? "mặc định" : npc.skinOwner()),
+            "§7Nhập username Minecraft Java để lấy skin.", "§eNhấn để nhập; !default để bỏ skin riêng.")));
         if (npc.type().equals("story")) {
             String chapterId = npc.storyChapterId() == null ? "(chưa chọn)" : npc.storyChapterId();
             menu.setItem(18, createDialogueItem(Material.WRITTEN_BOOK, "§dChọn chapter cốt truyện", List.of(
@@ -402,6 +476,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         if (slot == 49) openNpcList(player, holder.page);
         else if (slot == 10) promptNpc(player, new PendingNpcInput(NpcTextField.RENAME, holder.npcId, holder.page, ""));
         else if (slot == 12) promptNpc(player, new PendingNpcInput(NpcTextField.CHANGE_TYPE, holder.npcId, holder.page, ""));
+        else if (slot == 22) promptNpc(player, new PendingNpcInput(NpcTextField.SKIN, holder.npcId, holder.page, ""));
         else if (slot == 14) {
             try {
                 moveNpc(player, new String[]{"move", holder.npcId});
@@ -447,6 +522,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             case CREATE_TYPE, CHANGE_TYPE -> "§eHãy nhập §floại NPC§e. Ví dụ: §fquest-giver§e. Hợp lệ: §f"
                 + String.join(", ", NpcDefinitionLoader.supportedTypes().stream().sorted().toList());
             case CREATE_NAME, RENAME -> "§eHãy nhập §ftên NPC§e (1-64 ký tự, hỗ trợ màu &), ví dụ: §fThợ săn &6Cổ đại";
+            case SKIN -> "§eHãy nhập §fusername Minecraft Java§e để dùng skin, ví dụ: §fNotch§e; nhập §f!default§e để bỏ skin riêng.";
         };
         player.closeInventory();
         player.sendMessage("§6[Quản lý NPC] " + instruction);
@@ -506,6 +582,31 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                         return;
                     }
                     renameNpc(player, new String[]{"rename", input.npcId(), text});
+                    openNpcEditor(player, input.npcId(), input.page());
+                }
+                case SKIN -> {
+                    String skinOwner = text.equalsIgnoreCase("!default") ? null : text;
+                    if (skinOwner != null && !isValidSkinOwner(skinOwner)) {
+                        player.sendMessage("§cUsername skin phải dài 3-16 ký tự, chỉ gồm chữ, số hoặc gạch dưới; ví dụ: §fNotch§c.");
+                        promptNpc(player, input);
+                        return;
+                    }
+                    NpcRecord current = npcs.get(input.npcId());
+                    if (current == null) {
+                        openNpcList(player, input.page());
+                        return;
+                    }
+                    NpcRecord updated = current.withSkinOwner(skinOwner);
+                    npcs.put(updated.id(), updated);
+                    try {
+                        saveNpcs();
+                        player.sendMessage(skinOwner == null
+                            ? "§aĐã bỏ skin tùy chỉnh; NPC dùng skin mặc định."
+                            : "§aĐã đặt skin account §f" + skinOwner + "§a cho NPC. Skin sẽ được tải nền và lưu cache trong phiên.");
+                    } catch (IOException exception) {
+                        npcs.put(current.id(), current);
+                        throw exception;
+                    }
                     openNpcEditor(player, input.npcId(), input.page());
                 }
                 case CHANGE_TYPE -> {
@@ -569,6 +670,16 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         reconcileChunk(event.getChunk());
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onSignChange(SignChangeEvent event) {
+        for (int line = 0; line < 4; line++) {
+            String text = event.getLine(line);
+            if (text != null && text.indexOf('&') >= 0) {
+                event.setLine(line, ChatColor.translateAlternateColorCodes('&', text));
+            }
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onWorldLoad(WorldLoadEvent event) {
         for (NpcRecord npc : List.copyOf(npcs.values())) {
@@ -589,14 +700,16 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         event.setCancelled(true);
         String id = event.getRightClicked().getPersistentDataContainer()
             .get(npcIdKey, PersistentDataType.STRING);
+        handleNpcInteraction(event.getPlayer(), id);
+    }
+
+    private void handleNpcInteraction(Player player, String id) {
         NpcRecord npc = id == null ? null : npcs.get(id);
         if (npc == null) {
-            plugin.getLogger().warning("[NPC] Managed entity " + event.getRightClicked().getUniqueId()
-                + " has no matching runtime record.");
-            event.getPlayer().sendMessage("§cKhông tìm thấy dữ liệu của NPC này.");
+            plugin.getLogger().warning("[NPC] Player-model interaction references missing NPC record id=" + id);
+            player.sendMessage("§cKhông tìm thấy dữ liệu của NPC này.");
             return;
         }
-        Player player = event.getPlayer();
         if (plugin.getConfig().getBoolean("logging.console-debug", false)) {
             plugin.getLogger().info("[RPG-DEBUG][NPC] interact player=" + player.getName() + ", npc=" + npc.id()
                 + ", type=" + npc.type() + ", world=" + player.getWorld().getName());
@@ -1571,9 +1684,13 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             }
             String storyChapterId = entry.getString("story-chapter-id", "").trim();
             if (storyChapterId.isBlank() && "story".equals(type)) storyChapterId = defaultStoryChapterId();
+            String skinOwner = entry.getString("skin-owner", "").trim();
+            if (!skinOwner.isBlank() && !isValidSkinOwner(skinOwner)) {
+                throw new InvalidConfigurationException("Invalid skin-owner username for NPC '" + id + "'.");
+            }
             npcs.put(id, new NpcRecord(id, type, displayName,
                 new Location(null, x, y, z, yaw, pitch), entityId, world,
-                storyChapterId.isBlank() ? null : storyChapterId));
+                storyChapterId.isBlank() ? null : storyChapterId, skinOwner.isBlank() ? null : skinOwner));
             ConfigurationSection savedListings = entry.getConfigurationSection("merchant-offers");
             if (savedListings != null) {
                 if (!"merchant".equals(type)) {
@@ -1650,6 +1767,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             configuration.set(path + ".pitch", npc.pitch());
             configuration.set(path + ".entity-uuid", npc.entityId() == null ? null : npc.entityId().toString());
             configuration.set(path + ".story-chapter-id", npc.storyChapterId());
+            configuration.set(path + ".skin-owner", npc.skinOwner());
             Map<Integer, MerchantListing> listings = merchantListings.get(npc.id());
             if (listings != null) {
                 for (Map.Entry<Integer, MerchantListing> offer : listings.entrySet()) {
@@ -1787,6 +1905,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         if (entity instanceof Villager villager) {
             villager.setAI(false);
             villager.setAware(false);
+            villager.setInvisible(plugin.getConfig().getBoolean("rpg.npc.player-model.enabled", true));
             villager.setCanPickupItems(false);
             villager.setCollidable(false);
             villager.setAdult();
@@ -1832,6 +1951,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
 
     private static boolean isValidDisplayName(String displayName) {
         return displayName != null && !displayName.isBlank() && displayName.length() <= 64;
+    }
+
+    private static boolean isValidSkinOwner(String skinOwner) {
+        return skinOwner != null && skinOwner.matches("[A-Za-z0-9_]{3,16}");
     }
 
     private static int chunkCoordinate(double coordinate) {
@@ -1891,18 +2014,23 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     }
 
     private record NpcRecord(String id, String type, String displayName, Location location,
-                             UUID entityId, String world, String storyChapterId) {
+                             UUID entityId, String world, String storyChapterId, String skinOwner) {
         private NpcRecord(String id, String type, String displayName, Location location, UUID entityId) {
-            this(id, type, displayName, location.clone(), entityId, location.getWorld().getName(), null);
+            this(id, type, displayName, location.clone(), entityId, location.getWorld().getName(), null, null);
         }
 
         private NpcRecord(String id, String type, String displayName, Location location,
                           UUID entityId, String world) {
-            this(id, type, displayName, location, entityId, world, null);
+            this(id, type, displayName, location, entityId, world, null, null);
         }
 
         private NpcRecord(String id, String type, String displayName, Location location,
                           UUID entityId, String world, String storyChapterId) {
+            this(id, type, displayName, location, entityId, world, storyChapterId, null);
+        }
+
+        private NpcRecord(String id, String type, String displayName, Location location,
+                          UUID entityId, String world, String storyChapterId, String skinOwner) {
             this.id = id;
             this.type = type;
             this.displayName = displayName;
@@ -1910,6 +2038,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             this.entityId = entityId;
             this.world = world;
             this.storyChapterId = storyChapterId;
+            this.skinOwner = skinOwner;
         }
 
         private double x() {
@@ -1933,24 +2062,28 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
 
         private NpcRecord withDisplayName(String name) {
-            return new NpcRecord(id, type, name, location, entityId, world, storyChapterId);
+            return new NpcRecord(id, type, name, location, entityId, world, storyChapterId, skinOwner);
         }
 
         private NpcRecord withType(String value) {
-            return new NpcRecord(id, value, displayName, location, entityId, world, storyChapterId);
+            return new NpcRecord(id, value, displayName, location, entityId, world, storyChapterId, skinOwner);
         }
 
         private NpcRecord withLocation(Location newLocation, UUID newEntityId) {
             return new NpcRecord(id, type, displayName, newLocation, newEntityId,
-                newLocation.getWorld().getName(), storyChapterId);
+                newLocation.getWorld().getName(), storyChapterId, skinOwner);
         }
 
         private NpcRecord withEntityId(UUID newEntityId) {
-            return new NpcRecord(id, type, displayName, location, newEntityId, world, storyChapterId);
+            return new NpcRecord(id, type, displayName, location, newEntityId, world, storyChapterId, skinOwner);
         }
 
         private NpcRecord withStoryChapterId(String value) {
-            return new NpcRecord(id, type, displayName, location, entityId, world, value);
+            return new NpcRecord(id, type, displayName, location, entityId, world, value, skinOwner);
+        }
+
+        private NpcRecord withSkinOwner(String value) {
+            return new NpcRecord(id, type, displayName, location, entityId, world, storyChapterId, value);
         }
     }
 
@@ -1970,7 +2103,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     public record MerchantBuyQuote(int amount, long price, String merchantId) { }
 
     private enum NpcMenu { LIST, EDIT, CONFIRM_DELETE, STORY_CHAPTERS }
-    private enum NpcTextField { CREATE_ID, CREATE_TYPE, CREATE_NAME, RENAME, CHANGE_TYPE }
+    private enum NpcTextField { CREATE_ID, CREATE_TYPE, CREATE_NAME, RENAME, CHANGE_TYPE, SKIN }
     private record PendingNpcInput(NpcTextField field, String npcId, int page, String value) { }
 
     private static final class NpcMenuHolder implements InventoryHolder {

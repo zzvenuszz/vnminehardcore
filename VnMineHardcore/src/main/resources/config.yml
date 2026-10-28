@@ -219,6 +219,22 @@ rpg:
     # [VI] Số NPC runtime tối đa có thể quản lý; mặc định 100, hợp lệ 1-100.
     # [EN] Maximum number of managed runtime NPCs; defaults to 100, valid range 1-100.
     max-runtime-npcs: 100
+    # [VI] Cho NPC tự quay về người chơi gần nhất cùng world; mặc định bật.
+    # [EN] Make managed NPCs turn toward the nearest player in the same world; enabled by default.
+    look-at:
+      enabled: true
+      # [VI] Khoảng cách tối đa để NPC chọn người chơi, tính bằng block; mặc định 16, hợp lệ 1-64.
+      # [EN] Maximum player distance for NPC facing, in blocks; defaults to 16, valid range 1-64.
+      range-blocks: 16
+    # [VI] Hiển thị NPC bằng mô hình player giả lập; vai trò merchant/quest/story/tutorial vẫn giữ nguyên.
+    # [EN] Render managed NPCs as packet-based player models; merchant/quest/story/tutorial roles remain unchanged.
+    player-model:
+      # [VI] Bật mô hình player cho NPC; mặc định true. Khi tắt, NPC hiện lại dưới dạng villager.
+      # [EN] Enable player models for NPCs; defaults to true. When disabled, NPCs appear as villagers again.
+      enabled: true
+      # [VI] Tầm gửi mô hình player tới người chơi tính theo block; mặc định 48, hợp lệ 8-128.
+      # [EN] Distance in blocks for sending player models to viewers; defaults to 48, valid range 8-128.
+      view-distance-blocks: 48
     markers:
       # [VI] Bật dấu quest/story riêng theo từng người chơi trên đầu NPC; mặc định true.
       # [EN] Enable per-player quest/story markers above NPCs; defaults to true.

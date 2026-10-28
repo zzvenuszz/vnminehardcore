@@ -372,6 +372,7 @@ public final class VnMineHardcore extends JavaPlugin {
         if (graveManager != null) graveManager.stop();
         if (mercenaryManager != null) mercenaryManager.stop();
         if (schemaBuildManager != null) schemaBuildManager.shutdown();
+        if (npcManager != null) npcManager.shutdown();
         if (npcMarkerManager != null) npcMarkerManager.close();
         if (tooltipManager != null) tooltipManager.stop();
         if (logManager != null) logManager.stop();

@@ -356,7 +356,8 @@ public final class TextDisplayManager implements Listener, CommandExecutor, TabC
 
     private void apply(TextDisplay display, TextDefinition definition, Location location) {
         display.getPersistentDataContainer().set(textIdKey, PersistentDataType.STRING, definition.id());
-        display.setText(legacyColor(definition.color()) + org.bukkit.ChatColor.BOLD + definition.text());
+        display.setText(legacyColor(definition.color()) + org.bukkit.ChatColor.BOLD
+            + org.bukkit.ChatColor.translateAlternateColorCodes('&', definition.text()));
         display.setBillboard(Display.Billboard.FIXED);
         display.setAlignment(TextDisplay.TextAlignment.CENTER);
         display.setDefaultBackground(false);

@@ -866,3 +866,23 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Build `mvn -DskipTests package` bằng Java 25 thành công lúc `2026-10-28 11:54:46 UTC`; JAR 2.35.3 có 2.997.995 bytes, SHA-256 `1a7cce9346ddc2923b91e48c45ac65df5ddecf0a2b9e5c1a0c835e6b1652ff80`. Đã xác minh JAR giữ native SQLite Linux `aarch64` và `x86_64`; test suite được bỏ qua.
 - [x] Sao lưu JAR 2.35.2 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.35.2.jar`, cài 2.35.3 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.35.3.jar`, checksum khớp artifact và chỉ còn một plugin JAR trong thư mục.
 - [ ] Chưa Paper test hai file. Cần restart server, xác nhận chúng xuất hiện trong Schema Build; dựng thử trên vùng test để đo hiệu năng vì `place()` hiện xử lý volume lớn trên main thread. Preview vẫn chỉ hiển thị tối đa `preview-blocks` block.
+
+## NPC facing và mã format `&` — yêu cầu 2026-10-28
+
+- [x] Managed villager NPC cập nhật yaw/pitch mỗi 10 tick để nhìn người chơi gần nhất cùng world trong tầm `rpg.npc.look-at.range-blocks`; thêm công tắc `rpg.npc.look-at.enabled` và dừng task khi plugin tắt.
+- [x] Đổi tên NPC giữ hỗ trợ mã legacy đã có; khi ghi bảng hiệu, chuyển `&0-9a-f`, `&k-o`, `&r` sang định dạng Minecraft. `/vntext` chuyển mã trong nội dung trước khi hiển thị.
+- [x] README, CHANGELOG và config mặc định được cập nhật; version source tăng lên 2.35.4.
+- [x] Các thay đổi này được đóng gói trong JAR 2.36.0 bên dưới; chưa gameplay test. Cần kiểm tra NPC xoay đúng hướng khi có nhiều người chơi, công tắc disable, và màu/format trên bảng hiệu cùng text display.
+
+## Mô hình player và skin tùy chỉnh cho NPC — yêu cầu 2026-10-28
+
+- [x] Tách kiểu hiển thị khỏi loại chức năng NPC: player model giả lập không thay đổi role `merchant`, `quest-giver`, `story` hay `tutorial`.
+- [x] Thêm nút editor nhập username tài khoản Minecraft Java, `!default` để bỏ skin; lưu vào `plugins/VnMineHardcore/npcs.yml` dưới khóa `skin-owner`.
+- [x] Tải signed texture profile bất đồng bộ từ dịch vụ hồ sơ Mojang, cache theo username trong phiên và ghi log khi thành công/thất bại; lỗi lookup dùng skin mặc định.
+- [x] Hiển thị tên NPC bằng metadata player và chuyển click vào fake player về cùng xử lý click của NPC hiện hữu. Mô hình chỉ gửi cho người chơi cùng world/trong khoảng cách cấu hình và được dọn khi rời tầm/thoát server.
+- [x] Thêm config `rpg.npc.player-model.enabled` (mặc định true) và `view-distance-blocks` (mặc định 48, giới hạn 8-128); khi tắt, hiện lại villager gốc.
+- [x] Cập nhật README/CHANGELOG; tăng phiên bản source từ 2.35.4 lên 2.36.0.
+- [x] Compile bằng Java 25 (`mvn -DskipTests compile`) thành công lúc `2026-10-28 13:04 UTC`; có các warning deprecated sẵn trong API Paper/ProtocolLib, test suite không chạy.
+- [x] Build JAR 2.36.0 bằng Java 25 (`mvn -DskipTests clean package`) thành công lúc `2026-10-28 13:11:45 UTC`; 3.021.564 bytes, SHA-256 `8b6493e5632ece09f5b9db167ba08e8cc6fe4cbef4e65ddea39f7cdffb9b4355`. Đã xác minh JAR có SQLite native Linux x86_64 và AArch64; test suite được bỏ qua.
+- [x] Sao lưu 2.35.3 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.35.3.jar`, cài 2.36.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.0.jar`; checksum khớp artifact và chỉ còn một JAR VnMineHardcore trong thư mục plugin.
+- [ ] Chưa gameplay test ProtocolLib/Paper; cần kiểm tra skin, tên màu, click NPC, nhiều người xem, dọn entity sau đổi world/thoát, và bật/tắt player-model.

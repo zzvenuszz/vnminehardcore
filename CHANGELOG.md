@@ -1,5 +1,19 @@
 # Changelog
 
+## [v2.36.0] - 2026-10-28
+
+- NPC được hiển thị bằng mô hình player giả lập qua ProtocolLib; kiểu nghiệp vụ `merchant`, `quest-giver`, `story`, `tutorial` vẫn điều khiển các chức năng cũ.
+- Editor NPC có mục cấu hình skin bằng username tài khoản Minecraft Java. Skin được tải bất đồng bộ từ dịch vụ hồ sơ Mojang và cache trong phiên; tài khoản không tìm thấy sẽ dùng skin mặc định.
+- Tên hiển thị và mã màu/format của NPC được gửi lên mô hình player; tương tác với player giả lập chuyển về cùng luồng xử lý NPC hiện có.
+- Thêm `rpg.npc.player-model.enabled` và `view-distance-blocks`; tắt tính năng sẽ khôi phục hiển thị Villager.
+- Build JAR Java 25 bằng `mvn -DskipTests clean package` lúc `2026-10-28 13:11:45 UTC`; dung lượng 3.021.564 bytes, SHA-256 `8b6493e5632ece09f5b9db167ba08e8cc6fe4cbef4e65ddea39f7cdffb9b4355`. JAR đóng gói SQLite native Linux x86_64 và AArch64; chưa chạy test suite hoặc Paper gameplay test.
+- Đã sao lưu JAR 2.35.3 vào `plugins/.old-builds/` và cài 2.36.0 vào thư mục `plugins/`; checksum bản cài khớp artifact, chỉ còn một JAR plugin VnMineHardcore ở cấp thư mục.
+
+## [v2.35.4] - 2026-10-28
+
+- Managed NPC tự quay về người chơi gần nhất trong cùng world mỗi 10 tick; thêm công tắc và bán kính cấu hình.
+- Chuyển mã `&` thành màu/format trong chữ trên bảng hiệu và nội dung `/vntext`; tên NPC hỗ trợ mã này.
+
 ## [v2.35.3] - 2026-10-28
 
 - Tăng giới hạn mặc định Schema Build lên 400.000 block để nhận các công trình Sponge `.schem` lớn; giới hạn cấu hình tối đa là 500.000.
