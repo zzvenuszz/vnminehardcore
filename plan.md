@@ -854,4 +854,4 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Sửa `plugin.yml`, bump patch lên 2.35.1, xác minh 43 command và 51 permission node; mọi command đều khai báo permission.
 - [x] Build artifact 2.35.1 bằng Java 25 lúc `2026-10-28 11:24:19 UTC`, 2,420,760 bytes, SHA-256 `f49d28248ebfaad472e893cd54ee798c72ea7fde7e33f7e34370b3e27da14124`; chỉ chứa SQLite native Linux x86_64.
 - [!] Chưa thay JAR trong thư mục plugin: server là `aarch64`, và kiểm tra JDBC trực tiếp trên host ném `NativeLibraryNotFoundException` vì JAR không có native ARM64. Cài bản này sẽ khiến thao tác SQLite thất bại. Cần artifact có native ARM64 hoặc chuyển server sang x86_64 trước khi triển khai.
-- Chưa Paper gameplay test. Source fix được commit/push sau khi cập nhật mục này.
+- Chưa Paper gameplay test. Source fix đã commit/push lên `origin/main` tại `1a21780`; artifact 2.35.1 hiện chỉ nằm trong `target/`, chưa triển khai.
