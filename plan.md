@@ -897,4 +897,5 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Tăng phiên bản source lên 2.36.1.
 - [x] Build JAR 2.36.1 bằng Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 13:39:26 UTC`; 3.017.042 bytes, SHA-256 `84344afd9cc66a772c5c6a36fb52ed91e7253a1b5a7d536f05bcb4ef6a7fca3c`. Xác minh JAR có SQLite native Linux x86_64 và AArch64; test suite bỏ qua.
 - [x] Sao lưu 2.36.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.0.jar`, cài 2.36.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.1.jar`; checksum khớp và chỉ còn một JAR VnMineHardcore trong thư mục plugin.
-- [ ] Chưa commit/push thay đổi 2.36.1 và chưa gameplay test. Khởi động lại server để nạp bản sửa, sau đó xác nhận NPC/skin `Notch` cùng log không còn lặp packet exception.
+- [x] Commit `28389a6` đã push lên `origin/main`.
+- [ ] Chưa gameplay test. Khởi động lại server để nạp bản sửa, sau đó xác nhận NPC/skin `Notch` cùng log không còn lặp packet exception.
