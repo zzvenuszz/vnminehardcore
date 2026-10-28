@@ -857,3 +857,12 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Build `mvn -DskipTests package` bằng Java 25 thành công lúc `2026-10-28 11:32:45 UTC`; artifact 2.35.2 có dung lượng 2,995,554 bytes, SHA-256 `8f2934e9f139997d4ae1b39436f829b714c4aa05fbd0a4c26444e252aacf03bb`. Đã kiểm tra JAR có cả `org/sqlite/native/Linux/aarch64/libsqlitejdbc.so` và `org/sqlite/native/Linux/x86_64/libsqlitejdbc.so`; test suite được bỏ qua.
 - [x] Sao lưu JAR 2.35.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.35.0.jar`, cài 2.35.2 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.35.2.jar`, đối chiếu SHA-256 với artifact và gỡ 2.35.0 khỏi thư mục plugin để Paper không nạp trùng.
 - [ ] Cần khởi động lại Paper để nạp 2.35.2, sau đó kiểm tra plugin enable và thao tác SQLite (profile/VNCOIN) qua restart trên AArch64. Lỗi `plugin.yml` trong log trước thuộc source 2.35.0; bản sửa 2.35.1 đã được push, còn 2.35.2 bổ sung native ARM64.
+
+## Schema Build: giới hạn kích thước file tải về — 2026-10-28
+
+- Log Paper 2.35.2 cho thấy parser đọc được Sponge v2/v3 nhưng từ chối hai file vì giới hạn `schema-build.max-blocks: 5000`: `2 trees portal.schem` có kích thước `69×60×59` (244.260 ô), `moon_house.schem` có `90×119×33` (353.430 ô).
+- [x] Tăng mặc định hỗ trợ lên 400.000 ô và trần cấu hình lên 500.000; cập nhật thông báo lỗi để nêu dimensions, volume và configured limit.
+- [x] Schema lỗi chỉ ghi warning một lần cho mỗi fingerprint file (size/mtime), không lặp stack trace mỗi lần mở menu; admin nhận lý do cụ thể.
+- [x] Build `mvn -DskipTests package` bằng Java 25 thành công lúc `2026-10-28 11:54:46 UTC`; JAR 2.35.3 có 2.997.995 bytes, SHA-256 `1a7cce9346ddc2923b91e48c45ac65df5ddecf0a2b9e5c1a0c835e6b1652ff80`. Đã xác minh JAR giữ native SQLite Linux `aarch64` và `x86_64`; test suite được bỏ qua.
+- [x] Sao lưu JAR 2.35.2 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.35.2.jar`, cài 2.35.3 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.35.3.jar`, checksum khớp artifact và chỉ còn một plugin JAR trong thư mục.
+- [ ] Chưa Paper test hai file. Cần restart server, xác nhận chúng xuất hiện trong Schema Build; dựng thử trên vùng test để đo hiệu năng vì `place()` hiện xử lý volume lớn trên main thread. Preview vẫn chỉ hiển thị tối đa `preview-blocks` block.

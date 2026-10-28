@@ -1,5 +1,10 @@
 # Changelog
 
+## [v2.35.3] - 2026-10-28
+
+- Tăng giới hạn mặc định Schema Build lên 400.000 block để nhận các công trình Sponge `.schem` lớn; giới hạn cấu hình tối đa là 500.000.
+- Báo rõ kích thước, thể tích block và giới hạn khi bỏ qua schema quá lớn; tránh in stack trace lặp lại cho file chưa thay đổi.
+
 ## [v2.35.2] - 2026-10-28
 
 - Đóng gói SQLite JDBC native cho cả Linux AArch64 và x86_64 để cùng một JAR chạy được trên hai kiến trúc.

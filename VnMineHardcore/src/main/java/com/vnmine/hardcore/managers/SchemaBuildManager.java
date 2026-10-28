@@ -57,13 +57,14 @@ import org.bukkit.command.TabCompleter;
 public final class SchemaBuildManager implements Listener, CommandExecutor, TabCompleter {
     private static final String PERMISSION = "vnmine.command.schemabuild";
     private static final int PAGE_SIZE = 45;
-    private static final int DEFAULT_MAX_BLOCKS = 5000;
+    private static final int DEFAULT_MAX_BLOCKS = 400_000;
     private static final int DEFAULT_PREVIEW_BLOCKS = 1200;
     private static final int DEFAULT_HISTORY_SIZE = 10;
     private final VnMineHardcore plugin;
     private final Path schemasRoot;
     private final File buildsFile;
     private final Map<String, BuildRecord> builds = new LinkedHashMap<>();
+    private final Map<String, String> invalidSchemaWarnings = new HashMap<>();
     private final Map<UUID, String> selectedBuilds = new HashMap<>();
     private final Map<UUID, BuildSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Deque<BuildOperation>> undoHistory = new HashMap<>();
@@ -164,9 +165,13 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
                 String relative = schemasRoot.relativize(path).toString().replace(File.separatorChar, '/');
                 try {
                     files.add(new SchemaFile(relative, loadSchema(path)));
+                    invalidSchemaWarnings.remove(relative);
                 } catch (IllegalArgumentException | IOException exception) {
-                    plugin.getLogger().log(Level.WARNING, "[SchemaBuild] Ignoring invalid schema " + relative, exception);
-                    player.sendMessage("§cBỏ qua schema lỗi: §f" + relative + " §7(xem console).");
+                    String fingerprint = invalidSchemaFingerprint(path);
+                    if (!fingerprint.equals(invalidSchemaWarnings.put(relative, fingerprint))) {
+                        plugin.getLogger().warning("[SchemaBuild] Ignoring schema " + relative + ": " + exception.getMessage());
+                        player.sendMessage("§cBỏ qua schema §f" + relative + "§c: §7" + exception.getMessage());
+                    }
                 }
             }
         } catch (IOException exception) {
@@ -178,7 +183,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private SchemaDefinition loadSchema(Path file) throws IOException {
-        int maxBlocks = Math.max(1, Math.min(100_000,
+        int maxBlocks = Math.max(1, Math.min(500_000,
             plugin.getConfig().getInt("schema-build.max-blocks", DEFAULT_MAX_BLOCKS)));
         SpongeSchematicReader.Schematic schematic = SpongeSchematicReader.read(file, maxBlocks);
         List<SchemaBlock> blocks = new ArrayList<>(schematic.blockStates().size());
@@ -199,6 +204,14 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         }
         return new SchemaDefinition(schematic.name(), List.copyOf(blocks), schematic.width(),
             schematic.height(), schematic.length());
+    }
+
+    private String invalidSchemaFingerprint(Path path) {
+        try {
+            return Files.size(path) + ":" + Files.getLastModifiedTime(path).toMillis();
+        } catch (IOException ignored) {
+            return "unavailable";
+        }
     }
 
     private void openBuilder(Player player, SchemaFile schema) {

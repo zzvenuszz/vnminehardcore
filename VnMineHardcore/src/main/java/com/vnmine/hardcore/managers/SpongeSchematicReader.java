@@ -37,8 +37,11 @@ final class SpongeSchematicReader {
         int height = unsignedShort(schematic.get("Height"), "Height");
         int length = unsignedShort(schematic.get("Length"), "Length");
         long volume = (long) width * height * length;
-        if (width < 1 || height < 1 || length < 1 || volume > maxBlocks)
-            throw new IOException("schematic dimensions must contain 1.." + maxBlocks + " blocks");
+        if (width < 1 || height < 1 || length < 1)
+            throw new IOException("invalid schematic dimensions " + width + "x" + height + "x" + length);
+        if (volume > maxBlocks)
+            throw new IOException("dimensions " + width + "x" + height + "x" + length + " contain "
+                + volume + " blocks; configured limit is " + maxBlocks);
 
         Object blocksValue = schematic.get("Blocks");
         Map<?, ?> blocks = blocksValue instanceof Map<?, ?> map ? map : schematic;
