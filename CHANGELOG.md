@@ -1,5 +1,10 @@
 # Changelog
 
+## [v2.35.2] - 2026-10-28
+
+- Đóng gói SQLite JDBC native cho cả Linux AArch64 và x86_64 để cùng một JAR chạy được trên hai kiến trúc.
+- Giữ native cho các kiến trúc/hệ điều hành khác ở ngoài JAR nhằm hạn chế dung lượng không cần thiết.
+
 ## [v2.35.1] - 2026-10-28
 - Sửa cấu trúc `plugin.yml`: gộp khai báo permissions vào một section cấp cao nhất, giữ `/vninit`, `/vnregion`, `/vnbuild`, `/start` và `/quatanthu` trong `commands`. Trước đó section `permissions` bị lặp và làm các lệnh phía sau bị đặt nhầm vào permission map, khiến plugin dừng enable khi đăng ký `/quatanthu`.
 - Đã xác minh parser YAML thấy 43 command, 51 permission node và mỗi command đều có permission. Build Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 11:24:19 UTC`, 2,420,760 bytes, SHA-256 `f49d28248ebfaad472e893cd54ee798c72ea7fde7e33f7e34370b3e27da14124`; chưa cài vì server log báo kiến trúc ARM64 trong khi artifact chuẩn chỉ đóng gói native SQLite Linux x86_64. Chưa Paper gameplay test.
