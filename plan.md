@@ -799,6 +799,6 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Compile Java 25 bằng `mvn -DskipTests compile` thành công lúc `2026-10-28 08:16 UTC`; không chạy test suite.
 - [x] Build JAR 2.32.0 bằng Java 25 với `mvn -DskipTests clean package`; build thành công lúc `2026-10-28 08:21:03 UTC`, 2,390,476 bytes, SHA-256 `2cb94db0dd8b34cb4ecf37ca215bfd3d55565ad90e1440a3cfb5ecb3c2fcf9cd`. `plugin.yml` xác nhận phiên bản 2.32.0; JAR giữ SQLite JDBC/service metadata và chỉ đóng gói native Linux x86_64. Test suite được bỏ qua theo yêu cầu build.
 - [x] Sao lưu JAR 2.31.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.31.0.jar`, cài 2.32.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.32.0.jar`, đối chiếu byte/hash với artifact; gỡ JAR 2.31.0 khỏi thư mục plugin để Paper không nạp trùng phiên bản.
-- [ ] Commit và push thay đổi mã nguồn/tài liệu lên `origin/main`.
+- [x] Commit `e7db658` và push thay đổi mã nguồn/tài liệu lên `origin/main`.
 - [ ] Kiểm thử trên server các lệnh set/replace/copy/paste/move/stack/undo/redo, pattern, giới hạn lệnh và tile entity; server cần restart để nạp 2.32.0.
 - Giới hạn hiện tại: cuboid-only; không có entity/biome edit, brush, generator, selection shapes phi cuboid, schematic I/O hoặc history xuyên restart. Clipboard/history mất khi thoát.
