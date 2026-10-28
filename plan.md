@@ -886,3 +886,15 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Build JAR 2.36.0 bằng Java 25 (`mvn -DskipTests clean package`) thành công lúc `2026-10-28 13:11:45 UTC`; 3.021.564 bytes, SHA-256 `8b6493e5632ece09f5b9db167ba08e8cc6fe4cbef4e65ddea39f7cdffb9b4355`. Đã xác minh JAR có SQLite native Linux x86_64 và AArch64; test suite được bỏ qua.
 - [x] Sao lưu 2.35.3 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.35.3.jar`, cài 2.36.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.0.jar`; checksum khớp artifact và chỉ còn một JAR VnMineHardcore trong thư mục plugin.
 - [ ] Chưa gameplay test ProtocolLib/Paper; cần kiểm tra skin, tên màu, click NPC, nhiều người xem, dọn entity sau đổi world/thoát, và bật/tắt player-model.
+
+## Sửa NPC không hiển thị trên Paper 26.3 — log 2026-10-28
+
+- Log Paper `26.3-175` + ProtocolLib `5.5.0-SNAPSHOT-d89a5de` báo `Could not find packet for type NAMED_ENTITY_SPAWN` ở mọi chu kỳ spawn; cấu hình ẩn villager gốc khiến không còn NPC hiển thị. Ghi nhận 396 task exception trong log.
+- Tài khoản `notch` đã lưu trong `npcs.yml`; request tới Mojang timeout lúc `13:32:50`, không có log profile tải thành công.
+- [x] Thay packet cũ bằng `SPAWN_ENTITY` + `EntityType.PLAYER`, sửa thứ tự góc spawn theo giao thức hiện đại và gửi vector vận tốc rỗng cần cho protocol mới.
+- [x] Nếu player packet lỗi, vô hiệu player-model trong phiên, khôi phục Villager hiển thị và chỉ ghi lỗi một lần thay vì spam stack trace mỗi 10 tick.
+- [x] Tách HttpClient transport executor khỏi pool tải skin; tăng request timeout lên 15 giây và thử lại tự động sau 30 giây khi lookup lỗi.
+- [x] Tăng phiên bản source lên 2.36.1.
+- [x] Build JAR 2.36.1 bằng Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 13:39:26 UTC`; 3.017.042 bytes, SHA-256 `84344afd9cc66a772c5c6a36fb52ed91e7253a1b5a7d536f05bcb4ef6a7fca3c`. Xác minh JAR có SQLite native Linux x86_64 và AArch64; test suite bỏ qua.
+- [x] Sao lưu 2.36.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.0.jar`, cài 2.36.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.1.jar`; checksum khớp và chỉ còn một JAR VnMineHardcore trong thư mục plugin.
+- [ ] Chưa commit/push thay đổi 2.36.1 và chưa gameplay test. Khởi động lại server để nạp bản sửa, sau đó xác nhận NPC/skin `Notch` cùng log không còn lặp packet exception.

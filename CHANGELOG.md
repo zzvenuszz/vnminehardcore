@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.36.1] - 2026-10-28
+
+- Sửa packet spawn fake player cho Paper 26.3: dùng `SPAWN_ENTITY` với entity type `PLAYER` và đúng thứ tự yaw/pitch/head-yaw; tránh packet `NAMED_ENTITY_SPAWN` không được ProtocolLib ánh xạ.
+- Nếu packet player-model vẫn lỗi, tự chuyển NPC về Villager hiển thị và ghi một lỗi thay vì lặp stack trace mỗi chu kỳ.
+- Tách executor của HttpClient khỏi pool tải skin để tránh starvation; tăng timeout request lên 15 giây và tự thử lại sau 30 giây khi Mojang timeout.
+- Build JAR Java 25 bằng `mvn -DskipTests package` lúc `2026-10-28 13:39:26 UTC`; 3.017.042 bytes, SHA-256 `84344afd9cc66a772c5c6a36fb52ed91e7253a1b5a7d536f05bcb4ef6a7fca3c`. JAR chứa SQLite native Linux x86_64 và AArch64; test suite được bỏ qua.
+- Đã backup 2.36.0 vào `plugins/.old-builds/`, cài 2.36.1 vào `plugins/`; checksum khớp và chỉ còn một JAR VnMineHardcore trong thư mục plugin. Chưa Paper gameplay test.
+
 ## [v2.36.0] - 2026-10-28
 
 - NPC được hiển thị bằng mô hình player giả lập qua ProtocolLib; kiểu nghiệp vụ `merchant`, `quest-giver`, `story`, `tutorial` vẫn điều khiển các chức năng cũ.

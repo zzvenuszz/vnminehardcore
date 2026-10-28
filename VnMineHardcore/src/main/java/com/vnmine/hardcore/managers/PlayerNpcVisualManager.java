@@ -42,9 +42,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Vector;
 
 /** Packet-backed player-model overlays for managed NPCs, while Bukkit villagers remain their server hitboxes. */
 final class PlayerNpcVisualManager {
@@ -60,16 +62,20 @@ final class PlayerNpcVisualManager {
         thread.setDaemon(true);
         return thread;
     });
+    // Keep HttpClient's transport executor separate from skinExecutor: lookupSkin blocks
+    // in HttpClient.send(), so sharing a small fixed pool can starve concurrent requests.
     private final HttpClient httpClient = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(5)).executor(skinExecutor).build();
+        .connectTimeout(Duration.ofSeconds(5)).build();
     private final Map<UUID, Map<String, FakeNpc>> visibleByViewer = new ConcurrentHashMap<>();
     private final Map<UUID, Map<Integer, String>> interactableByViewer = new ConcurrentHashMap<>();
     private final Map<String, SkinProperty> skinsByOwner = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<SkinProperty>> pendingSkins = new ConcurrentHashMap<>();
     private final Map<String, String> skinFailures = new ConcurrentHashMap<>();
+    private final Map<String, Long> skinRetryAt = new ConcurrentHashMap<>();
     private final AtomicInteger nextEntityId = new AtomicInteger(-1);
     private final PacketAdapter interactionListener;
     private final BukkitTask updateTask;
+    private boolean playerModelAvailable = true;
 
     PlayerNpcVisualManager(VnMineHardcore plugin, NpcManager npcManager) {
         this.plugin = plugin;
@@ -111,7 +117,8 @@ final class PlayerNpcVisualManager {
     }
 
     private void updateVisibleNpcs() {
-        boolean enabled = plugin.getConfig().getBoolean("rpg.npc.player-model.enabled", true);
+        boolean enabled = playerModelAvailable
+            && plugin.getConfig().getBoolean("rpg.npc.player-model.enabled", true);
         for (NpcVisual npc : npcManager.getPlayerVisuals()) {
             UUID bukkitId = npcManager.entityIdFor(npc.id());
             Entity entity = bukkitId == null ? null : Bukkit.getEntity(bukkitId);
@@ -164,6 +171,12 @@ final class PlayerNpcVisualManager {
     private void ensureSkin(String owner) {
         if (owner == null || owner.isBlank()) return;
         String key = owner.toLowerCase(java.util.Locale.ROOT);
+        Long retryAt = skinRetryAt.get(key);
+        if (retryAt != null && System.currentTimeMillis() < retryAt) return;
+        if (retryAt != null) {
+            skinRetryAt.remove(key, retryAt);
+            skinFailures.remove(key);
+        }
         if (skinsByOwner.containsKey(key) || skinFailures.containsKey(key) || pendingSkins.containsKey(key)) return;
         CompletableFuture<SkinProperty> request = CompletableFuture.supplyAsync(() -> lookupSkin(owner), skinExecutor);
         CompletableFuture<SkinProperty> previous = pendingSkins.putIfAbsent(key, request);
@@ -180,9 +193,12 @@ final class PlayerNpcVisualManager {
                     if (failure != null) {
                         String reason = rootMessage(failure);
                         skinFailures.put(key, reason);
+                        skinRetryAt.put(key, System.currentTimeMillis() + Duration.ofSeconds(30).toMillis());
                         plugin.getLogger().warning("[NPC][Skin] Could not load Minecraft account skin '" + owner + "': " + reason);
                     } else {
                         skinsByOwner.put(key, skin);
+                        skinFailures.remove(key);
+                        skinRetryAt.remove(key);
                         plugin.getLogger().info("[NPC][Skin] Loaded skin profile for '" + owner + "'.");
                     }
                     updateVisibleNpcs();
@@ -215,7 +231,7 @@ final class PlayerNpcVisualManager {
 
     private HttpResponse<String> get(String url) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-            .timeout(Duration.ofSeconds(8)).header("User-Agent", "VnMineHardcore/" + plugin.getDescription().getVersion())
+            .timeout(Duration.ofSeconds(15)).header("User-Agent", "VnMineHardcore/" + plugin.getDescription().getVersion())
             .GET().build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
@@ -229,6 +245,15 @@ final class PlayerNpcVisualManager {
     }
 
     private void spawn(Player viewer, NpcVisual npc, String profileKey) {
+        if (!playerModelAvailable) return;
+        try {
+            spawnPlayerEntity(viewer, npc, profileKey);
+        } catch (RuntimeException exception) {
+            disablePlayerModels(exception);
+        }
+    }
+
+    private void spawnPlayerEntity(Player viewer, NpcVisual npc, String profileKey) {
         UUID profileId = UUID.nameUUIDFromBytes((plugin.getName() + ":npc:" + npc.id()).getBytes(StandardCharsets.UTF_8));
         String profileName = "vn" + Integer.toUnsignedString(npc.id().hashCode(), 36);
         if (profileName.length() > 16) profileName = profileName.substring(0, 16);
@@ -247,11 +272,16 @@ final class PlayerNpcVisualManager {
         if (!send(viewer, info)) return;
 
         Location location = npc.location();
-        PacketContainer spawn = protocolManager.createPacket(PacketType.Play.Server.NAMED_ENTITY_SPAWN);
+        // Since the configuration-phase protocol, players use SPAWN_ENTITY with PLAYER type.
+        // NAMED_ENTITY_SPAWN is no longer mapped by ProtocolLib on Paper 26.3.
+        PacketContainer spawn = protocolManager.createPacket(PacketType.Play.Server.SPAWN_ENTITY);
         spawn.getIntegers().write(0, entityId);
         spawn.getUUIDs().write(0, profileId);
+        spawn.getEntityTypeModifier().write(0, EntityType.PLAYER);
         spawn.getDoubles().write(0, location.getX()).write(1, location.getY()).write(2, location.getZ());
-        spawn.getBytes().write(0, angle(location.getYaw())).write(1, angle(0.0f));
+        spawn.getBytes().write(0, angle(location.getPitch())).write(1, angle(location.getYaw()))
+            .write(2, angle(location.getYaw()));
+        spawn.getVectors().write(0, new Vector());
         if (!send(viewer, spawn)) {
             removePlayerInfo(viewer, profileId);
             return;
@@ -275,6 +305,22 @@ final class PlayerNpcVisualManager {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (viewer.isOnline()) removePlayerInfo(viewer, profileId);
         }, 40L);
+    }
+
+    private void disablePlayerModels(RuntimeException failure) {
+        if (!playerModelAvailable) return;
+        playerModelAvailable = false;
+        plugin.getLogger().log(java.util.logging.Level.SEVERE,
+            "[NPC][PlayerModel] Packet spawn failed; disabling packet models for this server session and restoring villager NPCs.",
+            failure);
+        for (Player viewer : Bukkit.getOnlinePlayers()) clearViewer(viewer);
+        for (NpcVisual npc : npcManager.getPlayerVisuals()) {
+            UUID bukkitId = npcManager.entityIdFor(npc.id());
+            Entity entity = bukkitId == null ? null : Bukkit.getEntity(bukkitId);
+            if (entity instanceof org.bukkit.entity.Villager villager && villager.isValid()) {
+                villager.setInvisible(false);
+            }
+        }
     }
 
     private void rotate(Player viewer, FakeNpc fake, float yaw) {

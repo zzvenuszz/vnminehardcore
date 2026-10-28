@@ -115,7 +115,7 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 - `/vnquest admin`: tạo, sửa, vô hiệu hóa, xóa quest; đặt điều kiện mở/hoàn thành, reward, repeat limit và quest nối tiếp.
 - `/vnquestdialog admin`: tạo hội thoại cho trạng thái quest.
 - `/vnnpc create <id> <type>` và `/vnnpc edit <id>`: tạo/chỉnh NPC; shift + chuột phải mở editor theo loại NPC.
-- NPC được hiển thị như người chơi; trong editor chọn **Cấu hình skin Player**, nhập username Minecraft Java, ví dụ `Notch`. Hệ thống lấy skin theo tài khoản Mojang; nhập `!default` để bỏ skin tùy chỉnh. Skin tải ở nền và lưu cache tới khi server tắt.
+- NPC được hiển thị như người chơi; trong editor chọn **Cấu hình skin Player**, nhập username Minecraft Java, ví dụ `Notch`. Hệ thống lấy skin theo tài khoản Mojang; nhập `!default` để bỏ skin tùy chỉnh. Skin tải ở nền, được cache tới khi server tắt và tự thử lại sau timeout.
 - “Player” là kiểu hiển thị. Loại chức năng của NPC vẫn là `merchant`, `quest-giver`, `story` hoặc `tutorial`; các luồng tương tác hiện tại tiếp tục hoạt động.
 - Tên NPC, nội dung `/vntext` và chữ ghi lên bảng hiệu hỗ trợ mã màu/format legacy như `&6` (vàng), `&l` (đậm), `&o` (nghiêng), `&r` (đặt lại); ví dụ tên `Thợ săn &6Cổ đại`.
 - NPC tự xoay về người chơi gần nhất cùng world trong tầm `rpg.npc.look-at.range-blocks`; tắt bằng `rpg.npc.look-at.enabled`.
