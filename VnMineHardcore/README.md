@@ -392,9 +392,19 @@ tin cậy. OP luôn có toàn quyền và không thể bị giới hạn bởi g
 
 ## Setup RPG lần đầu
 
+Người chơi mới được chuyển đến world bắt đầu khi hồ sơ chưa có nhân vật. Họ gặp
+NPC loại `tutorial` đã gán trong `/vninit`, sau đó chọn đại lục, race, class và
+nhận sách skill khởi đầu. Khi tạo nhân vật xong, plugin nhận quest ID được gán
+cho race đó trong `races.yml`. Cấu hình quest theo race có trong menu **Menu
+chính → Admin → Quản lý chủng tộc**; chọn race, nhập quest ID đang bật, hoặc gõ
+`!clear` để xóa mapping. Dùng `!cancel` để hủy nhập.
+
 Quản trị viên dùng `/vninit` để mở wizard cấu hình onboarding. Chọn một đại lục
-để bật/tắt quyền bắt đầu, gán world đang được nạp, chọn NPC runtime loại
-`tutorial`, và lưu vị trí hiện tại làm điểm bắt đầu hoặc dùng spawn của world.
+để bật/tắt quyền bắt đầu, gán world đang được nạp, và lưu vị trí hiện tại làm
+điểm bắt đầu hoặc dùng spawn của world. NPC loại `tutorial` của world bắt đầu
+được chọn riêng ở bước **NPC Tutorial world bắt đầu**. NPC đó dẫn người chơi mới
+tới chọn đại lục; NPC tutorial của từng đại lục không còn là điều kiện để mở
+luồng tạo nhân vật.
 Nếu chưa có NPC hướng dẫn, tạo nó tại vị trí mong muốn bằng
 `/vnnpc create <id> tutorial`, rồi quay lại wizard để gán NPC cho đại lục.
 GUI báo từng điều kiện đã đạt/chưa đạt; mỗi thay đổi được lưu ngay vào file đại
@@ -403,9 +413,12 @@ lục và catalog được nạp lại. Có thể đóng menu ở bất kỳ bư
 quản lý quest RPG do NPC giao (`/vnquest admin`); quest First Steps có cấu hình
 riêng tại `plugins/VnMineHardcore/quests/tutorial/first-steps.yml`.
 
-Dashboard có nút **Bảo vệ World bắt đầu/reset** để bật/tắt bảo vệ đặt/phá khối,
-tương tác, PvP, sinh quái, chu kỳ ngày/đêm và tiêu hao đói/khát. Các tùy chọn
-được lưu trong `rpg.onboarding.start-world` của `config.yml`.
+Dashboard có nút **Bảo vệ World bắt đầu/reset** để cấu hình nhanh world bắt đầu.
+Menu **Menu chính → Admin → Quản lý world** hiển thị từng world đang nạp và lưu
+các công tắc riêng cho đặt/phá khối, tương tác, PvP, sinh quái, boss hệ thống,
+thiên tai, thời gian trôi, đói và khát trong `world-settings.yml`. Thiết lập theo
+world được áp dụng cho các luồng tương ứng; các mục chưa đổi tiếp tục dùng mặc
+định hoặc cấu hình cũ của world bắt đầu.
 
 ## Cấu hình (config.yml)
 

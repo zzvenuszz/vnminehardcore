@@ -2756,6 +2756,10 @@ public class BossEventManager implements Listener {
 
          // Chọn player ngẫu nhiên
          List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
+         if (this.plugin.getWorldSettingsManager() != null) {
+            onlinePlayers.removeIf(player -> !this.plugin.getWorldSettingsManager()
+               .isBossSpawningEnabled(player.getWorld()));
+         }
          if (onlinePlayers.isEmpty()) {
             this.clearWarningBar();
          } else {

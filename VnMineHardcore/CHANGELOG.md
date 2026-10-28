@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.33.0 — 2026-10-28
+
+- Sửa luồng onboarding: người chơi chưa có nhân vật được đưa tới world bắt đầu, gặp NPC Tutorial rồi chọn đại lục, race và class; objective First Steps nhận diện lần gặp NPC này.
+- Thêm menu admin gán quest tự nhận theo race trong races.yml; quest được nhận sau khi hồ sơ nhân vật được tạo.
+- Thêm Admin → Quản lý world với quy tắc per-world cho block, tương tác, PvP, mob, boss, thiên tai, thời gian, đói và khát; áp dụng vào các manager gameplay liên quan.
+- Làm rõ tương tác NPC Tutorial, ghi debug route khi bật console debug và bỏ yêu cầu NPC tutorial từng đại lục khỏi điều kiện chọn đại lục.
+
 ## 2.32.0 — 2026-10-28
 
 - Bổ sung nhiều lệnh WorldEdit tích hợp cho búa gỗ: chọn điểm/vùng, set, replace, walls, faces, overlay, center, count, move, stack, clipboard copy/cut/paste và undo/redo.

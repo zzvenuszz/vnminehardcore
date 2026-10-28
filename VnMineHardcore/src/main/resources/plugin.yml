@@ -178,6 +178,12 @@ permissions:
   vnmine.command.worldedit:
     description: Cho phép dùng búa WorldEdit tích hợp, lệnh //... và quản lý vùng /vnregion
     default: op
+  vnmine.command.world.manage:
+    description: Cho phép quản lý quy tắc gameplay theo từng world
+    default: op
+  vnmine.command.race.admin:
+    description: Cho phép cấu hình quest tự giao theo từng chủng tộc RPG
+    default: op
   vnmine.command.init:
     description: Cho phép mở trình hướng dẫn setup server RPG bằng /vninit
     default: op

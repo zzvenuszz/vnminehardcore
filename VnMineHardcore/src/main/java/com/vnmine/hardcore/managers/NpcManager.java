@@ -581,7 +581,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    // Managed NPC interaction is a plugin-owned entity action. Keep it available even when
+    // another protection listener cancels the generic entity-interaction event.
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onNpcInteract(PlayerInteractEntityEvent event) {
         if (event.getHand() != EquipmentSlot.HAND || !isManagedNpc(event.getRightClicked())) return;
         event.setCancelled(true);
@@ -595,6 +597,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             return;
         }
         Player player = event.getPlayer();
+        if (plugin.getConfig().getBoolean("logging.console-debug", false)) {
+            plugin.getLogger().info("[RPG-DEBUG][NPC] interact player=" + player.getName() + ", npc=" + npc.id()
+                + ", type=" + npc.type() + ", world=" + player.getWorld().getName());
+        }
         if (player.isSneaking() && player.hasPermission(ADMIN_PERMISSION)
                 && ("story".equals(npc.type()) || "quest-giver".equals(npc.type())
                     || "tutorial".equals(npc.type()))) {
@@ -602,16 +608,16 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             return;
         }
         recordClassProgressionNpcVisit(player, npc.id());
-        if (plugin.getQuestCatalogManager() != null) {
-            plugin.getQuestCatalogManager().recordNpcVisit(player, npc.id());
+        if (plugin.getCharacterSelectionManager() != null
+                && plugin.getCharacterSelectionManager().recordStartWorldTutorialNpcVisit(player, npc.id())) {
+            return;
         }
         if (plugin.getCharacterSelectionManager() != null
                 && plugin.getCharacterSelectionManager().recordTutorialNpcVisit(player, npc.id())) {
             return;
         }
-        if (plugin.getCharacterSelectionManager() != null
-                && plugin.getCharacterSelectionManager().recordStartWorldTutorialNpcVisit(player, npc.id())) {
-            return;
+        if (plugin.getQuestCatalogManager() != null) {
+            plugin.getQuestCatalogManager().recordNpcVisit(player, npc.id());
         }
         if ("system-merchant".equals(npc.type())) {
             plugin.getEconomyManager().openMerchantMenu(player);

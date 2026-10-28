@@ -590,9 +590,13 @@ public class DisasterManager {
      */
     private boolean canDisasterHappen(String disasterId, ConfigManager.DisasterConfig dc) {
         if (!dc.worlds.isEmpty() && Bukkit.getOnlinePlayers().stream()
-                .noneMatch(player -> matchesWorld(dc.worlds, player.getWorld()))) {
+                .noneMatch(player -> matchesWorld(dc.worlds, player.getWorld())
+                    && (plugin.getWorldSettingsManager() == null
+                        || plugin.getWorldSettingsManager().isDisasterEnabled(player.getWorld())))) {
             return false;
         }
+        if (Bukkit.getOnlinePlayers().stream().noneMatch(player -> plugin.getWorldSettingsManager() == null
+                || plugin.getWorldSettingsManager().isDisasterEnabled(player.getWorld()))) return false;
 
         // Kiểm tra world conditions từ file YAML
         boolean isNight = Bukkit.getWorlds().get(0).getTime() > 13000;
@@ -1787,7 +1791,9 @@ public class DisasterManager {
     }
 
     private boolean matchesOptionalWorlds(List<String> worldFilters, World world) {
-        return worldFilters == null || worldFilters.isEmpty() || matchesWorld(worldFilters, world);
+        return (plugin.getWorldSettingsManager() == null
+                || plugin.getWorldSettingsManager().isDisasterEnabled(world))
+            && (worldFilters == null || worldFilters.isEmpty() || matchesWorld(worldFilters, world));
     }
 
     private boolean matchesWorldScope(List<String> eventWorlds, List<String> targetWorlds, World world) {

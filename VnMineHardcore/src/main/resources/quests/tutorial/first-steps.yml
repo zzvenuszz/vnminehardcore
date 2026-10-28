@@ -35,7 +35,7 @@ quest:
 
     # [VI] Mục tiêu đến NPC Tutorial của realm đã chọn; visit-realm-spawn cũ vẫn được đọc tương thích.
     # [EN] Visit the selected realm's Tutorial NPC; legacy visit-realm-spawn remains readable.
-    type: visit-tutorial-npc
+    type: visit-start-world-tutorial-npc
 
     # [VI] Realm dự phòng; mặc định human-realm. Người chơi mới tự được dẫn tới realm có world khớp homeWorld đã chọn.
     # [EN] Fallback realm; defaults to human-realm. New players are routed to the realm matching their selected homeWorld.
@@ -67,8 +67,8 @@ quest:
 
     # [VI] Hướng dẫn khi quest bắt đầu; người chơi chọn realm bằng /start rồi tìm NPC Tutorial.
     # [EN] Quest guidance; players choose a realm with /start and find its Tutorial NPC.
-    start-message: "Dùng /start để chọn đại lục, sau đó gặp NPC Tutorial tại đó."
+    start-message: "Hãy gặp NPC Tutorial tại world bắt đầu để chọn đại lục và chủng tộc."
 
     # [VI] Thông báo khi objective hoàn tất; mặc định xác nhận đã gặp NPC Tutorial.
     # [EN] Completion feedback; defaults to confirming the Tutorial NPC visit.
-    complete-message: "Bạn đã gặp NPC Tutorial. Tiến trình đã được lưu."
+    complete-message: "Bạn đã gặp người hướng dẫn. Hãy chọn đại lục và chủng tộc để tiếp tục."

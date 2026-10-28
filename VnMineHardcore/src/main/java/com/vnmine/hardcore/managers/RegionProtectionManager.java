@@ -792,7 +792,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     public void onBlockBreak(BlockBreakEvent event) {
         if (isAdminBypass(event.getPlayer())) return;
         Location location = event.getBlock().getLocation();
-        if (isStartWorld(location) && plugin.getConfig().getBoolean(startWorldPath() + ".protection.enabled", true)
+        WorldSettingsManager worldSettings = plugin.getWorldSettingsManager();
+        if (worldSettings != null && worldSettings.hasOverride(location.getWorld(), WorldSettingsManager.Rule.BLOCK_BREAK)) {
+            if (!worldSettings.isEnabled(location.getWorld(), WorldSettingsManager.Rule.BLOCK_BREAK)) event.setCancelled(true);
+            if (event.isCancelled()) return;
+        }
+        if ((worldSettings == null || !worldSettings.hasOverride(location.getWorld(), WorldSettingsManager.Rule.BLOCK_BREAK))
+                && isStartWorld(location) && plugin.getConfig().getBoolean(startWorldPath() + ".protection.enabled", true)
                 && plugin.getConfig().getBoolean(startWorldPath() + ".protection.block-break", true)) {
             event.setCancelled(true); return;
         }
@@ -803,7 +809,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     public void onBlockPlace(BlockPlaceEvent event) {
         if (isAdminBypass(event.getPlayer())) return;
         Location location = event.getBlockPlaced().getLocation();
-        if (isStartWorld(location) && plugin.getConfig().getBoolean(startWorldPath() + ".protection.enabled", true)
+        WorldSettingsManager worldSettings = plugin.getWorldSettingsManager();
+        if (worldSettings != null && worldSettings.hasOverride(location.getWorld(), WorldSettingsManager.Rule.BLOCK_PLACE)) {
+            if (!worldSettings.isEnabled(location.getWorld(), WorldSettingsManager.Rule.BLOCK_PLACE)) event.setCancelled(true);
+            if (event.isCancelled()) return;
+        }
+        if ((worldSettings == null || !worldSettings.hasOverride(location.getWorld(), WorldSettingsManager.Rule.BLOCK_PLACE))
+                && isStartWorld(location) && plugin.getConfig().getBoolean(startWorldPath() + ".protection.enabled", true)
                 && plugin.getConfig().getBoolean(startWorldPath() + ".protection.block-place", true)) {
             event.setCancelled(true); return;
         }
@@ -815,7 +827,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         Player player = event.getPlayer();
         if (event.getClickedBlock() == null || isAdminBypass(player)) return;
         Location location = event.getClickedBlock().getLocation();
-        if (isStartWorld(location) && plugin.getConfig().getBoolean(startWorldPath() + ".protection.enabled", true)
+        WorldSettingsManager worldSettings = plugin.getWorldSettingsManager();
+        if (worldSettings != null && worldSettings.hasOverride(location.getWorld(), WorldSettingsManager.Rule.INTERACTIONS)) {
+            if (!worldSettings.isEnabled(location.getWorld(), WorldSettingsManager.Rule.INTERACTIONS)) event.setCancelled(true);
+            if (event.isCancelled()) return;
+        }
+        if ((worldSettings == null || !worldSettings.hasOverride(location.getWorld(), WorldSettingsManager.Rule.INTERACTIONS))
+                && isStartWorld(location) && plugin.getConfig().getBoolean(startWorldPath() + ".protection.enabled", true)
                 && plugin.getConfig().getBoolean(startWorldPath() + ".protection.interactions", true)) {
             event.setCancelled(true); return;
         }
@@ -828,8 +846,21 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         Player attacker = event.getDamager() instanceof Player player ? player
             : event.getDamager() instanceof Projectile projectile && projectile.getShooter() instanceof Player player ? player : null;
         if (attacker == null || isAdminBypass(attacker) || isAdminBypass(target)) return;
+        WorldSettingsManager worldSettings = plugin.getWorldSettingsManager();
+        boolean targetOverride = worldSettings != null
+            && worldSettings.hasOverride(target.getWorld(), WorldSettingsManager.Rule.PVP);
+        boolean attackerOverride = worldSettings != null
+            && worldSettings.hasOverride(attacker.getWorld(), WorldSettingsManager.Rule.PVP);
+        if ((targetOverride && !worldSettings.isEnabled(target.getWorld(), WorldSettingsManager.Rule.PVP))
+                || (attackerOverride && !worldSettings.isEnabled(attacker.getWorld(), WorldSettingsManager.Rule.PVP))) {
+            event.setCancelled(true);
+            return;
+        }
         boolean startWorldPvp = isStartWorld(target.getLocation()) || isStartWorld(attacker.getLocation());
-        if (startWorldPvp && !plugin.getConfig().getBoolean(startWorldPath() + ".pvp-enabled", false)) {
+        boolean hasStartOverride = (targetOverride && isStartWorld(target.getLocation()))
+            || (attackerOverride && isStartWorld(attacker.getLocation()));
+        if (startWorldPvp && !hasStartOverride
+                && !plugin.getConfig().getBoolean(startWorldPath() + ".pvp-enabled", false)) {
             event.setCancelled(true); return;
         }
         if (regionsAt(target.getLocation()).stream().anyMatch(region -> region.flag("deny-pvp"))
@@ -839,7 +870,14 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onCreatureSpawn(CreatureSpawnEvent event) {
         CreatureSpawnEvent.SpawnReason reason = event.getSpawnReason();
-        if (isStartWorld(event.getLocation()) && !plugin.getConfig().getBoolean(startWorldPath() + ".mob-spawning-enabled", false)
+        WorldSettingsManager worldSettings = plugin.getWorldSettingsManager();
+        boolean mobOverride = worldSettings != null
+            && worldSettings.hasOverride(event.getLocation().getWorld(), WorldSettingsManager.Rule.MOB_SPAWNING);
+        if (mobOverride && !worldSettings.isEnabled(event.getLocation().getWorld(), WorldSettingsManager.Rule.MOB_SPAWNING)
+                && reason != CreatureSpawnEvent.SpawnReason.CUSTOM && reason != CreatureSpawnEvent.SpawnReason.COMMAND) {
+            event.setCancelled(true); return;
+        }
+        if (!mobOverride && isStartWorld(event.getLocation()) && !plugin.getConfig().getBoolean(startWorldPath() + ".mob-spawning-enabled", false)
                 && reason != CreatureSpawnEvent.SpawnReason.CUSTOM && reason != CreatureSpawnEvent.SpawnReason.COMMAND) {
             event.setCancelled(true); return;
         }
@@ -861,17 +899,26 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     public boolean isHungerDrainDisabled(Player player) {
+        WorldSettingsManager settings = plugin.getWorldSettingsManager();
+        if (settings != null && settings.hasOverride(player.getWorld(), WorldSettingsManager.Rule.HUNGER))
+            return !settings.isEnabled(player.getWorld(), WorldSettingsManager.Rule.HUNGER);
         if (isStartWorld(player.getLocation()) && !plugin.getConfig().getBoolean(startWorldPath() + ".hunger-drain-enabled", false)) return true;
         return regionsAt(player.getLocation()).stream().anyMatch(region -> region.flag("disable-hunger"));
     }
 
     public boolean isTimeProgressionDisabled(World world) {
+        WorldSettingsManager settings = plugin.getWorldSettingsManager();
+        if (settings != null && settings.hasOverride(world, WorldSettingsManager.Rule.TIME))
+            return !settings.isEnabled(world, WorldSettingsManager.Rule.TIME);
         return world != null && world.getName().equalsIgnoreCase(
             plugin.getConfig().getString(startWorldPath() + ".name", "world_start"))
             && !plugin.getConfig().getBoolean(startWorldPath() + ".time-passes", false);
     }
 
     public boolean isThirstDrainDisabled(Player player) {
+        WorldSettingsManager settings = plugin.getWorldSettingsManager();
+        if (settings != null && settings.hasOverride(player.getWorld(), WorldSettingsManager.Rule.THIRST))
+            return !settings.isEnabled(player.getWorld(), WorldSettingsManager.Rule.THIRST);
         if (isStartWorld(player.getLocation()) && !plugin.getConfig().getBoolean(startWorldPath() + ".thirst-drain-enabled", false)) return true;
         return regionsAt(player.getLocation()).stream().anyMatch(region -> region.flag("disable-thirst"));
     }
@@ -966,6 +1013,28 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                     boolean value = !plugin.getConfig().getBoolean(path, startWorldDefault(slot));
                     plugin.getConfig().set(path, value);
                     plugin.saveConfig();
+                    WorldSettingsManager settings = plugin.getWorldSettingsManager();
+                    World startWorld = Bukkit.getWorld(plugin.getConfig().getString(startWorldPath() + ".name", "world_start"));
+                    if (settings != null && startWorld != null) {
+                        if (slot == 10) {
+                            settings.clearOverride(startWorld, WorldSettingsManager.Rule.BLOCK_BREAK);
+                            settings.clearOverride(startWorld, WorldSettingsManager.Rule.BLOCK_PLACE);
+                            settings.clearOverride(startWorld, WorldSettingsManager.Rule.INTERACTIONS);
+                        } else {
+                            WorldSettingsManager.Rule rule = switch (slot) {
+                                case 12 -> WorldSettingsManager.Rule.BLOCK_BREAK;
+                                case 14 -> WorldSettingsManager.Rule.BLOCK_PLACE;
+                                case 16 -> WorldSettingsManager.Rule.INTERACTIONS;
+                                case 20 -> WorldSettingsManager.Rule.PVP;
+                                case 22 -> WorldSettingsManager.Rule.MOB_SPAWNING;
+                                case 24 -> WorldSettingsManager.Rule.TIME;
+                                case 30 -> WorldSettingsManager.Rule.HUNGER;
+                                case 32 -> WorldSettingsManager.Rule.THIRST;
+                                default -> null;
+                            };
+                            if (rule != null) settings.clearOverride(startWorld, rule);
+                        }
+                    }
                     applyStartWorldSettings();
                     plugin.getLogger().info("[WorldRegion] admin=" + player.getName() + ", action=" + path + ", value=" + value);
                     openStartWorldSettings(player);

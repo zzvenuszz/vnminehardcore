@@ -119,6 +119,11 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         return quest == null ? questId : quest.title();
     }
 
+    public List<String> getEnabledQuestIds() {
+        return definitions.values().stream().filter(QuestDefinition::enabled)
+            .map(QuestDefinition::id).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+    }
+
     public void openAdminCompletedQuests(Player admin, UUID targetId) {
         openAdminCompletedQuests(admin, targetId, 0);
     }
@@ -2179,6 +2184,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     public void acceptQuest(Player player, String npcId, String questId) {
         acceptQuest(player, npcId, questId, null);
+    }
+
+    public boolean isEnabledQuest(String questId) {
+        QuestDefinition quest = questId == null ? null : definitions.get(questId.toLowerCase(Locale.ROOT));
+        return quest != null && quest.enabled();
+    }
+
+    /** Accepts a configured onboarding quest from its own configured giver NPC. */
+    public boolean acceptConfiguredQuest(Player player, String questId) {
+        QuestDefinition quest = questId == null ? null : definitions.get(questId.toLowerCase(Locale.ROOT));
+        if (quest == null || !quest.enabled()) return false;
+        acceptQuest(player, quest.giverNpcId(), quest.id());
+        return true;
     }
 
     private void acceptQuest(Player player, String npcId, String questId, Consumer<AcceptStatus> completion) {

@@ -15,7 +15,7 @@ public final class TutorialQuestDefinitionLoader {
     private static final int SUPPORTED_SCHEMA_VERSION = 1;
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9]+(?:-[a-z0-9]+)*");
     private static final java.util.Set<String> SUPPORTED_OBJECTIVE_TYPES =
-        java.util.Set.of("visit-realm-spawn", "visit-tutorial-npc");
+        java.util.Set.of("visit-realm-spawn", "visit-tutorial-npc", "visit-start-world-tutorial-npc");
 
     private TutorialQuestDefinitionLoader() {
     }

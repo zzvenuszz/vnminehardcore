@@ -802,3 +802,16 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Commit `e7db658` và push thay đổi mã nguồn/tài liệu lên `origin/main`.
 - [ ] Kiểm thử trên server các lệnh set/replace/copy/paste/move/stack/undo/redo, pattern, giới hạn lệnh và tile entity; server cần restart để nạp 2.32.0.
 - Giới hạn hiện tại: cuboid-only; không có entity/biome edit, brush, generator, selection shapes phi cuboid, schematic I/O hoặc history xuyên restart. Clipboard/history mất khi thoát.
+
+## Onboarding world bắt đầu và quản lý rule theo world — yêu cầu 2026-10-28
+
+- [x] Dựa trên `/home/ubuntu/DATA/VNMINE/logs/latest.log`: sự kiện click NPC `world-start-tutorial` đã tới `QuestCatalogManager`; bảo vệ đặt/phá block không chặn entity click. Config thật đã chọn đúng NPC nhưng `dialog-id` và `auto-quest-id` đều rỗng, nên handler cũ xử lý im lặng và không mở bước chọn tiếp theo.
+- [x] Người mới chưa có profile được chuyển tới `rpg.onboarding.start-world.name`; sidebar và navigation dẫn tới NPC Tutorial world bắt đầu. Click NPC ghi nhận First Steps, phát dialog nếu cấu hình, rồi mở menu chọn đại lục.
+- [x] Chọn đại lục không dịch chuyển ra khỏi world bắt đầu; GUI lọc race/class theo realm. Sau khi tạo profile, plugin giao sách skill, tự nhận quest cấu hình theo race và đưa người chơi đến spawn của đại lục. NPC tutorial riêng của realm không còn bắt buộc để mở onboarding.
+- [x] Thêm Admin → Quản lý chủng tộc: nhập quest ID đang bật hoặc `!clear`; lưu tại `races.<race-id>.onboarding.auto-quest-id` trong `races.yml`.
+- [x] Thêm Admin → Quản lý world cho các rule đặt/phá block, tương tác, PvP, mob, boss, thiên tai, thời gian, đói và khát; lưu thay đổi trong `world-settings.yml` và nối vào protection, time, drain, boss spawn và disaster targeting.
+- [x] Compile Java 25 bằng `mvn -DskipTests compile` thành công lúc `2026-10-28 09:29 UTC`; kiểm tra YAML hợp lệ và `git diff --check` sạch. Không chạy test suite.
+- [x] Build JAR 2.33.0 bằng Java 25 với `mvn -DskipTests package`; build thành công lúc `2026-10-28 09:51:57 UTC`, 2,404,569 bytes, SHA-256 `3aece9ef3af927a576f42eb37353da52ab648b5d564b18765bfdd107b5f30bb6`. Test suite được bỏ qua.
+- [x] Sao lưu JAR 2.32.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.32.0.jar`, cài 2.33.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.33.0.jar`, đối chiếu checksum với artifact; gỡ 2.32.0 khỏi thư mục plugin để Paper không nạp hai phiên bản.
+- [x] Commit source và plan.md (`Cải thiện onboarding và quản lý cấu hình world`); đã push lên `origin/main`.
+- [ ] Gameplay test sau phát hành cần kiểm tra NPC Tutorial bằng profile mới và profile đã có, chọn realm/race/class, giao quest race, từng cờ world (đặc biệt boss/thiên tai/thời gian) và lưu qua restart.

@@ -13,6 +13,10 @@ races:
     # [VI] Mô tả ngắn hiển thị trong GUI; bắt buộc, không được để trống.
     # [EN] Short description shown in the GUI; required and must not be blank.
     description: "Dễ thích nghi, bền bỉ, ổn định."
+    onboarding:
+      # [VI] Quest ID được tự nhận sau khi tạo nhân vật race này; để trống nếu không có quest riêng.
+      # [EN] Quest ID auto-accepted after creating a character with this race; blank disables it.
+      auto-quest-id: ""
   elf:
     # [VI] Tên hiển thị mặc định; chuỗi không rỗng.
     # [EN] Default display name; must be a non-empty string.
@@ -23,6 +27,10 @@ races:
     # [VI] Mô tả mặc định; chuỗi không rỗng.
     # [EN] Default description; must be a non-empty string.
     description: "Nhanh nhẹn, tập trung và lợi hại trong tầm xa."
+    onboarding:
+      # [VI] Quest ID được tự nhận sau khi tạo nhân vật race này; để trống nếu không có quest riêng.
+      # [EN] Quest ID auto-accepted after creating a character with this race; blank disables it.
+      auto-quest-id: ""
   dwarf:
     # [VI] Tên hiển thị mặc định; chuỗi không rỗng.
     # [EN] Default display name; must be a non-empty string.
@@ -33,6 +41,10 @@ races:
     # [VI] Mô tả mặc định; chuỗi không rỗng.
     # [EN] Default description; must be a non-empty string.
     description: "Máu chiến đấu, chịu đòn mạnh, kỹ thuật phòng ngự."
+    onboarding:
+      # [VI] Quest ID được tự nhận sau khi tạo nhân vật race này; để trống nếu không có quest riêng.
+      # [EN] Quest ID auto-accepted after creating a character with this race; blank disables it.
+      auto-quest-id: ""
   demon:
     # [VI] Tên hiển thị mặc định; chuỗi không rỗng.
     # [EN] Default display name; must be a non-empty string.
@@ -43,6 +55,10 @@ races:
     # [VI] Mô tả mặc định; chuỗi không rỗng.
     # [EN] Default description; must be a non-empty string.
     description: "Sức mạnh bùng phát, tốc độ đánh nhanh."
+    onboarding:
+      # [VI] Quest ID được tự nhận sau khi tạo nhân vật race này; để trống nếu không có quest riêng.
+      # [EN] Quest ID auto-accepted after creating a character with this race; blank disables it.
+      auto-quest-id: ""
   spirit:
     # [VI] Tên hiển thị mặc định; chuỗi không rỗng.
     # [EN] Default display name; must be a non-empty string.
@@ -53,3 +69,7 @@ races:
     # [VI] Mô tả mặc định; chuỗi không rỗng.
     # [EN] Default description; must be a non-empty string.
     description: "Linh cảm, tri thức cổ xưa và năng lực phức hợp."
+    onboarding:
+      # [VI] Quest ID được tự nhận sau khi tạo nhân vật race này; để trống nếu không có quest riêng.
+      # [EN] Quest ID auto-accepted after creating a character with this race; blank disables it.
+      auto-quest-id: ""

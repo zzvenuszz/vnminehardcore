@@ -14,6 +14,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -120,7 +121,9 @@ public final class TutorialQuestManager implements Listener {
                 || !activeQuestSessions.containsKey(player.getUniqueId())) return List.of();
         String realmId = targetRealmId(player);
         var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
-        String destination = realm == null ? "NPC Tutorial" : "NPC Tutorial • " + realm.displayName();
+        String destination = "visit-start-world-tutorial-npc".equals(definition.objective().type())
+            ? "NPC Tutorial • " + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start")
+            : realm == null ? "NPC Tutorial" : "NPC Tutorial • " + realm.displayName();
         return List.of("§d§lNHIỆM VỤ", "§fTới: " + destination, "§7Mục tiêu: Gặp NPC Tutorial");
     }
 
@@ -561,6 +564,10 @@ public final class TutorialQuestManager implements Listener {
         if (definition == null || location.getWorld() == null) {
             return false;
         }
+        if ("visit-start-world-tutorial-npc".equals(definition.objective().type())) {
+            CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
+            if (characters != null && characters.hasVisitedStartWorldTutorial(player)) return true;
+        }
         Location center = resolveObjectiveTarget(player);
         if (center == null) return false;
         return location.getWorld() == center.getWorld()
@@ -578,7 +585,8 @@ public final class TutorialQuestManager implements Listener {
 
         String realmId = targetRealmId(player);
         var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
-        String realmName = realm == null ? realmId : realm.displayName();
+        String realmName = "visit-start-world-tutorial-npc".equals(definition.objective().type())
+            ? "world bắt đầu" : realm == null ? realmId : realm.displayName();
         Location target = resolveObjectiveTarget(player);
         if (target == null) return;
         String targetPosition = "§fX " + target.getBlockX() + " Y " + target.getBlockY()
@@ -601,6 +609,16 @@ public final class TutorialQuestManager implements Listener {
     }
 
     private Location resolveObjectiveTarget(Player player) {
+        if (definition != null && "visit-start-world-tutorial-npc".equals(definition.objective().type())) {
+            String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+            if (!npcId.isBlank() && plugin.getNpcManager() != null) {
+                var npc = plugin.getNpcManager().getNpcTarget(npcId);
+                if (npc.isPresent() && npc.get().location() != null) return npc.get().location().clone();
+            }
+            String worldName = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
+            World world = Bukkit.getWorld(worldName);
+            return world == null ? null : world.getSpawnLocation();
+        }
         String realmId = targetRealmId(player);
         var realm = plugin.getRpgWorldManager().getDefinitions().get(realmId);
         if (realm != null && plugin.getNpcManager() != null) {

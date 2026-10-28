@@ -31,6 +31,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
@@ -55,6 +56,7 @@ public final class CharacterSelectionManager implements Listener {
     private final NamespacedKey onboardingContinentKey;
     private final NamespacedKey starterBookPendingKey;
     private final NamespacedKey starterTutorialPendingKey;
+    private final NamespacedKey startTutorialVisitedKey;
     private final File starterBookMappingsFile;
     private final File pendingJourneyResetsFile;
     private final Set<UUID> pendingJourneyResets = new java.util.HashSet<>();
@@ -69,10 +71,14 @@ public final class CharacterSelectionManager implements Listener {
     private final Map<String, String> promotionRpgItemByClass = new LinkedHashMap<>();
     private final Map<String, Integer> promotionRpgItemAmountByClass = new LinkedHashMap<>();
     private final Map<String, String> starterBookMappings = new LinkedHashMap<>();
+    private final Map<String, String> raceOnboardingQuestIds = new LinkedHashMap<>();
+    private final Map<UUID, String> pendingRaceQuestInputs = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, PlayerProfileDatabaseManager.PlayerProfile> loadedProfiles = new HashMap<>();
     private final Set<UUID> profileLookupComplete = new java.util.HashSet<>();
     private final Set<UUID> pendingProfileCreates = new java.util.HashSet<>();
+    private final Set<UUID> pendingStartNpcInteractions = new java.util.HashSet<>();
     private Set<String> playableClassIds = Set.of();
+    private File raceDefinitionsFile;
     private boolean definitionsAvailable;
     private BukkitTask onboardingNavigationTask;
     private long onboardingTick;
@@ -85,6 +91,7 @@ public final class CharacterSelectionManager implements Listener {
         this.onboardingContinentKey = new NamespacedKey(plugin, "onboarding_continent");
         this.starterBookPendingKey = new NamespacedKey(plugin, "starter_book_pending");
         this.starterTutorialPendingKey = new NamespacedKey(plugin, "starter_tutorial_pending");
+        this.startTutorialVisitedKey = new NamespacedKey(plugin, "start_tutorial_visited");
         this.starterBookMappingsFile = new File(plugin.getDataFolder(), "starter-skill-books.yml");
         this.pendingJourneyResetsFile = new File(plugin.getDataFolder(), "pending-onboarding-resets.yml");
         try {
@@ -357,6 +364,20 @@ public final class CharacterSelectionManager implements Listener {
             return;
         }
 
+        if ("admin-races".equals(holder.type)) {
+            if (!player.hasPermission("vnmine.command.race.admin")) {
+                player.sendMessage("§cBạn không có quyền quản lý race.");
+                return;
+            }
+            if (slot == 49) {
+                if (plugin.getMercenaryManager() != null) plugin.getMercenaryManager().openAdminMenu(player);
+            } else {
+                String raceId = holder.choices.get(slot);
+                if (raceId != null) promptRaceQuest(player, raceId);
+            }
+            return;
+        }
+
         if ("confirm".equals(holder.type)) {
             if (slot == 11) {
                 finalizeSelection(player, holder.raceId, holder.classId);
@@ -417,12 +438,23 @@ public final class CharacterSelectionManager implements Listener {
                 debugProfile("load-result player=" + playerName + ", source=join, found=" + profile.isPresent());
                 if (profile.isEmpty()) {
                     loadedProfiles.remove(playerId);
-                    if (onboardingStage(player) == null) setOnboarding(player, "needs-continent", null);
-                    player.sendMessage("§eChào mừng! Dùng §f/start §eđể chọn đại lục và bắt đầu hành trình RPG.");
+                    if (onboardingStage(player) == null || "needs-continent".equals(onboardingStage(player))
+                            || "awaiting-tutorial".equals(onboardingStage(player))) {
+                        setOnboarding(player, "awaiting-start-tutorial", null);
+                        if (pendingStartNpcInteractions.remove(playerId)
+                                && player.getWorld().getName().equalsIgnoreCase(plugin.getConfig()
+                                    .getString("rpg.onboarding.start-world.name", "world_start"))) {
+                            recordStartWorldTutorialNpcVisit(player,
+                                plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", ""));
+                        } else teleportToStartWorld(player, true);
+                    } else continueOnboarding(player);
                     return;
                 }
                 PlayerProfileDatabaseManager.PlayerProfile loadedProfile = profile.get();
                 loadedProfiles.put(playerId, loadedProfile);
+                if (pendingStartNpcInteractions.remove(playerId)) {
+                    player.sendMessage("§eHồ sơ RPG đã tồn tại nên NPC Tutorial không mở luồng tạo nhân vật mới.");
+                }
                 if ("needs-continent".equals(onboardingStage(player))) {
                     player.sendMessage("§eTiến trình quest đã được đặt lại. Dùng §f/start §eđể quay lại hành trình hướng dẫn.");
                 } else if (!"complete".equals(onboardingStage(player))) setOnboarding(player, "complete", null);
@@ -453,6 +485,18 @@ public final class CharacterSelectionManager implements Listener {
         loadedProfiles.remove(playerId);
         profileLookupComplete.remove(playerId);
         lastCrossWorldHintTick.remove(playerId);
+        pendingRaceQuestInputs.remove(playerId);
+        pendingStartNpcInteractions.remove(playerId);
+    }
+
+    @EventHandler
+    public void onRaceAdminChat(AsyncPlayerChatEvent event) {
+        String raceId = pendingRaceQuestInputs.remove(event.getPlayer().getUniqueId());
+        if (raceId == null) return;
+        event.setCancelled(true);
+        String input = event.getMessage().trim();
+        Player player = event.getPlayer();
+        Bukkit.getScheduler().runTask(plugin, () -> saveRaceQuestInput(player, raceId, input));
     }
 
     public Optional<PlayerProfileDatabaseManager.PlayerProfile> getLoadedProfile(UUID playerId) {
@@ -517,12 +561,19 @@ public final class CharacterSelectionManager implements Listener {
 
     public boolean isWaitingForJourneyStart(Player player) {
         return pendingJourneyResets.contains(player.getUniqueId())
-            || "needs-continent".equals(onboardingStage(player));
+            || "needs-continent".equals(onboardingStage(player))
+            || "awaiting-start-tutorial".equals(onboardingStage(player))
+            || "choosing-continent".equals(onboardingStage(player));
     }
 
     public boolean isStarterTutorialPending(Player player) {
         return player.getPersistentDataContainer().getOrDefault(starterTutorialPendingKey,
             PersistentDataType.BYTE, (byte) 0) == 1;
+    }
+
+    public boolean hasVisitedStartWorldTutorial(Player player) {
+        return player.getPersistentDataContainer().getOrDefault(startTutorialVisitedKey,
+            PersistentDataType.BYTE, (byte) 0) != 0;
     }
 
     public boolean shouldShowTutorialMarker(Player player, String npcId) {
@@ -551,6 +602,15 @@ public final class CharacterSelectionManager implements Listener {
     public List<String> getOnboardingSidebarLines(Player player) {
         if (!isOnboardingEnabled() || "complete".equals(onboardingStage(player))) return List.of();
         String stage = onboardingStage(player);
+        if ("awaiting-start-tutorial".equals(stage)) {
+            String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+            String world = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
+            return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 0/1",
+                "§7Gặp NPC Tutorial: 0/1", "§8" + (npcId.isBlank() ? "NPC chưa cấu hình" : npcId) + " • " + world);
+        }
+        if ("choosing-continent".equals(stage)) {
+            return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 1/1", "§7Chọn đại lục khởi đầu");
+        }
         if ("awaiting-tutorial".equals(stage)) {
             String continentId = onboardingContinent(player);
             HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null
@@ -560,9 +620,9 @@ public final class CharacterSelectionManager implements Listener {
                 "§7Gặp NPC Tutorial: 0/1", "§8" + realm.tutorialNpcId() + " • " + realm.worldName());
         }
         if ("ready-for-character".equals(stage)) {
-            return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 1/1", "§7Chọn chủng tộc và class: 0/1");
+            return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 1/1", "§7Chọn race và class: 0/1");
         }
-        return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 0/1", "§7Dùng /start để chọn đại lục");
+        return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 0/1", "§7Gặp NPC Tutorial tại world bắt đầu");
     }
 
     private void continueOnboarding(Player player) {
@@ -576,15 +636,51 @@ public final class CharacterSelectionManager implements Listener {
             setOnboarding(player, "needs-continent", null);
             stage = "needs-continent";
         }
+        if ("needs-continent".equals(stage) || stage == null) {
+            setOnboarding(player, "awaiting-start-tutorial", null);
+            stage = "awaiting-start-tutorial";
+        }
         if ("ready-for-character".equals(stage)) {
             openRaceMenu(player);
+            return;
+        }
+        if ("choosing-continent".equals(stage)) {
+            openContinentMenu(player);
+            return;
+        }
+        if ("awaiting-start-tutorial".equals(stage)) {
+            teleportToStartWorld(player, false);
+            player.sendMessage("§eHãy gặp NPC Tutorial tại world bắt đầu để chọn đại lục và chủng tộc.");
             return;
         }
         if ("awaiting-tutorial".equals(stage) && onboardingContinent(player) != null) {
             player.sendMessage("§eHãy tìm NPC hướng dẫn của đại lục bạn đã chọn.");
             return;
         }
-        player.sendMessage("§eDùng §f/start §eđể chọn đại lục và bắt đầu hành trình RPG.");
+        player.sendMessage("§eHãy gặp NPC Tutorial ở world bắt đầu để tiếp tục hành trình RPG.");
+    }
+
+    private void teleportToStartWorld(Player player, boolean welcome) {
+        String worldName = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            player.sendMessage("§cWorld bắt đầu §f" + worldName + " §cchưa được nạp. Hãy báo quản trị viên.");
+            plugin.getLogger().warning("[Onboarding] Start world unavailable: player=" + player.getName()
+                + ", world=" + worldName);
+            return;
+        }
+        player.teleportAsync(world.getSpawnLocation()).whenComplete((success, failure) ->
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null || !Boolean.TRUE.equals(success)) {
+                    plugin.getLogger().warning("[Onboarding] Could not send player=" + player.getName()
+                        + " to start-world=" + worldName + (failure == null ? "" : ": " + failure.getMessage()));
+                    player.sendMessage("§cKhông thể dịch chuyển tới world bắt đầu. Hãy báo quản trị viên.");
+                    return;
+                }
+                if (welcome) player.sendMessage("§eChào mừng! Hãy tìm NPC Tutorial để bắt đầu hành trình RPG.");
+                debugProfile("start-world-arrival player=" + player.getName() + ", world=" + worldName);
+            }));
     }
 
     /** Starts or resumes the explicit realm-selection flow. */
@@ -604,16 +700,20 @@ public final class CharacterSelectionManager implements Listener {
             return;
         }
         String stage = onboardingStage(player);
-        if ("awaiting-tutorial".equals(stage)) {
+        if ("awaiting-start-tutorial".equals(stage) || "awaiting-tutorial".equals(stage)) {
             continueOnboarding(player);
+            return;
+        }
+        if ("choosing-continent".equals(stage)) {
+            openContinentMenu(player);
             return;
         }
         if ("ready-for-character".equals(stage)) {
             openRaceMenu(player);
             return;
         }
-        setOnboarding(player, "needs-continent", null);
-        openContinentMenu(player);
+        setOnboarding(player, "awaiting-start-tutorial", null);
+        teleportToStartWorld(player, false);
     }
 
     /** Used by the admin reset flow; this intentionally never initializes or rewards a quest. */
@@ -621,7 +721,8 @@ public final class CharacterSelectionManager implements Listener {
         if (player == null || !player.isOnline()) return;
         if (plugin.getTutorialQuestManager() != null)
             plugin.getTutorialQuestManager().clearSessionAfterAdminQuestReset(player);
-        setOnboarding(player, "needs-continent", null);
+        setOnboarding(player, "awaiting-start-tutorial", null);
+        player.getPersistentDataContainer().remove(startTutorialVisitedKey);
         String lobbyName = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
         World lobby = Bukkit.getWorld(lobbyName);
         if (lobby == null) {
@@ -638,7 +739,7 @@ public final class CharacterSelectionManager implements Listener {
                         + " to " + lobbyName + (failure == null ? "" : ": " + failure.getMessage()));
                     return;
                 }
-                player.sendMessage("§aTiến trình quest đã được reset. Dùng §f/start §ađể bắt đầu lại.");
+                player.sendMessage("§aTiến trình quest đã reset. Hãy gặp NPC Tutorial trong world bắt đầu.");
                 debugProfile("admin-quest-reset-return player=" + player.getName() + ", world=" + lobbyName);
             }));
     }
@@ -696,8 +797,8 @@ public final class CharacterSelectionManager implements Listener {
             holder.choices.put(slot, realm.id());
             inventory.setItem(slot, createActionItem(Material.END_PORTAL_FRAME, "§6" + realm.displayName(), List.of(
                 "§7World: §f" + realm.worldName(),
-                "§7NPC hướng dẫn: §e" + realm.tutorialNpcId(),
-                "", "§aNhấn để bắt đầu tại đại lục này.")));
+                "§7Sẽ lọc race/class theo cấu hình đại lục.",
+                "", "§aNhấn để chọn đại lục này.")));
         }
         inventory.setItem(49, createActionItem(Material.BARRIER, "§cĐóng", List.of(
             "§7Bạn cần chọn đại lục để bắt đầu.")));
@@ -712,24 +813,23 @@ public final class CharacterSelectionManager implements Listener {
     private boolean isStartingRealmAvailable(HumanRealmDefinitionLoader.HumanRealmDefinition realm) {
         if (realm == null || !realm.startingSelectable()) return false;
         var spawn = plugin.getRpgWorldManager().resolveSpawn(realm.id());
-        var target = plugin.getNpcManager().getNpcTarget(realm.tutorialNpcId());
         boolean available = spawn.isPresent() && spawn.get().location().getWorld() != null
             && spawn.get().location().getWorld().getName().equals(realm.worldName())
-            && target.isPresent() && target.get().location() != null
-            && target.get().world().equals(realm.worldName())
-            && plugin.getNpcManager().getNpcType(realm.tutorialNpcId()).filter("tutorial"::equals).isPresent();
+            && races.values().stream().anyMatch(race -> isRaceEnabledForRealm(realm.id(), race.id())
+                && classesByRace.getOrDefault(race.id(), List.of()).stream().anyMatch(klass ->
+                    isClassSelectable(klass) && isClassEnabledForRealm(realm.id(), race.id(), klass.id())));
         if (!available) {
             plugin.getLogger().warning("[Onboarding] Realm '" + realm.id()
                 + "' is unavailable: require loaded world '" + realm.worldName()
-                + "', valid spawn, and tutorial NPC '" + realm.tutorialNpcId()
-                + "' in that world.");
+                + "' and a valid configured spawn.");
         }
         return available;
     }
 
     private void selectStartingContinent(Player player, String continentId) {
         if (!profileLookupComplete.contains(player.getUniqueId())
-                || (onboardingStage(player) != null && !"needs-continent".equals(onboardingStage(player)))) {
+                || (onboardingStage(player) != null && !"choosing-continent".equals(onboardingStage(player))
+                    && !"needs-continent".equals(onboardingStage(player)))) {
             player.sendMessage("§eTrạng thái onboarding đã thay đổi; hãy mở lại menu nhân vật nếu cần.");
             return;
         }
@@ -740,28 +840,10 @@ public final class CharacterSelectionManager implements Listener {
             openContinentMenu(player);
             return;
         }
-        setOnboarding(player, "awaiting-tutorial", realm.id());
-        if (loadedProfiles.containsKey(player.getUniqueId()) && plugin.getTutorialQuestManager() != null)
-            plugin.getTutorialQuestManager().initializePlayer(player);
+        setOnboarding(player, "ready-for-character", realm.id());
         player.closeInventory();
-        var destination = plugin.getRpgWorldManager().resolveSpawn(realm.id());
-        if (destination.isPresent()) {
-            player.teleportAsync(destination.get().location()).whenComplete((success, failure) -> {
-                if (failure != null || !Boolean.TRUE.equals(success)) {
-                    plugin.getLogger().warning("[Onboarding] Could not teleport " + player.getName()
-                        + " to realm=" + realm.id() + ", world=" + realm.worldName()
-                        + (failure == null ? "" : ": " + failure.getMessage()));
-                }
-            });
-        }
-        player.sendMessage("§aBạn đã chọn §6" + realm.displayName() + "§a. Hãy gặp NPC hướng dẫn §e"
-            + realm.tutorialNpcId() + "§a tại world §f" + realm.worldName() + "§a.");
-        if (player.getWorld().getName().equals(realm.worldName())) {
-            player.sendMessage("§7Navigation đã bật và sẽ dẫn bạn tới NPC.");
-        } else {
-            player.sendMessage("§eBạn đang ở world khác. Hãy đi tới §f" + realm.worldName()
-                + "§e trước; navigation cụ thể sẽ hiện khi bạn tới đúng world.");
-        }
+        player.sendMessage("§aĐã chọn đại lục §6" + realm.displayName() + "§a. Bây giờ hãy chọn chủng tộc và class.");
+        openRaceMenu(player);
     }
 
     /** Called by the runtime NPC manager before normal dialogue handling. */
@@ -796,10 +878,29 @@ public final class CharacterSelectionManager implements Listener {
 
     /** Handles the separately configured tutorial NPC in the onboarding start/reset world. */
     public boolean recordStartWorldTutorialNpcVisit(Player player, String npcId) {
+        String stage = onboardingStage(player);
+        if (!isOnboardingEnabled()) return false;
         String configuredNpc = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
         if (configuredNpc.isBlank() || !configuredNpc.equalsIgnoreCase(npcId)) return false;
         if (plugin.getNpcManager() == null
                 || plugin.getNpcManager().getNpcType(npcId).filter("tutorial"::equalsIgnoreCase).isEmpty()) return false;
+        if ("complete".equals(stage) && loadedProfiles.containsKey(player.getUniqueId())) {
+            player.sendMessage("§bNPC Tutorial: §fBạn đã hoàn thành lựa chọn nhân vật. Nhiệm vụ khởi đầu theo race của bạn đã được thiết lập.");
+            debugProfile("start-tutorial-repeat-interaction player=" + player.getName() + ", npc=" + npcId
+                + ", result=already-complete");
+            return true;
+        }
+        if (stage == null && !profileLookupComplete.contains(player.getUniqueId())) {
+            if (player.getWorld().getName().equalsIgnoreCase(plugin.getConfig()
+                    .getString("rpg.onboarding.start-world.name", "world_start"))) {
+                pendingStartNpcInteractions.add(player.getUniqueId());
+                player.sendMessage("§eĐang tải hồ sơ tân thủ; cuộc trò chuyện với NPC đã được ghi nhận.");
+                return true;
+            }
+            return false;
+        }
+        if (!("awaiting-start-tutorial".equals(stage)
+                || "needs-continent".equals(stage) || "choosing-continent".equals(stage))) return false;
         String startWorld = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
         var target = plugin.getNpcManager() == null ? java.util.Optional.<NpcManager.NpcTarget>empty()
             : plugin.getNpcManager().getNpcTarget(npcId);
@@ -812,14 +913,15 @@ public final class CharacterSelectionManager implements Listener {
                 + ", playerWorld=" + player.getWorld().getName());
             return true;
         }
+        player.getPersistentDataContainer().set(startTutorialVisitedKey, PersistentDataType.BYTE, (byte) 1);
+        setOnboarding(player, "choosing-continent", null);
+        debugProfile("start-tutorial-visited player=" + player.getName() + ", npc=" + npcId
+            + ", world=" + startWorld);
         String dialogId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial.dialog-id");
-        String questId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial.auto-quest-id");
         Runnable afterDialogue = () -> {
-            if (!player.isOnline() || questId == null || questId.isBlank()
-                    || plugin.getQuestCatalogManager() == null) return;
-            plugin.getLogger().info("[Onboarding] Start-world tutorial auto-quest: player=" + player.getName()
-                + ", npc=" + npcId + ", quest=" + questId);
-            plugin.getQuestCatalogManager().acceptQuest(player, npcId, questId);
+            if (!player.isOnline()) return;
+            player.sendMessage("§aĐã gặp người hướng dẫn. Hãy chọn đại lục khởi đầu.");
+            openContinentMenu(player);
         };
         if (dialogId != null && !dialogId.isBlank() && plugin.getQuestDialogManager() != null
                 && plugin.getQuestDialogManager().hasDialog(dialogId)) {
@@ -870,7 +972,16 @@ public final class CharacterSelectionManager implements Listener {
                 || !plugin.getConfig().getBoolean("rpg.onboarding.navigation-enabled", true)) return;
         lastNavigationRunTick = onboardingTick;
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (!"awaiting-tutorial".equals(onboardingStage(player))) continue;
+            String stage = onboardingStage(player);
+            if ("awaiting-start-tutorial".equals(stage)) {
+                String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+                var target = npcId.isBlank() || plugin.getNpcManager() == null
+                    ? java.util.Optional.<NpcManager.NpcTarget>empty()
+                    : plugin.getNpcManager().getNpcTarget(npcId);
+                if (target.isPresent()) renderOnboardingTarget(player, target.get());
+                continue;
+            }
+            if (!"awaiting-tutorial".equals(stage)) continue;
             String continentId = onboardingContinent(player);
             HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null || plugin.getRpgWorldManager() == null
                 ? null : plugin.getRpgWorldManager().getDefinitions().get(continentId);
@@ -878,18 +989,22 @@ public final class CharacterSelectionManager implements Listener {
                 ? java.util.Optional.<NpcManager.NpcTarget>empty()
                 : plugin.getNpcManager().getNpcTarget(realm.tutorialNpcId());
             if (target.isEmpty()) continue;
-            if (!player.getWorld().getName().equals(target.get().world())) {
-                long lastHint = lastCrossWorldHintTick.getOrDefault(player.getUniqueId(), 0L);
-                if (onboardingTick - lastHint >= 100L) {
-                    player.sendActionBar("§eĐi tới world §f" + target.get().world()
-                        + " §eđể bắt đầu navigation tới NPC hướng dẫn.");
-                    lastCrossWorldHintTick.put(player.getUniqueId(), onboardingTick);
-                }
-            } else if (target.get().location() != null) {
-                double range = Math.max(8.0, Math.min(64.0,
-                    plugin.getConfig().getDouble("rpg.onboarding.navigation-range-blocks", 48.0)));
-                QuestWaypointRenderer.render(player, target.get().location(), range, true);
+            renderOnboardingTarget(player, target.get());
+        }
+    }
+
+    private void renderOnboardingTarget(Player player, NpcManager.NpcTarget target) {
+        if (!player.getWorld().getName().equalsIgnoreCase(target.world())) {
+            long lastHint = lastCrossWorldHintTick.getOrDefault(player.getUniqueId(), 0L);
+            if (onboardingTick - lastHint >= 100L) {
+                player.sendActionBar("§eĐi tới world §f" + target.world()
+                    + " §eđể bắt đầu navigation tới NPC hướng dẫn.");
+                lastCrossWorldHintTick.put(player.getUniqueId(), onboardingTick);
             }
+        } else if (target.location() != null) {
+            double range = Math.max(8.0, Math.min(64.0,
+                plugin.getConfig().getDouble("rpg.onboarding.navigation-range-blocks", 48.0)));
+            QuestWaypointRenderer.render(player, target.location(), range, true);
         }
     }
 
@@ -922,6 +1037,106 @@ public final class CharacterSelectionManager implements Listener {
         player.openInventory(inventory);
         debugProfile("starter-book-admin-open player=" + player.getName() + ", mappings="
             + starterBookMappings.size());
+    }
+
+    public void openRaceAdminMenu(Player player) {
+        if (!player.hasPermission("vnmine.command.race.admin")) {
+            player.sendMessage("§cBạn không có quyền quản lý race.");
+            return;
+        }
+        CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(),
+            "admin-races", null, null, new HashMap<>());
+        Inventory inventory = Bukkit.createInventory(holder, 54, "Admin • Nhiệm vụ theo chủng tộc");
+        holder.inventory = inventory;
+        int index = 0;
+        for (RaceDefinition race : getConfiguredRaceDefinitions()) {
+            if (index >= MENU_SLOTS.length) break;
+            int slot = MENU_SLOTS[index++];
+            String questId = raceOnboardingQuestIds.get(race.id());
+            String questTitle = questId == null ? "Chưa gán" : plugin.getQuestCatalogManager() == null
+                ? questId : java.util.Objects.toString(plugin.getQuestCatalogManager().getQuestTitle(questId), questId);
+            holder.choices.put(slot, race.id());
+            inventory.setItem(slot, createActionItem(race.material(), "§d" + race.name(), List.of(
+                "§7Race ID: §f" + race.id(), "§7Quest sau khi tạo nhân vật: §e" + questTitle,
+                "§7Quest ID: §f" + (questId == null ? "(chưa gán)" : questId),
+                "§eNhấn để nhập quest ID.")));
+        }
+        inventory.setItem(49, createActionItem(Material.ARROW, "§7Quay lại Admin", List.of()));
+        player.openInventory(inventory);
+    }
+
+    private void promptRaceQuest(Player player, String raceId) {
+        RaceDefinition race = races.get(raceId);
+        if (race == null) return;
+        pendingRaceQuestInputs.put(player.getUniqueId(), raceId);
+        player.closeInventory();
+        List<String> examples = plugin.getQuestCatalogManager() == null ? List.of()
+            : plugin.getQuestCatalogManager().getEnabledQuestIds();
+        String example = examples.isEmpty() ? "quest-id-da-bat" : examples.get(0);
+        player.sendMessage("§6[Quản lý race] §eNhập §fID quest tự giao §echo chủng tộc §d" + race.name()
+            + "§e. Ví dụ hợp lệ: §f" + example + "§e. Quest phải đang bật.");
+        player.sendMessage("§7Gõ §c!clear §7để bỏ quest, §c!cancel §7để hủy và quay lại menu.");
+    }
+
+    private void saveRaceQuestInput(Player player, String raceId, String input) {
+        if (!player.isOnline()) return;
+        if (!player.hasPermission("vnmine.command.race.admin")) {
+            player.sendMessage("§cBạn không còn quyền quản lý race.");
+            return;
+        }
+        if ("!cancel".equalsIgnoreCase(input)) {
+            player.sendMessage("§eĐã hủy; cấu hình race không thay đổi.");
+            openRaceAdminMenu(player);
+            return;
+        }
+        String questId = "!clear".equalsIgnoreCase(input) || input.isBlank() ? null : input.toLowerCase(java.util.Locale.ROOT);
+        if (questId != null && (plugin.getQuestCatalogManager() == null
+                || !plugin.getQuestCatalogManager().isEnabledQuest(questId))) {
+            player.sendMessage("§cQuest không tồn tại hoặc đang tắt. Hãy nhập ID quest đang bật, ví dụ: §f"
+                + (plugin.getQuestCatalogManager() == null
+                    ? "quest-id-da-bat" : plugin.getQuestCatalogManager().getEnabledQuestIds().stream().findFirst().orElse("quest-id-da-bat")));
+            openRaceAdminMenu(player);
+            return;
+        }
+        String previous = raceOnboardingQuestIds.get(raceId);
+        if (questId == null) raceOnboardingQuestIds.remove(raceId);
+        else raceOnboardingQuestIds.put(raceId, questId);
+        if (!saveRaceDefinitions(player)) {
+            if (previous == null) raceOnboardingQuestIds.remove(raceId);
+            else raceOnboardingQuestIds.put(raceId, previous);
+            return;
+        }
+        RaceDefinition race = races.get(raceId);
+        plugin.getLogger().info("[RaceSetup] admin=" + player.getName() + ", race=" + raceId
+            + ", autoQuest=" + (questId == null ? "none" : questId));
+        player.sendMessage("§aĐã lưu quest tự giao cho §d" + (race == null ? raceId : race.name()) + "§a.");
+        openRaceAdminMenu(player);
+    }
+
+    private boolean saveRaceDefinitions(Player player) {
+        if (raceDefinitionsFile == null) return false;
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.options().parseComments(true);
+        try {
+            yaml.load(raceDefinitionsFile);
+            for (RaceDefinition race : races.values()) {
+                String questId = raceOnboardingQuestIds.get(race.id());
+                yaml.set("races." + race.id() + ".onboarding.auto-quest-id", questId);
+            }
+            File temporary = new File(raceDefinitionsFile.getParentFile(), "races.yml.tmp");
+            yaml.save(temporary);
+            try {
+                Files.move(temporary.toPath(), raceDefinitionsFile.toPath(), StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporary.toPath(), raceDefinitionsFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
+        } catch (IOException | org.bukkit.configuration.InvalidConfigurationException exception) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "[RaceSetup] Could not save races.yml.", exception);
+            player.sendMessage("§cKhông thể lưu races.yml. Cấu hình trước đó vẫn được giữ.");
+            return false;
+        }
     }
 
     private void openStarterClassMenu(Player player, String raceId) {
@@ -1168,10 +1383,6 @@ public final class CharacterSelectionManager implements Listener {
             debugProfile("starter-book-delivered player=" + player.getName() + ", transaction="
                 + transactionId + ", next=tutorial-quest-start");
             if (plugin.getTutorialQuestManager() != null) plugin.getTutorialQuestManager().initializePlayer(player);
-            String realmId = onboardingContinent(player);
-            var realm = realmId == null || plugin.getRpgWorldManager() == null ? null
-                : plugin.getRpgWorldManager().getDefinitions().get(realmId);
-            if (realm != null) acceptConfiguredTutorialQuest(player, realm.id(), realm.tutorialNpcId());
         });
     }
 
@@ -1345,6 +1556,25 @@ public final class CharacterSelectionManager implements Listener {
                 if (isOnboardingEnabled()) setOnboarding(player, "complete", continentId);
                 if (isOnboardingEnabled()) {
                     queueStarterBookGrant(player, raceId, classId);
+                    String raceQuestId = raceOnboardingQuestIds.get(raceId);
+                    if (raceQuestId != null && plugin.getQuestCatalogManager() != null) {
+                        plugin.getLogger().info("[Onboarding] Auto-quest for selected race: player=" + playerName
+                            + ", race=" + raceId + ", quest=" + raceQuestId);
+                        if (!plugin.getQuestCatalogManager().acceptConfiguredQuest(player, raceQuestId)) {
+                            plugin.getLogger().warning("[Onboarding] Race quest could not be accepted: player="
+                                + playerName + ", race=" + raceId + ", quest=" + raceQuestId);
+                        }
+                    }
+                    if (startingRealm != null) {
+                        plugin.getRpgWorldManager().resolveSpawn(startingRealm.id()).ifPresent(spawn ->
+                            player.teleportAsync(spawn.location()).whenComplete((teleported, teleportFailure) -> {
+                                if (teleportFailure != null || !Boolean.TRUE.equals(teleported)) {
+                                    plugin.getLogger().warning("[Onboarding] Could not enter selected realm: player="
+                                        + playerName + ", realm=" + startingRealm.id()
+                                        + (teleportFailure == null ? "" : ": " + teleportFailure.getMessage()));
+                                }
+                            }));
+                    }
                 }
                 debugProfile("create-result player=" + playerName + ", created=true, resetProfile="
                     + completingResetProfile);
@@ -1392,6 +1622,7 @@ public final class CharacterSelectionManager implements Listener {
 
     private void loadDefinitions() {
         File raceFile = loadBundledConfig("races.yml");
+        raceDefinitionsFile = raceFile;
         File classFile = loadBundledConfig("player-classes.yml");
         YamlConfiguration raceConfig = loadStrictConfig(raceFile);
         YamlConfiguration classConfig = loadStrictConfig(classFile);
@@ -1419,6 +1650,15 @@ public final class CharacterSelectionManager implements Listener {
             if (name != null && description != null && icon != null) {
                 races.put(id, new RaceDefinition(id, name, icon, description));
                 classesByRace.put(id, new java.util.ArrayList<>());
+                String onboardingQuest = section.getString("onboarding.auto-quest-id", "").trim();
+                if (!onboardingQuest.isEmpty()) {
+                    if (DEFINITION_ID_PATTERN.matcher(onboardingQuest).matches()) {
+                        raceOnboardingQuestIds.put(id, onboardingQuest);
+                    } else {
+                        plugin.getLogger().warning("[RaceSetup] Ignoring invalid onboarding quest ID '"
+                            + onboardingQuest + "' for race=" + id + ".");
+                    }
+                }
             }
         }
 
@@ -1545,6 +1785,16 @@ public final class CharacterSelectionManager implements Listener {
             throw new IllegalStateException("Too many race definitions; maximum supported in the selection menu is " +
                 MENU_SLOTS.length + ".");
         }
+    }
+
+    public void validateConfiguredRaceQuests() {
+        raceOnboardingQuestIds.entrySet().removeIf(entry -> {
+            boolean valid = plugin.getQuestCatalogManager() != null
+                && plugin.getQuestCatalogManager().isEnabledQuest(entry.getValue());
+            if (!valid) plugin.getLogger().warning("[RaceSetup] Race quest is missing or disabled; ignored mapping: race="
+                + entry.getKey() + ", quest=" + entry.getValue());
+            return !valid;
+        });
     }
 
     private void validateClassInheritance() {

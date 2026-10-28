@@ -96,7 +96,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                     "§7ID: §f" + realm.id(),
                     status.starting() ? "§aĐang bật làm đại lục khởi đầu" : "§8Chưa bật làm đại lục khởi đầu",
                     status.worldReady() ? "§aWorld: " + realm.worldName() : "§cWorld chưa được nạp: " + realm.worldName(),
-                    status.npcReady() ? "§aNPC tutorial: " + realm.tutorialNpcId() : "§cNPC tutorial chưa hợp lệ/đúng world",
+                    status.npcReady() ? "§aNPC tutorial đại lục: " + realm.tutorialNpcId() : "§7NPC tutorial đại lục: tùy chọn",
                     status.spawnReady() ? "§aĐiểm bắt đầu hợp lệ" : "§cĐiểm bắt đầu chưa hợp lệ",
                     "", "§eNhấn để cấu hình từng bước.")));
         }
@@ -104,7 +104,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         if (safePage > 0) menu.setItem(45, item(Material.ARROW, "§eĐại lục trước", List.of()));
         menu.setItem(46, item(onboardingEnabled ? Material.LIME_DYE : Material.GRAY_DYE,
             "§eOnboarding người mới: " + (onboardingEnabled ? "§aBẬT" : "§cTẮT"), List.of(
-                "§7Bật quy trình chọn đại lục → gặp NPC → chọn race/class.",
+                "§7Bật quy trình world start → NPC → đại lục → race/class.",
                 "§7Nhấn để đổi; thay đổi được lưu ngay vào config.yml.")));
         int starterBookMappings = starterBookMappingCount();
         menu.setItem(47, item(starterBookMappings > 0 ? Material.ENCHANTED_BOOK : Material.BOOK,
@@ -994,7 +994,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             && npcManager.getNpcType(realm.tutorialNpcId()).filter("tutorial"::equalsIgnoreCase).isPresent()
             && npcManager.getNpcTarget(realm.tutorialNpcId()).map(target -> target.world().equals(realm.worldName())).orElse(false);
         return new RealmStatus(realm.startingSelectable(), worldReady, spawnReady, npcReady,
-            realm.startingSelectable() && worldReady && spawnReady && npcReady);
+            realm.startingSelectable() && worldReady && spawnReady);
     }
 
     private int starterBookMappingCount() {

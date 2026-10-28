@@ -57,6 +57,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private ServerSetupWizardManager serverSetupWizardManager;
     private SchemaBuildManager schemaBuildManager;
     private RegionProtectionManager regionProtectionManager;
+    private WorldSettingsManager worldSettingsManager;
     private TooltipManager tooltipManager;
     private VillagerDataManager villagerDataManager;
     private DeathListener deathListener;
@@ -143,6 +144,7 @@ public final class VnMineHardcore extends JavaPlugin {
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
+        this.characterSelectionManager.validateConfiguredRaceQuests();
         try {
             java.io.File npcDirectory = new java.io.File(getDataFolder(), "npcs");
             if (!npcDirectory.isDirectory() && !npcDirectory.mkdirs()) {
@@ -179,6 +181,7 @@ public final class VnMineHardcore extends JavaPlugin {
         this.graveManager = new GraveManager(this, configManager);
         this.spawnProtectionManager = new SpawnProtectionManager(this);
         this.permissionManager = new PermissionManager(this);
+        this.worldSettingsManager = new WorldSettingsManager(this);
         this.regionProtectionManager = new RegionProtectionManager(this);
         try {
             this.portalManager = new PortalManager(this);
@@ -210,6 +213,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(playerAdminManager, this);
         Bukkit.getPluginManager().registerEvents(serverSetupWizardManager, this);
         Bukkit.getPluginManager().registerEvents(regionProtectionManager, this);
+        Bukkit.getPluginManager().registerEvents(worldSettingsManager, this);
         Bukkit.getPluginManager().registerEvents(schemaBuildManager, this);
         this.deathListener = new DeathListener(this, configManager, deathRenameManager, deathPenaltyManager);
         this.combatListener = new CombatListener(this, deathListener, configManager);
@@ -1271,6 +1275,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public ServerSetupWizardManager getServerSetupWizardManager() { return serverSetupWizardManager; }
     public SchemaBuildManager getSchemaBuildManager() { return schemaBuildManager; }
     public RegionProtectionManager getRegionProtectionManager() { return regionProtectionManager; }
+    public WorldSettingsManager getWorldSettingsManager() { return worldSettingsManager; }
     public LogManager getLogManager() { return logManager; }
     public ThirstManager getThirstManager() { return thirstManager; }
     public DisasterManager getDisasterManager() { return disasterManager; }

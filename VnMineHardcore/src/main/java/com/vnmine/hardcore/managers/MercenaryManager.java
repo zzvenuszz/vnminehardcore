@@ -6773,6 +6773,16 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                  List.of("§7Duyệt và dựng công trình Sponge .schem.",
                      "§7Xoay/lật, preview ngoài world, !put để đặt.", "§7!back quay lại menu chỉnh sửa.")));
          }
+         if (player.hasPermission(WorldSettingsManager.ADMIN_PERMISSION)) {
+             holder.inventory.setItem(27, this.menuItem(Material.GRASS_BLOCK, "§aQuản lý world",
+                 List.of("§7Boss, thiên tai, thời gian, PvP, quái, đói/khát.",
+                     "§eChọn world rồi chỉnh từng quy tắc.")));
+         }
+         if (player.hasPermission("vnmine.command.race.admin")) {
+             holder.inventory.setItem(29, this.menuItem(Material.PLAYER_HEAD, "§dQuản lý chủng tộc",
+                 List.of("§7Cấu hình nhiệm vụ tự giao theo race.",
+                     "§eChọn race rồi nhập quest ID.")));
+         }
          if (player.hasPermission(RegionProtectionManager.ADMIN_PERMISSION)) {
             holder.inventory.setItem(25, this.menuItem(Material.WOODEN_AXE, "§6WorldEdit / WorldGuard",
                 List.of("§7Chọn vùng, đặt tên và cấu hình bảo vệ.",
@@ -6795,7 +6805,8 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
             "vnmine.command.gamemode", "vnmine.command.scoreboard.reset", "vnmine.command.death.reset",
             "vnmine.command.skillbook.admin", "vnmine.command.progression.admin",
             "vnmine.command.quest.admin", "vnmine.command.npc.admin", "vnmine.command.playeradmin",
-            "vnmine.command.schemabuild", RegionProtectionManager.ADMIN_PERMISSION)
+            "vnmine.command.schemabuild", "vnmine.command.race.admin",
+            WorldSettingsManager.ADMIN_PERMISSION, RegionProtectionManager.ADMIN_PERMISSION)
             .stream().anyMatch(player::hasPermission)
             || player.hasPermission("vnmine.command.death.history");
     }
@@ -9130,6 +9141,11 @@ public final class MercenaryManager implements CommandExecutor, TabCompleter, Li
                      if (plugin.getNpcManager() != null) plugin.getNpcManager().openAdminMenu(player);
                   } else if (slot == 26 && player.hasPermission("vnmine.command.schemabuild")) {
                      if (plugin.getSchemaBuildManager() != null) plugin.getSchemaBuildManager().open(player);
+                  } else if (slot == 27 && player.hasPermission(WorldSettingsManager.ADMIN_PERMISSION)) {
+                     if (plugin.getWorldSettingsManager() != null) plugin.getWorldSettingsManager().open(player);
+                  } else if (slot == 29 && player.hasPermission("vnmine.command.race.admin")) {
+                     if (plugin.getCharacterSelectionManager() != null)
+                        plugin.getCharacterSelectionManager().openRaceAdminMenu(player);
                   } else if (slot == 25 && player.hasPermission(RegionProtectionManager.ADMIN_PERMISSION)) {
                      if (plugin.getRegionProtectionManager() != null) plugin.getRegionProtectionManager().openAdminMenu(player);
                   } else if (slot == 24 && player.hasPermission("vnmine.command.playeradmin")
