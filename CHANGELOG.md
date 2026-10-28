@@ -1,5 +1,9 @@
 # Changelog
 
+## [v2.35.1] - 2026-10-28
+- Sửa cấu trúc `plugin.yml`: gộp khai báo permissions vào một section cấp cao nhất, giữ `/vninit`, `/vnregion`, `/vnbuild`, `/start` và `/quatanthu` trong `commands`. Trước đó section `permissions` bị lặp và làm các lệnh phía sau bị đặt nhầm vào permission map, khiến plugin dừng enable khi đăng ký `/quatanthu`.
+- Đã xác minh parser YAML thấy 43 command, 51 permission node và mỗi command đều có permission. Build Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 11:24:19 UTC`, 2,420,760 bytes, SHA-256 `f49d28248ebfaad472e893cd54ee798c72ea7fde7e33f7e34370b3e27da14124`; chưa cài vì server log báo kiến trúc ARM64 trong khi artifact chuẩn chỉ đóng gói native SQLite Linux x86_64. Chưa Paper gameplay test.
+
 ## [v2.35.0] - 2026-10-28
 - Mở rộng `/vninit` với menu quản lý đại lục: tạo và sửa ID/tên/world theo lựa chọn, lưu bí danh ID cũ cho profile/onboarding; xóa cấu hình có xác nhận; archive cấu hình riêng và chỉ archive world khi world không dùng chung/start-world.
 - Đổi environment đại lục yêu cầu xác nhận; revision ghi nhận yêu cầu tái tạo khi restart, world cũ được giữ dạng backup trước khi tạo world mới.

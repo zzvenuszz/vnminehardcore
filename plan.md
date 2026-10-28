@@ -844,3 +844,14 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Build JAR 2.35.0 bằng Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 11:10:42 UTC`; 2,420,868 bytes, SHA-256 `2ab208ba82666bb1f765ebff58eeaa797ea29bb27dfbbc4079f16b1194162851`. Đã xác minh JAR chỉ chứa native SQLite Linux x86_64 và plugin.yml báo version 2.35.0.
 - [x] Sao lưu JAR 2.34.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.34.1.jar`, cài 2.35.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.35.0.jar`; so sánh byte khớp và gỡ bản 2.34.1 khỏi thư mục plugin để Paper không nạp trùng.
 - [ ] Chưa chạy server Paper/gameplay test. Source/tài liệu đã commit và push lên `origin/main` (commit `6573b20`).
+
+## Lỗi khởi tạo sau khi cài 2.35.0 — 2026-10-28
+
+- Log `/home/ubuntu/DATA/VNMINE/logs/latest.log` lúc `11:21:16` báo `IllegalStateException: Command '/quatanthu' is missing from plugin.yml`; plugin bị disable, nên các lệnh sau như `/gm1` cũng lỗi.
+- Nguyên nhân: `plugin.yml` có hai khóa `permissions:` cấp cao nhất. Do đó `/vninit`, `/vnregion`, `/vnbuild`, `/start`, `/quatanthu` bị đọc như permission declarations thay vì commands.
+- Đã gộp permission definitions vào một section và giữ toàn bộ command declarations trong `commands`; parser xác nhận 43 lệnh, 51 quyền và không còn lệnh thiếu permission.
+- Cùng lần khởi động, `world_human` được archive và tạo lại do cấu hình revision `3` khác manifest revision `0` dù environment đều `NORMAL`. World cũ được giữ tại `/home/ubuntu/DATA/VNMINE/world/dimensions/minecraft/world_human.backup-20261028-112109`; không tự phục hồi để tránh ghi đè world mới.
+- [x] Sửa `plugin.yml`, bump patch lên 2.35.1, xác minh 43 command và 51 permission node; mọi command đều khai báo permission.
+- [x] Build artifact 2.35.1 bằng Java 25 lúc `2026-10-28 11:24:19 UTC`, 2,420,760 bytes, SHA-256 `f49d28248ebfaad472e893cd54ee798c72ea7fde7e33f7e34370b3e27da14124`; chỉ chứa SQLite native Linux x86_64.
+- [!] Chưa thay JAR trong thư mục plugin: server là `aarch64`, và kiểm tra JDBC trực tiếp trên host ném `NativeLibraryNotFoundException` vì JAR không có native ARM64. Cài bản này sẽ khiến thao tác SQLite thất bại. Cần artifact có native ARM64 hoặc chuyển server sang x86_64 trước khi triển khai.
+- Chưa Paper gameplay test. Source fix được commit/push sau khi cập nhật mục này.

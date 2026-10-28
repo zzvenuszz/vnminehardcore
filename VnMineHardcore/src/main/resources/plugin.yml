@@ -161,20 +161,6 @@ commands:
     usage: /heal
     permission: vnmine.command.heal
 
-permissions:
-  vnmine.command.menu:
-    default: false
-  vnmine.command.quest:
-    default: false
-  vnmine.command.coin:
-    default: false
-  vnmine.command.feed:
-    default: op
-  vnmine.command.heal:
-    default: op
-  vnmine.command.playeradmin:
-    default: op
-    permission: vnmine.command.playeradmin
   vninit:
     description: Mở trình hướng dẫn setup RPG lần đầu cho server
     usage: /vninit
@@ -196,7 +182,23 @@ permissions:
     usage: /quatanthu
     permission: vnmine.command.newbie-gift
 
+
 permissions:
+  vnmine.command.menu:
+    description: Cho phép mở menu chính /vnmenu
+    default: false
+  vnmine.command.quest:
+    description: Cho phép mở nhật ký quest
+    default: false
+  vnmine.command.coin:
+    description: Cho phép xem ví VNCOIN
+    default: false
+  vnmine.command.feed:
+    description: Cho phép hồi đầy thanh thức ăn bằng /feed
+    default: op
+  vnmine.command.heal:
+    description: Cho phép hồi đầy máu bằng /heal
+    default: op
   vnmine.command.playeradmin:
     description: Cho phép mở giao diện quản trị người chơi
     default: op
