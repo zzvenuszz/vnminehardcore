@@ -96,6 +96,9 @@ rpg:
       # [VI] Môi trường world: NORMAL, NETHER hoặc THE_END; mặc định NORMAL.
       # [EN] World environment: NORMAL, NETHER, or THE_END; defaults to NORMAL.
       environment: NORMAL
+      # [VI] Số thế hệ cấu hình do /vninit tăng khi đổi môi trường; không chỉnh tay.
+      # [EN] Configuration generation incremented by /vninit on environment changes; do not edit manually.
+      world-revision: 0
       # [VI] Công tắc chung cho chặn đặt/phá và tương tác trong start-world; mặc định bật.
       # [EN] Master protection switch for block placement/breaking and interactions in the start world; defaults to true.
       protection:

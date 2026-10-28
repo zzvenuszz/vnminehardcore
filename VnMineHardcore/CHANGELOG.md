@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.34.1 — 2026-10-28
+
+- Bổ sung revision cấu hình world để đổi THE_END → NORMAL rồi đổi lại trước restart vẫn đánh dấu cần tái tạo world.
+- Lên lịch tái tạo một lần cho `world_start` đang bị kẹt dữ liệu dimension cũ; lần khởi động kế tiếp sẽ backup folder Paper thật và tạo lại NORMAL.
+
 ## 2.34.0 — 2026-10-28
 
 - Sửa tái tạo world khi environment/seed đổi trên Paper hiện đại: dùng đúng thư mục dimension thực tế thay vì giả định thư mục `<server>/<world>`.

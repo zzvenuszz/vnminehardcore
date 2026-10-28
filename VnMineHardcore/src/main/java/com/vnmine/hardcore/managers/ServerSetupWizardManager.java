@@ -641,6 +641,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"
                     : "NETHER".equalsIgnoreCase(current) ? "THE_END" : "NORMAL";
                 plugin.getConfig().set("rpg.onboarding.start-world.environment", next);
+                plugin.getConfig().set("rpg.onboarding.start-world.world-revision",
+                    plugin.getConfig().getLong("rpg.onboarding.start-world.world-revision", 0L) + 1L);
                 plugin.getConfig().set("rpg.onboarding.start-world.create-if-missing", true);
                 savePluginConfig(player, "rpg.onboarding.start-world.environment=" + next);
                 openDashboard(player);
@@ -780,6 +782,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                         String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"
                             : "NETHER".equalsIgnoreCase(current) ? "THE_END" : "NORMAL";
                         config.set("world.environment", next);
+                        config.set("world.revision", config.getLong("world.revision", 0L) + 1L);
                         config.set("world.create-if-missing", true);
                     }, "cycle world environment");
                     openRealm(player, holder.realmId);

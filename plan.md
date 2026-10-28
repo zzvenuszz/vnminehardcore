@@ -821,8 +821,10 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Rà soát `latest.log` và dữ liệu server: Paper 26.3 lưu world phụ dưới `<world chính>/dimensions/minecraft/<world-name>`, không phải `<server>/<world-name>`. Luồng cũ chỉ archive đường dẫn legacy nên dữ liệu dimension cũ vẫn còn trong khi manifest đã ghi environment mới.
 - [x] Dùng `World#getWorldFolder()` khi world đang nạp; khi chưa nạp, tra manifest hoặc tìm đường dẫn dimension tồn tại. Từ chối thao tác nếu đường dẫn không an toàn hoặc có nhiều ứng viên không thể phân biệt.
 - [x] Lưu folder tương đối vào `managed-worlds.yml`; archive world cũ cạnh thư mục dimension thật, rồi tạo và xác nhận world mới theo environment/seed yêu cầu.
-- [x] Compile Java 25 (`mvn -DskipTests compile`) thành công lúc `2026-10-28 10:12:02 UTC`; không chạy test suite.
-- [x] Build JAR 2.34.0 bằng `mvn -DskipTests package` thành công lúc `2026-10-28 10:12:07 UTC`, 2,405,634 bytes, SHA-256 `c0b607c90c73cf06beba3b805fe2e02e85c9f04c681e3dbf85ba055cb10e5533`.
-- [x] Sao lưu JAR 2.33.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.33.0.jar` và cài 2.34.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.34.0.jar`; checksum khớp artifact và chỉ còn một JAR VnMineHardcore trong thư mục plugin.
-- [x] Commit và push thay đổi source/changelog/plan.md lên `origin/main`.
+- [x] `/vninit` tăng revision mỗi lần admin đổi environment để đổi qua rồi quay lại trước restart vẫn đánh dấu cần tái tạo.
+- [x] Đánh dấu tái tạo một lần cho `world_start` hiện tại trong managed-world manifest; lần khởi động bằng JAR sửa lỗi sẽ backup dimension folder cũ và tạo NORMAL.
+- [x] Compile Java 25 (`mvn -DskipTests compile`) thành công lúc `2026-10-28 10:14:39 UTC`; không chạy test suite.
+- [x] Build JAR 2.34.1 với `mvn -DskipTests package` thành công lúc `2026-10-28 10:14:45 UTC`, 2,409,671 bytes, SHA-256 `fa62792c98afac1777cfb3f5eeb5bcf4552afdb0caeda1453b5422a740524796`.
+- [x] Sao lưu 2.34.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.34.0.jar`, cài 2.34.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.34.1.jar`; checksum khớp và chỉ còn một plugin JAR.
+- [x] Commit/push thay đổi lên `origin/main`.
 - [ ] Kiểm chứng trên Paper: THE_END → NORMAL sau restart; xác nhận dimension backup tồn tại cạnh folder cũ và world mới có environment NORMAL.

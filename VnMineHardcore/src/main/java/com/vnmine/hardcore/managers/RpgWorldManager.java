@@ -85,7 +85,8 @@ public final class RpgWorldManager implements Listener {
         if (!invalidStartSeed) {
             createConfiguredWorld(plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"),
                 plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"), startSeed,
-                plugin.getConfig().getBoolean("rpg.onboarding.start-world.create-if-missing", true), "onboarding start world");
+                plugin.getConfig().getBoolean("rpg.onboarding.start-world.create-if-missing", true), "onboarding start world",
+                plugin.getConfig().getLong("rpg.onboarding.start-world.world-revision", 0L));
         }
         reload();
     }
@@ -132,7 +133,7 @@ public final class RpgWorldManager implements Listener {
         Long seed = readOptionalSeed(yaml, "world.seed", "realm " + yaml.getString("id", file.getName()));
         if (yaml.contains("world.seed") && seed == null) return;
         createConfiguredWorld(yaml.getString("world-name"), yaml.getString("world.environment", "NORMAL"), seed, true,
-            "realm " + yaml.getString("id", file.getName()));
+            "realm " + yaml.getString("id", file.getName()), yaml.getLong("world.revision", 0L));
     }
 
     private Long readOptionalSeed(org.bukkit.configuration.ConfigurationSection configuration,
@@ -151,7 +152,7 @@ public final class RpgWorldManager implements Listener {
     }
 
     private void createConfiguredWorld(String name, String environmentName, Long seed,
-            boolean enabled, String reason) {
+            boolean enabled, String reason, long generation) {
         if (!enabled || name == null || !name.matches("[A-Za-z0-9_-]{1,64}")) {
             if (enabled) plugin.getLogger().severe("[World] Invalid world name for " + reason + "; world was not changed.");
             return;
@@ -185,14 +186,18 @@ public final class RpgWorldManager implements Listener {
         boolean manifestSeedChanged = manifestHasSettings
             && (previousSeedConfigured != (seed != null)
                 || (seed != null && !java.util.Objects.equals(seed, previousSeed)));
+        long previousGeneration = worldManifest.getLong("worlds." + name + ".generation", 0L);
+        boolean manifestGenerationChanged = manifestHasSettings && previousGeneration != generation;
+        boolean forceRecreate = worldManifest.getBoolean("worlds." + name + ".force-recreate-on-next-start", false);
         World world = Bukkit.getWorld(name);
         try {
-            if (manifestEnvironmentChanged || manifestSeedChanged) {
+            if (manifestEnvironmentChanged || manifestSeedChanged || manifestGenerationChanged || forceRecreate) {
                 plugin.getLogger().warning("[World] Stored world settings changed for '" + name + "': environment "
-                    + previousEnvironment + " -> " + environment + ", seed " + previousSeed + " -> " + seed + ".");
+                    + previousEnvironment + " -> " + environment + ", seed " + previousSeed + " -> " + seed
+                    + ", generation " + previousGeneration + " -> " + generation + ", forced=" + forceRecreate + ".");
                 world = replaceWorld(world, name, environment, seed, reason);
                 if (world == null) return;
-                saveWorldManifest(name, environment, seed, world);
+                saveWorldManifest(name, environment, seed, generation, world);
                 return;
             }
             if (world == null) world = Bukkit.createWorld(worldCreator(name, environment, seed));
@@ -205,14 +210,14 @@ public final class RpgWorldManager implements Listener {
             if (!environmentChanged && !seedChanged) {
                 plugin.getLogger().info("[World] Ready " + reason + " '" + name + "' (" + environment
                     + ", seed=" + (seed == null ? "existing/default" : seed) + ").");
-                saveWorldManifest(name, environment, seed, world);
+                saveWorldManifest(name, environment, seed, generation, world);
                 return;
             }
             plugin.getLogger().warning("[World] Configuration changed for '" + name + "': environment "
                 + world.getEnvironment() + " -> " + environment + ", seed " + world.getSeed() + " -> "
                 + (seed == null ? "unchanged" : seed) + ". Recreating world and preserving the old folder as backup.");
             World replacement = replaceWorld(world, name, environment, seed, reason);
-            if (replacement != null) saveWorldManifest(name, environment, seed, replacement);
+            if (replacement != null) saveWorldManifest(name, environment, seed, generation, replacement);
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.SEVERE, "[World] Failed to load/create " + reason + " '" + name + "'.", exception);
         }
@@ -316,11 +321,14 @@ public final class RpgWorldManager implements Listener {
         return legacyFolder;
     }
 
-    private void saveWorldManifest(String name, World.Environment environment, Long configuredSeed, World world) {
+    private void saveWorldManifest(String name, World.Environment environment, Long configuredSeed,
+            long generation, World world) {
         String base = "worlds." + name;
         worldManifest.set(base + ".environment", environment.name());
         worldManifest.set(base + ".seed", configuredSeed);
         worldManifest.set(base + ".seed-configured", configuredSeed != null);
+        worldManifest.set(base + ".generation", generation);
+        worldManifest.set(base + ".force-recreate-on-next-start", false);
         worldManifest.set(base + ".actual-seed", world.getSeed());
         Path container = plugin.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
         Path folder = world.getWorldFolder().toPath().toAbsolutePath().normalize();

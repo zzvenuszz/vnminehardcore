@@ -21,6 +21,9 @@ world:
   # [VI] Môi trường world: NORMAL, NETHER hoặc THE_END; đổi môi trường/seed sẽ backup thư mục cũ và tạo world mới sau restart.
   # [EN] World environment: NORMAL, NETHER, or THE_END; changing environment/seed backs up the old folder and recreates the world after restart.
   environment: NORMAL
+  # [VI] /vninit tăng revision khi đổi môi trường, kể cả đổi rồi quay lại trước khi restart.
+  # [EN] /vninit increments this revision on environment edits, including changes reverted before restart.
+  revision: 0
   # [VI] Seed tùy chọn, số nguyên 64-bit; bỏ trống để giữ seed hiện tại, nếu xóa seed đã cấu hình thì world được tạo lại với seed tự sinh.
   # [EN] Optional 64-bit integer seed; omit to keep an existing seed; clearing a configured seed recreates the world with a generated seed.
   # seed: 123456789
