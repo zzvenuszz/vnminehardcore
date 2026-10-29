@@ -1626,7 +1626,9 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         List<QuestDefinition> choices = definitions.values().stream()
             .filter(candidate -> !candidate.id().equals(questId) && !candidate.id().equals("first-steps"))
             .sorted(java.util.Comparator.comparing(QuestDefinition::id)).toList();
-        menu.setItem(0, adminItem(Material.WRITABLE_BOOK, "§6Bước chân đầu tiên", List.of(
+        String tutorialTitle = plugin.getTutorialQuestManager() == null ? "Bước chân đầu tiên"
+            : plugin.getTutorialQuestManager().questTitle();
+        menu.setItem(0, adminItem(Material.WRITABLE_BOOK, "§6" + tutorialTitle, List.of(
             "§7Quest tutorial mặc định của hệ thống.",
             "§7Hoàn thành sau khi người chơi chọn đại lục và chủng tộc, rồi gặp NPC tutorial.",
             "§7ID tiến trình: §ffirst-steps", "§eNhấn để yêu cầu hoàn thành.")));

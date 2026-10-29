@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -33,13 +34,21 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /** Guided, resumable first-run setup for the RPG onboarding configuration. */
 public final class ServerSetupWizardManager implements Listener, CommandExecutor, TabCompleter {
     private static final String PERMISSION = "vnmine.command.init";
     private static final int[] CONTENT_SLOTS = {
-        10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25,
-        28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42
+        0, 1, 2, 3, 4, 5, 6, 7, 8,
+        9, 10, 11, 12, 13, 14, 15, 16, 17
+    };
+    private static final int[] WORLD_CONTENT_SLOTS = {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+        18, 19, 20, 21, 22, 23, 24, 25, 26
+    };
+    private static final int[] DASHBOARD_DIVIDER_SLOTS = {
+        18, 19, 20, 21, 22, 23, 24, 25, 26
     };
 
     private final VnMineHardcore plugin;
@@ -81,6 +90,9 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         SetupHolder holder = new SetupHolder(player, "dashboard", null, safePage);
         Inventory menu = Bukkit.createInventory(holder, 54, "VnMine • Setup server " + (safePage + 1) + "/" + pages);
         holder.inventory = menu;
+        for (int slot : DASHBOARD_DIVIDER_SLOTS) {
+            menu.setItem(slot, item(Material.GRAY_STAINED_GLASS_PANE, "§r", List.of()));
+        }
         for (int index = safePage * CONTENT_SLOTS.length;
                 index < Math.min((safePage + 1) * CONTENT_SLOTS.length, realms.size()); index++) {
             var realm = realms.get(index);
@@ -102,63 +114,59 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                     "", "§eNhấn để cấu hình từng bước.")));
         }
         boolean onboardingEnabled = plugin.getConfig().getBoolean("rpg.onboarding.enabled", true);
-        if (safePage > 0) menu.setItem(45, item(Material.ARROW, "§eĐại lục trước", List.of()));
-        menu.setItem(46, item(onboardingEnabled ? Material.LIME_DYE : Material.GRAY_DYE,
-            "§eOnboarding người mới: " + (onboardingEnabled ? "§aBẬT" : "§cTẮT"), List.of(
-                "§7Bật quy trình world start → NPC → đại lục → race/class.",
-                "§7Nhấn để đổi; thay đổi được lưu ngay vào config.yml.")));
-        int starterBookMappings = starterBookMappingCount();
-        menu.setItem(47, item(starterBookMappings > 0 ? Material.ENCHANTED_BOOK : Material.BOOK,
-            (starterBookMappings > 0 ? "§d" : "§c") + "Sách kỹ năng khởi đầu", List.of(
-            starterBookMappings > 0 ? "§aĐã có " + starterBookMappings + " mapping race/class." : "§cChưa có mapping sách skill khởi đầu.",
-            "§7Gán sách theo chủng tộc và class.",
-            "§7Dùng /vnskillbook config để mở GUI hiện có.",
-            "§eThiết lập này quyết định sách được tặng sau khi chọn class.")));
-        menu.setItem(48, item(Material.OBSIDIAN, "§bWorld bắt đầu/reset", List.of(
-            "§7Hiện tại: §f" + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"),
-            "§7World này được tạo tự động nếu chưa tồn tại.", "§eNhấn để nhập tên world.")));
-        String startTutorialNpc = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
-        menu.setItem(44, item(startTutorialNpc.isBlank() ? Material.NAME_TAG : Material.VILLAGER_SPAWN_EGG,
-            "§dNPC tutorial world bắt đầu: §f" + (startTutorialNpc.isBlank() ? "Chưa chọn" : startTutorialNpc), List.of(
-                "§7Chọn NPC tutorial được đặt trong world bắt đầu/reset.",
-                "§7NPC này có dialog và quest tự giao riêng.",
-                "§7Sau khi chọn, shift + chuột phải NPC để cấu hình thêm.", "§eNhấn để chọn.")));
-        menu.setItem(43, item(Material.SHIELD, "§6Bảo vệ World bắt đầu/reset", List.of(
-            "§7Thiết lập block, tương tác, PvP, quái, thời gian, đói/khát.",
-            "§eNhấn để mở cài đặt chi tiết.")));
         menu.setItem(27, item(Material.MAP, "§aQuản lý đại lục / world", List.of(
             "§7Thêm đại lục với ID, tên hiển thị và tên world do bạn chọn.",
             "§7Sửa tên/world, environment, spawn, NPC và allowlist race/class.",
             "§7Xóa có xác nhận; world riêng sẽ được archive sau restart.",
             "§eNhấn để mở danh sách.")));
-        menu.setItem(50, item(Material.COMPASS, "§bMôi trường world bắt đầu: §f"
+        menu.setItem(28, item(Material.VILLAGER_SPAWN_EGG, "§dNPC Tutorial world bắt đầu", List.of(
+            "§7Chọn một NPC Tutorial trong đúng world bắt đầu/reset.",
+            "§eNhấn để chọn NPC.")));
+        menu.setItem(29, item(Material.SHIELD, "§6Bảo vệ World bắt đầu/reset", List.of(
+            "§7Thiết lập block, tương tác, PvP, quái, thời gian, đói/khát.",
+            "§eNhấn để mở cài đặt chi tiết.")));
+        menu.setItem(30, item(Material.NAME_TAG, "§bTên world bắt đầu: §f"
+            + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"), List.of(
+                "§7Nhập tên world; world được tạo khi khởi động lại server.",
+                "§eNhấn để sửa.")));
+        menu.setItem(31, item(Material.OBSIDIAN, "§bMôi trường world bắt đầu: §f"
             + plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL"), List.of(
                 "§7Nhấn để đổi NORMAL → NETHER → THE_END.",
                 "§cĐổi môi trường/seed sẽ backup world cũ và tạo world mới sau restart.")));
-        menu.setItem(52, item(Material.NAME_TAG, "§bSeed world bắt đầu: §f"
+        menu.setItem(32, item(Material.PAPER, "§bSeed world bắt đầu: §f"
             + optionalSeedText(plugin.getConfig().get("rpg.onboarding.start-world.seed")), List.of(
                 "§7Tùy chọn; bỏ trống để Minecraft tự sinh seed.",
-                "§7Nhập số nguyên 64-bit; ví dụ: §f123456789", "§eNhấn để nhập, !clear để xóa.")));
-        boolean tutorialQuestEnabled = tutorialQuestEnabled();
-        menu.setItem(51, item(tutorialQuestEnabled ? Material.WRITABLE_BOOK : Material.BARRIER,
-            (tutorialQuestEnabled ? "§b" : "§c") + "Quest RPG và quest hướng dẫn", List.of(
-            tutorialQuestEnabled ? "§afirst-steps.yml đang bật." : "§cfirst-steps.yml chưa có hoặc đang tắt.",
-            "§7Quest hướng dẫn first-steps.yml tự bắt đầu sau khi giao sách skill.",
-            "§7Quest hướng dẫn tự chọn đại lục khớp homeWorld của người chơi.",
-            "§7Dùng /vnquest admin để quản lý các quest RPG do NPC giao.",
-            "§7File first-steps.yml: plugins/VnMineHardcore/quests/tutorial/.")));
-        menu.setItem(49, item(Material.BARRIER, "§cĐóng / tiếp tục sau", List.of(
-            "§7Mọi thay đổi đã xác nhận đều được lưu ngay.",
-            "§7Thoát menu bất cứ lúc nào; chạy lại /vninit để tiếp tục.")));
-        menu.setItem(8, item(Material.ENDER_PEARL, "§bSau khi tạo nhân vật", List.of(
+                "§7Ví dụ: §f123456789", "§eNhấn để nhập, !clear để xóa.")));
+        menu.setItem(33, item(Material.ENDER_PEARL, "§bSau khi tạo nhân vật", List.of(
             "§7Chọn điểm đến sau race/class và quest mặc định.", "§eNhấn để cấu hình.")));
-        menu.setItem(7, item(Material.TOTEM_OF_UNDYING, "§dQuản lý quest theo chủng tộc", List.of(
+        menu.setItem(34, item(Material.TOTEM_OF_UNDYING, "§dQuản lý quest theo chủng tộc", List.of(
             "§7Chọn quest tự giao sau khi người chơi tạo nhân vật.",
             "§7Mỗi chủng tộc có thể gán quest riêng hoặc để trống.",
             "§eNhấn để mở giao diện quản lý race.")));
+        int starterBookMappings = starterBookMappingCount();
+        menu.setItem(35, item(starterBookMappings > 0 ? Material.ENCHANTED_BOOK : Material.BOOK,
+            (starterBookMappings > 0 ? "§d" : "§c") + "Sách kỹ năng khởi đầu", List.of(
+            starterBookMappings > 0 ? "§aĐã có " + starterBookMappings + " mapping race/class." : "§cChưa có mapping sách skill khởi đầu.",
+            "§7Gán sách theo chủng tộc và class.",
+            "§eNhấn để mở quản lý sách.")));
+        menu.setItem(36, item(onboardingEnabled ? Material.LIME_DYE : Material.GRAY_DYE,
+            "§eOnboarding người mới: " + (onboardingEnabled ? "§aBẬT" : "§cTẮT"), List.of(
+                "§7Bật quy trình world start → NPC → đại lục → race/class.",
+                "§7Nhấn để đổi; thay đổi được lưu ngay vào config.yml.")));
+        boolean tutorialQuestEnabled = tutorialQuestEnabled();
+        menu.setItem(40, item(tutorialQuestEnabled ? Material.WRITABLE_BOOK : Material.BARRIER,
+            (tutorialQuestEnabled ? "§b" : "§c") + "Quest RPG và quest hướng dẫn", List.of(
+            tutorialQuestEnabled ? "§afirst-steps.yml đang bật." : "§cfirst-steps.yml chưa có hoặc đang tắt.",
+            "§7Mở trình sửa First Step và trạng thái quest RPG.", "§eNhấn để quản lý.")));
+        if (safePage > 0) menu.setItem(45, item(Material.ARROW, "§eĐại lục trước", List.of()));
+        menu.setItem(49, item(Material.BARRIER, "§cĐóng / tiếp tục sau", List.of(
+            "§7Mọi thay đổi đã xác nhận đều được lưu ngay.",
+            "§7Thoát menu bất cứ lúc nào; chạy lại /vninit để tiếp tục.")));
+        menu.setItem(50, item(Material.PAPER, "§7Trang đại lục " + (safePage + 1) + "/" + pages, List.of(
+            "§7Hai dòng đầu là danh sách đại lục.")));
         if (safePage + 1 < pages) menu.setItem(53, item(Material.ARROW, "§eĐại lục tiếp", List.of()));
         if (realms.isEmpty()) {
-            menu.setItem(22, item(Material.BARRIER, "§cKhông tìm thấy cấu hình đại lục", List.of(
+            menu.setItem(41, item(Material.BARRIER, "§cKhông tìm thấy cấu hình đại lục", List.of(
                 "§7Kiểm tra plugins/VnMineHardcore/worlds/*.yml và console.")));
         }
         player.openInventory(menu);
@@ -742,6 +750,11 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             Player player = event.getPlayer();
             if (!player.isOnline()) return;
             if ("!cancel".equalsIgnoreCase(input)) {
+                if (realmId.startsWith("__first_steps_")) {
+                    player.sendMessage("§eĐã hủy nhập liệu First Step.");
+                    openFirstStepsEditor(player);
+                    return;
+                }
                 if (handleRealmCreationChat(player, realmId, input)) return;
                 player.sendMessage("§eĐã hủy nhập tên world.");
                 if ("__start__".equals(realmId) || "__start_seed__".equals(realmId)) openDashboard(player);
@@ -753,6 +766,25 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 return;
             }
             if (handleRealmCreationChat(player, realmId, input)) return;
+            if (realmId.startsWith("__first_steps_")) {
+                String field = switch (realmId) {
+                    case "__first_steps_title__" -> "title";
+                    case "__first_steps_description__" -> "description";
+                    case "__first_steps_start_message__" -> "objective.start-message";
+                    case "__first_steps_complete_message__" -> "objective.complete-message";
+                    default -> null;
+                };
+                int maximumLength = "title".equals(field) ? 64 : "description".equals(field) ? 300 : 240;
+                if (field == null || input.isBlank() || input.length() > maximumLength) {
+                    player.sendMessage("§cNội dung không hợp lệ; nhập từ 1 đến " + maximumLength
+                        + " ký tự. Nhập lại hoặc !cancel.");
+                    pendingWorldNames.put(player.getUniqueId(), realmId);
+                    return;
+                }
+                saveFirstStepsField(player, "quest." + field,
+                    ChatColor.translateAlternateColorCodes('&', input));
+                return;
+            }
             if (realmId.startsWith("__edit_display__:")) {
                 String targetId = realmId.substring("__edit_display__:".length());
                 if (input.isBlank() || input.length() > 48) {
@@ -870,15 +902,19 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         File file = new File(plugin.getDataFolder(), "quests/tutorial/first-steps.yml");
         YamlConfiguration quest = file.isFile() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration();
         boolean enabled = quest.getBoolean("quest.enabled", false);
+        String title = quest.getString("quest.title", "First Steps");
+        String objectiveType = quest.getString("quest.objective.type", "visit-start-world-tutorial-npc");
         SetupHolder holder = new SetupHolder(player, "tutorial-quest", null, 0);
         Inventory menu = Bukkit.createInventory(holder, 54, "VnMine • Quest onboarding");
         holder.inventory = menu;
         menu.setItem(13, item(enabled ? Material.WRITABLE_BOOK : Material.BARRIER,
             enabled ? "§aFirst Steps đang bật" : "§cFirst Steps đang tắt / thiếu file", List.of(
-                "§7Người chơi dùng /start; quest dẫn tới NPC Tutorial của đại lục.",
-                "§7Hồ sơ cũ: bắt đầu sau khi chọn đại lục; người mới: sau khi chọn class và nhận sách.",
-                "§7Chi tiết phần thưởng, nội dung và tracking ở:",
-                "§fplugins/VnMineHardcore/quests/tutorial/first-steps.yml")));
+                "§7Tên hiện tại: §f" + title,
+                "§7Mục tiêu: §f" + tutorialObjectiveName(objectiveType),
+                "§7Bấm mục First Step bên dưới để sửa tên, mô tả và mục tiêu.")));
+        menu.setItem(22, item(Material.ENCHANTED_BOOK, "§eSửa First Step: §f" + title, List.of(
+            "§7Mở trình sửa quest hướng dẫn first-steps.yml.",
+            "§7Có thể đổi tên và cấu hình objective giống quest RPG.", "§eNhấn để chỉnh sửa.")));
         menu.setItem(29, item(enabled ? Material.REDSTONE_TORCH : Material.LEVER,
             enabled ? "§eTắt quest First Steps" : "§eBật quest First Steps", List.of(
                 "§7Lưu trạng thái ngay và nạp lại quest manager.",
@@ -892,6 +928,135 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         player.openInventory(menu);
     }
 
+    private void openFirstStepsEditor(Player player) {
+        File file = new File(plugin.getDataFolder(), "quests/tutorial/first-steps.yml");
+        YamlConfiguration quest = file.isFile() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration();
+        String title = quest.getString("quest.title", "First Steps");
+        String objectiveType = quest.getString("quest.objective.type", "visit-start-world-tutorial-npc");
+        SetupHolder holder = new SetupHolder(player, "tutorial-quest-editor", null, 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Sửa First Step • " + title);
+        holder.inventory = menu;
+        menu.setItem(4, item(Material.WRITABLE_BOOK, "§6" + title, List.of(
+            "§7ID hệ thống: §ffirst-steps", "§7Mô tả: §f" + quest.getString("quest.description", ""),
+            "§7Mục tiêu: §f" + tutorialObjectiveName(objectiveType))));
+        menu.setItem(20, item(Material.NAME_TAG, "§eĐổi tên nhiệm vụ", List.of(
+            "§7Hiện tại: §f" + title, "§7Tên này hiển thị trong GUI và thông báo quest.",
+            "§eNhấn rồi nhập tên mới trong chat.")));
+        menu.setItem(22, item(Material.PAPER, "§eSửa mô tả quest", List.of(
+            "§7Hiện tại: §f" + quest.getString("quest.description", ""),
+            "§eNhấn rồi nhập mô tả mới trong chat.")));
+        menu.setItem(24, item(Material.COMPASS, "§bSửa mục tiêu quest", List.of(
+            "§7Đang chọn: §f" + tutorialObjectiveName(objectiveType),
+            "§7Chọn NPC Tutorial world bắt đầu, NPC Tutorial đại lục, hoặc spawn đại lục.",
+            "§eNhấn để chọn loại và đích objective.")));
+        menu.setItem(30, item(Material.WRITABLE_BOOK, "§dSửa lời hướng dẫn khi nhận quest", List.of(
+            "§7Hiện tại: §f" + quest.getString("quest.objective.start-message", ""),
+            "§eNhấn rồi nhập nội dung mới trong chat.")));
+        menu.setItem(32, item(Material.FIREWORK_STAR, "§aSửa thông báo hoàn thành", List.of(
+            "§7Hiện tại: §f" + quest.getString("quest.objective.complete-message", ""),
+            "§eNhấn rồi nhập nội dung mới trong chat.")));
+        menu.setItem(49, item(Material.CRAFTING_TABLE, "§7Quay lại quest hướng dẫn", List.of()));
+        menu.setItem(53, item(Material.BARRIER, "§cĐóng", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openFirstStepsObjectiveMenu(Player player) {
+        File file = new File(plugin.getDataFolder(), "quests/tutorial/first-steps.yml");
+        YamlConfiguration quest = file.isFile() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration();
+        String current = quest.getString("quest.objective.type", "visit-start-world-tutorial-npc");
+        SetupHolder holder = new SetupHolder(player, "tutorial-quest-objective", null, 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "First Step • Chọn mục tiêu");
+        holder.inventory = menu;
+        String[] types = {"visit-start-world-tutorial-npc", "visit-tutorial-npc", "visit-realm-spawn"};
+        Material[] icons = {Material.VILLAGER_SPAWN_EGG, Material.PLAYER_HEAD, Material.COMPASS};
+        int[] slots = {20, 22, 24};
+        for (int index = 0; index < types.length; index++) {
+            String type = types[index];
+            menu.setItem(slots[index], item(icons[index], (current.equals(type) ? "§a✓ " : "§e")
+                + tutorialObjectiveName(type), List.of(
+                    "§7" + tutorialObjectiveDescription(type),
+                    current.equals(type) ? "§aĐang được chọn" : "§eNhấn để chọn mục tiêu.")));
+            holder.choices.put(slots[index], type);
+        }
+        menu.setItem(49, item(Material.CRAFTING_TABLE, "§7Quay lại sửa First Step", List.of()));
+        player.openInventory(menu);
+    }
+
+    private String tutorialObjectiveName(String type) {
+        return switch (type == null ? "" : type) {
+            case "visit-tutorial-npc" -> "Gặp NPC Tutorial của đại lục đã chọn";
+            case "visit-realm-spawn" -> "Đến điểm spawn của đại lục đã chọn";
+            default -> "Gặp NPC Tutorial tại world bắt đầu";
+        };
+    }
+
+    private String tutorialObjectiveDescription(String type) {
+        return switch (type) {
+            case "visit-tutorial-npc" -> "Điểm đến lấy từ NPC Tutorial của đại lục người chơi chọn.";
+            case "visit-realm-spawn" -> "Điểm đến lấy từ spawn của đại lục đã chọn.";
+            default -> "Điểm đến lấy từ NPC Tutorial được gán cho world bắt đầu trong /vninit.";
+        };
+    }
+
+    private void saveFirstStepsField(Player player, String path, String value) {
+        File file = new File(plugin.getDataFolder(), "quests/tutorial/first-steps.yml");
+        if (!file.isFile()) {
+            player.sendMessage("§cKhông tìm thấy first-steps.yml; không thay đổi dữ liệu.");
+            openFirstStepsEditor(player);
+            return;
+        }
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.options().parseComments(true);
+        try {
+            yaml.load(file);
+            yaml.set(path, value);
+            saveAtomically(yaml, file);
+            if (plugin.getTutorialQuestManager() == null || !plugin.getTutorialQuestManager().reloadDefinitionOnly()) {
+                player.sendMessage("§cĐã lưu nhưng quest manager không nạp được cấu hình. Kiểm tra console.");
+                plugin.getLogger().severe("[ServerSetup] first-steps.yml saved but tutorial quest reload failed: " + path);
+                return;
+            }
+            plugin.getLogger().info("[ServerSetup] admin=" + player.getName() + ", action=edit-first-steps " + path);
+            player.sendMessage("§aĐã lưu cấu hình First Step.");
+            openFirstStepsEditor(player);
+        } catch (IOException | InvalidConfigurationException | YAMLException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[ServerSetup] Could not edit first-steps.yml field " + path, exception);
+            player.sendMessage("§cKhông thể lưu First Step. Kiểm tra console.");
+            openFirstStepsEditor(player);
+        }
+    }
+
+    private void promptTutorialQuestText(Player player, int slot) {
+        String marker = switch (slot) {
+            case 20 -> "__first_steps_title__";
+            case 22 -> "__first_steps_description__";
+            case 30 -> "__first_steps_start_message__";
+            default -> "__first_steps_complete_message__";
+        };
+        String label = switch (slot) {
+            case 20 -> "tên nhiệm vụ";
+            case 22 -> "mô tả nhiệm vụ";
+            case 30 -> "lời hướng dẫn khi bắt đầu";
+            default -> "thông báo hoàn thành";
+        };
+        String example = switch (slot) {
+            case 20 -> "ví dụ: §fKhởi đầu hành trình";
+            case 22 -> "ví dụ: §fHãy tìm người hướng dẫn để bắt đầu.";
+            case 30 -> "ví dụ: §fGặp NPC Tutorial để nhận chỉ dẫn.";
+            default -> "ví dụ: §fBạn đã hoàn thành bước hướng dẫn đầu tiên.";
+        };
+        pendingWorldNames.put(player.getUniqueId(), marker);
+        player.closeInventory();
+        player.sendMessage("§6[First Step] §eNhập " + label + ": " + example
+            + " §7Gõ §c!cancel §7để quay lại trình sửa.");
+    }
+
+    private void setFirstStepsObjective(Player player, String type) {
+        if (!List.of("visit-start-world-tutorial-npc", "visit-tutorial-npc", "visit-realm-spawn").contains(type)) return;
+        saveFirstStepsField(player, "quest.objective.type", type);
+        openFirstStepsEditor(player);
+    }
+
     private void openWorlds(Player player, String realmId, int page) {
         List<World> worlds = Bukkit.getWorlds().stream().sorted(Comparator.comparing(World::getName,
             String.CASE_INSENSITIVE_ORDER)).toList();
@@ -902,7 +1067,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         holder.inventory = menu;
         for (int index = safePage * 27; index < Math.min((safePage + 1) * 27, worlds.size()); index++) {
             World world = worlds.get(index);
-            int slot = CONTENT_SLOTS[index - safePage * 27];
+            int slot = WORLD_CONTENT_SLOTS[index - safePage * 27];
             holder.choices.put(slot, world.getName());
             menu.setItem(slot, item(Material.GRASS_BLOCK, "§b" + world.getName(), List.of(
                 "§7Environment: §f" + world.getEnvironment().name(), "§eNhấn để gán world cho đại lục.")));
@@ -936,7 +1101,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         holder.inventory = menu;
         for (int index = safePage * 27; index < Math.min((safePage + 1) * 27, npcs.size()); index++) {
             String npcId = npcs.get(index);
-            int slot = CONTENT_SLOTS[index - safePage * 27];
+            int slot = WORLD_CONTENT_SLOTS[index - safePage * 27];
             String npcWorld = npcManager.getNpcTarget(npcId).map(NpcManager.NpcTarget::world).orElse("chưa nạp");
             String displayName = npcManager.getNpcDisplayName(npcId).orElse(npcId);
             String selectedNpcId = startWorldSelection
@@ -983,23 +1148,22 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 openDashboard(player, holder.page - 1);
             } else if (slot == 53 && (holder.page + 1) * CONTENT_SLOTS.length < realms().size()) {
                 openDashboard(player, holder.page + 1);
-            } else if (slot == 46) {
+            } else if (slot == 36) {
                 boolean enabled = plugin.getConfig().getBoolean("rpg.onboarding.enabled", true);
                 plugin.getConfig().set("rpg.onboarding.enabled", !enabled);
                 savePluginConfig(player, "rpg.onboarding.enabled=" + !enabled);
                 openDashboard(player, holder.page);
-            } else if (slot == 47) {
-                player.closeInventory();
+            } else if (slot == 35) {
                 Bukkit.dispatchCommand(player, "vnskillbook config");
-            } else if (slot == 48) {
+            } else if (slot == 30) {
                 pendingWorldNames.put(player.getUniqueId(), "__start__");
                 player.closeInventory();
                 player.sendMessage("§eNhập tên world an toàn cho người mới/reset. Ví dụ: §fworld_start§e. Gõ §f!cancel §eđể hủy.");
-            } else if (slot == 44) {
+            } else if (slot == 28) {
                 openTutorialNpcs(player, "__start__", 0);
-            } else if (slot == 43) {
+            } else if (slot == 29) {
                 if (plugin.getRegionProtectionManager() != null) plugin.getRegionProtectionManager().openStartWorldSettings(player);
-            } else if (slot == 50) {
+            } else if (slot == 31) {
                 String current = plugin.getConfig().getString("rpg.onboarding.start-world.environment", "NORMAL");
                 String next = "NORMAL".equalsIgnoreCase(current) ? "NETHER"
                     : "NETHER".equalsIgnoreCase(current) ? "THE_END" : "NORMAL";
@@ -1009,15 +1173,15 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 plugin.getConfig().set("rpg.onboarding.start-world.create-if-missing", true);
                 savePluginConfig(player, "rpg.onboarding.start-world.environment=" + next);
                 openDashboard(player);
-            } else if (slot == 52) {
+            } else if (slot == 32) {
                 pendingWorldNames.put(player.getUniqueId(), "__start_seed__");
                 player.closeInventory();
                 player.sendMessage("§eNhập seed số nguyên 64-bit cho world bắt đầu. Ví dụ: §f123456789§e. Gõ §f!clear §eđể seed tự sinh, §f!cancel §eđể hủy.");
-            } else if (slot == 51) {
+            } else if (slot == 40) {
                 openTutorialQuestSetup(player);
-            } else if (slot == 8) {
+            } else if (slot == 33) {
                 openCharacterCompletionSettings(player);
-            } else if (slot == 7) {
+            } else if (slot == 34) {
                 if (plugin.getCharacterSelectionManager() != null)
                     plugin.getCharacterSelectionManager().openRaceAdminMenu(player);
             } else if (slot == 27) {
@@ -1128,10 +1292,26 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         if ("tutorial-quest".equals(holder.type)) {
             if (slot == 49) openDashboard(player);
             else if (slot == 53) player.closeInventory();
+            else if (slot == 22) openFirstStepsEditor(player);
             else if (slot == 29) toggleTutorialQuest(player);
             else if (slot == 33) {
-                player.closeInventory();
                 Bukkit.dispatchCommand(player, "vnquest admin");
+            }
+            return;
+        }
+        if ("tutorial-quest-editor".equals(holder.type)) {
+            if (slot == 49) openTutorialQuestSetup(player);
+            else if (slot == 53) player.closeInventory();
+            else if (slot == 24) openFirstStepsObjectiveMenu(player);
+            else if (slot == 20 || slot == 22 || slot == 30 || slot == 32)
+                promptTutorialQuestText(player, slot);
+            return;
+        }
+        if ("tutorial-quest-objective".equals(holder.type)) {
+            if (slot == 49) openFirstStepsEditor(player);
+            else {
+                String type = holder.choices.get(slot);
+                if (type != null) setFirstStepsObjective(player, type);
             }
             return;
         }

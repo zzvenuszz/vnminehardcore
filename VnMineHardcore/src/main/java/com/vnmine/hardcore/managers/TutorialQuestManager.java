@@ -69,6 +69,23 @@ public final class TutorialQuestManager implements Listener {
         return reload(true);
     }
 
+    public TutorialQuestDefinitionLoader.TutorialQuestDefinition getDefinition() {
+        return definition;
+    }
+
+    public String questTitle() {
+        return definition == null ? "Bước chân đầu tiên" : definition.title();
+    }
+
+    public String objectiveLabel() {
+        if (definition == null) return "Gặp NPC Tutorial";
+        return switch (definition.objective().type()) {
+            case "visit-tutorial-npc" -> "Gặp NPC Tutorial của đại lục";
+            case "visit-realm-spawn" -> "Đến điểm spawn đại lục";
+            default -> "Gặp NPC Tutorial tại world bắt đầu";
+        };
+    }
+
     /** Reloads tutorial quest settings without starting the quest for all online players. */
     public boolean reloadDefinitionOnly() {
         return reload(false);
@@ -124,7 +141,7 @@ public final class TutorialQuestManager implements Listener {
         String destination = "visit-start-world-tutorial-npc".equals(definition.objective().type())
             ? "NPC Tutorial • " + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start")
             : realm == null ? "NPC Tutorial" : "NPC Tutorial • " + realm.displayName();
-        return List.of("§d§lNHIỆM VỤ", "§fTới: " + destination, "§7Mục tiêu: Gặp NPC Tutorial");
+        return List.of("§d§lNHIỆM VỤ", "§fTới: " + destination, "§7Mục tiêu: " + objectiveLabel());
     }
 
     private void refreshQuestSidebar(Player player) {

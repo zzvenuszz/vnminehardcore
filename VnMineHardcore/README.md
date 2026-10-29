@@ -419,7 +419,10 @@ GUI báo từng điều kiện đã đạt/chưa đạt; mỗi thay đổi đư�
 lục và catalog được nạp lại. Có thể đóng menu ở bất kỳ bước nào rồi chạy lại
 `/vninit`. Dashboard có nút mở cấu hình sách khởi đầu (`/vnskillbook config`) và
 quản lý quest RPG do NPC giao (`/vnquest admin`); quest First Steps có cấu hình
-riêng tại `plugins/VnMineHardcore/quests/tutorial/first-steps.yml`.
+riêng tại `plugins/VnMineHardcore/quests/tutorial/first-steps.yml`. Trong menu
+**Quest RPG và quest hướng dẫn**, chọn **Sửa First Step** để đổi tên, mô tả,
+thông báo và chọn objective phù hợp. Danh sách đại lục nằm ở hai hàng đầu của
+dashboard, ngăn cách với nhóm cài đặt bằng một hàng kính.
 
 Dashboard có nút **Bảo vệ World bắt đầu/reset** để cấu hình nhanh world bắt đầu.
 Menu **Menu chính → Admin → Quản lý world** hiển thị từng world đang nạp và lưu

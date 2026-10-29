@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.36.11 — 2026-10-29
+
+- `/vninit` bố trí danh sách đại lục vào hai hàng đầu, hàng thứ ba làm kính phân cách và đưa nhóm cài đặt xuống dưới; danh sách giữ phân trang.
+- Nút First Step trong phần quest hướng dẫn mở editor riêng để đổi tên, mô tả, lời bắt đầu/hoàn thành và chọn objective: NPC Tutorial world bắt đầu, NPC Tutorial đại lục hoặc spawn đại lục. Tên mới được dùng trong scoreboard và prerequisite quest.
+- Sửa tương tác NPC player-model: click packet có hand bị thiếu vẫn được nhận như click chính, chỉ bỏ click off-hand/attack; thêm log packet và trạng thái NPC hiện với `logging.console-debug`.
+
 ## 2.36.10 — 2026-10-29
 
 - Lưu đường quay lại theo GUI nguồn để menu con mở từ `/vninit` và các nhánh khác trở về đúng nơi đã mở; chuẩn hóa nút quay lại thành Bàn chế tạo, trang trước thành thảm xanh lá mạ và trang tiếp thành thảm xanh nước biển.

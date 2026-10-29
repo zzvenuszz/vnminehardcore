@@ -1,3 +1,14 @@
+## Bố cục /vninit, editor First Step và NPC Tutorial world bắt đầu — yêu cầu 2026-10-29
+
+- [x] `/vninit`: đặt tối đa 18 đại lục vào hai hàng đầu; hàng 3 dùng stained glass làm vạch ngăn; nhóm chức năng chuyển xuống dưới. Phân trang danh sách đại lục; chọn realm mở editor như trước.
+- [x] Dashboard có các nút riêng, dễ nhận diện cho quản lý đại lục, NPC Tutorial world bắt đầu, bảo vệ world, tên/environment/seed, hành động sau tạo nhân vật, quest theo race, sách skill và onboarding.
+- [x] Trong **Quest RPG và quest hướng dẫn**, mở **Sửa First Step** để đổi tên, mô tả, start-message, complete-message và objective; các objective hiện hỗ trợ là NPC Tutorial world bắt đầu, NPC Tutorial đại lục đã chọn hoặc spawn đại lục. Cấu hình ghi vào `quests/tutorial/first-steps.yml` và nạp lại ngay.
+- [x] Tên First Step mới được dùng trên scoreboard onboarding và trong chọn prerequisite quest; dòng objective tutorial phản ánh loại objective đã cấu hình.
+- [x] NPC player-model nhận click `INTERACT`/`INTERACT_AT` cả khi packet 26.3 không giải mã được hand; vẫn bỏ qua attack và click off-hand. Thêm debug log khi NPC xuất hiện, packet được nhận, packet không khớp ID hoặc giải mã thất bại.
+- [x] Build Java 25 bằng `mvn -DskipTests package`, version 2.36.11; JAR 3,083,806 bytes, SHA-256 `f930a12b12bd098a6c1df1c9cc0a718a0a22385ec24ebab4b38d161889416b07`; kèm SQLite native Linux x86_64 và AArch64.
+- [x] Backup JAR 2.36.10, cài JAR 2.36.11 vào thư mục plugin, cập nhật README/CHANGELOG và push mã nguồn.
+- [ ] Kiểm tra trong game: dashboard đúng bố cục và phân trang; sửa title/objective First Step, relog để xác nhận title và tracking; thử tương tác NPC Tutorial trong world bắt đầu. Nếu vẫn lỗi, bật `logging.console-debug: true` và gửi các dòng `[RPG-DEBUG][NPC][Interaction]` cùng `[Onboarding]`.
+
 ## Điều hướng GUI, chuyển VNCOIN và tương thích schematic — yêu cầu 2026-10-29
 
 - [x] Theo dõi inventory plugin đang mở để nút quay lại điều hướng về GUI nguồn thực tế; giữ lại lịch sử khi GUI tạm đóng để nhập tên người chơi qua chat. Chuẩn hóa icon mọi GUI: quay lại = bàn chế tạo, trang trước = thảm xanh lá mạ, trang tiếp = thảm xanh nước biển.

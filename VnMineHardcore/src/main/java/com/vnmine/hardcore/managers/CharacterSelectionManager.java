@@ -608,27 +608,31 @@ public final class CharacterSelectionManager implements Listener {
     public List<String> getOnboardingSidebarLines(Player player) {
         if (!isOnboardingEnabled() || "complete".equals(onboardingStage(player))) return List.of();
         String stage = onboardingStage(player);
+        String firstStepsTitle = plugin.getTutorialQuestManager() == null
+            ? "Bước chân đầu tiên" : plugin.getTutorialQuestManager().questTitle();
+        String objectiveLabel = plugin.getTutorialQuestManager() == null
+            ? "Gặp NPC Tutorial" : plugin.getTutorialQuestManager().objectiveLabel();
         if ("awaiting-start-tutorial".equals(stage)) {
             String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
             String world = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
-            return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 0/1",
-                "§7Gặp NPC Tutorial: 0/1", "§8" + (npcId.isBlank() ? "NPC chưa cấu hình" : npcId) + " • " + world);
+            return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 0/1",
+                "§7" + objectiveLabel + ": 0/1", "§8" + (npcId.isBlank() ? "NPC chưa cấu hình" : npcId) + " • " + world);
         }
         if ("choosing-continent".equals(stage)) {
-            return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 1/1", "§7Chọn đại lục khởi đầu");
+            return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 1/1", "§7Chọn đại lục khởi đầu");
         }
         if ("awaiting-tutorial".equals(stage)) {
             String continentId = onboardingContinent(player);
             HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null
                 || plugin.getRpgWorldManager() == null ? null
                 : plugin.getRpgWorldManager().getRealmDefinition(continentId);
-            if (realm != null) return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 0/1",
-                "§7Gặp NPC Tutorial: 0/1", "§8" + realm.tutorialNpcId() + " • " + realm.worldName());
+            if (realm != null) return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 0/1",
+                "§7" + objectiveLabel + ": 0/1", "§8" + realm.tutorialNpcId() + " • " + realm.worldName());
         }
         if ("ready-for-character".equals(stage)) {
-            return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 1/1", "§7Chọn race và class: 0/1");
+            return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 1/1", "§7Chọn race và class: 0/1");
         }
-        return List.of("§d§lNHIỆM VỤ", "§fBước chân đầu tiên: 0/1", "§7Gặp NPC Tutorial tại world bắt đầu");
+        return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 0/1", "§7" + objectiveLabel);
     }
 
     private void continueOnboarding(Player player) {

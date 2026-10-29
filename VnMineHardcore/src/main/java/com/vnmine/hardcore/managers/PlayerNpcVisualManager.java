@@ -105,7 +105,7 @@ final class PlayerNpcVisualManager implements Listener {
         this.npcManager = npcManager;
         this.protocolManager = ProtocolLibrary.getProtocolManager();
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        this.interactionListener = new PacketAdapter(plugin, ListenerPriority.NORMAL,
+        this.interactionListener = new PacketAdapter(plugin, ListenerPriority.HIGHEST,
                 PacketType.Play.Client.USE_ENTITY) {
             @Override public void onPacketReceiving(PacketEvent event) {
                 int entityId;
@@ -114,24 +114,54 @@ final class PlayerNpcVisualManager implements Listener {
                     entityId = event.getPacket().getIntegers().read(0);
                     useAction = event.getPacket().getEnumEntityUseActions().read(0);
                 } catch (RuntimeException exception) {
+                    debugInteraction("packet-decode-failed player=" + event.getPlayer().getName()
+                        + ", packet=" + event.getPacket().getHandle().getClass().getName()
+                        + ", error=" + exception.getClass().getSimpleName() + ": " + exception.getMessage());
                     return;
                 }
                 UUID viewerId = event.getPlayer().getUniqueId();
                 Map<Integer, String> entries = interactableByViewer.get(viewerId);
                 String npcId = entries == null ? null : entries.get(entityId);
-                if (npcId == null) return;
+                if (npcId == null) {
+                    debugInteraction("packet-unmapped player=" + event.getPlayer().getName()
+                        + ", entityId=" + entityId + ", action="
+                        + (useAction == null ? "null" : useAction.getAction()));
+                    return;
+                }
                 event.setCancelled(true);
-                if (useAction == null || useAction.getAction() == EnumWrappers.EntityUseAction.ATTACK
-                        || useAction.getHand() != EnumWrappers.Hand.MAIN_HAND) return;
+                if (useAction == null) {
+                    debugInteraction("packet-action-missing player=" + event.getPlayer().getName()
+                        + ", entityId=" + entityId + ", npc=" + npcId);
+                    return;
+                }
+                EnumWrappers.EntityUseAction action = useAction.getAction();
+                EnumWrappers.Hand hand = useAction.getHand();
+                debugInteraction("packet-interact player=" + event.getPlayer().getName() + ", npc=" + npcId
+                    + ", entityId=" + entityId + ", action=" + action + ", hand=" + hand);
+                // Some 26.3 client actions (notably INTERACT_AT) decode without a hand.
+                // Treat a missing hand as the primary click; explicitly ignore off-hand duplicates.
+                if (action == EnumWrappers.EntityUseAction.ATTACK || hand == EnumWrappers.Hand.OFF_HAND) return;
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     Player viewer = Bukkit.getPlayer(viewerId);
-                    if (viewer != null && viewer.isOnline()) npcManager.handlePlayerNpcInteract(viewer, npcId);
+                    if (viewer != null && viewer.isOnline()) {
+                        if (!npcManager.hasNpc(npcId)) {
+                            debugInteraction("record-missing player=" + viewer.getName() + ", npc=" + npcId);
+                            return;
+                        }
+                        npcManager.handlePlayerNpcInteract(viewer, npcId);
+                    }
                 });
             }
         };
         protocolManager.addPacketListener(interactionListener);
         this.updateTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateVisibleNpcs, 1L, 10L);
         this.animationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateAnimatedNameplates, 4L, 4L);
+    }
+
+    private void debugInteraction(String message) {
+        if (plugin.getConfig().getBoolean("logging.console-debug", false)) {
+            plugin.getLogger().info("[RPG-DEBUG][NPC][Interaction] " + message);
+        }
     }
 
     void shutdown() {
@@ -353,6 +383,8 @@ final class PlayerNpcVisualManager implements Listener {
             profileKey, location.clone(), location.getYaw(), animationStartedAtTick);
         visibleByViewer.computeIfAbsent(viewer.getUniqueId(), ignored -> new ConcurrentHashMap<>()).put(npc.id(), fake);
         interactableByViewer.computeIfAbsent(viewer.getUniqueId(), ignored -> new ConcurrentHashMap<>()).put(entityId, npc.id());
+        debugInteraction("npc-visible player=" + viewer.getName() + ", npc=" + npc.id() + ", entityId=" + entityId
+            + ", world=" + location.getWorld().getName());
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (viewer.isOnline()) removePlayerInfo(viewer, profileId);
         }, 40L);
