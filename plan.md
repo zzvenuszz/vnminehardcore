@@ -1,3 +1,22 @@
+## Reset người chơi, onboarding đích đến và mở rộng objective quest — yêu cầu 2026-10-29
+
+Tham chiếu loại objective: [zQuests quest types](https://docs.groupez.dev/zquests/configurations/quest-types). Danh sách tham khảo gồm block, entity, item, potion, economy, progression và command; cần chỉ bật loại nào có event và dữ liệu giao dịch đáng tin cậy trong plugin.
+
+- [x] Nút reset toàn bộ RPG chạy trong một transaction: xóa profile/chọn đại lục, quest active/completed/daily/successor, skill và quick slot; giữ VNCOIN cùng inventory, ban/mute và lịch sử chết.
+- [x] Reset người chơi online xóa cờ onboarding/starter cũ, đưa về world start và chờ nói chuyện NPC tutorial; không tự cấp quest hoặc EXP từ callback reset.
+- [x] `/vninit` có menu cấu hình hành động sau tạo nhân vật: spawn đại lục, spawn world bắt đầu, vị trí admin đã lưu, hoặc không dịch chuyển; chọn quest mặc định từ GUI. Quest gắn theo race vẫn có thể cấp riêng.
+- [x] Objective editor dùng hai hàng đầu hiển thị các bước, hàng giữa là kính phân cách, hai hàng dưới chọn loại; cả hai vùng có nút phân trang riêng. Danh sách loại kéo dài thêm trang khi vượt 18 lựa chọn.
+- [x] Có thể xóa bước đầu khi còn bước khác; kéo-thả bước sang bước khác để đổi thứ tự, và vẫn có thao tác bấm hai bước làm phương án thay thế. Không cho xóa mục tiêu cuối để quest không rơi vào trạng thái không có điều kiện hoàn thành.
+- [x] Thêm objective `block-break`, `fishing` (loại cá hoặc ANY), `tame`, `craft`, `item-consume`, `enchant`, `brew`, `sell`, `purchase`, `entity-damage` (mob vanilla hoặc boss theo ID), `experience-gain` (điểm hoặc level), `command`; vẫn giữ kill mob/boss, thu thập/nộp item và gặp NPC.
+- [x] Mục tiêu lưu/đọc YAML; event hook cập nhật tiến độ cho block, câu cá, thuần hóa, craft, consume, enchant, brewing, sát thương trực tiếp/projectile, XP, level và lệnh. Mục tiêu mua/bán chỉ tăng sau giao dịch merchant đã áp dụng thành công; giao dịch hủy/hoàn tiền không được tính. Shop ID là tùy chọn.
+- [x] Mỗi loại có icon, tên, mô tả và ví dụ nhập hợp lệ trong GUI/chat; chọn NPC/boss có sẵn qua GUI. Quest vẫn giới hạn 45 bước tổng.
+- [x] Tăng version lên 2.36.7, cập nhật README/CHANGELOG; build lại bằng Java 25 (`mvn -DskipTests package`) ngày 2026-10-29 09:40 UTC. Build thành công; 61 source Java và 14 test source biên dịch, test suite được bỏ qua.
+- [x] JAR 2.36.7 SHA-256 `108f23b649e34f1dd4896f12f491b3cb35dd18e4aaf3a2a901a84b63c5440632`, 3,048,616 bytes; xác nhận đóng gói SQLite native Linux x86_64 và AArch64.
+- [x] Backup bản cài trước khi build lại tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.7-pre-rebuild-20261029.jar`; thay JAR tại thư mục plugin bằng bản vừa build, xác nhận SHA khớp và chỉ còn một JAR VnMineHardcore đang hoạt động.
+- [ ] Kiểm thử trên server: thử kéo-thả qua trang mục tiêu, từng event objective, brewing stand attribution, shop system/custom, boss-ID, level/XP và command; xác nhận tiến độ sau relog và không ghi nhận sự kiện bị hủy.
+- [ ] Kiểm thử reset toàn bộ trên người chơi online/offline và từng kiểu đích onboarding (realm, start world, vị trí admin, không teleport), xác nhận quest mặc định và quest theo race không vượt giới hạn nhận quest.
+- [ ] Mục tiêu cuối cùng không thể xóa; muốn cho phép quest không có objective cần thêm trạng thái draft/disabled và chặn người chơi nhận quest đó.
+
 ## Chọn tham chiếu đã lưu bằng GUI — yêu cầu 2026-10-28
 
 - [x] Trình sửa quest tải NPC đã lưu để chọn NPC giao quest, NPC mục tiêu và NPC của bước đầu; giữ lại nhập chat cho dữ liệu mới như tên quest, số lượng, loại entity và ID mới.

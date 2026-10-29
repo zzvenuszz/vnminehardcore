@@ -897,7 +897,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
             ItemMeta meta = item.getItemMeta();
             String name = meta != null && meta.hasDisplayName() ? meta.getDisplayName()
                 : item.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
-            offers.add(new MerchantOffer(merchantId + "-" + index, item, offer.price(), name));
+            offers.add(new MerchantOffer(merchantId + "-" + index, item, offer.price(), name, merchantId));
         }
         List<MerchantBuyOffer> buyOffers = new ArrayList<>();
         for (int index = 0; index < customBuyOrders.size() && index < 45; index++) {
@@ -1425,6 +1425,13 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                     player.sendMessage("§cVí đã đạt giới hạn số dư; giao dịch bị hủy và item được hoàn qua kho giao dịch.");
                     reconcileMerchantDeliveries(player);
                 } else {
+                    if (completion.status() == PlayerProfileDatabaseManager.MerchantSaleCompletionStatus.PAID
+                            && plugin.getQuestCatalogManager() != null) {
+                        ItemStack sold = offer.item().clone();
+                        sold.setAmount(offer.amount());
+                        plugin.getQuestCatalogManager().recordShopTransaction(player, false, sold,
+                            offer.price(), merchantId);
+                    }
                     player.sendMessage("§aĐã bán " + offer.amount() + " item và nhận §6"
                         + offer.price() + " VNCOIN§a.");
                 }
@@ -1693,7 +1700,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 meta.setDisplayName("§f" + sanitizeVisibleName(name));
                 item.setItemMeta(meta);
             }
-            offers.add(new MerchantOffer(id, item, price, sanitizeVisibleName(name)));
+            offers.add(new MerchantOffer(id, item, price, sanitizeVisibleName(name), "system-merchant"));
         }
         if (offers.size() > 1_000) {
             plugin.getLogger().warning("[Economy][Merchant] Config has " + offers.size()
@@ -1740,6 +1747,10 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 debug("[RPG-DEBUG][VNCOIN][Merchant] purchase player=" + player.getName()
                     + ", offer=" + offer.id() + ", amount=" + offer.item().getAmount() + ", price=" + offer.price()
                     + ", balance=" + result.balance() + ", transaction=" + transactionId);
+                if (plugin.getQuestCatalogManager() != null) {
+                    plugin.getQuestCatalogManager().recordShopTransaction(player, true, offer.item(),
+                        offer.price(), offer.shopId());
+                }
                 if (player.isOnline()) {
                     player.sendMessage("§aĐã thanh toán §6" + offer.price()
                         + " VNCOIN§a. Vật phẩm sẽ được giao an toàn vào túi khi còn chỗ.");
@@ -2379,7 +2390,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         }
     }
 
-    private record MerchantOffer(String id, ItemStack item, long price, String name) {
+    private record MerchantOffer(String id, ItemStack item, long price, String name, String shopId) {
     }
 
     private record MerchantBuyOffer(String id, ItemStack item, int amount, long price, String name,

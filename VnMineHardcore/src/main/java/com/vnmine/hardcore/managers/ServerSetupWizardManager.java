@@ -150,11 +150,75 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         menu.setItem(49, item(Material.BARRIER, "§cĐóng / tiếp tục sau", List.of(
             "§7Mọi thay đổi đã xác nhận đều được lưu ngay.",
             "§7Thoát menu bất cứ lúc nào; chạy lại /vninit để tiếp tục.")));
+        menu.setItem(8, item(Material.ENDER_PEARL, "§bSau khi tạo nhân vật", List.of(
+            "§7Chọn điểm đến sau race/class và quest mặc định.", "§eNhấn để cấu hình.")));
         if (safePage + 1 < pages) menu.setItem(53, item(Material.ARROW, "§eĐại lục tiếp", List.of()));
         if (realms.isEmpty()) {
             menu.setItem(22, item(Material.BARRIER, "§cKhông tìm thấy cấu hình đại lục", List.of(
                 "§7Kiểm tra plugins/VnMineHardcore/worlds/*.yml và console.")));
         }
+        player.openInventory(menu);
+    }
+
+    private void openCharacterCompletionSettings(Player player) {
+        SetupHolder holder = new SetupHolder(player, "completion-config", null, 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Setup • Sau khi tạo nhân vật");
+        holder.inventory = menu;
+        String mode = plugin.getConfig().getString("rpg.onboarding.character-complete.teleport-mode", "REALM_SPAWN");
+        String destination = switch (mode.toUpperCase(java.util.Locale.ROOT)) {
+            case "START_WORLD" -> "World bắt đầu";
+            case "ADMIN_LOCATION" -> plugin.getConfig().getString("rpg.onboarding.character-complete.location.world", "tọa độ admin");
+            case "NONE" -> "Không dịch chuyển";
+            default -> "Spawn đại lục đã chọn";
+        };
+        menu.setItem(13, item(Material.COMPASS, "§bĐiểm đến hiện tại: §f" + destination, List.of(
+            "§7Chọn một nút bên dưới để đổi hành vi.")));
+        menu.setItem(10, item(Material.MAP, "§aSpawn đại lục đã chọn", List.of("§7Hành vi mặc định.")));
+        menu.setItem(11, item(Material.RECOVERY_COMPASS, "§eSpawn world bắt đầu", List.of(
+            "§7Dịch chuyển về world start sau khi tạo nhân vật.")));
+        menu.setItem(12, item(Material.ENDER_PEARL, "§dLưu vị trí hiện tại làm đích", List.of(
+            "§7Đứng tại vị trí đích rồi bấm nút này.", "§7Lưu world, tọa độ và hướng nhìn.")));
+        menu.setItem(14, item(Material.BARRIER, "§cKhông dịch chuyển", List.of("§7Giữ nguyên vị trí.")));
+        String questId = plugin.getConfig().getString("rpg.onboarding.character-complete.default-quest-id", "");
+        String questTitle = questId.isBlank() || plugin.getQuestCatalogManager() == null ? "Chưa chọn"
+            : plugin.getQuestCatalogManager().getQuestTitle(questId);
+        menu.setItem(22, item(Material.WRITABLE_BOOK, "§6Quest mặc định: §f" + questTitle, List.of(
+            "§7Race vẫn có thể có quest riêng trong Quản lý race.", "§eNhấn để chọn quest đã lưu hoặc bỏ gán.")));
+        menu.setItem(49, item(Material.ARROW, "§eQuay lại /vninit", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void saveCompletionSetting(Player player, String key, String value) {
+        plugin.getConfig().set("rpg.onboarding.character-complete." + key, value);
+        savePluginConfig(player, "set onboarding completion " + key + "=" + value);
+        openCharacterCompletionSettings(player);
+    }
+
+    private void openCharacterCompletionQuestChoices(Player player, int requestedPage) {
+        var questManager = plugin.getQuestCatalogManager();
+        if (questManager == null) return;
+        List<String> questIds = questManager.getEnabledQuestIds();
+        int pageCount = Math.max(1, (questIds.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        SetupHolder holder = new SetupHolder(player, "completion-quests", null, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Quest mặc định sau tạo nhân vật");
+        holder.inventory = menu;
+        String selected = plugin.getConfig().getString("rpg.onboarding.character-complete.default-quest-id", "");
+        for (int index = 0; index < 45; index++) {
+            int itemIndex = page * 45 + index;
+            if (itemIndex >= questIds.size()) break;
+            String id = questIds.get(itemIndex);
+            holder.choices.put(index, id);
+            menu.setItem(index, item(Material.BOOK, (id.equals(selected) ? "§a✓ " : "§f")
+                + questManager.getQuestTitle(id), List.of("§7Quest ID: §f" + id, "§eNhấn để chọn.")));
+        }
+        menu.setItem(45, item(Material.BARRIER, "§cBỏ quest mặc định", List.of()));
+        if (page > 0) menu.setItem(46, item(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(48, item(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
+            List.of("§7Quest đang bật: " + questIds.size())));
+        menu.setItem(49, item(Material.ARROW, "§eQuay lại cài đặt", List.of()));
+        if (page + 1 < pageCount) menu.setItem(50, item(Material.ARROW, "§eTrang sau", List.of()));
+        if (questIds.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có quest đang bật", List.of()));
         player.openInventory(menu);
     }
 
@@ -929,11 +993,53 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 player.sendMessage("§eNhập seed số nguyên 64-bit cho world bắt đầu. Ví dụ: §f123456789§e. Gõ §f!clear §eđể seed tự sinh, §f!cancel §eđể hủy.");
             } else if (slot == 51) {
                 openTutorialQuestSetup(player);
+            } else if (slot == 8) {
+                openCharacterCompletionSettings(player);
             } else if (slot == 27) {
                 openWorldManager(player);
             } else {
                 String realmId = holder.choices.get(slot);
                 if (realmId != null) openRealm(player, realmId);
+            }
+            return;
+        }
+        if ("completion-config".equals(holder.type)) {
+            if (slot == 49) openDashboard(player);
+            else if (slot == 10) saveCompletionSetting(player, "teleport-mode", "REALM_SPAWN");
+            else if (slot == 11) saveCompletionSetting(player, "teleport-mode", "START_WORLD");
+            else if (slot == 14) saveCompletionSetting(player, "teleport-mode", "NONE");
+            else if (slot == 12) {
+                Location location = player.getLocation();
+                var config = plugin.getConfig();
+                String base = "rpg.onboarding.character-complete.location.";
+                config.set(base + "world", location.getWorld().getName());
+                config.set(base + "x", location.getX());
+                config.set(base + "y", location.getY());
+                config.set(base + "z", location.getZ());
+                config.set(base + "yaw", location.getYaw());
+                config.set(base + "pitch", location.getPitch());
+                config.set("rpg.onboarding.character-complete.teleport-mode", "ADMIN_LOCATION");
+                savePluginConfig(player, "set onboarding completion destination=" + location);
+                openCharacterCompletionSettings(player);
+            } else if (slot == 22) openCharacterCompletionQuestChoices(player, 0);
+            return;
+        }
+        if ("completion-quests".equals(holder.type)) {
+            if (slot == 49) openCharacterCompletionSettings(player);
+            else if (slot == 46 && holder.page > 0)
+                openCharacterCompletionQuestChoices(player, holder.page - 1);
+            else if (slot == 50) openCharacterCompletionQuestChoices(player, holder.page + 1);
+            else if (slot == 45 || holder.choices.containsKey(slot)) {
+                String questId = slot == 45 ? null : holder.choices.get(slot);
+                if (questId != null && (plugin.getQuestCatalogManager() == null
+                        || !plugin.getQuestCatalogManager().isEnabledQuest(questId))) {
+                    player.sendMessage("§cQuest đã bị tắt hoặc xóa; hãy chọn lại.");
+                    openCharacterCompletionQuestChoices(player, 0);
+                    return;
+                }
+                plugin.getConfig().set("rpg.onboarding.character-complete.default-quest-id", questId);
+                savePluginConfig(player, "set onboarding default quest=" + questId);
+                openCharacterCompletionSettings(player);
             }
             return;
         }

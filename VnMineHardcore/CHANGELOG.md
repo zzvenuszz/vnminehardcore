@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.36.7 — 2026-10-29
+
+- Quản trị người chơi có nút reset toàn bộ tiến trình RPG, xóa hồ sơ đại lục/race/class, level/EXP, quest active/completed/daily và skill/quick slot trong một transaction; người đang online được đưa về lại bước tutorial.
+- `/vninit` cấu hình nơi dịch chuyển và quest mặc định sau khi người chơi chọn race/class; vẫn hỗ trợ quest tự giao theo race.
+- Sắp xếp lại quest objective editor thành vùng bước 2 hàng, kính phân cách, vùng lựa chọn 2 hàng có phân trang; hỗ trợ kéo-thả và xóa bước đầu khi còn bước khác.
+- Thêm objective block-break, fishing, tame, enchant, brew, craft, sell/purchase, entity damage mob/boss, XP/level, consume và command; lưu/đọc YAML cùng event hooks.
+- Chỉ ghi tiến độ sell/purchase sau khi giao dịch VNCOIN hoàn tất; giao dịch bị hủy/hoàn tiền không được tính.
+
 ## 2.34.1 — 2026-10-28
 
 - Bổ sung revision cấu hình world để đổi THE_END → NORMAL rồi đổi lại trước restart vẫn đánh dấu cần tái tạo world.

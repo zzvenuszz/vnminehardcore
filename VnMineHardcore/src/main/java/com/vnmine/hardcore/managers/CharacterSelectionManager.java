@@ -21,6 +21,7 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
@@ -728,6 +729,9 @@ public final class CharacterSelectionManager implements Listener {
             plugin.getTutorialQuestManager().clearSessionAfterAdminQuestReset(player);
         setOnboarding(player, "awaiting-start-tutorial", null);
         player.getPersistentDataContainer().remove(startTutorialVisitedKey);
+        player.getPersistentDataContainer().remove(starterBookPendingKey);
+        player.getPersistentDataContainer().remove(starterTutorialPendingKey);
+        player.saveData();
         String lobbyName = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
         World lobby = Bukkit.getWorld(lobbyName);
         if (lobby == null) {
@@ -1573,25 +1577,27 @@ public final class CharacterSelectionManager implements Listener {
                 if (isOnboardingEnabled()) setOnboarding(player, "complete", continentId);
                 if (isOnboardingEnabled()) {
                     queueStarterBookGrant(player, raceId, classId);
+                    String defaultQuestId = plugin.getConfig().getString(
+                        "rpg.onboarding.character-complete.default-quest-id", "").trim();
+                    acceptOnboardingQuest(player, defaultQuestId, "default");
                     String raceQuestId = raceOnboardingQuestIds.get(raceId);
-                    if (raceQuestId != null && plugin.getQuestCatalogManager() != null) {
-                        plugin.getLogger().info("[Onboarding] Auto-quest for selected race: player=" + playerName
-                            + ", race=" + raceId + ", quest=" + raceQuestId);
-                        if (!plugin.getQuestCatalogManager().acceptConfiguredQuest(player, raceQuestId)) {
-                            plugin.getLogger().warning("[Onboarding] Race quest could not be accepted: player="
-                                + playerName + ", race=" + raceId + ", quest=" + raceQuestId);
-                        }
+                    if (raceQuestId != null && raceQuestId.equalsIgnoreCase(defaultQuestId)) {
+                        debugProfile("onboarding-quest-duplicate-skipped player=" + playerName + ", quest="
+                            + raceQuestId + ", source=race");
+                    } else {
+                        acceptOnboardingQuest(player, raceQuestId, "race=" + raceId);
                     }
-                    if (startingRealm != null) {
-                        plugin.getRpgWorldManager().resolveSpawn(startingRealm.id()).ifPresent(spawn ->
-                            player.teleportAsync(spawn.location()).whenComplete((teleported, teleportFailure) -> {
-                                if (teleportFailure != null || !Boolean.TRUE.equals(teleported)) {
-                                    plugin.getLogger().warning("[Onboarding] Could not enter selected realm: player="
-                                        + playerName + ", realm=" + startingRealm.id()
-                                        + (teleportFailure == null ? "" : ": " + teleportFailure.getMessage()));
-                                }
-                            }));
-                    }
+                    resolveCharacterCompletionDestination(startingRealm).ifPresent(destination ->
+                        player.teleportAsync(destination).whenComplete((teleported, teleportFailure) -> {
+                            if (teleportFailure != null || !Boolean.TRUE.equals(teleported)) {
+                                plugin.getLogger().warning("[Onboarding] Could not teleport after character creation: player="
+                                    + playerName + ", world=" + destination.getWorld().getName()
+                                    + (teleportFailure == null ? "" : ": " + teleportFailure.getMessage()));
+                            } else {
+                                debugProfile("character-complete-teleport player=" + playerName + ", world="
+                                    + destination.getWorld().getName());
+                            }
+                        }));
                 }
                 debugProfile("create-result player=" + playerName + ", created=true, resetProfile="
                     + completingResetProfile);
@@ -1603,6 +1609,44 @@ public final class CharacterSelectionManager implements Listener {
                 player.closeInventory();
             }
         }));
+    }
+
+    private void acceptOnboardingQuest(Player player, String questId, String source) {
+        if (questId == null || questId.isBlank() || plugin.getQuestCatalogManager() == null) return;
+        if (!plugin.getQuestCatalogManager().isEnabledQuest(questId)) {
+            plugin.getLogger().warning("[Onboarding] Ignoring unavailable " + source + " quest: player="
+                + player.getName() + ", quest=" + questId);
+            return;
+        }
+        if (!plugin.getQuestCatalogManager().acceptConfiguredQuest(player, questId)) {
+            plugin.getLogger().warning("[Onboarding] Could not accept " + source + " quest: player="
+                + player.getName() + ", quest=" + questId);
+        } else {
+            plugin.getLogger().info("[Onboarding] Auto-quest accepted: player=" + player.getName()
+                + ", source=" + source + ", quest=" + questId);
+        }
+    }
+
+    private java.util.Optional<Location> resolveCharacterCompletionDestination(
+            HumanRealmDefinitionLoader.HumanRealmDefinition startingRealm) {
+        String mode = plugin.getConfig().getString("rpg.onboarding.character-complete.teleport-mode", "REALM_SPAWN");
+        if ("NONE".equalsIgnoreCase(mode)) return java.util.Optional.empty();
+        if ("START_WORLD".equalsIgnoreCase(mode)) {
+            World world = Bukkit.getWorld(plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"));
+            return world == null ? java.util.Optional.empty() : java.util.Optional.of(world.getSpawnLocation());
+        }
+        if ("ADMIN_LOCATION".equalsIgnoreCase(mode)) {
+            var config = plugin.getConfig();
+            World world = Bukkit.getWorld(config.getString("rpg.onboarding.character-complete.location.world", ""));
+            String base = "rpg.onboarding.character-complete.location.";
+            if (world == null || !config.contains(base + "x") || !config.contains(base + "y")
+                    || !config.contains(base + "z")) return java.util.Optional.empty();
+            return java.util.Optional.of(new Location(world, config.getDouble(base + "x"),
+                config.getDouble(base + "y"), config.getDouble(base + "z"),
+                (float)config.getDouble(base + "yaw"), (float)config.getDouble(base + "pitch")));
+        }
+        if (startingRealm == null || plugin.getRpgWorldManager() == null) return java.util.Optional.empty();
+        return plugin.getRpgWorldManager().resolveSpawn(startingRealm.id()).map(RpgWorldManager.ResolvedSpawn::location);
     }
 
     private void debugProfile(String detail) {

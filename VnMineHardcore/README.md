@@ -420,6 +420,37 @@ thiên tai, thời gian trôi, đói và khát trong `world-settings.yml`. Thi�
 world được áp dụng cho các luồng tương ứng; các mục chưa đổi tiếp tục dùng mặc
 định hoặc cấu hình cũ của world bắt đầu.
 
+Trong `/vninit`, mục **Sau khi tạo nhân vật** cho phép chọn hành động sau khi
+người chơi chọn xong race/class: dịch chuyển tới spawn đại lục, spawn world bắt
+đầu, vị trí đã lưu của admin, hoặc giữ nguyên vị trí; đồng thời có thể chọn một
+quest mặc định từ danh sách quest đang bật. Quest gắn riêng với race vẫn có thể
+được cấp theo `races.yml`. Menu lưu từng lựa chọn ngay khi bấm.
+
+Menu **Admin → Quản trị người chơi → Reset toàn bộ tiến trình RPG** xóa hồ sơ
+RPG, đại lục/race/class, level/EXP, tiến trình và lịch sử quest, skill/quick slot;
+nếu người chơi online thì đưa họ về world bắt đầu để làm tutorial lại. VNCOIN,
+inventory, mute/ban và lịch sử tử vong được giữ nguyên.
+
+### Mục tiêu quest
+
+Trong `/vnquest admin`, editor mục tiêu dành hai hàng trên cho thứ tự bước, một
+hàng kính làm vạch ngăn và hai hàng dưới cho loại mục tiêu. Mỗi vùng có nút
+chuyển trang riêng. Bấm chuột phải lên bước để xóa (cần còn ít nhất một bước);
+kéo một bước sang bước khác để đổi thứ tự, hoặc bấm lần lượt hai bước. Chọn NPC
+và boss đã cấu hình bằng GUI. Loại mục tiêu gồm hạ mob/boss, gặp NPC, thu thập hoặc
+nộp item, phá block, câu cá, thuần hóa, craft, consume, enchant, brew, bán/mua,
+gây sát thương, nhận XP/level và dùng command.
+
+Các loại mới hỏi giá trị theo ví dụ hiện trong chat: `STONE 20` cho phá block,
+`COD 10` hoặc `ANY 10` cho câu cá, `HORSE 2` cho thuần hóa,
+`SHARPNESS 3 5 DIAMOND_SWORD` cho enchant (item có thể bỏ trống), `HEALING 5`
+cho brewing, `ITEM DIAMOND 3 [shop-id]` hoặc `COINS 100 [shop-id]` cho bán/mua,
+`ZOMBIE 500` hoặc `BOSS:winter-tyrant 500` cho sát thương,
+`POINTS 500`/`LEVELS 5` cho progression và `warp 1` cho command. Với sell/purchase,
+đếm item hoặc VNCOIN; shop ID bỏ trống nghĩa là mọi merchant. Chỉ giao dịch shop đã
+hoàn tất mới cộng tiến độ; brew cần admin/người chơi tương tác với brewing stand
+trước khi mẻ thuốc hoàn tất.
+
 ## Cấu hình (config.yml)
 
 Mưa được điều khiển trong `environment.rain-control`: mặc định mỗi lần bắt đầu

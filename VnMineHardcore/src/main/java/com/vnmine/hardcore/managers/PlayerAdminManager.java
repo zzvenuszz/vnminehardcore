@@ -178,7 +178,10 @@ public final class PlayerAdminManager implements Listener {
             "§7Xem quest hoàn thành, cho phép làm lại hoặc reset.")));
         menu.setItem(20, item(Material.ENCHANTED_BOOK, "§cXóa skill đã học", List.of("§7Xóa skill progress và quick slot.")));
         menu.setItem(21, item(Material.PLAYER_HEAD, "§cReset race/class", List.of("§7Đưa lựa chọn về trạng thái chưa tạo nhân vật.")));
-        menu.setItem(22, item(Material.TNT, "§4Reset toàn bộ hồ sơ RPG", List.of("§7Xóa tiến trình RPG để tạo lại nhân vật.")));
+        menu.setItem(22, item(Material.TNT, "§4Reset toàn bộ tiến trình RPG", List.of(
+            "§7Xóa đại lục, race/class, level/EXP, toàn bộ quest và skill.",
+            "§7Giữ VNCOIN, vật phẩm, mute/ban và dữ liệu tử vong.",
+            "§7Nếu online, đưa về world start để làm tutorial lại.")));
         menu.setItem(23, item(Material.EXPERIENCE_BOTTLE, "§aCấp level / EXP", List.of("§7Dùng công cụ quản trị tiến trình hiện có.")));
         menu.setItem(24, item(Material.ENCHANTED_BOOK, "§aGive item RPG", List.of("§7Chọn vật phẩm trong registry hệ thống.")));
         menu.setItem(45, item(Material.ARROW, "§eQuay lại danh sách người chơi", List.of()));
@@ -878,7 +881,7 @@ public final class PlayerAdminManager implements Listener {
         } else if ("reset-all".equals(action)) {
             PlayerProfileDatabaseManager database = plugin.getPlayerProfileDatabaseManager();
             database.executeGameplayDatabaseTask("player-admin.reset-all actor=" + admin.getName()
-                    + " target=" + targetId, () -> database.deleteRpgProfile(targetId.toString()))
+                    + " target=" + targetId, () -> database.resetAllPlayerRpgProgress(targetId.toString()))
                 .whenComplete((success, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
                     if (failure != null) plugin.getLogger().log(Level.SEVERE,
                         "[PlayerAdmin] Full RPG reset failed for " + targetId, failure);
@@ -889,8 +892,8 @@ public final class PlayerAdminManager implements Listener {
                             plugin.getQuestCatalogManager().reloadQuestCache(target);
                         if (plugin.getCharacterSelectionManager() != null)
                             plugin.getCharacterSelectionManager().queueQuestJourneyReset(targetId);
-                        audit(admin, name, "reset-rpg-profile");
-                        admin.sendMessage("§aĐã xóa hồ sơ RPG; ví VNCOIN vẫn được giữ.");
+                        audit(admin, name, "reset-all-rpg-progress");
+                        admin.sendMessage("§aĐã reset đại lục, nhân vật, quest và skill; VNCOIN vẫn được giữ.");
                     }
                     openTarget(admin, targetId);
                 }));

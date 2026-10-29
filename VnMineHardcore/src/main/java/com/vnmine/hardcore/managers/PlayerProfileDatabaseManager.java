@@ -1376,6 +1376,26 @@ public class PlayerProfileDatabaseManager {
         });
     }
 
+    /** Clears RPG identity, quest history/progress and learned skills atomically; wallet data is separate. */
+    public boolean resetAllPlayerRpgProgress(String uuid) throws SQLException {
+        return executeWriteTransaction(connection -> {
+            for (String table : List.of("player_quest_successors_pending", "player_daily_quest_runs",
+                    "player_quest_progress", "player_skill_slots", "player_skill_progress")) {
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "DELETE FROM " + table + " WHERE uuid = ?")) {
+                    statement.setString(1, uuid);
+                    statement.executeUpdate();
+                }
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "DELETE FROM player_profiles WHERE uuid = ?")) {
+                statement.setString(1, uuid);
+                statement.executeUpdate();
+                return true;
+            }
+        });
+    }
+
     public boolean updateQuestStep(String uuid, String questId, String currentStep) throws SQLException {
         String sql = "UPDATE player_quest_progress SET current_step = ? " +
             "WHERE uuid = ? AND quest_id = ? AND status = 'active'";

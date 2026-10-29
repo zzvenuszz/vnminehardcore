@@ -32,6 +32,19 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.entity.EntityTameEvent;
+import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.enchantment.EnchantItemEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.player.PlayerExpChangeEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerLevelChangeEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
@@ -75,6 +88,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private final Map<UUID, Long> lastCrossWorldHint = new ConcurrentHashMap<>();
     private final java.util.Set<UUID> creditedBossEncounters = ConcurrentHashMap.newKeySet();
     private final java.util.Set<UUID> processingPendingSuccessors = ConcurrentHashMap.newKeySet();
+    private final Map<String, BrewOwner> recentBrewingStandOwners = new ConcurrentHashMap<>();
 
     public QuestCatalogManager(VnMineHardcore plugin) throws IOException {
         this.plugin = plugin;
@@ -907,7 +921,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             return;
         }
         if (holder.menu == QuestMenu.OBJECTIVES) {
-            handleObjectiveMenuClick(player, holder, slot);
+            handleObjectiveMenuClick(player, holder, slot, event.getClick().isRightClick());
             return;
         }
         QuestDefinition quest = definitions.get(holder.questId);
@@ -986,35 +1000,112 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private void openObjectivesMenu(Player player, String questId) {
+        openObjectivesMenu(player, questId, 0, 0);
+    }
+
+    private void openObjectivesMenu(Player player, String questId, int requestedStepPage, int requestedOptionPage) {
         QuestDefinition quest = definitions.get(questId);
         if (quest == null) return;
-        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.OBJECTIVES, questId, 0);
+        List<QuestObjective> objectives = quest.objectives();
+        int stepPages = Math.max(1, (objectives.size() + 17) / 18);
+        List<ObjectiveType> options = availableObjectiveTypes();
+        int optionPages = Math.max(1, (options.size() + 17) / 18);
+        int stepPage = Math.max(0, Math.min(requestedStepPage, stepPages - 1));
+        int optionPage = Math.max(0, Math.min(requestedOptionPage, optionPages - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.OBJECTIVES, questId, stepPage);
+        holder.subPage = optionPage;
         Inventory menu = Bukkit.createInventory(holder, 54, "Mục tiêu • " + quest.title());
         holder.inventory = menu;
-        List<QuestObjective> objectives = quest.objectives();
-        for (int index = 0; index < Math.min(45, objectives.size()); index++) {
-            QuestObjective objective = objectives.get(index);
-            menu.setItem(index, adminItem(Material.PAPER, "§eBước " + (index + 1) + ": " + objectiveDescription(objective),
-                List.of(index == 0 ? "§7Mục tiêu gốc không thể xóa." : "§cNhấn để xóa bước này.")));
-            holder.questSlots.put(index, Integer.toString(index));
+        for (int slot = 0; slot < 54; slot++) {
+            if (slot >= 18 && slot <= 26) menu.setItem(slot,
+                adminItem(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of("§7Danh sách | loại mục tiêu")));
         }
-        menu.setItem(45, adminItem(Material.ZOMBIE_SPAWN_EGG, "§aThêm mục tiêu hạ mob", List.of(
-            "§7Nhập EntityType (ví dụ ZOMBIE) vào chat.", "§7Sau đó nhập số lượng cần hạ.")));
-        menu.setItem(46, adminItem(Material.ANVIL, "§eSửa mục tiêu đầu", List.of(
-            "§7Hiện tại: " + objectiveDescription(objectives.getFirst()),
-            "§7Áp dụng cho mục tiêu hạ mob.")));
-        menu.setItem(47, adminItem(Material.HOPPER, "§aThêm mục tiêu thu thập item", List.of(
-            "§7Cầm item cần thu thập ở tay chính.", "§7Giữ nguyên Material, tên và PDC item RPG.")));
-        menu.setItem(48, adminItem(Material.CHEST, "§6Thêm mục tiêu nộp item", List.of(
-            "§7Cầm item cần nộp ở tay chính.", "§7Người chơi nộp cho NPC giao quest.")));
+        for (int index = 0; index < 18; index++) {
+            int objectiveIndex = stepPage * 18 + index;
+            if (objectiveIndex >= objectives.size()) break;
+            QuestObjective objective = objectives.get(objectiveIndex);
+            menu.setItem(index, adminItem(Material.PAPER, "§eBước " + (objectiveIndex + 1) + ": "
+                    + objectiveDescription(objective), List.of(
+                holder.selectedObjective == objectiveIndex ? "§aĐang chọn để đổi thứ tự"
+                    : "§7Kéo sang bước khác hoặc bấm lần lượt hai bước.",
+                "§cChuột phải để xóa bước này.")));
+            holder.questSlots.put(index, "step:" + objectiveIndex);
+        }
+        for (int index = 0; index < 18; index++) {
+            int optionIndex = optionPage * 18 + index;
+            if (optionIndex >= options.size()) break;
+            ObjectiveType type = options.get(optionIndex);
+            int slot = 27 + index;
+            menu.setItem(slot, adminItem(objectiveIcon(type), "§a+ " + objectiveTypeName(type),
+                List.of("§7Thêm bước tuần tự mới.", "§eNhấn để cấu hình.")));
+            holder.questSlots.put(slot, "add:" + type.name());
+        }
+        if (stepPage > 0) menu.setItem(45, adminItem(Material.ARROW, "§eBước trước", List.of()));
+        if (stepPage + 1 < stepPages) menu.setItem(46, adminItem(Material.ARROW, "§eBước sau", List.of()));
+        menu.setItem(48, adminItem(Material.PAPER, "§fBước " + (stepPage + 1) + "/" + stepPages,
+            List.of("§7Tổng bước: " + objectives.size())));
         menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại quest", List.of()));
-        menu.setItem(50, adminItem(Material.WITHER_SKELETON_SKULL, "§cThêm mục tiêu hạ boss", List.of(
-            "§7Yêu cầu boss hệ thống với ID hợp lệ.", "§7Ví dụ: winter-tyrant")));
-        menu.setItem(51, adminItem(Material.VILLAGER_SPAWN_EGG, "§bThêm mục tiêu gặp NPC", List.of(
-            "§7Chọn NPC đã tạo trong danh sách.", "§7Mỗi lần tương tác hợp lệ tăng tiến độ 1.")));
-        menu.setItem(52, adminItem(Material.NAME_TAG, "§dĐặt bước đầu: gặp NPC", List.of(
-            "§7Chọn NPC đã tạo để làm bước đầu tiên.")));
+        if (optionPage > 0) menu.setItem(50, adminItem(Material.ARROW, "§eLoại trước", List.of()));
+        menu.setItem(51, adminItem(Material.PAPER, "§fLoại " + (optionPage + 1) + "/" + optionPages,
+            List.of("§7Chọn loại mục tiêu ở hai hàng dưới.")));
+        if (optionPage + 1 < optionPages) menu.setItem(52, adminItem(Material.ARROW, "§eLoại tiếp", List.of()));
+        if (objectives.isEmpty()) menu.setItem(4, adminItem(Material.BARRIER, "§cChưa có bước mục tiêu",
+            List.of("§7Thêm một loại mục tiêu ở phần dưới.")));
         player.openInventory(menu);
+    }
+
+    private List<ObjectiveType> availableObjectiveTypes() {
+        return List.of(ObjectiveType.KILL_MOB, ObjectiveType.KILL_BOSS,
+            ObjectiveType.COLLECT_EXACT_ITEM, ObjectiveType.SUBMIT_EXACT_ITEM, ObjectiveType.VISIT_NPC,
+            ObjectiveType.BLOCK_BREAK, ObjectiveType.FISHING, ObjectiveType.TAME,
+            ObjectiveType.CRAFT, ObjectiveType.ITEM_CONSUME, ObjectiveType.ENCHANT,
+            ObjectiveType.BREW, ObjectiveType.SELL, ObjectiveType.PURCHASE,
+            ObjectiveType.ENTITY_DAMAGE, ObjectiveType.EXPERIENCE_GAIN, ObjectiveType.COMMAND);
+    }
+
+    private Material objectiveIcon(ObjectiveType type) {
+        return switch (type) {
+            case KILL_MOB -> Material.ZOMBIE_SPAWN_EGG;
+            case BLOCK_BREAK -> Material.IRON_PICKAXE;
+            case FISHING -> Material.FISHING_ROD;
+            case TAME -> Material.LEAD;
+            case CRAFT -> Material.CRAFTING_TABLE;
+            case ITEM_CONSUME -> Material.GOLDEN_APPLE;
+            case ENCHANT -> Material.ENCHANTING_TABLE;
+            case BREW -> Material.BREWING_STAND;
+            case SELL -> Material.EMERALD;
+            case PURCHASE -> Material.GOLD_INGOT;
+            case ENTITY_DAMAGE -> Material.IRON_SWORD;
+            case EXPERIENCE_GAIN -> Material.EXPERIENCE_BOTTLE;
+            case COMMAND -> Material.COMMAND_BLOCK;
+            case KILL_BOSS -> Material.WITHER_SKELETON_SKULL;
+            case COLLECT_EXACT_ITEM, COLLECT_RPG_ITEM -> Material.HOPPER;
+            case SUBMIT_EXACT_ITEM -> Material.CHEST;
+            case VISIT_NPC -> Material.VILLAGER_SPAWN_EGG;
+        };
+    }
+
+    private String objectiveTypeName(ObjectiveType type) {
+        return switch (type) {
+            case KILL_MOB -> "Hạ mob";
+            case BLOCK_BREAK -> "Phá block";
+            case FISHING -> "Câu cá";
+            case TAME -> "Thuần hóa mob";
+            case CRAFT -> "Chế tạo item";
+            case ITEM_CONSUME -> "Tiêu thụ item";
+            case ENCHANT -> "Phù phép";
+            case BREW -> "Bào chế thuốc";
+            case SELL -> "Bán hàng";
+            case PURCHASE -> "Mua hàng";
+            case ENTITY_DAMAGE -> "Gây sát thương";
+            case EXPERIENCE_GAIN -> "Nhận EXP";
+            case COMMAND -> "Dùng lệnh";
+            case KILL_BOSS -> "Hạ boss hệ thống";
+            case COLLECT_EXACT_ITEM -> "Thu thập item";
+            case SUBMIT_EXACT_ITEM -> "Nộp item";
+            case VISIT_NPC -> "Gặp NPC";
+            case COLLECT_RPG_ITEM -> "Thu thập item RPG";
+        };
     }
 
     private void openNpcSelector(Player player, String questId, NpcSelectPurpose purpose, int requestedPage) {
@@ -1118,73 +1209,103 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 }
                 openObjectivesMenu(player, questId);
             }
-            case SET_PRIMARY -> {
-                List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
-                objectives.set(0, new QuestObjective(ObjectiveType.VISIT_NPC, EntityType.ZOMBIE,
-                    1, npcId, null, "", 0));
-                replaceDefinition(quest, quest.withObjectives(objectives));
-                openObjectivesMenu(player, questId);
-            }
         }
     }
 
-    private void handleObjectiveMenuClick(Player player, QuestMenuHolder holder, int slot) {
+    private void handleObjectiveMenuClick(Player player, QuestMenuHolder holder, int slot, boolean rightClick) {
         QuestDefinition quest = definitions.get(holder.questId);
         if (quest == null) return;
-        if ((slot == 45 || slot == 46 || slot == 47 || slot == 48 || slot == 50 || slot == 51 || slot == 52
-                || holder.questSlots.containsKey(slot))
-                && hasActiveQuest(quest.id())) {
+        if (hasActiveQuest(quest.id()) && (holder.questSlots.containsKey(slot)
+                || slot == 45 || slot == 46 || slot == 50 || slot == 52)) {
             player.sendMessage("§cKhông thể sửa mục tiêu khi người chơi đang làm quest này.");
             return;
         }
         if (slot == 49) {
             openQuestEditor(player, quest.id());
-        } else if (slot == 45) {
-            prompt(player, new PendingTextInput(TextField.ADD_KILL_ENTITY, quest.id(), 0));
-        } else if (slot == 46 && quest.objectiveType() == ObjectiveType.KILL_MOB) {
-            prompt(player, new PendingTextInput(TextField.EDIT_KILL_ENTITY, quest.id(), 0));
-        } else if (slot == 47) {
-            ItemStack held = player.getInventory().getItemInMainHand();
-            if (held.getType().isAir()) {
-                player.sendMessage("§cCầm item cần thu thập ở tay chính trước.");
-                return;
-            }
-            ItemStack required = held.clone();
-            required.setAmount(1);
-            pendingObjectiveItems.put(player.getUniqueId(), required);
-            prompt(player, new PendingTextInput(TextField.ADD_OBJECTIVE_ITEM_AMOUNT, quest.id(), 0));
-        } else if (slot == 48) {
-            ItemStack held = player.getInventory().getItemInMainHand();
-            if (held.getType().isAir()) {
-                player.sendMessage("§cCầm item cần nộp ở tay chính trước.");
-                return;
-            }
-            ItemStack required = held.clone();
-            required.setAmount(1);
-            pendingObjectiveItems.put(player.getUniqueId(), required);
-            prompt(player, new PendingTextInput(TextField.ADD_SUBMIT_ITEM_AMOUNT, quest.id(), 0));
-        } else if (slot == 50) {
-            openBossSelector(player, quest.id(), 0);
-        } else if (slot == 51) {
-            openNpcSelector(player, quest.id(), NpcSelectPurpose.ADD_OBJECTIVE, 0);
-        } else if (slot == 52) {
-            openNpcSelector(player, quest.id(), NpcSelectPurpose.SET_PRIMARY, 0);
-        } else if (holder.questSlots.containsKey(slot)) {
-            int index = Integer.parseInt(holder.questSlots.get(slot));
-            if (index == 0) {
-                player.sendMessage("§cBước mục tiêu đầu tiên không thể xóa.");
-                return;
-            }
+        } else if (slot == 45 && holder.page > 0) {
+            openObjectivesMenu(player, quest.id(), holder.page - 1, holder.subPage);
+        } else if (slot == 46 && holder.page + 1 < Math.max(1, (quest.objectives().size() + 17) / 18)) {
+            openObjectivesMenu(player, quest.id(), holder.page + 1, holder.subPage);
+        } else if (slot == 50 && holder.subPage > 0) {
+            openObjectivesMenu(player, quest.id(), holder.page, holder.subPage - 1);
+        } else if (slot == 52 && holder.subPage + 1 < Math.max(1, (availableObjectiveTypes().size() + 17) / 18)) {
+            openObjectivesMenu(player, quest.id(), holder.page, holder.subPage + 1);
+        } else if (holder.questSlots.containsKey(slot)
+                && holder.questSlots.get(slot).startsWith("step:")) {
+            int index = Integer.parseInt(holder.questSlots.get(slot).substring("step:".length()));
             List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
-            objectives.remove(index);
-            replaceDefinition(quest, quest.withObjectives(objectives));
-            openObjectivesMenu(player, quest.id());
+            if (rightClick) {
+                if (objectives.size() <= 1) {
+                    player.sendMessage("§cHãy thêm ít nhất một bước khác trước khi xóa mục tiêu cuối.");
+                    return;
+                }
+                objectives.remove(index);
+                replaceDefinition(quest, quest.withObjectives(objectives));
+                holder.selectedObjective = -1;
+                player.setItemOnCursor(null);
+                openObjectivesMenu(player, quest.id(), holder.page, holder.subPage);
+            } else if (holder.selectedObjective >= 0 && holder.selectedObjective != index) {
+                java.util.Collections.swap(objectives, holder.selectedObjective, index);
+                replaceDefinition(quest, quest.withObjectives(objectives));
+                holder.selectedObjective = -1;
+                player.setItemOnCursor(null);
+                player.sendMessage("§aĐã đổi thứ tự hai bước mục tiêu.");
+                openObjectivesMenu(player, quest.id(), holder.page, holder.subPage);
+            } else {
+                holder.selectedObjective = index;
+                ItemStack cursor = eventCursorItem(holder, slot);
+                if (cursor != null) player.setItemOnCursor(cursor);
+                player.sendMessage("§eĐã chọn bước " + (index + 1) + "; bấm bước khác để đổi vị trí hoặc chuột phải để xóa.");
+            }
+        } else if (holder.questSlots.containsKey(slot)
+                && holder.questSlots.get(slot).startsWith("add:")) {
+            String type = holder.questSlots.get(slot).substring("add:".length());
+            if ("KILL_MOB".equals(type)) prompt(player, new PendingTextInput(TextField.ADD_KILL_ENTITY, quest.id(), 0));
+            else if ("KILL_BOSS".equals(type)) openBossSelector(player, quest.id(), 0);
+            else if ("VISIT_NPC".equals(type)) openNpcSelector(player, quest.id(), NpcSelectPurpose.ADD_OBJECTIVE, 0);
+            else if ("BLOCK_BREAK".equals(type)) {
+                prompt(player, new PendingTextInput(TextField.ADD_BLOCK_BREAK, quest.id(), 0));
+            }
+            else if (Set.of("FISHING", "TAME", "CRAFT", "ITEM_CONSUME", "ENCHANT", "BREW",
+                    "SELL", "PURCHASE", "ENTITY_DAMAGE", "EXPERIENCE_GAIN", "COMMAND").contains(type)) {
+                prompt(player, new PendingTextInput(TextField.ADD_SIMPLE_OBJECTIVE, quest.id(), 0, type));
+            }
+            else if ("COLLECT_EXACT_ITEM".equals(type) || "SUBMIT_EXACT_ITEM".equals(type)) {
+                ItemStack held = player.getInventory().getItemInMainHand();
+                if (held.getType().isAir()) {
+                    player.sendMessage("§cCầm item cần cấu hình ở tay chính trước.");
+                    return;
+                }
+                ItemStack required = held.clone();
+                required.setAmount(1);
+                pendingObjectiveItems.put(player.getUniqueId(), required);
+                prompt(player, new PendingTextInput("SUBMIT_EXACT_ITEM".equals(type)
+                    ? TextField.ADD_SUBMIT_ITEM_AMOUNT : TextField.ADD_OBJECTIVE_ITEM_AMOUNT, quest.id(), 0));
+            }
         }
     }
 
     private String objectiveDescription(QuestObjective objective) {
         return switch (objective.type()) {
             case KILL_MOB -> "Hạ " + objective.entity() + " × " + objective.amount();
+            case BLOCK_BREAK -> "Phá " + objective.itemMaterial() + " × " + objective.amount();
+            case FISHING -> "Câu " + (objective.itemId().equalsIgnoreCase("any") ? "cá bất kỳ"
+                : objective.itemMaterial()) + " × " + objective.amount();
+            case TAME -> "Thuần hóa " + objective.entity() + " × " + objective.amount();
+            case CRAFT -> "Chế tạo " + objective.itemMaterial() + " × " + objective.amount();
+            case ITEM_CONSUME -> "Tiêu thụ " + objective.itemMaterial() + " × " + objective.amount();
+            case ENCHANT -> "Phù phép " + objective.itemId() + " (cấp " + objective.dropChancePercent()
+                + ") × " + objective.amount();
+            case BREW -> "Bào chế " + objective.itemId() + " × " + objective.amount();
+            case SELL -> "Bán " + ("coins".equals(objective.itemName()) ? objective.amount() + " VNCOIN"
+                : (objective.itemMaterial() == null ? "vật phẩm" : objective.itemMaterial()) + " × " + objective.amount());
+            case PURCHASE -> "Mua " + ("coins".equals(objective.itemName()) ? objective.amount() + " VNCOIN"
+                : (objective.itemMaterial() == null ? "vật phẩm" : objective.itemMaterial()) + " × " + objective.amount());
+            case ENTITY_DAMAGE -> "Gây " + objective.amount() + " sát thương lên "
+                + (objective.itemId().startsWith("boss:") ? "boss " + objective.itemId().substring(5)
+                    : objective.entity());
+            case EXPERIENCE_GAIN -> "Nhận " + objective.amount() + " " + objective.itemId();
+            case COMMAND -> "Dùng lệnh /" + objective.itemId();
             case KILL_BOSS -> "Hạ boss " + objective.itemId() + " × " + objective.amount();
             case COLLECT_RPG_ITEM -> "Thu thập " + objective.itemName() + " × " + objective.amount();
             case COLLECT_EXACT_ITEM -> "Thu thập " + objective.requiredItem().getType()
@@ -1402,6 +1523,27 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     @EventHandler
     public void onQuestAdminDrag(InventoryDragEvent event) {
         if (!(event.getView().getTopInventory().getHolder() instanceof QuestMenuHolder holder)) return;
+        if (holder.menu == QuestMenu.OBJECTIVES) {
+            event.setCancelled(true);
+            if (!(event.getWhoClicked() instanceof Player player) || holder.selectedObjective < 0
+                    || hasActiveQuest(holder.questId)) return;
+            List<Integer> targets = event.getRawSlots().stream()
+                .filter(raw -> raw >= 0 && raw < 18 && holder.questSlots.containsKey(raw))
+                .toList();
+            if (targets.size() != 1) return;
+            int destination = Integer.parseInt(holder.questSlots.get(targets.getFirst()).substring("step:".length()));
+            if (destination == holder.selectedObjective) return;
+            QuestDefinition quest = definitions.get(holder.questId);
+            if (quest == null || destination < 0 || destination >= quest.objectives().size()) return;
+            List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+            java.util.Collections.swap(objectives, holder.selectedObjective, destination);
+            replaceDefinition(quest, quest.withObjectives(objectives));
+            holder.selectedObjective = -1;
+            player.setItemOnCursor(null);
+            player.sendMessage("§aĐã kéo đổi vị trí hai bước mục tiêu.");
+            openObjectivesMenu(player, quest.id(), holder.page, holder.subPage);
+            return;
+        }
         if (holder.menu != QuestMenu.REWARD_ITEMS) {
             event.setCancelled(true);
             return;
@@ -1417,9 +1559,14 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     @EventHandler
     public void onRewardInventoryClose(InventoryCloseEvent event) {
         if (!(event.getView().getTopInventory().getHolder() instanceof QuestMenuHolder holder)
-                || holder.menu != QuestMenu.REWARD_ITEMS || holder.navigating
+                || holder.navigating
                 || !(event.getPlayer() instanceof Player player)
                 || !holder.viewer.equals(player.getUniqueId())) return;
+        if (holder.menu == QuestMenu.OBJECTIVES && holder.selectedObjective >= 0) {
+            player.setItemOnCursor(null);
+            return;
+        }
+        if (holder.menu != QuestMenu.REWARD_ITEMS) return;
         saveRewardItems(player, holder);
         player.sendMessage("§eĐã tự lưu item thưởng trước khi đóng giao diện.");
     }
@@ -1456,12 +1603,28 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             case ADD_SUBMIT_ITEM_AMOUNT -> "§eHãy nhập §fsố item cần nộp cho NPC§e, số nguyên 1-100000, ví dụ: §f10";
             case ADD_BOSS_ID -> "§eHãy nhập §fID boss hệ thống§e, ví dụ: §fwinter-tyrant";
             case ADD_BOSS_AMOUNT -> "§eHãy nhập §fsố lần cần hạ boss§e, số nguyên 1-100, ví dụ: §f1";
+            case ADD_BLOCK_BREAK -> "§eNhập §floại block và số lượng§e, ví dụ: §fSTONE 20";
+            case ADD_SIMPLE_OBJECTIVE -> "§eNhập đích và số lượng theo loại mục tiêu §f" + input.value()
+                + "§e; ví dụ: §f" + simpleObjectiveExample(input.value());
             case ADD_OBJECTIVE_NPC_ID -> "§eHãy nhập §fID NPC cần gặp§e, ví dụ: §fhunter";
-            case SET_PRIMARY_NPC_ID -> "§eNhập §fID NPC cho bước đầu§e, ví dụ: §fhunter";
         };
         player.closeInventory();
         player.sendMessage("§6[Quản lý quest] " + instruction);
         player.sendMessage("§7Gõ §c!cancel §7để hủy và quay lại giao diện quest.");
+    }
+
+    private String simpleObjectiveExample(String type) {
+        return switch (type) {
+            case "TAME" -> "HORSE 2";
+            case "FISHING" -> "COD 10";
+            case "ENCHANT" -> "SHARPNESS 3 5 DIAMOND_SWORD";
+            case "BREW" -> "HEALING 5";
+            case "SELL", "PURCHASE" -> "ITEM DIAMOND 3 [shop-id] hoặc COINS 100 [shop-id]";
+            case "ENTITY_DAMAGE" -> "ZOMBIE 500";
+            case "EXPERIENCE_GAIN" -> "POINTS 500 hoặc LEVELS 5";
+            case "COMMAND" -> "warp 1";
+            default -> "DIAMOND_SWORD 5";
+        };
     }
 
     private void handleTextInput(Player player, PendingTextInput input, String text) {
@@ -1565,6 +1728,141 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     }
                     prompt(player, new PendingTextInput(TextField.ADD_KILL_AMOUNT, quest.id(), 0,
                         entity.name()));
+                }
+                case ADD_BLOCK_BREAK -> {
+                    QuestDefinition quest = definitions.get(input.questId());
+                    String[] parts = text.trim().split("\\s+", 2);
+                    Material material = parts.length == 2 ? Material.matchMaterial(parts[0]) : null;
+                    int amount = -1;
+                    if (parts.length == 2) try { amount = Integer.parseInt(parts[1]); }
+                    catch (NumberFormatException ignored) { }
+                    if (quest == null || material == null || material.isAir() || !material.isBlock()
+                            || amount < 1 || amount > 100_000) {
+                        player.sendMessage("§cDữ liệu sai. Dùng tên block và số lượng, ví dụ: §fSTONE 20");
+                        prompt(player, input);
+                        return;
+                    }
+                    List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+                    if (objectives.size() >= 45) player.sendMessage("§cQuest đã đạt tối đa 45 mục tiêu.");
+                    else {
+                        objectives.add(new QuestObjective(ObjectiveType.BLOCK_BREAK, EntityType.ZOMBIE,
+                            amount, "", material, "", 0));
+                        replaceDefinition(quest, quest.withObjectives(objectives));
+                    }
+                    openObjectivesMenu(player, quest.id());
+                }
+                case ADD_SIMPLE_OBJECTIVE -> {
+                    QuestDefinition quest = definitions.get(input.questId());
+                    String[] parts = text.trim().split("\\s+");
+                    ObjectiveType type = ObjectiveType.valueOf(input.value());
+                    EntityType entity = EntityType.ZOMBIE;
+                    Material material = null;
+                    String targetId = "";
+                    String itemName = "";
+                    int amount = -1;
+                    int minLevel = 0;
+                    boolean validTarget = false;
+                    try {
+                        switch (type) {
+                            case FISHING -> {
+                                if (parts.length == 2) {
+                                    targetId = parts[0].equalsIgnoreCase("ANY") ? "any" : "";
+                                    if (!"any".equals(targetId)) material = Material.matchMaterial(parts[0]);
+                                    amount = Integer.parseInt(parts[1]);
+                                    validTarget = "any".equals(targetId) || isFish(material);
+                                }
+                            }
+                            case TAME, ENTITY_DAMAGE -> {
+                                if (parts.length == 2) {
+                                    amount = Integer.parseInt(parts[1]);
+                                    if (type == ObjectiveType.ENTITY_DAMAGE
+                                            && parts[0].toUpperCase(Locale.ROOT).startsWith("BOSS:")) {
+                                        targetId = "boss:" + parts[0].substring(5).toLowerCase(Locale.ROOT);
+                                        validTarget = plugin.getBossEventManager() != null
+                                            && plugin.getBossEventManager().getBossIds().contains(targetId.substring(5));
+                                    } else {
+                                        entity = EntityType.valueOf(parts[0].toUpperCase(Locale.ROOT));
+                                        validTarget = entity.isAlive() && entity.getEntityClass() != null
+                                            && org.bukkit.entity.LivingEntity.class.isAssignableFrom(entity.getEntityClass());
+                                    }
+                                }
+                            }
+                            case CRAFT, ITEM_CONSUME -> {
+                                if (parts.length == 2) {
+                                    material = Material.matchMaterial(parts[0]);
+                                    amount = Integer.parseInt(parts[1]);
+                                    validTarget = material != null && !material.isAir() && material.isItem();
+                                }
+                            }
+                            case ENCHANT -> {
+                                if (parts.length == 3 || parts.length == 4) {
+                                    String enchant = parts[0].toLowerCase(Locale.ROOT);
+                                    minLevel = Integer.parseInt(parts[1]);
+                                    amount = Integer.parseInt(parts[2]);
+                                    if (parts.length == 4) material = Material.matchMaterial(parts[3]);
+                                    if (org.bukkit.Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchant)) != null) {
+                                        targetId = enchant;
+                                        validTarget = minLevel > 0 && minLevel <= 255
+                                            && (parts.length == 3 || material != null && material.isItem());
+                                    }
+                                }
+                            }
+                            case BREW -> {
+                                if (parts.length == 2) {
+                                    targetId = parts[0].toUpperCase(Locale.ROOT);
+                                    amount = Integer.parseInt(parts[1]);
+                                    try {
+                                        org.bukkit.potion.PotionType.valueOf(targetId);
+                                        validTarget = true;
+                                    } catch (IllegalArgumentException ignored) { validTarget = false; }
+                                }
+                            }
+                            case SELL, PURCHASE -> {
+                                if ((parts.length == 3 || parts.length == 4) && "ITEM".equalsIgnoreCase(parts[0])) {
+                                    material = "ANY".equalsIgnoreCase(parts[1]) ? null : Material.matchMaterial(parts[1]);
+                                    amount = Integer.parseInt(parts[2]);
+                                    validTarget = "ANY".equalsIgnoreCase(parts[1]) || material != null && material.isItem();
+                                    itemName = "items";
+                                    targetId = parts.length == 4 ? parts[3].toLowerCase(Locale.ROOT) : "any";
+                                    validTarget &= targetId.matches("[a-z0-9]+(?:-[a-z0-9]+)*|any");
+                                } else if ((parts.length == 2 || parts.length == 3) && "COINS".equalsIgnoreCase(parts[0])) {
+                                    amount = Integer.parseInt(parts[1]);
+                                    targetId = parts.length == 3 ? parts[2].toLowerCase(Locale.ROOT) : "any";
+                                    validTarget = targetId.matches("[a-z0-9]+(?:-[a-z0-9]+)*|any");
+                                    itemName = "coins";
+                                }
+                            }
+                            case EXPERIENCE_GAIN -> {
+                                if (parts.length == 2) {
+                                    targetId = parts[0].toLowerCase(Locale.ROOT);
+                                    amount = Integer.parseInt(parts[1]);
+                                    validTarget = Set.of("points", "levels", "level").contains(targetId);
+                                    if ("level".equals(targetId)) targetId = "levels";
+                                }
+                            }
+                            case COMMAND -> {
+                                if (parts.length == 2) {
+                                    targetId = parts[0].replaceFirst("^/", "").toLowerCase(Locale.ROOT);
+                                    amount = Integer.parseInt(parts[1]);
+                                    validTarget = targetId.matches("[a-z0-9_:-]{1,64}");
+                                }
+                            }
+                            default -> { }
+                        }
+                    } catch (IllegalArgumentException ignored) { }
+                    if (quest == null || !validTarget || amount < 1 || amount > 100_000) {
+                        player.sendMessage("§cĐịnh dạng không hợp lệ. Ví dụ: " + simpleObjectiveExample(input.value()));
+                        prompt(player, input);
+                        return;
+                    }
+                    List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+                    if (objectives.size() >= 45) player.sendMessage("§cQuest đã đạt tối đa 45 mục tiêu.");
+                    else {
+                        objectives.add(new QuestObjective(type, entity, amount, targetId, material,
+                            itemName, minLevel));
+                        replaceDefinition(quest, quest.withObjectives(objectives));
+                    }
+                    openObjectivesMenu(player, quest.id());
                 }
                 case EDIT_KILL_ENTITY -> {
                     QuestDefinition quest = definitions.get(input.questId());
@@ -1730,21 +2028,6 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     }
                     openObjectivesMenu(player, quest.id());
                 }
-                case SET_PRIMARY_NPC_ID -> {
-                    QuestDefinition quest = definitions.get(input.questId());
-                    String npcId = text.trim().toLowerCase(Locale.ROOT);
-                    if (quest == null || !npcId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
-                            || plugin.getNpcManager() == null || !plugin.getNpcManager().hasNpc(npcId)) {
-                        player.sendMessage("§cKhông tìm thấy NPC theo ID đó. Ví dụ hợp lệ: §fhunter");
-                        prompt(player, input);
-                        return;
-                    }
-                    List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
-                    objectives.set(0, new QuestObjective(ObjectiveType.VISIT_NPC, EntityType.ZOMBIE,
-                        1, npcId, null, "", 0));
-                    replaceDefinition(quest, quest.withObjectives(objectives));
-                    openObjectivesMenu(player, quest.id());
-                }
             }
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.SEVERE, "[QuestAdmin] Failed processing chat input for "
@@ -1760,7 +2043,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         else if (input.field() == TextField.ADD_OBJECTIVE_ITEM_AMOUNT
                 || input.field() == TextField.ADD_SUBMIT_ITEM_AMOUNT
                 || input.field() == TextField.ADD_BOSS_ID || input.field() == TextField.ADD_BOSS_AMOUNT
-                || input.field() == TextField.ADD_OBJECTIVE_NPC_ID || input.field() == TextField.SET_PRIMARY_NPC_ID)
+                || input.field() == TextField.ADD_OBJECTIVE_NPC_ID)
             openObjectivesMenu(player, input.questId());
         else if (input.field() == TextField.ADD_KILL_ENTITY || input.field() == TextField.ADD_KILL_AMOUNT
                 || input.field() == TextField.EDIT_KILL_ENTITY || input.field() == TextField.EDIT_KILL_AMOUNT)
@@ -1871,6 +2154,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 "[EN] Optional dialog ID for each quest state; create these in the Quest Dialog Manager GUI."));
             yaml.set(base + ".objective.type", switch (quest.objectiveType()) {
                 case KILL_MOB -> "kill-mob";
+                case BLOCK_BREAK -> "block-break";
+                case FISHING -> "fishing";
+                case TAME -> "tame";
+                case CRAFT -> "craft";
+                case ITEM_CONSUME -> "item-consume";
+                case ENCHANT -> "enchant";
+                case BREW -> "brew";
+                case SELL -> "sell";
+                case PURCHASE -> "purchase";
+                case ENTITY_DAMAGE -> "entity-damage";
+                case EXPERIENCE_GAIN -> "experience-gain";
+                case COMMAND -> "command";
                 case KILL_BOSS -> "kill-boss";
                 case COLLECT_RPG_ITEM -> "collect-rpg-item";
                 case COLLECT_EXACT_ITEM -> "collect-exact-item";
@@ -1879,6 +2174,32 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             });
             yaml.set(base + ".objective.entity", quest.targetEntity().name());
             yaml.set(base + ".objective.amount", quest.target());
+            if (quest.objectiveType() == ObjectiveType.BLOCK_BREAK)
+                yaml.set(base + ".objective.material", quest.itemMaterial().name());
+            if (quest.objectiveType() == ObjectiveType.FISHING) {
+                yaml.set(base + ".objective.item-id", quest.itemId());
+                yaml.set(base + ".objective.target-material", quest.itemMaterial() == null ? null
+                    : quest.itemMaterial().name());
+            }
+            if (quest.objectiveType() == ObjectiveType.TAME)
+                yaml.set(base + ".objective.entity", quest.targetEntity().name());
+            if (quest.objectiveType() == ObjectiveType.CRAFT || quest.objectiveType() == ObjectiveType.ITEM_CONSUME)
+                yaml.set(base + ".objective.target-material", quest.itemMaterial().name());
+            if (quest.objectiveType() == ObjectiveType.ENCHANT) {
+                yaml.set(base + ".objective.enchantment", quest.itemId());
+                yaml.set(base + ".objective.minimum-level", quest.dropChancePercent());
+            }
+            if (quest.objectiveType() == ObjectiveType.BREW || quest.objectiveType() == ObjectiveType.EXPERIENCE_GAIN
+                    || quest.objectiveType() == ObjectiveType.COMMAND)
+                yaml.set(base + ".objective.target", quest.itemId());
+            if (quest.objectiveType() == ObjectiveType.SELL || quest.objectiveType() == ObjectiveType.PURCHASE) {
+                yaml.set(base + ".objective.economy-mode", quest.itemName());
+                yaml.set(base + ".objective.shop-id", quest.itemId());
+                yaml.set(base + ".objective.target-material", quest.itemMaterial() == null ? null
+                    : quest.itemMaterial().name());
+            }
+            if (quest.objectiveType() == ObjectiveType.ENTITY_DAMAGE && quest.itemId().startsWith("boss:"))
+                yaml.set(base + ".objective.boss-id", quest.itemId().substring(5));
             if (quest.objectiveType() == ObjectiveType.COLLECT_RPG_ITEM) {
                 yaml.set(base + ".objective.sell-value", questItemSellValues.getOrDefault(quest.id(), 0L));
                 yaml.setComments(base + ".objective.sell-value", List.of(
@@ -1900,6 +2221,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 Map<String, Object> saved = new LinkedHashMap<>();
                 saved.put("type", switch (objective.type()) {
                     case KILL_MOB -> "kill-mob";
+                    case BLOCK_BREAK -> "block-break";
+                    case FISHING -> "fishing";
+                    case TAME -> "tame";
+                    case CRAFT -> "craft";
+                    case ITEM_CONSUME -> "item-consume";
+                    case ENCHANT -> "enchant";
+                    case BREW -> "brew";
+                    case SELL -> "sell";
+                    case PURCHASE -> "purchase";
+                    case ENTITY_DAMAGE -> "entity-damage";
+                    case EXPERIENCE_GAIN -> "experience-gain";
+                    case COMMAND -> "command";
                     case KILL_BOSS -> "kill-boss";
                     case COLLECT_RPG_ITEM -> "collect-rpg-item";
                     case COLLECT_EXACT_ITEM -> "collect-exact-item";
@@ -1907,9 +2240,33 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     case VISIT_NPC -> "visit-npc";
                 });
                 if (objective.type() == ObjectiveType.KILL_MOB) saved.put("entity", objective.entity().name());
+                else if (objective.type() == ObjectiveType.BLOCK_BREAK) saved.put("material", objective.itemMaterial().name());
+                else if (objective.type() == ObjectiveType.FISHING) {
+                    saved.put("target", objective.itemId());
+                    if (objective.itemMaterial() != null) saved.put("material", objective.itemMaterial().name());
+                } else if (objective.type() == ObjectiveType.TAME) saved.put("entity", objective.entity().name());
+                else if (objective.type() == ObjectiveType.CRAFT || objective.type() == ObjectiveType.ITEM_CONSUME)
+                    saved.put("material", objective.itemMaterial().name());
+                else if (objective.type() == ObjectiveType.ENCHANT) {
+                    saved.put("enchantment", objective.itemId());
+                    saved.put("minimum-level", objective.dropChancePercent());
+                    if (objective.itemMaterial() != null) saved.put("material", objective.itemMaterial().name());
+                } else if (objective.type() == ObjectiveType.BREW || objective.type() == ObjectiveType.COMMAND
+                        || objective.type() == ObjectiveType.EXPERIENCE_GAIN)
+                    saved.put("target", objective.itemId());
+                else if (objective.type() == ObjectiveType.SELL || objective.type() == ObjectiveType.PURCHASE) {
+                    saved.put("mode", objective.itemName());
+                    saved.put("target", objective.itemId());
+                    if (objective.itemMaterial() != null) saved.put("material", objective.itemMaterial().name());
+                } else if (objective.type() == ObjectiveType.ENTITY_DAMAGE) {
+                    if (objective.itemId().startsWith("boss:")) saved.put("boss-id", objective.itemId().substring(5));
+                    else saved.put("entity", objective.entity().name());
+                }
                 else if (objective.type() == ObjectiveType.KILL_BOSS) saved.put("boss-id", objective.itemId());
                 else if (objective.type() == ObjectiveType.VISIT_NPC) saved.put("npc-id", objective.itemId());
-                else saved.put("item", objective.requiredItem().serialize());
+                else if (objective.type() == ObjectiveType.COLLECT_EXACT_ITEM
+                        || objective.type() == ObjectiveType.SUBMIT_EXACT_ITEM)
+                    saved.put("item", objective.requiredItem().serialize());
                 saved.put("amount", objective.amount());
                 extraObjectives.add(saved);
             }
@@ -2106,6 +2463,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
             ObjectiveType objectiveType = switch (type) {
                 case "kill-mob" -> ObjectiveType.KILL_MOB;
+                case "block-break" -> ObjectiveType.BLOCK_BREAK;
+                case "fishing" -> ObjectiveType.FISHING;
+                case "tame" -> ObjectiveType.TAME;
+                case "craft" -> ObjectiveType.CRAFT;
+                case "item-consume" -> ObjectiveType.ITEM_CONSUME;
+                case "enchant" -> ObjectiveType.ENCHANT;
+                case "brew" -> ObjectiveType.BREW;
+                case "sell" -> ObjectiveType.SELL;
+                case "purchase" -> ObjectiveType.PURCHASE;
+                case "entity-damage" -> ObjectiveType.ENTITY_DAMAGE;
+                case "experience-gain" -> ObjectiveType.EXPERIENCE_GAIN;
+                case "command" -> ObjectiveType.COMMAND;
                 case "collect-rpg-item" -> ObjectiveType.COLLECT_RPG_ITEM;
                 case "kill-boss" -> ObjectiveType.KILL_BOSS;
                 case "visit-npc" -> ObjectiveType.VISIT_NPC;
@@ -2113,13 +2482,30 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             };
             String itemId = objectiveType == ObjectiveType.VISIT_NPC
                 ? quest.getString("objective.npc-id", "").trim()
-                : quest.getString("objective.item-id", "").trim();
-            String itemMaterialText = quest.getString("objective.item-material", "").trim().toUpperCase(Locale.ROOT);
-            String itemName = quest.getString("objective.item-name", "").trim();
-            int dropChance = quest.getInt("objective.drop-chance-percent", 0);
+                : objectiveType == ObjectiveType.ENTITY_DAMAGE && !quest.getString("objective.boss-id", "").isBlank()
+                    ? "boss:" + quest.getString("objective.boss-id", "").trim().toLowerCase(Locale.ROOT)
+                : objectiveType == ObjectiveType.ENCHANT
+                    ? quest.getString("objective.enchantment", "").trim().toLowerCase(Locale.ROOT)
+                    : objectiveType == ObjectiveType.BREW || objectiveType == ObjectiveType.EXPERIENCE_GAIN
+                        || objectiveType == ObjectiveType.COMMAND
+                        ? quest.getString("objective.target", "").trim().toLowerCase(Locale.ROOT)
+                        : objectiveType == ObjectiveType.SELL || objectiveType == ObjectiveType.PURCHASE
+                            ? quest.getString("objective.shop-id", "any").trim().toLowerCase(Locale.ROOT)
+                        : quest.getString("objective.item-id", "").trim();
+            String itemMaterialText = quest.getString("objective.material",
+                quest.getString("objective.item-material", quest.getString("objective.target-material", "")))
+                .trim().toUpperCase(Locale.ROOT);
+            String itemName = objectiveType == ObjectiveType.SELL || objectiveType == ObjectiveType.PURCHASE
+                ? quest.getString("objective.economy-mode", "items").trim().toLowerCase(Locale.ROOT)
+                : quest.getString("objective.item-name", "").trim();
+            int dropChance = objectiveType == ObjectiveType.ENCHANT
+                ? quest.getInt("objective.minimum-level", 0) : quest.getInt("objective.drop-chance-percent", 0);
             List<QuestRequirement> requirements = parseRequirements(quest.getMapList("requirements"), id);
             Material itemMaterial = null;
-            if (objectiveType == ObjectiveType.COLLECT_RPG_ITEM) {
+            if (objectiveType == ObjectiveType.COLLECT_RPG_ITEM || objectiveType == ObjectiveType.BLOCK_BREAK
+                    || objectiveType == ObjectiveType.FISHING || objectiveType == ObjectiveType.CRAFT
+                    || objectiveType == ObjectiveType.ITEM_CONSUME || objectiveType == ObjectiveType.SELL
+                    || objectiveType == ObjectiveType.PURCHASE || objectiveType == ObjectiveType.ENCHANT) {
                 itemMaterial = Material.matchMaterial(itemMaterialText);
             }
             List<QuestObjective> additionalObjectives = parseAdditionalObjectives(
@@ -2142,6 +2528,26 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                         && (!itemId.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || itemMaterial == null
                             || itemMaterial.isAir() || itemName.isBlank() || itemName.length() > 64
                             || dropChance < 1 || dropChance > 100))
+                    || (objectiveType == ObjectiveType.BLOCK_BREAK
+                        && (itemMaterial == null || itemMaterial.isAir() || !itemMaterial.isBlock()))
+                    || (objectiveType == ObjectiveType.FISHING
+                        && !"any".equals(itemId) && (itemMaterial == null || !isFish(itemMaterial)))
+                    || ((objectiveType == ObjectiveType.CRAFT || objectiveType == ObjectiveType.ITEM_CONSUME)
+                        && (itemMaterial == null || itemMaterial.isAir()))
+                    || (objectiveType == ObjectiveType.ENCHANT
+                        && (org.bukkit.Registry.ENCHANTMENT.get(NamespacedKey.minecraft(itemId)) == null
+                            || quest.getInt("objective.minimum-level", 0) < 1
+                            || quest.getInt("objective.minimum-level", 0) > 255
+                            || itemMaterial != null && !itemMaterial.isItem()))
+                    || (objectiveType == ObjectiveType.BREW && !validPotionType(itemId))
+                    || ((objectiveType == ObjectiveType.SELL || objectiveType == ObjectiveType.PURCHASE)
+                        && !Set.of("items", "coins").contains(quest.getString("objective.economy-mode", "items")))
+                    || (objectiveType == ObjectiveType.ENTITY_DAMAGE && itemId.startsWith("boss:")
+                        && (plugin.getBossEventManager() == null
+                            || !plugin.getBossEventManager().getBossIds().contains(itemId.substring(5))))
+                    || (objectiveType == ObjectiveType.EXPERIENCE_GAIN
+                        && !Set.of("points", "levels").contains(itemId))
+                    || (objectiveType == ObjectiveType.COMMAND && !itemId.matches("[a-z0-9_:-]{1,64}"))
                     || (objectiveType == ObjectiveType.VISIT_NPC
                         && !itemId.matches("[a-z0-9]+(?:-[a-z0-9]+)*"))) {
                 throw new IOException("Quest '" + id + "' has invalid fields or unsupported bounds.");
@@ -2244,6 +2650,89 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     throw new IOException("Quest '" + questId + "' has invalid additional objective values.");
                 }
                 objectives.add(new QuestObjective(ObjectiveType.KILL_MOB, entity, amount, "", null, "", 0));
+            } else if ("block-break".equals(type) && raw.get("material") instanceof String materialName) {
+                Material material = Material.matchMaterial(materialName);
+                if (material == null || material.isAir() || !material.isBlock())
+                    throw new IOException("Quest '" + questId + "' has an invalid block-break material.");
+                objectives.add(new QuestObjective(ObjectiveType.BLOCK_BREAK, EntityType.ZOMBIE,
+                    amount, "", material, "", 0));
+            } else if ("fishing".equals(type)) {
+                String target = raw.get("target") instanceof String targetText ? targetText : "any";
+                Material material = raw.get("material") instanceof String materialName
+                    ? Material.matchMaterial(materialName) : null;
+                if (!"any".equalsIgnoreCase(target) && (material == null || !isFish(material)))
+                    throw new IOException("Quest '" + questId + "' has an invalid fishing target.");
+                objectives.add(new QuestObjective(ObjectiveType.FISHING, EntityType.ZOMBIE,
+                    amount, target.toLowerCase(Locale.ROOT), material, "", 0));
+            } else if (("craft".equals(type) || "item-consume".equals(type))
+                    && raw.get("material") instanceof String materialName) {
+                Material material = Material.matchMaterial(materialName);
+                if (material == null || material.isAir())
+                    throw new IOException("Quest '" + questId + "' has an invalid item material.");
+                objectives.add(new QuestObjective("craft".equals(type) ? ObjectiveType.CRAFT : ObjectiveType.ITEM_CONSUME,
+                    EntityType.ZOMBIE, amount, "", material, "", 0));
+            } else if ("enchant".equals(type) && raw.get("enchantment") instanceof String enchantText) {
+                String enchant = enchantText.toLowerCase(Locale.ROOT);
+                int minimumLevel = raw.get("minimum-level") instanceof Number n ? n.intValue() : 1;
+                Material material = raw.get("material") instanceof String materialText
+                    ? Material.matchMaterial(materialText) : null;
+                if (org.bukkit.Registry.ENCHANTMENT.get(NamespacedKey.minecraft(enchant)) == null
+                        || minimumLevel < 1 || minimumLevel > 255)
+                    throw new IOException("Quest '" + questId + "' has an invalid enchantment objective.");
+                objectives.add(new QuestObjective(ObjectiveType.ENCHANT, EntityType.ZOMBIE, amount,
+                    enchant, material, "", minimumLevel));
+            } else if ("brew".equals(type) && raw.get("target") instanceof String target) {
+                String potion = target.toUpperCase(Locale.ROOT);
+                if (!validPotionType(potion.toLowerCase(Locale.ROOT)))
+                    throw new IOException("Quest '" + questId + "' has an invalid brew target.");
+                objectives.add(new QuestObjective(ObjectiveType.BREW, EntityType.ZOMBIE, amount,
+                    potion, null, "", 0));
+            } else if (("sell".equals(type) || "purchase".equals(type))
+                    && raw.get("mode") instanceof String modeText) {
+                String mode = modeText.toLowerCase(Locale.ROOT);
+                String target = raw.get("target") instanceof String targetText ? targetText : "any";
+                Material material = raw.get("material") instanceof String materialText
+                    ? Material.matchMaterial(materialText) : null;
+                if (!Set.of("items", "coins").contains(mode)
+                        || "items".equals(mode) && !"any".equalsIgnoreCase(target)
+                            && (material == null || !material.isItem()))
+                    throw new IOException("Quest '" + questId + "' has an invalid shop objective.");
+                objectives.add(new QuestObjective("sell".equals(type) ? ObjectiveType.SELL : ObjectiveType.PURCHASE,
+                    EntityType.ZOMBIE, amount, target.toLowerCase(Locale.ROOT), material, mode, 0));
+            } else if ("entity-damage".equals(type) && raw.get("boss-id") instanceof String bossId
+                    && bossId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                    && plugin.getBossEventManager() != null
+                    && plugin.getBossEventManager().getBossIds().contains(bossId)) {
+                objectives.add(new QuestObjective(ObjectiveType.ENTITY_DAMAGE, EntityType.ZOMBIE, amount,
+                    "boss:" + bossId, null, "", 0));
+            } else if ("entity-damage".equals(type) && entityValue instanceof String entityName) {
+                EntityType entity;
+                try { entity = EntityType.valueOf(entityName.toUpperCase(Locale.ROOT)); }
+                catch (IllegalArgumentException exception) {
+                    throw new IOException("Quest '" + questId + "' has an invalid damage target.", exception);
+                }
+                if (!entity.isAlive()) throw new IOException("Quest '" + questId + "' has an invalid damage target.");
+                objectives.add(new QuestObjective(ObjectiveType.ENTITY_DAMAGE, entity, amount, "", null, "", 0));
+            } else if ("experience-gain".equals(type) && raw.get("target") instanceof String target) {
+                String mode = target.toLowerCase(Locale.ROOT);
+                if (!Set.of("points", "levels").contains(mode))
+                    throw new IOException("Quest '" + questId + "' has an invalid experience objective.");
+                objectives.add(new QuestObjective(ObjectiveType.EXPERIENCE_GAIN, EntityType.ZOMBIE, amount,
+                    mode, null, "", 0));
+            } else if ("command".equals(type) && raw.get("target") instanceof String command) {
+                String normalized = command.replaceFirst("^/", "").toLowerCase(Locale.ROOT);
+                if (!normalized.matches("[a-z0-9_:-]{1,64}"))
+                    throw new IOException("Quest '" + questId + "' has an invalid command objective.");
+                objectives.add(new QuestObjective(ObjectiveType.COMMAND, EntityType.ZOMBIE, amount,
+                    normalized, null, "", 0));
+            } else if ("tame".equals(type) && entityValue instanceof String entityName) {
+                EntityType entity;
+                try { entity = EntityType.valueOf(entityName.toUpperCase(Locale.ROOT)); }
+                catch (IllegalArgumentException exception) {
+                    throw new IOException("Quest '" + questId + "' has an invalid tame entity.", exception);
+                }
+                if (!entity.isAlive()) throw new IOException("Quest '" + questId + "' has an invalid tame entity.");
+                objectives.add(new QuestObjective(ObjectiveType.TAME, entity, amount, "", null, "", 0));
             } else if (("collect-exact-item".equals(type) || "submit-exact-item".equals(type))
                     && raw.get("item") instanceof Map<?, ?> itemMap) {
                 ItemStack item;
@@ -2272,6 +2761,20 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
         }
         return List.copyOf(objectives);
+    }
+
+    private boolean isFish(Material material) {
+        return material == Material.COD || material == Material.SALMON
+            || material == Material.TROPICAL_FISH || material == Material.PUFFERFISH;
+    }
+
+    private boolean validPotionType(String type) {
+        try {
+            org.bukkit.potion.PotionType.valueOf(type.toUpperCase(Locale.ROOT));
+            return true;
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 
     private List<ItemStack> parseItemRewards(List<?> rawItems, String questId) throws IOException {
@@ -2847,6 +3350,178 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         }
     }
 
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestBlockBreak(BlockBreakEvent event) {
+        Player player = event.getPlayer();
+        Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer.get(player.getUniqueId());
+        if (active == null || active.isEmpty()) return;
+        for (String questId : List.copyOf(active.keySet())) {
+            QuestDefinition quest = definitions.get(questId);
+            if (quest == null || quest.objectives().isEmpty()) continue;
+            int step = currentObjectiveIndex(active.get(questId), quest);
+            QuestObjective objective = quest.objectives().get(step);
+            if (objective.type() == ObjectiveType.BLOCK_BREAK
+                    && objective.itemMaterial() == event.getBlock().getType()) {
+                increment(player, quest, step, 1);
+            }
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestFishing(PlayerFishEvent event) {
+        if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH || !(event.getCaught() instanceof org.bukkit.entity.Item caught)) return;
+        Material caughtType = caught.getItemStack().getType();
+        advanceMatchingObjective(event.getPlayer(), objective -> objective.type() == ObjectiveType.FISHING
+            && ("any".equalsIgnoreCase(objective.itemId()) || objective.itemMaterial() == caughtType), 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestTame(EntityTameEvent event) {
+        if (!(event.getOwner() instanceof Player player)) return;
+        advanceMatchingObjective(player, objective -> objective.type() == ObjectiveType.TAME
+            && objective.entity() == event.getEntity().getType(), 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestCraft(CraftItemEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        Material crafted = event.getRecipe().getResult().getType();
+        advanceMatchingObjective(player, objective -> objective.type() == ObjectiveType.CRAFT
+            && objective.itemMaterial() == crafted, Math.max(1, event.getRecipe().getResult().getAmount()));
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestConsume(PlayerItemConsumeEvent event) {
+        advanceMatchingObjective(event.getPlayer(), objective -> objective.type() == ObjectiveType.ITEM_CONSUME
+            && objective.itemMaterial() == event.getItem().getType(), 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestEnchant(EnchantItemEvent event) {
+        if (event.getEnchantsToAdd().isEmpty()) return;
+        String enchantments = event.getEnchantsToAdd().keySet().stream()
+            .map(enchantment -> enchantment.getKey().getKey().toLowerCase(Locale.ROOT)).toList().toString();
+        Material item = event.getItem().getType();
+        advanceMatchingObjective(event.getEnchanter(), objective -> objective.type() == ObjectiveType.ENCHANT
+            && (objective.itemMaterial() == null || objective.itemMaterial() == item)
+            && enchantments.contains(objective.itemId().toLowerCase(Locale.ROOT))
+            && event.getEnchantsToAdd().entrySet().stream().anyMatch(entry ->
+                entry.getKey().getKey().getKey().equalsIgnoreCase(objective.itemId())
+                    && entry.getValue() >= objective.dropChancePercent()), 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestDamage(EntityDamageByEntityEvent event) {
+        Player player = event.getDamager() instanceof Player direct ? direct
+            : event.getDamager() instanceof org.bukkit.entity.Projectile projectile
+                && projectile.getShooter() instanceof Player shooter ? shooter : null;
+        if (player == null || !(event.getEntity() instanceof org.bukkit.entity.LivingEntity)) return;
+        int damage = Math.max(1, (int) Math.ceil(event.getFinalDamage()));
+        advanceMatchingObjective(player, objective -> objective.type() == ObjectiveType.ENTITY_DAMAGE
+            && entityDamageTargetMatches(objective, (org.bukkit.entity.LivingEntity) event.getEntity()), damage);
+    }
+
+    private boolean entityDamageTargetMatches(QuestObjective objective, org.bukkit.entity.LivingEntity target) {
+        if (objective.itemId().startsWith("boss:")) {
+            String bossId = target.getPersistentDataContainer().get(
+                new NamespacedKey(plugin, "rpg_system_boss_id"), PersistentDataType.STRING);
+            return bossId != null && bossId.equalsIgnoreCase(objective.itemId().substring(5));
+        }
+        return objective.entity() == target.getType();
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestExperience(PlayerExpChangeEvent event) {
+        int points = Math.max(0, event.getAmount());
+        if (points > 0) advanceMatchingObjective(event.getPlayer(), objective ->
+            objective.type() == ObjectiveType.EXPERIENCE_GAIN && "points".equals(objective.itemId()), points);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestLevelChange(PlayerLevelChangeEvent event) {
+        int levels = Math.max(0, event.getNewLevel() - event.getOldLevel());
+        if (levels > 0) advanceMatchingObjective(event.getPlayer(), objective ->
+            objective.type() == ObjectiveType.EXPERIENCE_GAIN && "levels".equals(objective.itemId()), levels);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onQuestCommand(PlayerCommandPreprocessEvent event) {
+        String raw = event.getMessage().trim();
+        if (raw.isEmpty()) return;
+        String command = raw.substring(1).split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
+        advanceMatchingObjective(event.getPlayer(), objective -> objective.type() == ObjectiveType.COMMAND
+            && objective.itemId().equals(command), 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBrewingStandInteract(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
+                || event.getClickedBlock().getType() != Material.BREWING_STAND) return;
+        recentBrewingStandOwners.put(blockKey(event.getClickedBlock()),
+            new BrewOwner(event.getPlayer().getUniqueId(), System.currentTimeMillis() + 180_000));
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onQuestBrew(BrewEvent event) {
+        BrewOwner owner = recentBrewingStandOwners.get(blockKey(event.getBlock()));
+        if (owner == null || owner.expiresAt() < System.currentTimeMillis()) {
+            recentBrewingStandOwners.remove(blockKey(event.getBlock()));
+            return;
+        }
+        Player player = Bukkit.getPlayer(owner.playerId());
+        if (player == null) return;
+        Set<String> brewed = event.getResults().stream().filter(stack -> stack != null && !stack.getType().isAir())
+            .map(stack -> {
+                if (!(stack.getItemMeta() instanceof org.bukkit.inventory.meta.PotionMeta potion)
+                        || !potion.hasBasePotionType()) return "";
+                return potion.getBasePotionType().name().toLowerCase(Locale.ROOT);
+            }).filter(name -> !name.isBlank()).collect(java.util.stream.Collectors.toSet());
+        int potionCount = (int) event.getResults().stream().filter(stack -> stack != null && !stack.getType().isAir()).count();
+        advanceMatchingObjective(player, objective -> objective.type() == ObjectiveType.BREW
+            && brewed.stream().anyMatch(type -> type.equalsIgnoreCase(objective.itemId())), Math.max(1, potionCount));
+    }
+
+    private String blockKey(org.bukkit.block.Block block) {
+        return block.getWorld().getUID() + ":" + block.getX() + ":" + block.getY() + ":" + block.getZ();
+    }
+
+    public void recordShopTransaction(Player player, boolean purchase, ItemStack item, long coins, String shopId) {
+        if (player == null || item == null || coins <= 0) return;
+        int itemCount = Math.max(1, item.getAmount());
+        String normalizedShop = shopId == null ? "" : shopId.toLowerCase(Locale.ROOT);
+        Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer.get(player.getUniqueId());
+        if (active == null || active.isEmpty()) return;
+        ObjectiveType expected = purchase ? ObjectiveType.PURCHASE : ObjectiveType.SELL;
+        for (String questId : active.keySet()) {
+            QuestDefinition quest = definitions.get(questId);
+            if (quest == null) continue;
+            int step = currentObjectiveIndex(active.get(questId), quest);
+            QuestObjective objective = quest.objectives().get(step);
+            if (objective.type() != expected) continue;
+            if (!"any".equalsIgnoreCase(objective.itemId())
+                    && !objective.itemId().equalsIgnoreCase(normalizedShop)) continue;
+            int advance;
+            if ("coins".equals(objective.itemName())) advance = (int)Math.min(100_000, coins);
+            else {
+                if (objective.itemMaterial() != null && objective.itemMaterial() != item.getType()) continue;
+                advance = itemCount;
+            }
+            increment(player, quest, step, advance);
+        }
+    }
+
+    private void advanceMatchingObjective(Player player, java.util.function.Predicate<QuestObjective> matches,
+            int amount) {
+        Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer.get(player.getUniqueId());
+        if (active == null || active.isEmpty()) return;
+        for (String questId : List.copyOf(active.keySet())) {
+            QuestDefinition quest = definitions.get(questId);
+            if (quest == null || quest.objectives().isEmpty()) continue;
+            int step = currentObjectiveIndex(active.get(questId), quest);
+            if (matches.test(quest.objectives().get(step))) increment(player, quest, step, amount);
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onQuestItemPickup(EntityPickupItemEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
@@ -3221,11 +3896,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         lastCrossWorldHint.put(player.getUniqueId(), now);
     }
 
+    private ItemStack eventCursorItem(QuestMenuHolder holder, int slot) {
+        ItemStack display = holder.inventory.getItem(slot);
+        return display == null ? null : display.clone();
+    }
+
     private void clearWaypointHint(Player player) {
         if (lastCrossWorldHint.remove(player.getUniqueId()) != null) player.sendActionBar(" ");
     }
 
-    private enum ObjectiveType { KILL_MOB, KILL_BOSS, COLLECT_RPG_ITEM, COLLECT_EXACT_ITEM, SUBMIT_EXACT_ITEM, VISIT_NPC }
+    private enum ObjectiveType { KILL_MOB, KILL_BOSS, COLLECT_RPG_ITEM, COLLECT_EXACT_ITEM,
+        SUBMIT_EXACT_ITEM, VISIT_NPC, BLOCK_BREAK, FISHING, TAME, CRAFT, ITEM_CONSUME,
+        ENCHANT, BREW, SELL, PURCHASE, ENTITY_DAMAGE, EXPERIENCE_GAIN, COMMAND }
+    private record BrewOwner(UUID playerId, long expiresAt) { }
     private record QuestObjective(ObjectiveType type, EntityType entity, int amount,
                                   String itemId, Material itemMaterial, String itemName,
                                   int dropChancePercent, ItemStack requiredItem) {
@@ -3367,7 +4050,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         private final String displayName;
         QuestDialogStage(String displayName) { this.displayName = displayName; }
     }
-    private enum NpcSelectPurpose { GIVER, ADD_OBJECTIVE, SET_PRIMARY }
+    private enum NpcSelectPurpose { GIVER, ADD_OBJECTIVE }
     private record QuestDialogRefs(String available, String inProgress, String completed, String unavailable) {
         private static final QuestDialogRefs EMPTY = new QuestDialogRefs(null, null, null, null);
         private String forStage(QuestDialogStage stage) {
@@ -3389,7 +4072,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
     private enum TextField { CREATE_ID, RENAME, GIVER, ADD_LEVEL_REQUIREMENT, ADD_ITEM_AMOUNT,
         ADD_KILL_ENTITY, ADD_KILL_AMOUNT, EDIT_KILL_ENTITY, EDIT_KILL_AMOUNT, ADD_OBJECTIVE_ITEM_AMOUNT,
-        ADD_SUBMIT_ITEM_AMOUNT, ADD_BOSS_ID, ADD_BOSS_AMOUNT, ADD_OBJECTIVE_NPC_ID, SET_PRIMARY_NPC_ID }
+        ADD_SUBMIT_ITEM_AMOUNT, ADD_BOSS_ID, ADD_BOSS_AMOUNT, ADD_OBJECTIVE_NPC_ID,
+        ADD_BLOCK_BREAK, ADD_SIMPLE_OBJECTIVE }
     private record PendingTextInput(TextField field, String questId, int page, String value) {
         private PendingTextInput(TextField field, String questId, int page) { this(field, questId, page, ""); }
     }
@@ -3399,6 +4083,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         private final QuestMenu menu;
         private final String questId;
         private final int page;
+        private int subPage;
+        private int selectedObjective = -1;
         private String npcId;
         private NpcSelectPurpose npcSelectPurpose;
         private final Map<Integer, String> questSlots = new LinkedHashMap<>();
