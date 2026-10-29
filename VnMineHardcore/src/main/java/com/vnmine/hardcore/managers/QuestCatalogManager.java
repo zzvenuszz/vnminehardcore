@@ -734,6 +734,27 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
             return;
         }
+        if (holder.menu == QuestMenu.CONTINENT_SELECT || holder.menu == QuestMenu.RACE_SELECT) {
+            event.setCancelled(true);
+            if (!player.hasPermission(ADMIN_PERMISSION)
+                    || event.getClickedInventory() != event.getView().getTopInventory()) return;
+            if (slot == 49) openRequirementsMenu(player, holder.questId);
+            else if (slot == 45 && holder.page > 0) {
+                if (holder.menu == QuestMenu.CONTINENT_SELECT)
+                    openRequirementRealmChoices(player, holder.questId, holder.page - 1);
+                else openRequirementRaceChoices(player, holder.questId, holder.page - 1);
+            } else if (slot == 53) {
+                if (holder.menu == QuestMenu.CONTINENT_SELECT)
+                    openRequirementRealmChoices(player, holder.questId, holder.page + 1);
+                else openRequirementRaceChoices(player, holder.questId, holder.page + 1);
+            } else if (holder.questSlots.containsKey(slot)) {
+                RequirementType type = holder.menu == QuestMenu.CONTINENT_SELECT
+                    ? RequirementType.SELECTED_CONTINENT : RequirementType.SELECTED_RACE;
+                addRequirement(player, holder.questId, new QuestRequirement(type, holder.questSlots.get(slot), 1, null));
+                openRequirementsMenu(player, holder.questId);
+            }
+            return;
+        }
         if (holder.menu == QuestMenu.BOSS_SELECT) {
             event.setCancelled(true);
             if (!player.hasPermission(ADMIN_PERMISSION)
@@ -859,14 +880,22 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
             return;
         }
-        if (holder.menu == QuestMenu.REWARD_ITEMS) {
+        if (holder.menu == QuestMenu.REWARD_ITEMS || holder.menu == QuestMenu.SUBMIT_ITEM_CONFIG) {
+            boolean submitConfig = holder.menu == QuestMenu.SUBMIT_ITEM_CONFIG;
             if (event.getClickedInventory() == event.getView().getTopInventory() && slot == 49) {
                 event.setCancelled(true);
-                saveRewardItems(player, holder);
+                if (submitConfig) saveSubmitItemsConfig(player, holder);
+                else saveRewardItems(player, holder);
             } else if (event.getClickedInventory() == event.getView().getTopInventory() && slot == 53) {
                 event.setCancelled(true);
-                holder.navigating = true;
-                openQuestEditor(player, holder.questId);
+                if (submitConfig) {
+                    returnConfigItems(player, holder.inventory, 45);
+                    holder.navigating = true;
+                    openObjectivesMenu(player, holder.questId);
+                } else {
+                    holder.navigating = true;
+                    openQuestEditor(player, holder.questId);
+                }
             } else if (event.isShiftClick() && event.getClickedInventory() != event.getView().getTopInventory()) {
                 event.setCancelled(true);
             } else if (event.getClickedInventory() == event.getView().getTopInventory() && slot >= 45) {
@@ -1271,6 +1300,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 prompt(player, new PendingTextInput(TextField.ADD_SIMPLE_OBJECTIVE, quest.id(), 0, type));
             }
             else if ("COLLECT_EXACT_ITEM".equals(type) || "SUBMIT_EXACT_ITEM".equals(type)) {
+                if ("SUBMIT_EXACT_ITEM".equals(type)) {
+                    openSubmitItemsConfig(player, quest.id());
+                    return;
+                }
                 ItemStack held = player.getInventory().getItemInMainHand();
                 if (held.getType().isAir()) {
                     player.sendMessage("§cCầm item cần cấu hình ở tay chính trước.");
@@ -1279,8 +1312,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 ItemStack required = held.clone();
                 required.setAmount(1);
                 pendingObjectiveItems.put(player.getUniqueId(), required);
-                prompt(player, new PendingTextInput("SUBMIT_EXACT_ITEM".equals(type)
-                    ? TextField.ADD_SUBMIT_ITEM_AMOUNT : TextField.ADD_OBJECTIVE_ITEM_AMOUNT, quest.id(), 0));
+                prompt(player, new PendingTextInput(TextField.ADD_OBJECTIVE_ITEM_AMOUNT, quest.id(), 0));
             }
         }
     }
@@ -1288,19 +1320,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private String objectiveDescription(QuestObjective objective) {
         return switch (objective.type()) {
             case KILL_MOB -> "Hạ " + objective.entity() + " × " + objective.amount();
-            case BLOCK_BREAK -> "Phá " + objective.itemMaterial() + " × " + objective.amount();
-            case FISHING -> "Câu " + (objective.itemId().equalsIgnoreCase("any") ? "cá bất kỳ"
-                : objective.itemMaterial()) + " × " + objective.amount();
+            case BLOCK_BREAK -> "Phá " + materialDisplayName(objective.itemMaterial()) + " × " + objective.amount();
+            case FISHING -> "Câu " + fishingDisplayName(objective.itemId(), objective.itemMaterial())
+                + " × " + objective.amount();
             case TAME -> "Thuần hóa " + objective.entity() + " × " + objective.amount();
-            case CRAFT -> "Chế tạo " + objective.itemMaterial() + " × " + objective.amount();
-            case ITEM_CONSUME -> "Tiêu thụ " + objective.itemMaterial() + " × " + objective.amount();
+            case CRAFT -> "Chế tạo " + materialDisplayName(objective.itemMaterial()) + " × " + objective.amount();
+            case ITEM_CONSUME -> "Tiêu thụ " + materialDisplayName(objective.itemMaterial()) + " × " + objective.amount();
             case ENCHANT -> "Phù phép " + objective.itemId() + " (cấp " + objective.dropChancePercent()
                 + ") × " + objective.amount();
             case BREW -> "Bào chế " + objective.itemId() + " × " + objective.amount();
             case SELL -> "Bán " + ("coins".equals(objective.itemName()) ? objective.amount() + " VNCOIN"
-                : (objective.itemMaterial() == null ? "vật phẩm" : objective.itemMaterial()) + " × " + objective.amount());
+                : (objective.itemMaterial() == null ? "vật phẩm" : materialDisplayName(objective.itemMaterial())) + " × " + objective.amount());
             case PURCHASE -> "Mua " + ("coins".equals(objective.itemName()) ? objective.amount() + " VNCOIN"
-                : (objective.itemMaterial() == null ? "vật phẩm" : objective.itemMaterial()) + " × " + objective.amount());
+                : (objective.itemMaterial() == null ? "vật phẩm" : materialDisplayName(objective.itemMaterial())) + " × " + objective.amount());
             case ENTITY_DAMAGE -> "Gây " + objective.amount() + " sát thương lên "
                 + (objective.itemId().startsWith("boss:") ? "boss " + objective.itemId().substring(5)
                     : objective.entity());
@@ -1308,13 +1340,78 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             case COMMAND -> "Dùng lệnh /" + objective.itemId();
             case KILL_BOSS -> "Hạ boss " + objective.itemId() + " × " + objective.amount();
             case COLLECT_RPG_ITEM -> "Thu thập " + objective.itemName() + " × " + objective.amount();
-            case COLLECT_EXACT_ITEM -> "Thu thập " + objective.requiredItem().getType()
-                + (objective.itemName().isBlank() ? "" : " (" + objective.itemName() + ")")
+            case COLLECT_EXACT_ITEM -> "Thu thập " + exactItemDisplayName(objective)
                 + " × " + objective.amount();
-            case SUBMIT_EXACT_ITEM -> "Nộp " + objective.requiredItem().getType()
-                + (objective.itemName().isBlank() ? "" : " (" + objective.itemName() + ")")
+            case SUBMIT_EXACT_ITEM -> "Nộp " + exactItemDisplayName(objective)
                 + " × " + objective.amount();
             case VISIT_NPC -> "Gặp NPC " + objective.itemId() + " × " + objective.amount();
+        };
+    }
+
+    private String exactItemDisplayName(QuestObjective objective) {
+        if (!objective.itemName().isBlank()) return org.bukkit.ChatColor.stripColor(objective.itemName());
+        return objective.requiredItem() == null ? materialDisplayName(objective.itemMaterial())
+            : materialDisplayName(objective.requiredItem().getType());
+    }
+
+    private String fishingDisplayName(String itemId, Material material) {
+        if (itemId == null || itemId.equalsIgnoreCase("any")) return "cá bất kỳ";
+        return switch (itemId.toUpperCase(Locale.ROOT)) {
+            case "COD" -> "cá tuyết";
+            case "SALMON" -> "cá hồi";
+            case "TROPICAL_FISH" -> "cá nhiệt đới";
+            case "PUFFERFISH" -> "cá nóc";
+            default -> materialDisplayName(material);
+        };
+    }
+
+    private String materialDisplayName(Material material) {
+        if (material == null) return "vật phẩm";
+        return switch (material) {
+            case COD -> "cá tuyết";
+            case SALMON -> "cá hồi";
+            case TROPICAL_FISH -> "cá nhiệt đới";
+            case PUFFERFISH -> "cá nóc";
+            case IRON_INGOT -> "thỏi sắt";
+            case GOLD_INGOT -> "thỏi vàng";
+            case COPPER_INGOT -> "thỏi đồng";
+            case DIAMOND -> "kim cương";
+            case EMERALD -> "lục bảo";
+            case COAL -> "than đá";
+            case CHARCOAL -> "than củi";
+            case REDSTONE -> "đá đỏ";
+            case LAPIS_LAZULI -> "ngọc lưu ly";
+            case QUARTZ -> "thạch anh Nether";
+            case NETHERITE_INGOT -> "thỏi Netherite";
+            case NETHERITE_UPGRADE_SMITHING_TEMPLATE -> "khuôn nâng cấp Netherite";
+            case TORCH -> "đuốc";
+            case CRAFTING_TABLE -> "bàn chế tạo";
+            case STICK -> "que gỗ";
+            case BREAD -> "bánh mì";
+            case APPLE -> "táo";
+            case WHEAT -> "lúa mì";
+            case WHEAT_SEEDS -> "hạt lúa mì";
+            case OAK_LOG -> "thân cây sồi";
+            case OAK_PLANKS -> "ván gỗ sồi";
+            case COBBLESTONE -> "đá cuội";
+            case STONE -> "đá";
+            case DIRT -> "đất";
+            case IRON_ORE -> "quặng sắt";
+            case DEEPSLATE_IRON_ORE -> "quặng sắt đá phiến sâu";
+            case GOLD_ORE -> "quặng vàng";
+            case DIAMOND_ORE -> "quặng kim cương";
+            case BEEF -> "thịt bò sống";
+            case COOKED_BEEF -> "thịt bò chín";
+            case PORKCHOP -> "thịt lợn sống";
+            case COOKED_PORKCHOP -> "thịt lợn chín";
+            case CHICKEN -> "thịt gà sống";
+            case COOKED_CHICKEN -> "thịt gà chín";
+            case MUTTON -> "thịt cừu sống";
+            case COOKED_MUTTON -> "thịt cừu chín";
+            case ROTTEN_FLESH -> "thịt thối rữa";
+            default -> java.util.Arrays.stream(material.name().toLowerCase(Locale.ROOT).split("_"))
+                .map(part -> part.isEmpty() ? part : Character.toUpperCase(part.charAt(0)) + part.substring(1))
+                .collect(java.util.stream.Collectors.joining(" "));
         };
     }
 
@@ -1338,7 +1435,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         holder.inventory = menu;
         for (int index = 0; index < Math.min(45, quest.requirements().size()); index++) {
             QuestRequirement requirement = quest.requirements().get(index);
-            menu.setItem(index, adminItem(Material.PAPER, "§e" + requirement.description(),
+            menu.setItem(index, adminItem(Material.PAPER, "§e" + formatRequirementDescription(requirement),
                 List.of("§7Nhấn để xóa điều kiện.")));
         }
         menu.setItem(45, adminItem(Material.EXPERIENCE_BOTTLE, "§aThêm yêu cầu level RPG", List.of(
@@ -1347,7 +1444,73 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             "§7Chọn quest phải hoàn thành trước.")));
         menu.setItem(47, adminItem(Material.HOPPER, "§aYêu cầu item đang cầm", List.of(
             "§7Cầm đúng item (kể cả item RPG) ở tay chính.", "§7Người chơi cần có ít nhất 1 item đó.")));
+        menu.setItem(50, adminItem(Material.MAP, "§aYêu cầu đã chọn đại lục", List.of(
+            "§7Chọn đại lục đã cấu hình trong /vninit.", "§7So khớp với home world trong hồ sơ người chơi.")));
+        menu.setItem(51, adminItem(Material.TOTEM_OF_UNDYING, "§aYêu cầu đã chọn chủng tộc", List.of(
+            "§7Chọn một chủng tộc đã cấu hình.", "§7Hồ sơ người chơi phải có đúng chủng tộc này.")));
         menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại quest", List.of()));
+        player.openInventory(menu);
+    }
+
+    private String formatRequirementDescription(QuestRequirement requirement) {
+        return switch (requirement.type()) {
+            case SELECTED_CONTINENT -> {
+                var realm = plugin.getRpgWorldManager() == null ? null
+                    : plugin.getRpgWorldManager().getRealmDefinition(requirement.value());
+                yield "Đã chọn đại lục " + (realm == null ? requirement.value() : realm.displayName());
+            }
+            case SELECTED_RACE -> {
+                var race = plugin.getCharacterSelectionManager() == null ? null
+                    : plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions().stream()
+                        .filter(candidate -> candidate.id().equals(requirement.value())).findFirst().orElse(null);
+                yield "Đã chọn chủng tộc " + (race == null ? requirement.value() : race.name());
+            }
+            default -> requirement.description();
+        };
+    }
+
+    private void openRequirementRealmChoices(Player player, String questId, int requestedPage) {
+        List<HumanRealmDefinitionLoader.HumanRealmDefinition> realms = plugin.getRpgWorldManager() == null
+            ? List.of() : plugin.getRpgWorldManager().getDefinitions().values().stream()
+                .sorted(java.util.Comparator.comparing(HumanRealmDefinitionLoader.HumanRealmDefinition::id)).toList();
+        int pages = Math.max(1, (realms.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.CONTINENT_SELECT, questId, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Điều kiện • Chọn đại lục");
+        holder.inventory = menu;
+        for (int index = 0; index < 45; index++) {
+            int position = page * 45 + index;
+            if (position >= realms.size()) break;
+            var realm = realms.get(position);
+            holder.questSlots.put(index, realm.id());
+            menu.setItem(index, adminItem(Material.MAP, "§e" + realm.displayName(), List.of(
+                "§7ID: §f" + realm.id(), "§7World: §f" + realm.worldName(), "§eNhấn để thêm điều kiện.")));
+        }
+        if (page > 0) menu.setItem(45, adminItem(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại điều kiện", List.of()));
+        menu.setItem(53, adminItem(Material.ARROW, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openRequirementRaceChoices(Player player, String questId, int requestedPage) {
+        List<CharacterSelectionManager.RaceDefinition> races = plugin.getCharacterSelectionManager() == null
+            ? List.of() : plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions();
+        int pages = Math.max(1, (races.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.RACE_SELECT, questId, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Điều kiện • Chọn chủng tộc");
+        holder.inventory = menu;
+        for (int index = 0; index < 45; index++) {
+            int position = page * 45 + index;
+            if (position >= races.size()) break;
+            var race = races.get(position);
+            holder.questSlots.put(index, race.id());
+            menu.setItem(index, adminItem(race.material(), "§d" + race.name(), List.of(
+                "§7ID: §f" + race.id(), "§eNhấn để thêm điều kiện.")));
+        }
+        if (page > 0) menu.setItem(45, adminItem(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại điều kiện", List.of()));
+        menu.setItem(53, adminItem(Material.ARROW, "§eTrang sau", List.of()));
         player.openInventory(menu);
     }
 
@@ -1361,6 +1524,74 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         menu.setItem(49, adminItem(Material.LIME_DYE, "§aLưu item thưởng", List.of("§7Tối đa 45 stack.")));
         menu.setItem(53, adminItem(Material.BARRIER, "§cHủy", List.of("§7Bỏ thay đổi trong phiên này.")));
         player.openInventory(menu);
+    }
+
+    private void openSubmitItemsConfig(Player player, String questId) {
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.SUBMIT_ITEM_CONFIG, questId, 0);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Vật phẩm cần nộp • " + questId);
+        holder.inventory = menu;
+        menu.setItem(45, adminItem(Material.PAPER, "§eĐặt các vật phẩm cần nộp", List.of(
+            "§7Đặt từng loại item vào các ô trống phía trên.",
+            "§7Số lượng trong stack là số lượng người chơi phải giao.",
+            "§7Các loại item khác nhau sẽ thành các bước nộp liên tiếp.")));
+        menu.setItem(49, adminItem(Material.LIME_DYE, "§aLưu mục tiêu nộp item", List.of(
+            "§7Lưu tất cả item đặt trong kho thành các bước quest.")));
+        menu.setItem(53, adminItem(Material.BARRIER, "§cHủy", List.of(
+            "§7Hủy và trả lại các item đã đặt.")));
+        player.openInventory(menu);
+    }
+
+    private void saveSubmitItemsConfig(Player player, QuestMenuHolder holder) {
+        QuestDefinition quest = definitions.get(holder.questId);
+        if (quest == null) {
+            returnConfigItems(player, holder.inventory, 45);
+            holder.navigating = true;
+            openAdminList(player, 0);
+            return;
+        }
+        List<ItemStack> grouped = new java.util.ArrayList<>();
+        for (int slot = 0; slot < 45; slot++) {
+            ItemStack stack = holder.inventory.getItem(slot);
+            if (stack == null || stack.getType().isAir()) continue;
+            ItemStack existing = grouped.stream().filter(stack::isSimilar).findFirst().orElse(null);
+            if (existing == null) grouped.add(stack.clone());
+            else existing.setAmount(existing.getAmount() + stack.getAmount());
+        }
+        if (grouped.isEmpty()) {
+            player.sendMessage("§cĐặt ít nhất một loại item trước khi lưu.");
+            return;
+        }
+        List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+        for (ItemStack stack : grouped) {
+            if (objectives.size() >= 45) {
+                player.sendMessage("§cQuest đã đạt giới hạn 45 bước; chỉ lưu được các item vừa với giới hạn.");
+                break;
+            }
+            int amount = stack.getAmount();
+            ItemStack required = stack.clone();
+            required.setAmount(1);
+            String itemName = required.hasItemMeta() && required.getItemMeta().hasDisplayName()
+                ? required.getItemMeta().getDisplayName() : "";
+            objectives.add(new QuestObjective(ObjectiveType.SUBMIT_EXACT_ITEM, EntityType.ZOMBIE,
+                amount, "", required.getType(), itemName, 0, required));
+        }
+        replaceDefinition(quest, quest.withObjectives(objectives));
+        returnConfigItems(player, holder.inventory, 45);
+        holder.navigating = true;
+        debugQuest("submit-items-configured admin=" + player.getName() + ", quest=" + quest.id()
+            + ", stacks=" + grouped.size() + ", objectives=" + objectives.size());
+        player.sendMessage("§aĐã lưu các vật phẩm nộp thành " + grouped.size() + " bước liên tiếp.");
+        openObjectivesMenu(player, quest.id());
+    }
+
+    private void returnConfigItems(Player player, Inventory inventory, int editableSlots) {
+        for (int slot = 0; slot < editableSlots; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack == null || stack.getType().isAir()) continue;
+            inventory.setItem(slot, null);
+            Map<Integer, ItemStack> leftovers = player.getInventory().addItem(stack.clone());
+            leftovers.values().forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
+        }
     }
 
     private void saveRewardItems(Player player, QuestMenuHolder holder) {
@@ -1387,13 +1618,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         Inventory menu = Bukkit.createInventory(holder, 54, "Chọn quest prerequisite");
         holder.inventory = menu;
         List<QuestDefinition> choices = definitions.values().stream()
-            .filter(candidate -> !candidate.id().equals(questId))
+            .filter(candidate -> !candidate.id().equals(questId) && !candidate.id().equals("first-steps"))
             .sorted(java.util.Comparator.comparing(QuestDefinition::id)).toList();
-        for (int index = 0; index < Math.min(45, choices.size()); index++) {
+        menu.setItem(0, adminItem(Material.WRITABLE_BOOK, "§6Bước chân đầu tiên", List.of(
+            "§7Quest tutorial mặc định của hệ thống.",
+            "§7Hoàn thành sau khi người chơi chọn đại lục và chủng tộc, rồi gặp NPC tutorial.",
+            "§7ID tiến trình: §ffirst-steps", "§eNhấn để yêu cầu hoàn thành.")));
+        holder.questSlots.put(0, "first-steps");
+        for (int index = 0; index < Math.min(44, choices.size()); index++) {
             QuestDefinition choice = choices.get(index);
-            menu.setItem(index, adminItem(Material.BOOK, "§e" + choice.title(),
+            menu.setItem(index + 1, adminItem(Material.BOOK, "§e" + choice.title(),
                 List.of("§7ID: §f" + choice.id(), "§eNhấn để yêu cầu hoàn thành.")));
-            holder.questSlots.put(index, choice.id());
+            holder.questSlots.put(index + 1, choice.id());
         }
         menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại", List.of()));
         player.openInventory(menu);
@@ -1500,6 +1736,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             exact.setAmount(1);
             pendingRequirementItems.put(player.getUniqueId(), exact);
             prompt(player, new PendingTextInput(TextField.ADD_ITEM_AMOUNT, quest.id(), 0));
+        } else if (slot == 50) {
+            openRequirementRealmChoices(player, quest.id(), 0);
+        } else if (slot == 51) {
+            openRequirementRaceChoices(player, quest.id(), 0);
         } else if (slot >= 0 && slot < quest.requirements().size()) {
             List<QuestRequirement> requirements = new java.util.ArrayList<>(quest.requirements());
             requirements.remove(slot);
@@ -1544,7 +1784,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             openObjectivesMenu(player, quest.id(), holder.page, holder.subPage);
             return;
         }
-        if (holder.menu != QuestMenu.REWARD_ITEMS) {
+        if (holder.menu != QuestMenu.REWARD_ITEMS && holder.menu != QuestMenu.SUBMIT_ITEM_CONFIG) {
             event.setCancelled(true);
             return;
         }
@@ -1566,9 +1806,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             player.setItemOnCursor(null);
             return;
         }
-        if (holder.menu != QuestMenu.REWARD_ITEMS) return;
-        saveRewardItems(player, holder);
-        player.sendMessage("§eĐã tự lưu item thưởng trước khi đóng giao diện.");
+        if (holder.menu == QuestMenu.REWARD_ITEMS) {
+            saveRewardItems(player, holder);
+            player.sendMessage("§eĐã tự lưu item thưởng trước khi đóng giao diện.");
+        } else if (holder.menu == QuestMenu.SUBMIT_ITEM_CONFIG) {
+            returnConfigItems(player, holder.inventory, 45);
+            player.sendMessage("§eĐã trả lại item cấu hình nộp nhiệm vụ khi đóng giao diện.");
+        }
     }
 
     @EventHandler
@@ -1600,7 +1844,6 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             case ADD_KILL_ENTITY, EDIT_KILL_ENTITY -> "§eHãy nhập §fEntityType cần hạ§e, ví dụ: §fZOMBIE";
             case ADD_KILL_AMOUNT, EDIT_KILL_AMOUNT -> "§eHãy nhập §fsố mob cần hạ§e, số nguyên 1-100000, ví dụ: §f5";
             case ADD_OBJECTIVE_ITEM_AMOUNT -> "§eHãy nhập §fsố item cần thu thập§e, số nguyên 1-100000, ví dụ: §f3";
-            case ADD_SUBMIT_ITEM_AMOUNT -> "§eHãy nhập §fsố item cần nộp cho NPC§e, số nguyên 1-100000, ví dụ: §f10";
             case ADD_BOSS_ID -> "§eHãy nhập §fID boss hệ thống§e, ví dụ: §fwinter-tyrant";
             case ADD_BOSS_AMOUNT -> "§eHãy nhập §fsố lần cần hạ boss§e, số nguyên 1-100, ví dụ: §f1";
             case ADD_BLOCK_BREAK -> "§eNhập §floại block và số lượng§e, ví dụ: §fSTONE 20";
@@ -1631,8 +1874,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         if (!player.isOnline()) return;
         if (text.equalsIgnoreCase("!cancel")) {
             if (input.field() == TextField.ADD_ITEM_AMOUNT) pendingRequirementItems.remove(player.getUniqueId());
-            if (input.field() == TextField.ADD_OBJECTIVE_ITEM_AMOUNT
-                    || input.field() == TextField.ADD_SUBMIT_ITEM_AMOUNT)
+            if (input.field() == TextField.ADD_OBJECTIVE_ITEM_AMOUNT)
                 pendingObjectiveItems.remove(player.getUniqueId());
             reopenEditor(player, input);
             return;
@@ -1952,31 +2194,6 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     }
                     openObjectivesMenu(player, quest.id());
                 }
-                case ADD_SUBMIT_ITEM_AMOUNT -> {
-                    QuestDefinition quest = definitions.get(input.questId());
-                    ItemStack item = pendingObjectiveItems.remove(player.getUniqueId());
-                    int amount;
-                    try {
-                        amount = Integer.parseInt(text.trim());
-                    } catch (NumberFormatException exception) {
-                        amount = -1;
-                    }
-                    if (quest == null || item == null || amount < 1 || amount > 100_000) {
-                        player.sendMessage("§cSố lượng cần nộp phải từ 1 đến 100000.");
-                        if (item != null) pendingObjectiveItems.put(player.getUniqueId(), item);
-                        prompt(player, input);
-                        return;
-                    }
-                    List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
-                    if (objectives.size() >= 45) player.sendMessage("§cQuest đã đạt tối đa 45 mục tiêu.");
-                    else {
-                        objectives.add(new QuestObjective(ObjectiveType.SUBMIT_EXACT_ITEM, EntityType.ZOMBIE,
-                            amount, "", item.getType(), item.getItemMeta() == null ? ""
-                                : item.getItemMeta().getDisplayName(), 0, item));
-                        replaceDefinition(quest, quest.withObjectives(objectives));
-                    }
-                    openObjectivesMenu(player, quest.id());
-                }
                 case ADD_BOSS_ID -> {
                     QuestDefinition quest = definitions.get(input.questId());
                     String bossId = text.toLowerCase(Locale.ROOT);
@@ -2041,7 +2258,6 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         if (input.field() == TextField.ADD_LEVEL_REQUIREMENT || input.field() == TextField.ADD_ITEM_AMOUNT)
             openRequirementsMenu(player, input.questId());
         else if (input.field() == TextField.ADD_OBJECTIVE_ITEM_AMOUNT
-                || input.field() == TextField.ADD_SUBMIT_ITEM_AMOUNT
                 || input.field() == TextField.ADD_BOSS_ID || input.field() == TextField.ADD_BOSS_AMOUNT
                 || input.field() == TextField.ADD_OBJECTIVE_NPC_ID)
             openObjectivesMenu(player, input.questId());
@@ -2302,6 +2518,14 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                         saved.put("type", "exact-item");
                         saved.put("item", requirement.item().serialize());
                         saved.put("amount", requirement.amount());
+                    }
+                    case SELECTED_CONTINENT -> {
+                        saved.put("type", "selected-continent");
+                        saved.put("realm-id", requirement.value());
+                    }
+                    case SELECTED_RACE -> {
+                        saved.put("type", "selected-race");
+                        saved.put("race-id", requirement.value());
                     }
                 }
                 requirementData.add(saved);
@@ -2820,6 +3044,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     item.setAmount(1);
                     requirements.add(new QuestRequirement(RequirementType.EXACT_ITEM, "", amount, item));
                 }
+                case "selected-continent" -> {
+                    Object value = raw.get("realm-id");
+                    if (!(value instanceof String realmId) || !realmId.matches("[a-z0-9]+(?:-[a-z0-9]+){0,7}"))
+                        throw new IOException("Quest '" + questId + "' has invalid selected-continent requirement.");
+                    requirements.add(new QuestRequirement(RequirementType.SELECTED_CONTINENT, realmId, 1, null));
+                }
+                case "selected-race" -> {
+                    Object value = raw.get("race-id");
+                    if (!(value instanceof String raceId) || !raceId.matches("[a-z0-9]+(?:-[a-z0-9]+){0,7}"))
+                        throw new IOException("Quest '" + questId + "' has invalid selected-race requirement.");
+                    requirements.add(new QuestRequirement(RequirementType.SELECTED_RACE, raceId, 1, null));
+                }
                 default -> throw new IOException("Quest '" + questId + "' has unsupported requirement '" + type + "'.");
             }
         }
@@ -2841,6 +3077,23 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     public boolean isEnabledQuest(String questId) {
         QuestDefinition quest = questId == null ? null : definitions.get(questId.toLowerCase(Locale.ROOT));
         return quest != null && quest.enabled();
+    }
+
+    public void markQuestCompleted(Player player, String questId) {
+        if (player == null || questId == null || questId.isBlank()) return;
+        completedByPlayer.computeIfAbsent(player.getUniqueId(), ignored -> ConcurrentHashMap.newKeySet())
+            .add(questId);
+        if (player.isOnline()) refreshBoard(player);
+    }
+
+    public void clearQuestCompletion(Player player, String questId) {
+        if (player == null || questId == null || questId.isBlank()) return;
+        completedByPlayer.computeIfPresent(player.getUniqueId(), (ignored, completed) -> {
+            java.util.Set<String> updated = ConcurrentHashMap.newKeySet();
+            updated.addAll(completed);
+            updated.remove(questId);
+            return updated;
+        });
     }
 
     /** Accepts a configured onboarding quest from its own configured giver NPC. */
@@ -2891,6 +3144,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     if (previous.isEmpty() || !"completed".equals(previous.get().status())) {
                         return AcceptResult.REQUIREMENTS_NOT_MET;
                     }
+                }
+                if (requirement.type() == RequirementType.SELECTED_CONTINENT) {
+                    var realm = plugin.getRpgWorldManager() == null ? null
+                        : plugin.getRpgWorldManager().getRealmDefinition(requirement.value());
+                    if (realm == null || profile.get().homeWorld() == null
+                            || !realm.worldName().equalsIgnoreCase(profile.get().homeWorld()))
+                        return AcceptResult.REQUIREMENTS_NOT_MET;
+                }
+                if (requirement.type() == RequirementType.SELECTED_RACE
+                        && (profile.get().selectedRace() == null
+                            || !requirement.value().equalsIgnoreCase(profile.get().selectedRace()))) {
+                    return AcceptResult.REQUIREMENTS_NOT_MET;
                 }
             }
             String startedAt = Instant.now().toString();
@@ -3752,6 +4017,16 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 case EXACT_ITEM -> {
                     if (countExactItems(player, requirement.item()) < requirement.amount()) return false;
                 }
+                case SELECTED_CONTINENT -> {
+                    var realm = plugin.getRpgWorldManager() == null ? null
+                        : plugin.getRpgWorldManager().getRealmDefinition(requirement.value());
+                    if (profile.isEmpty() || realm == null || profile.get().homeWorld() == null
+                            || !realm.worldName().equalsIgnoreCase(profile.get().homeWorld())) return false;
+                }
+                case SELECTED_RACE -> {
+                    if (profile.isEmpty() || profile.get().selectedRace() == null
+                            || !requirement.value().equalsIgnoreCase(profile.get().selectedRace())) return false;
+                }
             }
         }
         return true;
@@ -3923,7 +4198,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             this(type, entity, amount, itemId, itemMaterial, itemName, dropChancePercent, null);
         }
     }
-    private enum RequirementType { LEVEL, COMPLETED_QUEST, EXACT_ITEM }
+    private enum RequirementType { LEVEL, COMPLETED_QUEST, EXACT_ITEM, SELECTED_CONTINENT, SELECTED_RACE }
     private record QuestRequirement(RequirementType type, String value, int amount, ItemStack item) {
         private QuestRequirement {
             item = item == null ? null : item.clone();
@@ -3933,7 +4208,9 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             return switch (type) {
                 case LEVEL -> "Level RPG tối thiểu " + value;
                 case COMPLETED_QUEST -> "Đã hoàn thành quest " + value;
-                case EXACT_ITEM -> "Có " + amount + " × " + item.getItemMeta().getDisplayName();
+                case EXACT_ITEM -> "Có " + amount + " × " + item.getType().name();
+                case SELECTED_CONTINENT -> "Đã chọn đại lục " + value;
+                case SELECTED_RACE -> "Đã chọn chủng tộc " + value;
             };
         }
     }
@@ -4042,8 +4319,9 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private enum QuestMenu { LIST, EDIT, CONFIRM_DELETE, CONFIRM_ABANDON, REQUIREMENTS, NPC_SELECT, BOSS_SELECT,
-        PREREQUISITE_SELECT, SUCCESSOR_SELECT, OBJECTIVES, REWARD_ITEMS, PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS,
-        NPC_ACCEPT, NPC_SUBMIT, ADMIN_PLAYER_HISTORY, ADMIN_RESET_CONFIRM }
+        CONTINENT_SELECT, RACE_SELECT,
+        PREREQUISITE_SELECT, SUCCESSOR_SELECT, OBJECTIVES, REWARD_ITEMS, SUBMIT_ITEM_CONFIG,
+        PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS, NPC_ACCEPT, NPC_SUBMIT, ADMIN_PLAYER_HISTORY, ADMIN_RESET_CONFIRM }
     private enum QuestDialogStage {
         AVAILABLE("Có thể nhận"), IN_PROGRESS("Đang thực hiện"), COMPLETED("Hoàn tất/nhận thưởng"),
         UNAVAILABLE("Không đủ điều kiện/đầy giới hạn");
@@ -4072,7 +4350,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
     private enum TextField { CREATE_ID, RENAME, GIVER, ADD_LEVEL_REQUIREMENT, ADD_ITEM_AMOUNT,
         ADD_KILL_ENTITY, ADD_KILL_AMOUNT, EDIT_KILL_ENTITY, EDIT_KILL_AMOUNT, ADD_OBJECTIVE_ITEM_AMOUNT,
-        ADD_SUBMIT_ITEM_AMOUNT, ADD_BOSS_ID, ADD_BOSS_AMOUNT, ADD_OBJECTIVE_NPC_ID,
+        ADD_BOSS_ID, ADD_BOSS_AMOUNT, ADD_OBJECTIVE_NPC_ID,
         ADD_BLOCK_BREAK, ADD_SIMPLE_OBJECTIVE }
     private record PendingTextInput(TextField field, String questId, int page, String value) {
         private PendingTextInput(TextField field, String questId, int page) { this(field, questId, page, ""); }

@@ -439,6 +439,8 @@ public final class TutorialQuestManager implements Listener {
         pendingQuestCompletions.remove(playerId);
         if (player.isOnline()) refreshQuestSidebar(player);
         debugQuest("admin-reset-session-cleared player=" + player.getName());
+        if (plugin.getQuestCatalogManager() != null && definition != null)
+            plugin.getQuestCatalogManager().clearQuestCompletion(player, definition.id());
     }
 
     private record QuestInitData(PlayerProfileDatabaseManager.PlayerProfile profile,
@@ -705,6 +707,8 @@ public final class TutorialQuestManager implements Listener {
                     + ", rewardAmount=" + quest.reward().amount());
                 activeQuestSessions.remove(playerId);
                 lastWaypointAtMillis.remove(playerId);
+                if (plugin.getQuestCatalogManager() != null)
+                    plugin.getQuestCatalogManager().markQuestCompleted(player, quest.id());
                 refreshQuestSidebar(player);
                 CharacterSelectionManager characters = plugin.getCharacterSelectionManager();
                 if (characters != null && result.updatedProfile() != null) {

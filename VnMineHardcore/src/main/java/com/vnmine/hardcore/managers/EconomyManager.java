@@ -8,6 +8,9 @@ import com.comphenix.protocol.events.PacketEvent;
 import com.comphenix.protocol.wrappers.WrappedDataValue;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
 import com.vnmine.hardcore.VnMineHardcore;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -397,7 +400,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         if (stack.getType().isAir()) return;
         trackGroundItem(itemEntity);
         ItemMeta meta = stack.getItemMeta();
-        String visibleName;
+        String visibleName = null;
         if (meta != null && meta.hasDisplayName()) {
             visibleName = sanitizeVisibleName(meta.getDisplayName());
             if (!visibleName.equals(meta.getDisplayName())) {
@@ -405,10 +408,8 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 stack.setItemMeta(meta);
                 itemEntity.setItemStack(stack);
             }
-        } else {
-            visibleName = "§e" + stack.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
         }
-        itemEntity.setCustomName(visibleName + groundItemSellLabel(stack));
+        itemEntity.customName(groundItemDisplayName(stack, visibleName));
         itemEntity.setCustomNameVisible(true);
     }
 
@@ -477,10 +478,18 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private void applyGroundItemName(Item item) {
         ItemStack stack = item.getItemStack();
         ItemMeta meta = stack.getItemMeta();
-        String name = meta != null && meta.hasDisplayName() ? sanitizeVisibleName(meta.getDisplayName())
-            : "§e" + stack.getType().name().toLowerCase(Locale.ROOT).replace('_', ' ');
-        item.setCustomName(name + groundItemSellLabel(stack));
+        String name = meta != null && meta.hasDisplayName() ? sanitizeVisibleName(meta.getDisplayName()) : null;
+        item.customName(groundItemDisplayName(stack, name));
         item.setCustomNameVisible(true);
+    }
+
+    private Component groundItemDisplayName(ItemStack stack, String customName) {
+        Component name = customName == null
+            ? Component.translatable(stack.getType().translationKey()).color(NamedTextColor.YELLOW)
+            : LegacyComponentSerializer.legacySection().deserialize(customName);
+        String sellLabel = groundItemSellLabel(stack);
+        if (sellLabel.isBlank()) return name;
+        return name.append(LegacyComponentSerializer.legacySection().deserialize(sellLabel));
     }
 
     private String groundItemSellLabel(ItemStack stack) {

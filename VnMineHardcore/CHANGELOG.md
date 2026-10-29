@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.36.8 — 2026-10-29
+
+- `/vninit` có nút vào quản lý quest theo chủng tộc và công tắc dịch chuyển độc lập sau khi chọn class.
+- Mục tiêu quest nộp item dùng inventory cấu hình nhiều loại vật phẩm; mỗi stack trở thành một bước nộp, và item cấu hình được trả lại khi hủy/đóng.
+- Điều kiện nhận quest chọn được quest hệ thống `first-steps`, đại lục và race từ GUI; điều kiện được kiểm tra khi hiển thị và nhận quest.
+- Hiển thị tên cá tiếng Việt trong mục tiêu câu cá; mô tả item quest dễ đọc hơn. Tên item rơi dùng Minecraft translation component theo ngôn ngữ client.
+
 ## 2.36.7 — 2026-10-29
 
 - Quản trị người chơi có nút reset toàn bộ tiến trình RPG, xóa hồ sơ đại lục/race/class, level/EXP, quest active/completed/daily và skill/quick slot trong một transaction; người đang online được đưa về lại bước tutorial.

@@ -30,6 +30,14 @@ menus:
   # [EN] Main menu; default enabled.
   main:
     enabled: true
+    character-complete:
+      # [VI] Công tắc dịch chuyển sau khi người chơi chọn class; tắt để không bị đưa về spawn đại lục.
+      # [EN] Teleport after class selection; disable to keep players at their tutorial location.
+      teleport-enabled: true
+      # [VI] Điểm đến khi công tắc bật: REALM_SPAWN, START_WORLD, ADMIN_LOCATION hoặc NONE.
+      # [EN] Destination when enabled: REALM_SPAWN, START_WORLD, ADMIN_LOCATION, or NONE.
+      teleport-mode: REALM_SPAWN
+      default-quest-id: ""
     # [VI] Chặn sự kiện đổi tay bằng phím F để mở menu; mặc định bật.
     # [EN] Cancel the F-key hand-swap event to open the menu; default enabled.
     intercept-f-key: true

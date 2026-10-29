@@ -396,8 +396,9 @@ Người chơi mới được chuyển đến world bắt đầu khi hồ sơ ch
 NPC loại `tutorial` đã gán trong `/vninit`, sau đó chọn đại lục, race, class và
 nhận sách skill khởi đầu. Khi tạo nhân vật xong, plugin nhận quest ID được gán
 cho race đó trong `races.yml`. Cấu hình quest theo race có trong menu **Menu
-chính → Admin → Quản lý chủng tộc**; chọn race, nhập quest ID đang bật, hoặc gõ
-`!clear` để xóa mapping. Dùng `!cancel` để hủy nhập.
+chính → Admin → Quản lý chủng tộc** hoặc nút **Quản lý quest theo chủng tộc**
+trên dashboard `/vninit`; chọn race rồi chọn quest đang bật trong GUI, hoặc gỡ
+mapping bằng nút tương ứng.
 
 Quản trị viên dùng `/vninit` để mở wizard cấu hình onboarding. Chọn một đại lục
 để bật/tắt quyền bắt đầu, gán world đang được nạp, và lưu vị trí hiện tại làm
@@ -424,7 +425,9 @@ Trong `/vninit`, mục **Sau khi tạo nhân vật** cho phép chọn hành đ�
 người chơi chọn xong race/class: dịch chuyển tới spawn đại lục, spawn world bắt
 đầu, vị trí đã lưu của admin, hoặc giữ nguyên vị trí; đồng thời có thể chọn một
 quest mặc định từ danh sách quest đang bật. Quest gắn riêng với race vẫn có thể
-được cấp theo `races.yml`. Menu lưu từng lựa chọn ngay khi bấm.
+được cấp theo `races.yml`. Có công tắc **Dịch chuyển sau khi chọn class** để tắt
+riêng việc dịch chuyển mà vẫn giữ điểm đến đã cấu hình cho lần bật lại. Menu lưu
+từng lựa chọn ngay khi bấm.
 
 Menu **Admin → Quản trị người chơi → Reset toàn bộ tiến trình RPG** xóa hồ sơ
 RPG, đại lục/race/class, level/EXP, tiến trình và lịch sử quest, skill/quick slot;
@@ -450,6 +453,14 @@ cho brewing, `ITEM DIAMOND 3 [shop-id]` hoặc `COINS 100 [shop-id]` cho bán/mu
 đếm item hoặc VNCOIN; shop ID bỏ trống nghĩa là mọi merchant. Chỉ giao dịch shop đã
 hoàn tất mới cộng tiến độ; brew cần admin/người chơi tương tác với brewing stand
 trước khi mẻ thuốc hoàn tất.
+
+Mục tiêu **Nộp item** mở inventory cấu hình: admin đặt các stack cần nộp vào kho
+rồi bấm **Lưu mục tiêu nộp item**; số lượng trong mỗi stack được dùng làm số
+lượng yêu cầu và mỗi loại item thành một bước liên tiếp. Hủy/đóng kho sẽ trả các
+item cấu hình lại cho admin. Điều kiện nhận quest hỗ trợ chọn quest đã lưu, quest
+tutorial hệ thống **Bước chân đầu tiên** (`first-steps`), đại lục và chủng tộc
+qua GUI. Tên COD/SALMON và các item mục tiêu được diễn giải thành tên dễ đọc;
+nhãn item rơi dùng bản dịch theo ngôn ngữ client Minecraft.
 
 ## Cấu hình (config.yml)
 

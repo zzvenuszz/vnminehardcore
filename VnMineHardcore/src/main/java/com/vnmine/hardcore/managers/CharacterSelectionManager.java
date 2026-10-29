@@ -1049,7 +1049,8 @@ public final class CharacterSelectionManager implements Listener {
     }
 
     public void openRaceAdminMenu(Player player) {
-        if (!player.hasPermission("vnmine.command.race.admin")) {
+        if (!player.hasPermission("vnmine.command.race.admin")
+                && !player.hasPermission("vnmine.command.init")) {
             player.sendMessage("§cBạn không có quyền quản lý race.");
             return;
         }
@@ -1629,6 +1630,10 @@ public final class CharacterSelectionManager implements Listener {
 
     private java.util.Optional<Location> resolveCharacterCompletionDestination(
             HumanRealmDefinitionLoader.HumanRealmDefinition startingRealm) {
+        if (!plugin.getConfig().getBoolean("rpg.onboarding.character-complete.teleport-enabled", true)) {
+            debugProfile("character-complete-teleport disabled-by-config");
+            return java.util.Optional.empty();
+        }
         String mode = plugin.getConfig().getString("rpg.onboarding.character-complete.teleport-mode", "REALM_SPAWN");
         if ("NONE".equalsIgnoreCase(mode)) return java.util.Optional.empty();
         if ("START_WORLD".equalsIgnoreCase(mode)) {

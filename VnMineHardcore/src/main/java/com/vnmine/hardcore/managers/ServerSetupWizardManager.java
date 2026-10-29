@@ -152,6 +152,10 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             "§7Thoát menu bất cứ lúc nào; chạy lại /vninit để tiếp tục.")));
         menu.setItem(8, item(Material.ENDER_PEARL, "§bSau khi tạo nhân vật", List.of(
             "§7Chọn điểm đến sau race/class và quest mặc định.", "§eNhấn để cấu hình.")));
+        menu.setItem(7, item(Material.TOTEM_OF_UNDYING, "§dQuản lý quest theo chủng tộc", List.of(
+            "§7Chọn quest tự giao sau khi người chơi tạo nhân vật.",
+            "§7Mỗi chủng tộc có thể gán quest riêng hoặc để trống.",
+            "§eNhấn để mở giao diện quản lý race.")));
         if (safePage + 1 < pages) menu.setItem(53, item(Material.ARROW, "§eĐại lục tiếp", List.of()));
         if (realms.isEmpty()) {
             menu.setItem(22, item(Material.BARRIER, "§cKhông tìm thấy cấu hình đại lục", List.of(
@@ -173,6 +177,13 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         };
         menu.setItem(13, item(Material.COMPASS, "§bĐiểm đến hiện tại: §f" + destination, List.of(
             "§7Chọn một nút bên dưới để đổi hành vi.")));
+        boolean teleportEnabled = plugin.getConfig().getBoolean(
+            "rpg.onboarding.character-complete.teleport-enabled", !"NONE".equalsIgnoreCase(mode));
+        menu.setItem(16, item(teleportEnabled ? Material.LIME_DYE : Material.GRAY_DYE,
+            (teleportEnabled ? "§a" : "§c") + "Dịch chuyển sau khi chọn class: "
+                + (teleportEnabled ? "BẬT" : "TẮT"), List.of(
+                "§7Tắt để giữ người chơi tại nơi hoàn tất tutorial.",
+                "§7Bật lại sẽ dùng điểm đến đang chọn ở trên.", "§eNhấn để bật/tắt.")));
         menu.setItem(10, item(Material.MAP, "§aSpawn đại lục đã chọn", List.of("§7Hành vi mặc định.")));
         menu.setItem(11, item(Material.RECOVERY_COMPASS, "§eSpawn world bắt đầu", List.of(
             "§7Dịch chuyển về world start sau khi tạo nhân vật.")));
@@ -995,6 +1006,9 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 openTutorialQuestSetup(player);
             } else if (slot == 8) {
                 openCharacterCompletionSettings(player);
+            } else if (slot == 7) {
+                if (plugin.getCharacterSelectionManager() != null)
+                    plugin.getCharacterSelectionManager().openRaceAdminMenu(player);
             } else if (slot == 27) {
                 openWorldManager(player);
             } else {
@@ -1005,9 +1019,31 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         }
         if ("completion-config".equals(holder.type)) {
             if (slot == 49) openDashboard(player);
-            else if (slot == 10) saveCompletionSetting(player, "teleport-mode", "REALM_SPAWN");
-            else if (slot == 11) saveCompletionSetting(player, "teleport-mode", "START_WORLD");
-            else if (slot == 14) saveCompletionSetting(player, "teleport-mode", "NONE");
+            else if (slot == 16) {
+                String currentMode = plugin.getConfig().getString(
+                    "rpg.onboarding.character-complete.teleport-mode", "REALM_SPAWN");
+                boolean enabled = !plugin.getConfig().getBoolean(
+                    "rpg.onboarding.character-complete.teleport-enabled", !"NONE".equalsIgnoreCase(currentMode));
+                if (enabled && "NONE".equalsIgnoreCase(plugin.getConfig().getString(
+                        "rpg.onboarding.character-complete.teleport-mode", "REALM_SPAWN"))) {
+                    plugin.getConfig().set("rpg.onboarding.character-complete.teleport-mode", "REALM_SPAWN");
+                }
+                plugin.getConfig().set("rpg.onboarding.character-complete.teleport-enabled", enabled);
+                savePluginConfig(player, "onboarding character-complete teleport-enabled=" + enabled);
+                openCharacterCompletionSettings(player);
+            }
+            else if (slot == 10) {
+                plugin.getConfig().set("rpg.onboarding.character-complete.teleport-enabled", true);
+                saveCompletionSetting(player, "teleport-mode", "REALM_SPAWN");
+            }
+            else if (slot == 11) {
+                plugin.getConfig().set("rpg.onboarding.character-complete.teleport-enabled", true);
+                saveCompletionSetting(player, "teleport-mode", "START_WORLD");
+            }
+            else if (slot == 14) {
+                plugin.getConfig().set("rpg.onboarding.character-complete.teleport-enabled", false);
+                saveCompletionSetting(player, "teleport-mode", "NONE");
+            }
             else if (slot == 12) {
                 Location location = player.getLocation();
                 var config = plugin.getConfig();
@@ -1019,6 +1055,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 config.set(base + "yaw", location.getYaw());
                 config.set(base + "pitch", location.getPitch());
                 config.set("rpg.onboarding.character-complete.teleport-mode", "ADMIN_LOCATION");
+                config.set("rpg.onboarding.character-complete.teleport-enabled", true);
                 savePluginConfig(player, "set onboarding completion destination=" + location);
                 openCharacterCompletionSettings(player);
             } else if (slot == 22) openCharacterCompletionQuestChoices(player, 0);

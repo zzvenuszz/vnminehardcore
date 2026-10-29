@@ -1,3 +1,16 @@
+## Khả năng nhìn thấy race, quest requirement và tên item — yêu cầu 2026-10-29
+
+- [x] Đưa nút quản lý quest tự giao theo chủng tộc lên trang chính `/vninit`; cho phép quản trị viên có quyền setup mở menu race trực tiếp, không cần tìm trong Admin menu.
+- [x] Thêm công tắc riêng `rpg.onboarding.character-complete.teleport-enabled`; GUI thể hiện BẬT/TẮT. Tắt công tắc thì sau khi chọn class người chơi ở nguyên vị trí hoàn tất tutorial; chọn một điểm đến sẽ tự bật công tắc lại.
+- [x] Mục tiêu quest “Nộp item” mở inventory cấu hình; admin đặt nhiều loại item với số lượng bằng stack, lưu thành các bước nộp liên tiếp. Hủy/đóng menu sẽ trả item cấu hình lại cho admin.
+- [x] Tên mục tiêu câu cá hiển thị tiếng Việt (`COD` → cá tuyết, `SALMON` → cá hồi, v.v.). Các objective dùng material/item ID hiển thị tên dễ đọc cho block, craft, consume, sell/purchase, collect và submit; item RPG giữ tên custom.
+- [x] Nhãn item rơi dùng Adventure translatable component theo ngôn ngữ client Minecraft, giữ tên custom của item RPG và nối nhãn giá VNCOIN.
+- [x] Thêm requirement quest chọn từ GUI: hoàn thành quest có sẵn hoặc quest hệ thống `first-steps` (“Bước chân đầu tiên”), đã chọn đại lục, đã chọn chủng tộc. Kiểm tra điều kiện lúc liệt kê quest và lúc nhận quest; lưu ID trong YAML.
+- [x] Khi tutorial `first-steps` hoàn thành, cập nhật cache quest đang online ngay; admin reset tutorial cũng xóa cache prerequisite để trạng thái điều kiện khớp DB.
+- [x] Cập nhật README/CHANGELOG và version source lên 2.36.8. Build Java 25 bằng `mvn -DskipTests package`; JAR 3,059,509 bytes, SHA-256 `0fdee3f89cf8993151cbdeae43fd3a1f61fcf6bd48280ce2e3aa56b9202eb71c`; xác nhận JAR chứa SQLite native Linux x86_64 và AArch64. Test suite bỏ qua.
+- [x] Sao lưu JAR 2.36.7 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.7-pre-2.36.8-20261029.jar`, cài 2.36.8 vào thư mục `plugins`, xác nhận SHA khớp và chỉ còn một JAR VnMineHardcore được Paper nạp.
+- [ ] Kiểm thử trong game: bật/tắt dịch chuyển, mở menu race từ `/vninit`, đặt nhiều loại item nộp (kể cả item RPG), hủy menu để xác nhận trả item, quest COD/submit, prerequisite `first-steps`, realm và race, tên drop theo ngôn ngữ client.
+
 ## Reset người chơi, onboarding đích đến và mở rộng objective quest — yêu cầu 2026-10-29
 
 Tham chiếu loại objective: [zQuests quest types](https://docs.groupez.dev/zquests/configurations/quest-types). Danh sách tham khảo gồm block, entity, item, potion, economy, progression và command; cần chỉ bật loại nào có event và dữ liệu giao dịch đáng tin cậy trong plugin.
