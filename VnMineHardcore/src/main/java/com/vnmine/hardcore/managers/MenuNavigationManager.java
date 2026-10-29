@@ -46,6 +46,20 @@ public final class MenuNavigationManager implements Listener {
         }
     }
 
+    /** Reopens a previously visited GUI without creating a new child-to-parent history link. */
+    public void openPreviousInventory(Player player, Inventory inventory) {
+        if (player == null || inventory == null) return;
+        UUID playerId = player.getUniqueId();
+        restoring.add(playerId);
+        try {
+            player.openInventory(inventory);
+        } catch (RuntimeException exception) {
+            restoring.remove(playerId);
+            plugin.getLogger().log(Level.WARNING, "Could not restore previous GUI for "
+                + player.getName() + ".", exception);
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryOpen(InventoryOpenEvent event) {
         if (!(event.getPlayer() instanceof Player player) || event.isCancelled()) return;

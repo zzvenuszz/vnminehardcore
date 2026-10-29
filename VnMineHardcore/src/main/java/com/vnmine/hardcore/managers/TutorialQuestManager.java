@@ -82,8 +82,18 @@ public final class TutorialQuestManager implements Listener {
         return switch (definition.objective().type()) {
             case "visit-tutorial-npc" -> "Gặp NPC Tutorial của đại lục";
             case "visit-realm-spawn" -> "Đến điểm spawn đại lục";
-            default -> "Gặp NPC Tutorial tại world bắt đầu";
+            default -> "Gặp " + startTutorialNpcName() + " tại " + startWorldDisplayName();
         };
+    }
+
+    private String startWorldDisplayName() {
+        return plugin.getConfig().getString("rpg.onboarding.start-world.display-name", "Đại lục khởi đầu");
+    }
+
+    private String startTutorialNpcName() {
+        String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+        return plugin.getNpcManager() == null || npcId.isBlank() ? "NPC Tutorial"
+            : plugin.getNpcManager().getNpcDisplayName(npcId).orElse("NPC Tutorial");
     }
 
     /** Reloads tutorial quest settings without starting the quest for all online players. */
@@ -139,7 +149,7 @@ public final class TutorialQuestManager implements Listener {
         String realmId = targetRealmId(player);
         var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
         String destination = "visit-start-world-tutorial-npc".equals(definition.objective().type())
-            ? "NPC Tutorial • " + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start")
+            ? startTutorialNpcName() + " • " + startWorldDisplayName()
             : realm == null ? "NPC Tutorial" : "NPC Tutorial • " + realm.displayName();
         return List.of("§d§lNHIỆM VỤ", "§fTới: " + destination, "§7Mục tiêu: " + objectiveLabel());
     }
@@ -605,13 +615,17 @@ public final class TutorialQuestManager implements Listener {
         String realmId = targetRealmId(player);
         var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
         String realmName = "visit-start-world-tutorial-npc".equals(definition.objective().type())
-            ? "world bắt đầu" : realm == null ? realmId : realm.displayName();
+            ? startWorldDisplayName() : realm == null ? realmId : realm.displayName();
+        String targetNpcName = "visit-start-world-tutorial-npc".equals(definition.objective().type())
+            ? startTutorialNpcName() : realm == null ? "NPC Tutorial"
+                : plugin.getNpcManager().getNpcDisplayName(realm.tutorialNpcId()).orElse("NPC Tutorial");
         Location target = resolveObjectiveTarget(player);
         if (target == null) return;
         String targetPosition = "§fX " + target.getBlockX() + " Y " + target.getBlockY()
             + " Z " + target.getBlockZ();
         if (playerLocation.getWorld() != target.getWorld()) {
-            player.sendActionBar("§eTới NPC hướng dẫn tại " + target.getWorld().getName() + " §7(" + targetPosition + "§7)");
+            player.sendActionBar("§eTới " + targetNpcName + " tại " + target.getWorld().getName()
+                + " §7(" + targetPosition + "§7)");
             return;
         }
 
@@ -619,7 +633,8 @@ public final class TutorialQuestManager implements Listener {
         double dy = target.getY() - playerLocation.getY();
         double dz = target.getZ() - playerLocation.getZ();
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        player.sendActionBar("§eTới NPC hướng dẫn " + realmName + " §7(" + targetPosition + "§7) §8• §f"
+        player.sendActionBar("§eTới " + targetNpcName + " tại " + realmName
+            + " §7(" + targetPosition + "§7) §8• §f"
             + Math.round(Math.sqrt(dx * dx + dz * dz)) + " block");
         if (distance > definition.objective().waypointParticleRangeBlocks()) return;
 

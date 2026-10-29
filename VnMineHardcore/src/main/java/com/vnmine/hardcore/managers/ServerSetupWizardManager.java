@@ -153,6 +153,11 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             "§eOnboarding người mới: " + (onboardingEnabled ? "§aBẬT" : "§cTẮT"), List.of(
                 "§7Bật quy trình world start → NPC → đại lục → race/class.",
                 "§7Nhấn để đổi; thay đổi được lưu ngay vào config.yml.")));
+        menu.setItem(38, item(Material.WRITABLE_BOOK, "§bTên đại lục bắt đầu: §f"
+            + startWorldDisplayName(), List.of(
+                "§7Tên này được dùng trong nội dung và mục tiêu quest.",
+                "§7Không thay đổi tên kỹ thuật của world.",
+                "§eNhấn để nhập tên hiển thị.")));
         boolean tutorialQuestEnabled = tutorialQuestEnabled();
         menu.setItem(40, item(tutorialQuestEnabled ? Material.WRITABLE_BOOK : Material.BARRIER,
             (tutorialQuestEnabled ? "§b" : "§c") + "Quest RPG và quest hướng dẫn", List.of(
@@ -658,6 +663,10 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         return seed instanceof Number ? seed.toString() : "tự sinh";
     }
 
+    private String startWorldDisplayName() {
+        return plugin.getConfig().getString("rpg.onboarding.start-world.display-name", "Đại lục khởi đầu");
+    }
+
     private boolean realmAvailabilityEnabled(String realmId) {
         File file = findRealmFile(realmId);
         return file != null && YamlConfiguration.loadConfiguration(file)
@@ -757,7 +766,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 }
                 if (handleRealmCreationChat(player, realmId, input)) return;
                 player.sendMessage("§eĐã hủy nhập tên world.");
-                if ("__start__".equals(realmId) || "__start_seed__".equals(realmId)) openDashboard(player);
+                if ("__start__".equals(realmId) || "__start_seed__".equals(realmId)
+                        || "__start_display_name__".equals(realmId)) openDashboard(player);
                 else if (realmId.startsWith("__seed__:")) openRealm(player, realmId.substring("__seed__:".length()));
                 else if (realmId.startsWith("__edit_display__:") || realmId.startsWith("__edit_world__:")
                         || realmId.startsWith("__edit_id__:"))
@@ -783,6 +793,19 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 }
                 saveFirstStepsField(player, "quest." + field,
                     ChatColor.translateAlternateColorCodes('&', input));
+                return;
+            }
+            if ("__start_display_name__".equals(realmId)) {
+                if (input.isBlank() || input.length() > 48) {
+                    player.sendMessage("§cTên đại lục phải có 1–48 ký tự. Nhập lại hoặc !cancel.");
+                    pendingWorldNames.put(player.getUniqueId(), realmId);
+                    return;
+                }
+                String displayName = ChatColor.translateAlternateColorCodes('&', input);
+                plugin.getConfig().set("rpg.onboarding.start-world.display-name", displayName);
+                savePluginConfig(player, "rpg.onboarding.start-world.display-name=" + input);
+                player.sendMessage("§aĐã lưu tên hiển thị đại lục bắt đầu: §f" + displayName);
+                openDashboard(player);
                 return;
             }
             if (realmId.startsWith("__edit_display__:")) {
@@ -1184,6 +1207,10 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             } else if (slot == 34) {
                 if (plugin.getCharacterSelectionManager() != null)
                     plugin.getCharacterSelectionManager().openRaceAdminMenu(player);
+            } else if (slot == 38) {
+                pendingWorldNames.put(player.getUniqueId(), "__start_display_name__");
+                player.closeInventory();
+                player.sendMessage("§eNhập tên hiển thị đại lục bắt đầu dùng trong quest. Ví dụ: §fNhân Giới§e. Gõ §f!cancel §eđể hủy.");
             } else if (slot == 27) {
                 openWorldManager(player);
             } else {

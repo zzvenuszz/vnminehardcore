@@ -1,3 +1,15 @@
+## Sửa lỗi tương tác NPC Tutorial và onboarding — yêu cầu 2026-10-29
+
+- [x] Log server 2.36.12 cho thấy ProtocolLib 5.4.0 ném `ExceptionInInitializerError` trong `WrappedEnumEntityUseAction.<clinit>` khi nhận packet tương tác trên Paper 26.3. Các lần click sau đó tiếp tục ném `NoClassDefFoundError`, làm listener không xử lý packet NPC player-model.
+- [x] Loại bỏ wrapper enum không tương thích; listener chỉ giải mã entity ID, kiểm tra map NPC ảo, chặn packet khớp và gọi luồng tương tác NPC trên server thread. Debug log giữ player/NPC/entity ID.
+- [x] Sửa nhánh quản lý quest tự giao theo race: GUI giữ inventory cha từ lúc vào qua `/vninit`; nút quay lại và lưu lựa chọn tiếp tục giữ đúng inventory nguồn, không trỏ ngược vào GUI trung gian.
+- [x] Thêm trường tên hiển thị đại lục bắt đầu trong `/vninit`, lưu vào `rpg.onboarding.start-world.display-name`, giới hạn 1–48 ký tự; tên này không đổi tên world.
+- [x] Thay nhãn “NPC Tutorial tại world bắt đầu” bằng tên NPC được gán và tên hiển thị đại lục trong First Steps, scoreboard/điều hướng; objective `VISIT_NPC` cũng hiển thị tên NPC thay cho ID, và dùng tên đại lục khi đó là NPC Tutorial world bắt đầu.
+- [x] Build Java 25 bằng `mvn -DskipTests package`, version 2.36.13; JAR 3,085,857 bytes, SHA-256 `659f2fce7c159f861e895276c4ea2680d999303fc934dc9d3d051a68b26061cc`; đã xác nhận có SQLite native Linux x86_64 và AArch64.
+- [x] Sao lưu 2.36.12 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.12-pre-2.36.13-20261029.jar`, cài 2.36.13 vào thư mục plugin; chỉ còn một JAR VnMineHardcore ở thư mục plugin.
+- [ ] Còn một cảnh báo log độc lập: đại lục `world-ma-gioi` chưa có world được nạp/spawn hợp lệ. Gán hoặc tạo đúng world trong `/vninit` trước khi kiểm thử tracking/quest của đại lục này.
+- [ ] Sau khi cài JAR, thử click NPC tutorial trước/sau khi reset nhân vật và chỉnh quest; mở `/vninit` → quest theo race → quay lại, rồi xác nhận trở về đúng dashboard.
+
 ## Lệnh bật/tắt console debug trong game — yêu cầu 2026-10-29
 
 - [x] Thêm `/debug ON|OFF`; chỉ người có `vnmine.command.debug` (mặc định OP) dùng được. Sai cú pháp hiển thị `/debug ON|OFF`; Tab gợi ý ON/OFF.

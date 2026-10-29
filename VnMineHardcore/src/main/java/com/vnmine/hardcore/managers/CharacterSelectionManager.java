@@ -370,7 +370,9 @@ public final class CharacterSelectionManager implements Listener {
                 return;
             }
             if (slot == 49) {
-                if (plugin.getMercenaryManager() != null) plugin.getMercenaryManager().openAdminMenu(player);
+                if (holder.returnInventory != null && plugin.getMenuNavigationManager() != null)
+                    plugin.getMenuNavigationManager().openPreviousInventory(player, holder.returnInventory);
+                else if (plugin.getMercenaryManager() != null) plugin.getMercenaryManager().openAdminMenu(player);
             } else {
                 String raceId = holder.choices.get(slot);
                 if (raceId != null) openRaceQuestChoices(player, raceId, 0);
@@ -383,7 +385,7 @@ public final class CharacterSelectionManager implements Listener {
                 player.sendMessage("§cBạn không có quyền quản lý race.");
                 return;
             }
-            if (slot == 49) openRaceAdminMenu(player);
+            if (slot == 49) openRaceAdminMenu(player, holder.returnInventory);
             else if (slot == 45) saveRaceQuestSelection(player, holder.raceId, null);
             else if (slot == 46 && holder.page > 0)
                 openRaceQuestChoices(player, holder.raceId, holder.page - 1);
@@ -614,9 +616,12 @@ public final class CharacterSelectionManager implements Listener {
             ? "Gặp NPC Tutorial" : plugin.getTutorialQuestManager().objectiveLabel();
         if ("awaiting-start-tutorial".equals(stage)) {
             String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
-            String world = plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start");
+            String world = plugin.getConfig().getString("rpg.onboarding.start-world.display-name", "Đại lục khởi đầu");
+            String npcName = npcId.isBlank() ? "NPC chưa cấu hình"
+                : plugin.getNpcManager() == null ? npcId
+                    : plugin.getNpcManager().getNpcDisplayName(npcId).orElse(npcId);
             return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 0/1",
-                "§7" + objectiveLabel + ": 0/1", "§8" + (npcId.isBlank() ? "NPC chưa cấu hình" : npcId) + " • " + world);
+                "§7" + objectiveLabel + ": 0/1", "§8" + npcName + " • " + world);
         }
         if ("choosing-continent".equals(stage)) {
             return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 1/1", "§7Chọn đại lục khởi đầu");
@@ -626,8 +631,13 @@ public final class CharacterSelectionManager implements Listener {
             HumanRealmDefinitionLoader.HumanRealmDefinition realm = continentId == null
                 || plugin.getRpgWorldManager() == null ? null
                 : plugin.getRpgWorldManager().getRealmDefinition(continentId);
-            if (realm != null) return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 0/1",
-                "§7" + objectiveLabel + ": 0/1", "§8" + realm.tutorialNpcId() + " • " + realm.worldName());
+            if (realm != null) {
+                String npcName = plugin.getNpcManager() == null ? realm.tutorialNpcId()
+                    : plugin.getNpcManager().getNpcDisplayName(realm.tutorialNpcId())
+                        .orElse(realm.tutorialNpcId());
+                return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 0/1",
+                    "§7" + objectiveLabel + ": 0/1", "§8" + npcName + " • " + realm.displayName());
+            }
         }
         if ("ready-for-character".equals(stage)) {
             return List.of("§d§lNHIỆM VỤ", "§f" + firstStepsTitle + ": 1/1", "§7Chọn race và class: 0/1");
@@ -1053,13 +1063,23 @@ public final class CharacterSelectionManager implements Listener {
     }
 
     public void openRaceAdminMenu(Player player) {
+        Inventory current = player.getOpenInventory().getTopInventory();
+        Inventory returnInventory = current;
+        if (current != null && current.getHolder() instanceof CharacterMenuHolder openHolder
+                && "race-quest-choices".equals(openHolder.type)) {
+            returnInventory = openHolder.returnInventory;
+        }
+        openRaceAdminMenu(player, returnInventory);
+    }
+
+    private void openRaceAdminMenu(Player player, Inventory returnInventory) {
         if (!player.hasPermission("vnmine.command.race.admin")
                 && !player.hasPermission("vnmine.command.init")) {
             player.sendMessage("§cBạn không có quyền quản lý race.");
             return;
         }
         CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(),
-            "admin-races", null, null, new HashMap<>());
+            "admin-races", null, null, new HashMap<>(), 0, returnInventory);
         Inventory inventory = Bukkit.createInventory(holder, 54, "Admin • Nhiệm vụ theo chủng tộc");
         holder.inventory = inventory;
         int index = 0;
@@ -1084,6 +1104,16 @@ public final class CharacterSelectionManager implements Listener {
         return player.hasPermission("vnmine.command.race.admin") || player.hasPermission("vnmine.command.init");
     }
 
+    private Inventory returnInventoryFor(Player player) {
+        Inventory current = player.getOpenInventory().getTopInventory();
+        if (current != null && current.getHolder() instanceof CharacterMenuHolder holder) {
+            if ("race-quest-choices".equals(holder.type) || "admin-races".equals(holder.type)) {
+                return holder.returnInventory;
+            }
+        }
+        return current;
+    }
+
     private void openRaceQuestChoices(Player player, String raceId, int requestedPage) {
         RaceDefinition race = races.get(raceId);
         if (race == null || plugin.getQuestCatalogManager() == null) return;
@@ -1091,7 +1121,7 @@ public final class CharacterSelectionManager implements Listener {
         int pageCount = Math.max(1, (quests.size() + 44) / 45);
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         CharacterMenuHolder holder = new CharacterMenuHolder(player.getUniqueId(),
-            "race-quest-choices", raceId, null, new HashMap<>(), page);
+            "race-quest-choices", raceId, null, new HashMap<>(), page, returnInventoryFor(player));
         Inventory inventory = Bukkit.createInventory(holder, 54, "Quest tự giao • " + race.name());
         holder.inventory = inventory;
         String current = raceOnboardingQuestIds.get(raceId);
@@ -2029,6 +2059,7 @@ public final class CharacterSelectionManager implements Listener {
         private final String classId;
         private final Map<Integer, String> choices;
         private final int page;
+        private final Inventory returnInventory;
         private Inventory inventory;
 
         private CharacterMenuHolder(UUID viewer, String type, String raceId, String classId,
@@ -2038,12 +2069,18 @@ public final class CharacterSelectionManager implements Listener {
 
         private CharacterMenuHolder(UUID viewer, String type, String raceId, String classId,
                                     Map<Integer, String> choices, int page) {
+            this(viewer, type, raceId, classId, choices, page, null);
+        }
+
+        private CharacterMenuHolder(UUID viewer, String type, String raceId, String classId,
+                                    Map<Integer, String> choices, int page, Inventory returnInventory) {
             this.viewer = viewer;
             this.type = type;
             this.raceId = raceId;
             this.classId = classId;
             this.choices = choices;
             this.page = page;
+            this.returnInventory = returnInventory;
         }
 
         @Override

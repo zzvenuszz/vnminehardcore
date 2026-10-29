@@ -12,7 +12,6 @@ import com.comphenix.protocol.wrappers.PlayerInfoData;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import com.comphenix.protocol.wrappers.WrappedDataValue;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
-import com.comphenix.protocol.wrappers.WrappedEnumEntityUseAction;
 import com.comphenix.protocol.wrappers.WrappedGameProfile;
 import com.comphenix.protocol.wrappers.WrappedSignedProperty;
 import com.vnmine.hardcore.VnMineHardcore;
@@ -109,11 +108,9 @@ final class PlayerNpcVisualManager implements Listener {
                 PacketType.Play.Client.USE_ENTITY) {
             @Override public void onPacketReceiving(PacketEvent event) {
                 int entityId;
-                WrappedEnumEntityUseAction useAction;
                 try {
                     entityId = event.getPacket().getIntegers().read(0);
-                    useAction = event.getPacket().getEnumEntityUseActions().read(0);
-                } catch (RuntimeException exception) {
+                } catch (RuntimeException | LinkageError exception) {
                     debugInteraction("packet-decode-failed player=" + event.getPlayer().getName()
                         + ", packet=" + event.getPacket().getHandle().getClass().getName()
                         + ", error=" + exception.getClass().getSimpleName() + ": " + exception.getMessage());
@@ -124,23 +121,16 @@ final class PlayerNpcVisualManager implements Listener {
                 String npcId = entries == null ? null : entries.get(entityId);
                 if (npcId == null) {
                     debugInteraction("packet-unmapped player=" + event.getPlayer().getName()
-                        + ", entityId=" + entityId + ", action="
-                        + (useAction == null ? "null" : useAction.getAction()));
+                        + ", entityId=" + entityId);
                     return;
                 }
+                // Do not use ProtocolLib's WrappedEnumEntityUseAction here. Its enum resolver
+                // fails to initialize on Paper 26.3, which breaks every subsequent player-NPC click.
+                // Managed player models have no server-side hitbox; cancel any use-entity packet
+                // targeting our synthetic entity ID and route it through the normal NPC handler.
                 event.setCancelled(true);
-                if (useAction == null) {
-                    debugInteraction("packet-action-missing player=" + event.getPlayer().getName()
-                        + ", entityId=" + entityId + ", npc=" + npcId);
-                    return;
-                }
-                EnumWrappers.EntityUseAction action = useAction.getAction();
-                EnumWrappers.Hand hand = useAction.getHand();
                 debugInteraction("packet-interact player=" + event.getPlayer().getName() + ", npc=" + npcId
-                    + ", entityId=" + entityId + ", action=" + action + ", hand=" + hand);
-                // Some 26.3 client actions (notably INTERACT_AT) decode without a hand.
-                // Treat a missing hand as the primary click; explicitly ignore off-hand duplicates.
-                if (action == EnumWrappers.EntityUseAction.ATTACK || hand == EnumWrappers.Hand.OFF_HAND) return;
+                    + ", entityId=" + entityId + ", action=interact-packet");
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     Player viewer = Bukkit.getPlayer(viewerId);
                     if (viewer != null && viewer.isOnline()) {

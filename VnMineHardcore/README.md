@@ -410,6 +410,9 @@ Quản trị viên dùng `/vninit` để mở wizard cấu hình onboarding. Ch�
 được chọn riêng ở bước **NPC Tutorial world bắt đầu**. NPC đó dẫn người chơi mới
 tới chọn đại lục; NPC tutorial của từng đại lục không còn là điều kiện để mở
 luồng tạo nhân vật.
+Dashboard `/vninit` có trường **Tên đại lục bắt đầu** để đặt nhãn xuất hiện
+trong mục tiêu quest và hướng dẫn người chơi; trường này không đổi tên kỹ thuật
+của world. Mục tiêu gặp NPC trong quest dùng tên hiển thị của NPC đã cấu hình.
 Trong menu sửa đại lục, bấm **Chọn NPC Tutorial cho world này** để xem NPC loại
 `tutorial` được đặt trong đúng world đó; danh sách hiện tên, ID và đánh dấu NPC
 đang gán. Nút bỏ gán chỉ xóa liên kết của đại lục, không xóa NPC. Những NPC này

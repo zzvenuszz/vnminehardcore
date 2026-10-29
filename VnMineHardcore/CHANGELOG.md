@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.36.13 — 2026-10-29
+
+- Fix click NPC player-model: bỏ `WrappedEnumEntityUseAction` vì ProtocolLib 5.4.0 không khởi tạo được wrapper này trên Paper 26.3; packet nhắm đến entity NPC ảo được nhận và chuyển vào luồng tương tác NPC.
+- Sửa nút quay lại quản lý quest tự giao theo race để trở về đúng menu nguồn (như dashboard `/vninit`) sau khi mở quest, quay lại hoặc lưu lựa chọn.
+- Bổ sung tên hiển thị cho đại lục bắt đầu trong `/vninit`; tên này thay “world bắt đầu” trong mục tiêu First Steps, scoreboard, chỉ đường và mô tả quest gặp NPC. Các quest hiển thị tên NPC thay cho ID khi có cấu hình tên.
+
 ## 2.36.12 — 2026-10-29
 
 - Thêm `/debug ON|OFF` để đổi và lưu `logging.console-debug` vào `config.yml` ngay trong lúc server chạy; cập nhật cache config dùng chung để logger nhận trạng thái tức thì.

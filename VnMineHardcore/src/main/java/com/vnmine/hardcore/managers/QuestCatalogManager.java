@@ -1350,8 +1350,21 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 + " × " + objective.amount();
             case SUBMIT_EXACT_ITEM -> "Nộp " + exactItemDisplayName(objective)
                 + " × " + objective.amount();
-            case VISIT_NPC -> "Gặp NPC " + objective.itemId() + " × " + objective.amount();
+            case VISIT_NPC -> visitNpcObjectiveDescription(objective);
         };
+    }
+
+    private String visitNpcObjectiveDescription(QuestObjective objective) {
+        String npcId = objective.itemId();
+        String npcName = plugin.getNpcManager() == null ? npcId
+            : plugin.getNpcManager().getNpcDisplayName(npcId).orElse(npcId);
+        String startNpcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
+        String description = "Gặp " + npcName;
+        if (!startNpcId.isBlank() && startNpcId.equalsIgnoreCase(npcId)) {
+            description += " tại " + plugin.getConfig().getString(
+                "rpg.onboarding.start-world.display-name", "Đại lục khởi đầu");
+        }
+        return description + " × " + objective.amount();
     }
 
     private String exactItemDisplayName(QuestObjective objective) {
