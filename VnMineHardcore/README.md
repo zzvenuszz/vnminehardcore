@@ -40,6 +40,7 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/fly`, `/nodame`, `/spawn` | Tiện ích quản trị dành cho người chơi | `vnmine.command.fly`, `.nodame`, `.spawn` |
 | `/gm0`, `/gm1`, `/gm2`, `/gm3` | Chuyển game mode (chỉ người chơi) | `vnmine.command.gamemode` |
 | `/vnreload` | Tải lại config và các hệ thống | `vnmine.command.reload` |
+| `/debug ON\|OFF` | Bật/tắt `logging.console-debug` và lưu ngay vào `config.yml` | `vnmine.command.debug` |
 | `/vnhelp`, `/vn help` | Hiển thị lệnh theo quyền người dùng; admin/OP thấy thêm lệnh quản trị | `vnmine.command.help`, `.utility` |
 | `/vnmenu` hoặc phím `F` | Mở menu chức năng; phím F thay thao tác đổi tay phụ | Không yêu cầu quyền riêng |
 | `/vninit` | Mở wizard setup RPG: chọn đại lục khởi đầu, world, NPC tutorial và spawn; mỗi thay đổi lưu ngay, thoát rồi chạy lại để tiếp tục | `vnmine.command.init` |

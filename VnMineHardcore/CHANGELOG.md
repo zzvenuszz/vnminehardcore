@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.36.12 — 2026-10-29
+
+- Thêm `/debug ON|OFF` để đổi và lưu `logging.console-debug` vào `config.yml` ngay trong lúc server chạy; cập nhật cache config dùng chung để logger nhận trạng thái tức thì.
+- Thêm permission quản trị `vnmine.command.debug`, tab completion ON/OFF và hướng dẫn lệnh trong `/vnhelp`.
+
 ## 2.36.11 — 2026-10-29
 
 - `/vninit` bố trí danh sách đại lục vào hai hàng đầu, hàng thứ ba làm kính phân cách và đưa nhóm cài đặt xuống dưới; danh sách giữ phân trang.

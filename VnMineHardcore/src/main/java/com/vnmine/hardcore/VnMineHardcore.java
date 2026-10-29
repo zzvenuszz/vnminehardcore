@@ -267,7 +267,7 @@ public final class VnMineHardcore extends JavaPlugin {
         for (String commandName : List.of("vnstats", "vnhardcore", "vnreload", "vnhelp",
                 "vnevent", "vnboss", "vn", "reward", "vnrespawn", "vnleave", "fly",
                 "nodame", "spawn", "gm0", "gm1", "gm2", "gm3", "scoreboard",
-                "vntime", "vnday", "vnspawn", "tp", "feed", "heal")) {
+                "vntime", "vnday", "vnspawn", "tp", "feed", "heal", "debug")) {
             registerCommand(commandName, this, this);
         }
         registerCommand("vnskills", skillManager, skillManager);
@@ -396,6 +396,33 @@ public final class VnMineHardcore extends JavaPlugin {
         }
         if (command.getName().equalsIgnoreCase("tp")) {
             return handleTeleportToWorldSpawn(sender, args);
+        }
+
+        if (command.getName().equalsIgnoreCase("debug")) {
+            if (!permissionManager.hasPermission(sender, "vnmine.command.debug")) {
+                sender.sendMessage("§cBạn không có quyền bật/tắt debug log.");
+                return true;
+            }
+            if (args.length != 1 || !(args[0].equalsIgnoreCase("on") || args[0].equalsIgnoreCase("off"))) {
+                sender.sendMessage("§eSử dụng: /debug ON|OFF");
+                return true;
+            }
+            boolean enabled = args[0].equalsIgnoreCase("on");
+            boolean previous = getConfig().getBoolean("logging.console-debug", false);
+            getConfig().set("logging.console-debug", enabled);
+            configManager.consoleDebug = enabled;
+            try {
+                saveConfig();
+            } catch (RuntimeException exception) {
+                getConfig().set("logging.console-debug", previous);
+                configManager.consoleDebug = previous;
+                getLogger().log(Level.SEVERE, "[Debug] Could not save logging.console-debug.", exception);
+                sender.sendMessage("§cKhông lưu được logging.console-debug; đã giữ trạng thái trước đó.");
+                return true;
+            }
+            getLogger().info("[Debug] logging.console-debug=" + enabled + " changedBy=" + sender.getName());
+            sender.sendMessage("§aĐã " + (enabled ? "bật" : "tắt") + " logging.console-debug và lưu config.yml.");
+            return true;
         }
 
         if (command.getName().equalsIgnoreCase("feed") || command.getName().equalsIgnoreCase("heal")) {
@@ -691,6 +718,8 @@ public final class VnMineHardcore extends JavaPlugin {
                 "§e/gm0 /gm1 /gm2 /gm3 §7- Đổi game mode.");
             sendHelpLine(sender, "vnmine.command.reload",
                 "§e/vnreload §7- Tải lại cấu hình và các hệ thống.");
+            sendHelpLine(sender, "vnmine.command.debug",
+                "§e/debug ON|OFF §7- Bật/tắt logging.console-debug và lưu vào config.yml.");
             sendHelpLine(sender, "vnmine.command.init",
                 "§e/vninit §7- Mở wizard setup đại lục, world, NPC tutorial và onboarding RPG.");
             sendHelpLine(sender, "vnmine.command.feed", "§e/feed §7- Hồi đầy thanh thức ăn.");
@@ -1142,6 +1171,11 @@ public final class VnMineHardcore extends JavaPlugin {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (command.getName().equalsIgnoreCase("debug")) {
+            if (!permissionManager.hasPermission(sender, "vnmine.command.debug")) return List.of();
+            if (args.length == 1) return matchingSuggestions(args[0], "ON", "OFF");
+            return List.of();
+        }
         if (command.getName().equalsIgnoreCase("tp")
                 && permissionManager.hasPermission(sender, "vnmine.command.teleport.other")) {
             if (args.length == 1) {

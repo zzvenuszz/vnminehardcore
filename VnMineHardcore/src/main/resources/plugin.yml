@@ -19,6 +19,10 @@ commands:
     description: Tải lại file cấu hình config.yml
     usage: /vnreload
     permission: vnmine.command.reload
+  debug:
+    description: Bật/tắt logging.console-debug trong config.yml
+    usage: /debug ON|OFF
+    permission: vnmine.command.debug
   vnrespawn:
     description: Hồi sinh sau khi chết
     usage: /vnrespawn
@@ -235,6 +239,9 @@ permissions:
     default: op
   vnmine.command.reload:
     description: Cho phép tải lại cấu hình và hệ thống bằng /vnreload
+    default: op
+  vnmine.command.debug:
+    description: Cho phép bật/tắt logging console debug bằng /debug
     default: op
   vnmine.command.disasters:
     description: Cho phép gọi hoặc dừng thiên tai bằng /vnevent

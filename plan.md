@@ -1,3 +1,12 @@
+## Lệnh bật/tắt console debug trong game — yêu cầu 2026-10-29
+
+- [x] Thêm `/debug ON|OFF`; chỉ người có `vnmine.command.debug` (mặc định OP) dùng được. Sai cú pháp hiển thị `/debug ON|OFF`; Tab gợi ý ON/OFF.
+- [x] Lệnh cập nhật `logging.console-debug` tại runtime và lưu `config.yml`; đồng bộ `ConfigManager.consoleDebug` để logger đổi ngay, không cần restart/reload.
+- [x] Đưa lệnh vào `/vnhelp`, README và plugin.yml.
+- [x] Build Java 25 bằng `mvn -DskipTests package`, version 2.36.12; JAR 3,084,573 bytes, SHA-256 `9b9613809ec6e2bf39f7767329a02c5677302e6cd8b9f6c91a41ae779c889a2a`; kèm SQLite native Linux x86_64 và AArch64.
+- [x] Backup JAR 2.36.11, cài JAR 2.36.12 vào thư mục plugin và push mã nguồn.
+- [ ] Sau restart server, thử `/debug OFF`, `/debug ON`, `/debug` sai cú pháp và xác nhận `config.yml` giữ trạng thái sau restart.
+
 ## Bố cục /vninit, editor First Step và NPC Tutorial world bắt đầu — yêu cầu 2026-10-29
 
 - [x] `/vninit`: đặt tối đa 18 đại lục vào hai hàng đầu; hàng 3 dùng stained glass làm vạch ngăn; nhóm chức năng chuyển xuống dưới. Phân trang danh sách đại lục; chọn realm mở editor như trước.
