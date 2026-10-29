@@ -406,6 +406,10 @@ Quản trị viên dùng `/vninit` để mở wizard cấu hình onboarding. Ch�
 được chọn riêng ở bước **NPC Tutorial world bắt đầu**. NPC đó dẫn người chơi mới
 tới chọn đại lục; NPC tutorial của từng đại lục không còn là điều kiện để mở
 luồng tạo nhân vật.
+Trong menu sửa đại lục, bấm **Chọn NPC Tutorial cho world này** để xem NPC loại
+`tutorial` được đặt trong đúng world đó; danh sách hiện tên, ID và đánh dấu NPC
+đang gán. Nút bỏ gán chỉ xóa liên kết của đại lục, không xóa NPC. Những NPC này
+vẫn xuất hiện trong bộ chọn objective **Gặp NPC** của quest.
 Nếu chưa có NPC hướng dẫn, tạo nó tại vị trí mong muốn bằng
 `/vnnpc create <id> tutorial`, rồi quay lại wizard để gán NPC cho đại lục.
 GUI báo từng điều kiện đã đạt/chưa đạt; mỗi thay đổi được lưu ngay vào file đại

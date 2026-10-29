@@ -475,11 +475,12 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             "§7Đổi tên world nguồn sẽ tạo world mới sau restart; world cũ được backup.",
             "§eNhấn để nhập tên world.")));
         menu.setItem(14, item(status.npcReady() ? Material.VILLAGER_SPAWN_EGG : Material.NAME_TAG,
-            "§dNPC hướng dẫn: §f" + realm.tutorialNpcId(), List.of(
-                "§7Chọn NPC runtime có loại tutorial trong world chính.",
-                "§7NPC phải được tạo và đặt trước khi chọn.",
-                "§7Ví dụ tạo: /vnnpc create tutorial-nhan-gioi tutorial",
-                "§eNhấn để chọn NPC tutorial.")));
+            "§dChọn NPC Tutorial cho world này", List.of(
+                "§7Đang chọn: §f" + realm.tutorialNpcId(),
+                "§7Danh sách chỉ gồm NPC loại tutorial được đặt trong:",
+                "§f" + realm.worldName(),
+                "§7Tạo NPC trước bằng /vnnpc create <id> tutorial.",
+                "§eNhấn để mở danh sách NPC tutorial của world này.")));
         menu.setItem(20, item(Material.WRITABLE_BOOK, "§dDialog và quest tutorial", List.of(
             "§7Chọn hội thoại chạy trong action bar.",
             "§7Chọn quest giao tự động sau khi hội thoại kết thúc.",
@@ -937,10 +938,18 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             String npcId = npcs.get(index);
             int slot = CONTENT_SLOTS[index - safePage * 27];
             String npcWorld = npcManager.getNpcTarget(npcId).map(NpcManager.NpcTarget::world).orElse("chưa nạp");
+            String displayName = npcManager.getNpcDisplayName(npcId).orElse(npcId);
+            String selectedNpcId = startWorldSelection
+                ? plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "")
+                : realm == null ? "" : realm.tutorialNpcId();
+            boolean selected = npcId.equalsIgnoreCase(selectedNpcId);
             holder.choices.put(slot, npcId);
-            menu.setItem(slot, item(Material.VILLAGER_SPAWN_EGG, "§d" + npcId, List.of(
+            menu.setItem(slot, item(Material.VILLAGER_SPAWN_EGG,
+                (selected ? "§a✓ " : "§d") + displayName, List.of(
+                "§7ID: §f" + npcId, "§7Loại: §ftutorial",
                 "§7World đang đặt: §f" + npcWorld,
-                "§7World yêu cầu: §f" + expectedWorld, "§eNhấn để gán làm NPC hướng dẫn.")));
+                "§7World yêu cầu: §f" + expectedWorld,
+                selected ? "§aĐang được gán" : "§eNhấn để gán làm NPC Tutorial.")));
         }
         if (npcs.isEmpty()) {
             menu.setItem(22, item(Material.NAME_TAG, "§cChưa có NPC loại tutorial", List.of(
@@ -953,6 +962,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         if (startWorldSelection) menu.setItem(47, item(Material.BARRIER, "§cBỏ chọn NPC tutorial world bắt đầu", List.of(
             "§7NPC hiện tại: §f" + plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "Chưa chọn"),
             "§eNhấn để xóa NPC đã gán.")));
+        else menu.setItem(47, item(Material.BARRIER, "§cBỏ chọn NPC Tutorial của đại lục", List.of(
+            "§7Chỉ xóa liên kết khỏi đại lục; không xóa NPC.", "§eNhấn để bỏ gán.")));
         menu.setItem(49, item(Material.ARROW, startWorldSelection ? "§7Quay lại /vninit" : "§7Quay lại đại lục", List.of()));
         if (safePage + 1 < pages) menu.setItem(53, item(Material.ARROW, "§eTrang sau", List.of()));
         player.openInventory(menu);
@@ -1325,6 +1336,11 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             if (slot == 49) openRealm(player, holder.realmId);
             else if (slot == 45 && holder.page > 0) openTutorialNpcs(player, holder.realmId, holder.page - 1);
             else if (slot == 53) openTutorialNpcs(player, holder.realmId, holder.page + 1);
+            else if (slot == 47) {
+                updateRealm(player, holder.realmId, config -> config.set("tutorial-npc-id", null),
+                    "clear tutorial-npc selection");
+                openRealm(player, holder.realmId);
+            }
             else {
                 String npcId = holder.choices.get(slot);
                 if (npcId != null) {

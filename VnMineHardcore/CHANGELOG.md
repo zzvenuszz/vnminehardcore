@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.36.9 — 2026-10-29
+
+- Làm rõ nút chọn NPC Tutorial trong menu sửa đại lục `/vninit`; danh sách hiển thị tên, ID, world và NPC đang được gán, chỉ liệt kê loại `tutorial` trong đúng world.
+- Thêm nút bỏ gán NPC Tutorial của đại lục mà không xóa NPC.
+- Bộ chọn NPC mục tiêu quest hiển thị loại NPC và xác nhận NPC Tutorial vẫn có thể chọn làm mục tiêu gặp NPC.
+
 ## 2.36.8 — 2026-10-29
 
 - `/vninit` có nút vào quản lý quest theo chủng tộc và công tắc dịch chuyển độc lập sau khi chọn class.

@@ -1,3 +1,12 @@
+## Chọn NPC Tutorial theo world đại lục — yêu cầu 2026-10-29
+
+- [x] Trong `/vninit` → **Quản lý đại lục/world** → chọn đại lục, làm rõ nút mở danh sách NPC Tutorial theo đúng world của đại lục.
+- [x] Danh sách chỉ hiện NPC `tutorial` đang được đặt tại world đó; hiển thị tên, ID, world và đánh dấu NPC đang gán. Có nút bỏ gán liên kết mà không xóa NPC.
+- [x] Bộ chọn NPC mục tiêu quest tiếp tục liệt kê mọi NPC, gồm NPC `tutorial`; giao diện ghi rõ loại và xác nhận NPC Tutorial dùng được cho mục tiêu gặp NPC.
+- [x] Build Java 25 bằng `mvn -DskipTests package`, version 2.36.9; JAR 3,057,373 bytes, SHA-256 `8e6eeff3c2aeb517f88dc290e5fbfa56011892eb08291d9a78bf66b64f034ce0`; xác nhận SQLite native Linux x86_64 và AArch64 có trong JAR. Test suite bỏ qua.
+- [x] Sao lưu JAR 2.36.8 trước khi thay bằng bản 2.36.9 trong thư mục plugin; checksum cài đặt trùng artifact và chỉ giữ một JAR VnMineHardcore ở cấp thư mục plugin.
+- [ ] Kiểm thử trong game: tạo 2 NPC tutorial ở hai world, xác nhận mỗi realm chỉ thấy NPC đúng world; chọn/bỏ chọn; mở `/vnquest admin` và chọn NPC tutorial làm objective gặp NPC.
+
 ## Khả năng nhìn thấy race, quest requirement và tên item — yêu cầu 2026-10-29
 
 - [x] Đưa nút quản lý quest tự giao theo chủng tộc lên trang chính `/vninit`; cho phép quản trị viên có quyền setup mở menu race trực tiếp, không cần tìm trong Admin menu.

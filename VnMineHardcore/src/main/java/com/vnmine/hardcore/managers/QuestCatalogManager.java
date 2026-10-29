@@ -1145,7 +1145,9 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.NPC_SELECT, questId, page);
         holder.npcSelectPurpose = purpose;
-        Inventory menu = Bukkit.createInventory(holder, 54, "Chọn NPC • " + quest.title());
+        Inventory menu = Bukkit.createInventory(holder, 54,
+            (purpose == NpcSelectPurpose.ADD_OBJECTIVE ? "Chọn NPC mục tiêu • " : "Chọn NPC giao quest • ")
+                + quest.title());
         holder.inventory = menu;
         for (int index = 0; index < 45; index++) {
             int choiceIndex = page * 45 + index;
@@ -1155,9 +1157,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             boolean selected = purpose == NpcSelectPurpose.GIVER && quest.giverNpcId().equalsIgnoreCase(npcId);
             String world = plugin.getNpcManager().getNpcTarget(npcId)
                 .map(NpcManager.NpcTarget::world).orElse("world chưa tải");
+            String type = plugin.getNpcManager().getNpcType(npcId).orElse("unknown");
             menu.setItem(index, adminItem(Material.VILLAGER_SPAWN_EGG,
                 (selected ? "§a✓ " : "§e") + name, List.of("§7NPC ID: §f" + npcId,
-                    "§7World: §f" + world, selected ? "§aĐang được chọn" : "§eNhấn để chọn.")));
+                    "§7Loại: §f" + type, "§7World: §f" + world,
+                    purpose == NpcSelectPurpose.ADD_OBJECTIVE && "tutorial".equalsIgnoreCase(type)
+                        ? "§aNPC Tutorial dùng được làm mục tiêu gặp NPC." : "",
+                    selected ? "§aĐang được chọn" : "§eNhấn để chọn.")));
             holder.questSlots.put(index, npcId);
         }
         if (npcIds.isEmpty()) menu.setItem(22, adminItem(Material.BARRIER, "§cChưa có NPC nào", List.of(
