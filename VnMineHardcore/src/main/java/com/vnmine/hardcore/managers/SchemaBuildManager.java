@@ -187,6 +187,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             plugin.getConfig().getInt("schema-build.max-blocks", DEFAULT_MAX_BLOCKS)));
         SpongeSchematicReader.Schematic schematic = SpongeSchematicReader.read(file, maxBlocks);
         List<SchemaBlock> blocks = new ArrayList<>(schematic.blockStates().size());
+        java.util.Set<String> normalizedLegacyStates = new java.util.HashSet<>();
         int index = 0;
         for (int y = 0; y < schematic.height(); y++) {
             for (int z = 0; z < schematic.length(); z++) {
@@ -195,7 +196,20 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
                     BlockData data;
                     try { data = Bukkit.createBlockData(state); }
                     catch (IllegalArgumentException exception) {
-                        throw new IOException("unsupported block state in schematic: " + state, exception);
+                        String compatible = stripUnsupportedFalseWaterlogged(state);
+                        if (compatible == null) {
+                            throw new IOException("unsupported block state in schematic: " + state, exception);
+                        }
+                        try {
+                            data = Bukkit.createBlockData(compatible);
+                            if (normalizedLegacyStates.add(state)) {
+                                plugin.getLogger().info("[SchemaBuild] Normalized unsupported waterlogged=false "
+                                    + "property while loading " + file.getFileName() + ": " + state);
+                            }
+                        } catch (IllegalArgumentException retryFailure) {
+                            retryFailure.addSuppressed(exception);
+                            throw new IOException("unsupported block state in schematic: " + state, retryFailure);
+                        }
                     }
                     if (!data.getMaterial().isBlock()) throw new IOException("non-block palette entry: " + state);
                     blocks.add(new SchemaBlock(x, y, z, data.getAsString()));
@@ -204,6 +218,24 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         }
         return new SchemaDefinition(schematic.name(), List.copyOf(blocks), schematic.width(),
             schematic.height(), schematic.length());
+    }
+
+    private String stripUnsupportedFalseWaterlogged(String state) {
+        int open = state.indexOf('[');
+        int close = state.lastIndexOf(']');
+        if (open < 1 || close <= open || !state.substring(open + 1, close).contains("waterlogged=false")) {
+            return null;
+        }
+        String[] properties = state.substring(open + 1, close).split(",");
+        List<String> retained = new ArrayList<>();
+        boolean removed = false;
+        for (String property : properties) {
+            if (property.trim().equals("waterlogged=false")) removed = true;
+            else retained.add(property.trim());
+        }
+        if (!removed) return null;
+        return retained.isEmpty() ? state.substring(0, open)
+            : state.substring(0, open) + "[" + String.join(",", retained) + "]";
     }
 
     private String invalidSchemaFingerprint(Path path) {

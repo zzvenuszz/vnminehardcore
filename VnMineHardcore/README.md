@@ -50,7 +50,8 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vnuser ...` | Xem/gán nhóm, cấp/thu hồi quyền cá nhân, reset người chơi | `vnmine.command.users.manage` |
 | `/vnarmy ...` | Thuê/quản lý lính, đổi chế độ AI và trang bị | `vnmine.command.army` |
 | `/vnarmy item give ...` | Admin cấp một món hoặc trọn set gear cho lính | `vnmine.command.army.admin` |
-| `/vncoin [balance\|history [player]\|give\|take ...]` | Xem ví/lịch sử; quản trị viên có thể cộng hoặc trừ VNCOIN | `vnmine.command.vncoin.admin` cho give/take; xem lịch sử người khác cần `vnmine.command.vncoin.history.others` |
+| `/vncoin [balance\|history [player]\|give\|take ...]` | Xem ví/lịch sử; quản trị viên có thể cộng hoặc trừ VNCOIN | `vnmine.command.coin`; give/take cần `vnmine.command.vncoin.admin`; xem lịch sử người khác cần `vnmine.command.vncoin.history.others` |
+| `/pay <người_chơi> <số_tiền>` | Mở bước xác nhận trước khi chuyển VNCOIN; cũng có thể chuyển qua nút **Chuyển VNCOIN** trong ví | `vnmine.command.pay` |
 
 Ví dụ gọi boss Wither level 3, cảnh báo 30 giây, tồn tại 120 giây:
 `/vnboss wither 3 30 120`.
@@ -61,7 +62,9 @@ dùng bán kính ngang X/Z tính từ block hiện tại và bảo vệ ở mọ
 
 ### VNCOIN và cửa hàng NPC
 
-Người chơi xem số dư bằng `/vncoin` hoặc mở ví từ menu. Có hai loại NPC bán hàng:
+Người chơi xem số dư bằng `/vncoin` hoặc mở ví từ menu. Trong ví, **Mua/bán gần đây** chỉ hiện giao dịch mua và bán qua shop; nhặt coin và các nguồn khác không xuất hiện ở mục này. Nút **Chuyển VNCOIN** cho phép chọn người đang online hoặc nhập tên tài khoản offline đã từng vào server, sau đó chỉnh số tiền theo mức `1`, `10`, `100`, `1000` và xem màn hình xác nhận người nhận/số tiền. `/pay <tên> <số tiền>` mở cùng màn hình xác nhận. Giao dịch được ghi trong một transaction cơ sở dữ liệu để trừ và cộng tiền đồng bộ; không thể tự chuyển cho chính mình.
+
+Có hai loại NPC bán hàng:
 
 - Merchant hệ thống tạo bằng `/vnnpc create <id> system-merchant`; bán toàn bộ
   mặt hàng trong danh mục chung `economy.merchant.offers` của `config.yml`

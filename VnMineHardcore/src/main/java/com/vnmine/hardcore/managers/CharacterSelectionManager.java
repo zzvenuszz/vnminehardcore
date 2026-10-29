@@ -365,7 +365,7 @@ public final class CharacterSelectionManager implements Listener {
         }
 
         if ("admin-races".equals(holder.type)) {
-            if (!player.hasPermission("vnmine.command.race.admin")) {
+            if (!hasRaceAdminPermission(player)) {
                 player.sendMessage("§cBạn không có quyền quản lý race.");
                 return;
             }
@@ -379,7 +379,7 @@ public final class CharacterSelectionManager implements Listener {
         }
 
         if ("race-quest-choices".equals(holder.type)) {
-            if (!player.hasPermission("vnmine.command.race.admin")) {
+            if (!hasRaceAdminPermission(player)) {
                 player.sendMessage("§cBạn không có quyền quản lý race.");
                 return;
             }
@@ -1071,8 +1071,13 @@ public final class CharacterSelectionManager implements Listener {
                 "§7Quest ID: §f" + (questId == null ? "(chưa gán)" : questId),
                 "§eNhấn để chọn quest đã lưu.")));
         }
-        inventory.setItem(49, createActionItem(Material.ARROW, "§7Quay lại Admin", List.of()));
+        inventory.setItem(49, createActionItem(Material.CRAFTING_TABLE, "§7Quay lại menu trước", List.of(
+            "§7Trở về nơi đã mở chức năng quản lý chủng tộc.")));
         player.openInventory(inventory);
+    }
+
+    private boolean hasRaceAdminPermission(Player player) {
+        return player.hasPermission("vnmine.command.race.admin") || player.hasPermission("vnmine.command.init");
     }
 
     private void openRaceQuestChoices(Player player, String raceId, int requestedPage) {
@@ -1110,7 +1115,7 @@ public final class CharacterSelectionManager implements Listener {
 
     private void saveRaceQuestSelection(Player player, String raceId, String questId) {
         if (!player.isOnline()) return;
-        if (!player.hasPermission("vnmine.command.race.admin")) {
+        if (!hasRaceAdminPermission(player)) {
             player.sendMessage("§cBạn không còn quyền quản lý race.");
             return;
         }

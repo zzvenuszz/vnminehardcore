@@ -1,3 +1,17 @@
+## Điều hướng GUI, chuyển VNCOIN và tương thích schematic — yêu cầu 2026-10-29
+
+- [x] Theo dõi inventory plugin đang mở để nút quay lại điều hướng về GUI nguồn thực tế; giữ lại lịch sử khi GUI tạm đóng để nhập tên người chơi qua chat. Chuẩn hóa icon mọi GUI: quay lại = bàn chế tạo, trang trước = thảm xanh lá mạ, trang tiếp = thảm xanh nước biển.
+- [x] Cân lại menu ví: số dư, lịch sử mua/bán và chuyển tiền nằm tách biệt; nút quay lại ở hàng cuối. Menu chuyển tiền có danh sách online, nhập tên offline, điều chỉnh ±1/10/100/1000 và xác nhận rõ tên cùng số tiền trước giao dịch.
+- [x] Thêm `/pay <tên người chơi> <số tiền>`; cả lệnh và GUI đều yêu cầu xác nhận trước khi gửi. DB ghi trừ ví người gửi/cộng ví người nhận trong cùng transaction, kiểm tra số dư và giới hạn số dư.
+- [x] Lịch sử gần đây chỉ truy vấn giao dịch merchant mua/bán, không hiển thị nhặt coin hay nguồn khác.
+- [x] Schema Build bỏ thuộc tính `waterlogged=false` khi block state không hỗ trợ thuộc tính này; giữ các state còn lại và chỉ bỏ qua đúng state khi parser sau chuẩn hóa vẫn thất bại.
+- [x] Build Java 25 bằng `mvn -DskipTests package`, version 2.36.10; JAR 3,078,926 bytes, SHA-256 `546c5b0cfd6feb6faf1d67ada63f74ce347fb999d23d1d95c76f2fec1a74cef7`; đóng gói kèm SQLite native Linux x86_64 và AArch64.
+- [x] Sao lưu JAR 2.36.9 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.9-pre-2.36.10-20261029.jar`, cài bản 2.36.10 vào thư mục plugin; SHA-256 khớp artifact và chỉ còn một JAR VnMineHardcore ở cấp thư mục plugin.
+- [x] Cập nhật README/CHANGELOG và commit/push mã nguồn lên GitHub.
+- [ ] Kiểm thử GUI: mở quản lý race quest từ `/vninit` và xác nhận từng nút quay lại theo đúng nhánh; rà vị trí icon phân trang trong các GUI lớn.
+- [ ] Kiểm thử chuyển VNCOIN online/offline, hủy xác nhận, nhập tên sai, chuyển 1/10/100/1000, không đủ tiền, ví người nhận gần giới hạn, `/pay` và lịch sử mua/bán.
+- [ ] Kiểm thử Schema Build bằng `.schem` có `minecraft:chain[axis=z,waterlogged=false]`; xác nhận chain và hướng trục được giữ đúng trong công trình.
+
 ## Chọn NPC Tutorial theo world đại lục — yêu cầu 2026-10-29
 
 - [x] Trong `/vninit` → **Quản lý đại lục/world** → chọn đại lục, làm rõ nút mở danh sách NPC Tutorial theo đúng world của đại lục.

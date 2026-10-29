@@ -148,6 +148,10 @@ commands:
     description: Xem ví, lịch sử hoặc quản trị tiền tệ VNCOIN
     usage: /vncoin [balance|history [người_chơi]|stats|give|take <người_chơi> <số> [lý_do]]
     permission: vnmine.command.coin
+  pay:
+    description: Chuyển VNCOIN cho người chơi khác
+    usage: /pay <tên người chơi> <số tiền>
+    permission: vnmine.command.pay
   vnplayeradmin:
     description: Mở giao diện quản trị người chơi online và offline
     usage: /vnplayeradmin
@@ -285,6 +289,9 @@ permissions:
     default: op
   vnmine.command.help:
     description: Cho phép xem hướng dẫn bằng /vnhelp
+    default: true
+  vnmine.command.pay:
+    description: Cho phép chuyển VNCOIN cho người chơi khác
     default: true
   vnmine.command.groups.manage:
     description: Cho phép quản lý nhóm bằng /vngroup

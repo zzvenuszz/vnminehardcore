@@ -42,7 +42,7 @@ public final class PermissionManager implements Listener, CommandExecutor, TabCo
     private static final List<String> DEFAULT_USER_PERMISSIONS = List.of(
         "vnmine.command.stats", "vnmine.command.help", "vnmine.command.utility",
         "vnmine.command.reward", "vnmine.command.respawn", "vnmine.command.leave",
-        "vnmine.command.menu", "vnmine.command.quest", "vnmine.command.coin",
+        "vnmine.command.menu", "vnmine.command.quest", "vnmine.command.coin", "vnmine.command.pay",
         "vnmine.command.skills", "vnmine.command.army", "vnmine.command.start",
         "vnmine.command.newbie-gift",
         "vnmine.hardcore.stats");

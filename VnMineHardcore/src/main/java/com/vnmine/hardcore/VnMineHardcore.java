@@ -59,6 +59,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private RegionProtectionManager regionProtectionManager;
     private WorldSettingsManager worldSettingsManager;
     private TooltipManager tooltipManager;
+    private MenuNavigationManager menuNavigationManager;
     private VillagerDataManager villagerDataManager;
     private DeathListener deathListener;
     private CombatListener combatListener;
@@ -201,6 +202,7 @@ public final class VnMineHardcore extends JavaPlugin {
             return;
         }
         this.tooltipManager = new TooltipManager(this);
+        this.menuNavigationManager = new MenuNavigationManager(this);
 
         // Create listeners (pass config)
         Bukkit.getPluginManager().registerEvents(characterSelectionManager, this);
@@ -259,6 +261,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(spawnProtectionManager, this);
         Bukkit.getPluginManager().registerEvents(permissionManager, this);
         Bukkit.getPluginManager().registerEvents(portalManager, this);
+        Bukkit.getPluginManager().registerEvents(menuNavigationManager, this);
 
         // Register commands
         for (String commandName : List.of("vnstats", "vnhardcore", "vnreload", "vnhelp",
@@ -281,6 +284,7 @@ public final class VnMineHardcore extends JavaPlugin {
         registerCommand("vndeathhistory", deathHistoryManager, deathHistoryManager);
         registerCommand("vnportal", portalManager, portalManager);
         registerCommand("vncoin", economyManager, economyManager);
+        registerCommand("pay", economyManager, economyManager);
         registerCommand("vnplayeradmin", (sender, command, label, args) -> {
             if (sender instanceof Player player) return playerAdminManager.open(player);
             sender.sendMessage("Lệnh này chỉ dùng trong game.");
@@ -1312,6 +1316,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public GraveManager getGraveManager() { return graveManager; }
     public SpawnProtectionManager getSpawnProtectionManager() { return spawnProtectionManager; }
     public PermissionManager getPermissionManager() { return permissionManager; }
+    public MenuNavigationManager getMenuNavigationManager() { return menuNavigationManager; }
     public MercenaryManager getMercenaryManager() { return mercenaryManager; }
     public PlayerAdminManager getPlayerAdminManager() { return playerAdminManager; }
 

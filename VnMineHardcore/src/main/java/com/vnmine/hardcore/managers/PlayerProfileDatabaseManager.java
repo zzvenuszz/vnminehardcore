@@ -1880,6 +1880,12 @@ public class PlayerProfileDatabaseManager {
                                     String source, String actorUuid, String reason, String createdAt) {
     }
 
+    public record KnownWalletPlayer(String uuid, String name) { }
+
+    public enum WalletTransferStatus { APPLIED, INSUFFICIENT_FUNDS, RECIPIENT_LIMIT }
+
+    public record WalletTransferResult(WalletTransferStatus status, long senderBalance, long recipientBalance) { }
+
     public record WalletSourceStats(String source, long transactions, long issued, long spent) {
     }
 
@@ -2649,7 +2655,9 @@ public class PlayerProfileDatabaseManager {
         try (Connection connection = openConnection();
              PreparedStatement statement = connection.prepareStatement(
                  "SELECT id, transaction_id, delta, balance_after, source, actor_uuid, reason, created_at " +
-                 "FROM player_wallet_ledger WHERE uuid = ? ORDER BY id DESC LIMIT ?")) {
+                 "FROM player_wallet_ledger WHERE uuid = ? " +
+                 "AND (source = 'merchant-sell' OR source LIKE 'merchant:%') " +
+                 "ORDER BY id DESC LIMIT ?")) {
             statement.setString(1, uuid);
             statement.setInt(2, safeLimit);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -2664,6 +2672,58 @@ public class PlayerProfileDatabaseManager {
                 return List.copyOf(entries);
             }
         }
+    }
+
+    public Optional<KnownWalletPlayer> findKnownWalletPlayer(String playerName) throws SQLException {
+        if (playerName == null || !playerName.matches("[A-Za-z0-9_]{3,16}")) return Optional.empty();
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 "SELECT uuid, player_name FROM player_profiles WHERE player_name = ? COLLATE NOCASE " +
+                 "ORDER BY updated_at DESC LIMIT 1")) {
+            statement.setString(1, playerName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) return Optional.empty();
+                return Optional.of(new KnownWalletPlayer(resultSet.getString("uuid"),
+                    resultSet.getString("player_name")));
+            }
+        }
+    }
+
+    public WalletTransferResult transferWallet(String senderUuid, String recipientUuid, long amount,
+            String senderTransactionId, String recipientTransactionId, String senderActorUuid,
+            String recipientActorUuid, String senderReason, String recipientReason, String createdAt)
+            throws SQLException {
+        if (senderUuid == null || senderUuid.isBlank() || recipientUuid == null || recipientUuid.isBlank()
+                || senderUuid.equals(recipientUuid) || amount < 1 || amount > MAX_WALLET_BALANCE) {
+            throw new IllegalArgumentException("Wallet transfer fields are invalid.");
+        }
+        validateWalletTransaction(senderUuid, -amount, senderTransactionId, "player-transfer-out",
+            senderReason, createdAt);
+        validateWalletTransaction(recipientUuid, amount, recipientTransactionId, "player-transfer-in",
+            recipientReason, createdAt);
+        return executeWriteTransaction(connection -> {
+            long senderBalance = readWalletBalance(connection, senderUuid);
+            long recipientBalance = readWalletBalance(connection, recipientUuid);
+            if (senderBalance < amount) {
+                return new WalletTransferResult(WalletTransferStatus.INSUFFICIENT_FUNDS,
+                    senderBalance, recipientBalance);
+            }
+            if (recipientBalance > MAX_WALLET_BALANCE - amount) {
+                return new WalletTransferResult(WalletTransferStatus.RECIPIENT_LIMIT,
+                    senderBalance, recipientBalance);
+            }
+            WalletTransactionResult debit = applyWalletTransaction(connection, senderUuid, -amount,
+                senderTransactionId, "player-transfer-out", senderActorUuid, senderReason, createdAt);
+            if (debit.status() != WalletTransactionStatus.APPLIED) {
+                throw new SQLException("Wallet transfer debit was not applied: " + debit.status());
+            }
+            WalletTransactionResult credit = applyWalletTransaction(connection, recipientUuid, amount,
+                recipientTransactionId, "player-transfer-in", recipientActorUuid, recipientReason, createdAt);
+            if (credit.status() != WalletTransactionStatus.APPLIED) {
+                throw new SQLException("Wallet transfer credit was not applied: " + credit.status());
+            }
+            return new WalletTransferResult(WalletTransferStatus.APPLIED, debit.balance(), credit.balance());
+        });
     }
 
     private long readWalletBalance(Connection connection, String uuid) throws SQLException {

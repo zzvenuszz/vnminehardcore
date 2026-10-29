@@ -61,6 +61,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
@@ -102,6 +103,8 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
     private final Map<UUID, Long> nextBossDropClaimAt = new HashMap<>();
     private final Set<CreatureSpawnEvent.SpawnReason> allowedSpawnReasons = new HashSet<>();
     private final Set<UUID> pendingMerchantPurchases = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> pendingWalletTransfers = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, PendingTransferName> pendingTransferNames = new ConcurrentHashMap<>();
     private final Set<UUID> pendingMerchantSales = ConcurrentHashMap.newKeySet();
     private final Set<UUID> reconcilingMerchantDeliveries = ConcurrentHashMap.newKeySet();
     private final Set<UUID> reconcileMerchantDeliveriesAgain = new HashSet<>();
@@ -845,7 +848,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                 WalletMenuHolder holder = new WalletMenuHolder(player.getUniqueId());
                 Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Ví VNCOIN");
                 holder.inventory = inventory;
-                inventory.setItem(11, menuItem(Material.SUNFLOWER, "§6Ví VNCOIN: §e" + view.balance(),
+                inventory.setItem(20, menuItem(Material.SUNFLOWER, "§6Ví VNCOIN: §e" + view.balance(),
                     List.of("§7Đơn vị tiền tệ của VnMine.", "§7Số dư được lưu an toàn phía máy chủ.")));
                 List<String> historyLore = new ArrayList<>();
                 if (view.history().isEmpty()) {
@@ -856,8 +859,11 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
                             + " §6VNCOIN §8• §7" + entry.source());
                     }
                 }
-                inventory.setItem(15, menuItem(Material.BOOK, "§eGiao dịch gần đây", historyLore));
-                inventory.setItem(22, menuItem(Material.ARROW, "§7Về menu chính", List.of()));
+                inventory.setItem(22, menuItem(Material.BOOK, "§eMua/bán gần đây", historyLore));
+                inventory.setItem(24, menuItem(Material.EMERALD, "§aChuyển VNCOIN", List.of(
+                    "§7Chọn người chơi online hoặc nhập tên offline.",
+                    "§7Bạn sẽ kiểm tra và xác nhận số tiền trước khi gửi.")));
+                inventory.setItem(49, menuItem(Material.CRAFTING_TABLE, "§7Quay lại menu trước", List.of()));
                 player.openInventory(inventory);
                 debug("[RPG-DEBUG][VNCOIN] wallet-menu player=" + playerName + ", balance=" + view.balance()
                     + ", historyEntries=" + view.history().size());
@@ -871,8 +877,308 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         if (!(event.getWhoClicked() instanceof Player player)
                 || !holder.viewer.equals(player.getUniqueId())
                 || event.getClickedInventory() != event.getView().getTopInventory()) return;
-        if (event.getRawSlot() == 22 && plugin.getMercenaryManager() != null) {
+        if (event.getRawSlot() == 24) {
+            openTransferPlayerMenu(player, 0);
+        } else if (event.getRawSlot() == 49 && plugin.getMercenaryManager() != null) {
             plugin.getMercenaryManager().openMainMenu(player);
+        }
+    }
+
+    private void openTransferPlayerMenu(Player player, int requestedPage) {
+        List<? extends Player> online = Bukkit.getOnlinePlayers().stream()
+            .filter(target -> !target.getUniqueId().equals(player.getUniqueId()))
+            .sorted(java.util.Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER)).toList();
+        int pages = Math.max(1, (online.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        TransferPlayerHolder holder = new TransferPlayerHolder(player.getUniqueId(), page);
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Chuyển VNCOIN • Chọn người");
+        holder.inventory = inventory;
+        for (int slot = 0; slot < 45; slot++) {
+            int index = page * 45 + slot;
+            if (index >= online.size()) break;
+            Player target = online.get(index);
+            holder.targets.put(slot, new TransferTarget(target.getUniqueId(), target.getName()));
+            inventory.setItem(slot, menuItem(Material.PLAYER_HEAD, "§b" + target.getName(), List.of(
+                "§7Trạng thái: §aĐang online", "§eNhấn để nhập số VNCOIN chuyển.")));
+        }
+        if (online.isEmpty()) inventory.setItem(22, menuItem(Material.BARRIER, "§7Không có người chơi online khác", List.of(
+            "§7Bạn vẫn có thể nhập tên người chơi offline ở nút cuối.")));
+        if (page > 0) inventory.setItem(45, menuItem(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        inventory.setItem(46, menuItem(Material.NAME_TAG, "§eNhập tên người chơi offline", List.of(
+            "§7Chỉ gửi đến tài khoản đã từng vào server.", "§eNhấn rồi nhập tên trong chat.")));
+        inventory.setItem(48, menuItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages,
+            List.of("§7Người chơi online: " + online.size())));
+        inventory.setItem(49, menuItem(Material.CRAFTING_TABLE, "§7Quay lại ví VNCOIN", List.of()));
+        if (page + 1 < pages) inventory.setItem(50, menuItem(Material.CYAN_CARPET, "§eTrang tiếp", List.of()));
+        inventory.setItem(53, menuItem(Material.BARRIER, "§cĐóng", List.of()));
+        player.openInventory(inventory);
+    }
+
+    private void openTransferAmountMenu(Player player, TransferTarget target, long amount) {
+        openTransferAmountMenu(player, target, amount, null);
+    }
+
+    private void openTransferAmountMenu(Player player, TransferTarget target, long amount, Inventory parentMenu) {
+        long safeAmount = Math.max(1L, Math.min(PlayerProfileDatabaseManager.MAX_WALLET_BALANCE, amount));
+        TransferAmountHolder holder = new TransferAmountHolder(player.getUniqueId(), target, safeAmount, parentMenu);
+        Inventory inventory = Bukkit.createInventory(holder, 54, "VnMine • Chuyển VNCOIN • Số tiền");
+        holder.inventory = inventory;
+        inventory.setItem(4, menuItem(Material.PAPER, "§eNgười nhận: §f" + target.name(), List.of(
+            "§7UUID: §8" + target.uuid())));
+        inventory.setItem(13, menuItem(Material.SUNFLOWER, "§6Số tiền: §e" + formatCoinAmount(safeAmount), List.of(
+            "§7Dùng các nút bên dưới để chỉnh số tiền.")));
+        long[] deltas = {-1000, -100, -10, -1, 1, 10, 100, 1000};
+        int[] slots = {19, 20, 21, 22, 24, 25, 26, 27};
+        for (int i = 0; i < slots.length; i++) {
+            long delta = deltas[i];
+            inventory.setItem(slots[i], menuItem(delta < 0 ? Material.RED_DYE : Material.LIME_DYE,
+                delta < 0 ? "§c" + delta : "§a+" + delta, List.of("§eNhấn để chỉnh số tiền.")));
+        }
+        inventory.setItem(45, menuItem(Material.CRAFTING_TABLE, "§7Quay lại chọn người chơi", List.of()));
+        inventory.setItem(49, menuItem(Material.LIME_DYE, "§aKiểm tra và chuyển", List.of(
+            "§7Bước tiếp theo sẽ yêu cầu bạn xác nhận lại.", "§eSố tiền: §6" + formatCoinAmount(safeAmount) + " VNCOIN")));
+        inventory.setItem(53, menuItem(Material.BARRIER, "§cĐóng", List.of()));
+        player.openInventory(inventory);
+        if (parentMenu != null && plugin.getMenuNavigationManager() != null) {
+            plugin.getMenuNavigationManager().linkParent(inventory, parentMenu);
+        }
+    }
+
+    private void openTransferConfirmation(Player player, TransferTarget target, long amount) {
+        openTransferConfirmation(player, target, amount, null);
+    }
+
+    private void openTransferConfirmation(Player player, TransferTarget target, long amount, Inventory parentMenu) {
+        if (amount < 1 || amount > PlayerProfileDatabaseManager.MAX_WALLET_BALANCE) {
+            player.sendMessage("§cSố tiền chuyển phải từ 1 đến "
+                + formatCoinAmount(PlayerProfileDatabaseManager.MAX_WALLET_BALANCE) + " VNCOIN.");
+            return;
+        }
+        TransferConfirmHolder holder = new TransferConfirmHolder(player.getUniqueId(), target, amount, parentMenu);
+        Inventory inventory = Bukkit.createInventory(holder, 27, "Xác nhận chuyển VNCOIN");
+        holder.inventory = inventory;
+        inventory.setItem(4, menuItem(Material.SUNFLOWER, "§6Kiểm tra kỹ giao dịch", List.of(
+            "§7Người nhận: §f" + target.name(), "§7Số tiền: §6" + formatCoinAmount(amount) + " VNCOIN",
+            "§cSau khi xác nhận, giao dịch không thể tự hoàn tác.")));
+        inventory.setItem(11, menuItem(Material.LIME_DYE, "§aXÁC NHẬN CHUYỂN", List.of(
+            "§7Chuyển §6" + formatCoinAmount(amount) + " VNCOIN§7 cho §f" + target.name() + "§7.",
+            "§cHãy kiểm tra lại đúng tên người nhận và số tiền.")));
+        inventory.setItem(15, menuItem(Material.RED_DYE, "§cHỦY GIAO DỊCH", List.of(
+            "§7Không có VNCOIN nào bị trừ.")));
+        player.openInventory(inventory);
+        if (parentMenu != null && plugin.getMenuNavigationManager() != null) {
+            plugin.getMenuNavigationManager().linkParent(inventory, parentMenu);
+        }
+    }
+
+    private void requestOfflineTransferName(Player player, int page) {
+        Inventory returnInventory = player.getOpenInventory().getTopInventory();
+        pendingTransferNames.put(player.getUniqueId(), new PendingTransferName(page, returnInventory));
+        player.closeInventory();
+        player.sendMessage("§6[VNCOIN] §eNhập tên người chơi offline, ví dụ: §fhoanbh§e. §7Gõ §c!cancel §7để hủy.");
+    }
+
+    @EventHandler
+    public void onTransferNameChat(AsyncPlayerChatEvent event) {
+        PendingTransferName pending = pendingTransferNames.remove(event.getPlayer().getUniqueId());
+        if (pending == null) return;
+        event.setCancelled(true);
+        String name = event.getMessage().trim();
+        Player player = event.getPlayer();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            if (name.equalsIgnoreCase("!cancel")) {
+                player.openInventory(pending.returnInventory());
+                return;
+            }
+            if (!name.matches("[A-Za-z0-9_]{3,16}") || name.equalsIgnoreCase(player.getName())) {
+                player.sendMessage("§cTên không hợp lệ hoặc bạn không thể chuyển tiền cho chính mình.");
+                player.openInventory(pending.returnInventory());
+                return;
+            }
+            Player online = Bukkit.getPlayerExact(name);
+            if (online != null) {
+                openTransferAmountMenu(player, new TransferTarget(online.getUniqueId(), online.getName()),
+                    1, pending.returnInventory());
+                return;
+            }
+            database.executeGameplayDatabaseTask("wallet.transfer-recipient-lookup name=" + name,
+                    () -> database.findKnownWalletPlayer(name))
+                .whenComplete((known, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (!player.isOnline()) return;
+                    if (failure != null) {
+                        plugin.getLogger().log(Level.SEVERE, "[Economy][Pay] Could not resolve offline recipient "
+                            + name, failure);
+                        player.sendMessage("§cKhông thể tìm người nhận lúc này.");
+                        return;
+                    }
+                    if (known.isEmpty()) {
+                        player.sendMessage("§cKhông tìm thấy tài khoản đã từng vào server tên §f" + name + "§c.");
+                        player.openInventory(pending.returnInventory());
+                        return;
+                    }
+                    TransferTarget target = new TransferTarget(UUID.fromString(known.get().uuid()), known.get().name());
+                    openTransferAmountMenu(player, target, 1, pending.returnInventory());
+                }));
+        });
+    }
+
+    private boolean handlePayCommand(CommandSender sender, String[] args) {
+        if (!economyEnabled) {
+            sender.sendMessage("§cHệ thống VNCOIN hiện đang tắt.");
+            return true;
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cLệnh /pay chỉ dùng trong game.");
+            return true;
+        }
+        if (args.length != 2) {
+            player.sendMessage("§eDùng: /pay <tên người chơi> <số tiền>");
+            return true;
+        }
+        long amount;
+        try { amount = Long.parseLong(args[1]); }
+        catch (NumberFormatException exception) { amount = -1; }
+        if (amount < 1 || amount > PlayerProfileDatabaseManager.MAX_WALLET_BALANCE) {
+            player.sendMessage("§cSố tiền phải là số nguyên từ 1 đến "
+                + formatCoinAmount(PlayerProfileDatabaseManager.MAX_WALLET_BALANCE) + ".");
+            return true;
+        }
+        final long transferAmount = amount;
+        String name = args[0];
+        if (!name.matches("[A-Za-z0-9_]{3,16}") || name.equalsIgnoreCase(player.getName())) {
+            player.sendMessage("§cTên không hợp lệ hoặc bạn không thể chuyển cho chính mình.");
+            return true;
+        }
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) {
+            openTransferConfirmation(player, new TransferTarget(online.getUniqueId(), online.getName()), transferAmount);
+            return true;
+        }
+        database.executeGameplayDatabaseTask("wallet.pay-recipient-lookup name=" + name,
+                () -> database.findKnownWalletPlayer(name))
+            .whenComplete((known, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][Pay] Could not resolve recipient " + name, failure);
+                    player.sendMessage("§cKhông thể tìm người nhận lúc này.");
+                } else if (known.isEmpty()) {
+                    player.sendMessage("§cKhông tìm thấy tài khoản đã từng vào server tên §f" + name + "§c.");
+                } else {
+                    openTransferConfirmation(player,
+                        new TransferTarget(UUID.fromString(known.get().uuid()), known.get().name()), transferAmount);
+                }
+            }));
+        return true;
+    }
+
+    private void executeWalletTransfer(Player sender, TransferTarget target, long amount) {
+        UUID senderId = sender.getUniqueId();
+        if (senderId.equals(target.uuid())) {
+            sender.sendMessage("§cBạn không thể chuyển VNCOIN cho chính mình.");
+            return;
+        }
+        if (!pendingWalletTransfers.add(senderId)) {
+            sender.sendMessage("§eĐang xử lý giao dịch VNCOIN trước đó, vui lòng chờ.");
+            return;
+        }
+        String senderName = sender.getName();
+        String transaction = UUID.randomUUID().toString();
+        debug("[RPG-DEBUG][VNCOIN][Pay] started sender=" + senderName + ", recipient=" + target.name()
+            + ", amount=" + amount + ", transaction=" + transaction);
+        database.executeGameplayDatabaseTask("wallet.transfer sender=" + senderName + " amount=" + amount,
+                () -> database.transferWallet(senderId.toString(), target.uuid().toString(), amount,
+                    "pay:" + transaction + ":out", "pay:" + transaction + ":in",
+                    senderId.toString(), target.uuid().toString(), "Chuyển VNCOIN cho " + target.name(),
+                    "Nhận VNCOIN từ " + senderName, Instant.now().toString()))
+            .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                pendingWalletTransfers.remove(senderId);
+                if (failure != null) {
+                    plugin.getLogger().log(Level.SEVERE, "[Economy][Pay] Transfer failed: sender=" + senderName
+                        + ", recipient=" + target.name() + ", amount=" + amount + ", transaction=" + transaction,
+                        failure);
+                    if (sender.isOnline()) sender.sendMessage("§cChuyển VNCOIN thất bại. Số dư được giữ nguyên.");
+                    return;
+                }
+                if (result.status() == PlayerProfileDatabaseManager.WalletTransferStatus.INSUFFICIENT_FUNDS) {
+                    if (sender.isOnline()) sender.sendMessage("§cBạn không đủ VNCOIN để chuyển số tiền này.");
+                    return;
+                }
+                if (result.status() == PlayerProfileDatabaseManager.WalletTransferStatus.RECIPIENT_LIMIT) {
+                    if (sender.isOnline()) sender.sendMessage("§cVí người nhận đã đạt giới hạn số dư.");
+                    return;
+                }
+                debug("[RPG-DEBUG][VNCOIN][Pay] completed sender=" + senderName + ", recipient="
+                    + target.name() + ", amount=" + amount + ", senderBalance=" + result.senderBalance()
+                    + ", recipientBalance=" + result.recipientBalance() + ", transaction=" + transaction);
+                if (sender.isOnline()) {
+                    sender.sendMessage("§aĐã chuyển §6" + formatCoinAmount(amount) + " VNCOIN§a cho §f"
+                        + target.name() + "§a. Số dư còn lại: §e" + formatCoinAmount(result.senderBalance()));
+                    openWalletMenu(sender);
+                }
+                Player recipient = Bukkit.getPlayer(target.uuid());
+                if (recipient != null) recipient.sendMessage("§aBạn nhận được §6" + formatCoinAmount(amount)
+                    + " VNCOIN §atừ §f" + senderName + "§a.");
+            }));
+    }
+
+    @EventHandler
+    public void onTransferPlayerMenuClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof TransferPlayerHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        int slot = event.getRawSlot();
+        if (slot == 49) openWalletMenu(player);
+        else if (slot == 45 && holder.page > 0) openTransferPlayerMenu(player, holder.page - 1);
+        else if (slot == 50) openTransferPlayerMenu(player, holder.page + 1);
+        else if (slot == 46) requestOfflineTransferName(player, holder.page);
+        else if (slot == 53) player.closeInventory();
+        else {
+            TransferTarget target = holder.targets.get(slot);
+            if (target != null) openTransferAmountMenu(player, target, 1, holder.inventory);
+        }
+    }
+
+    @EventHandler
+    public void onTransferAmountMenuClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof TransferAmountHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        int slot = event.getRawSlot();
+        if (slot == 45) {
+            if (holder.parentMenu != null) player.openInventory(holder.parentMenu);
+            else openTransferPlayerMenu(player, 0);
+        }
+        else if (slot == 49) openTransferConfirmation(player, holder.target, holder.amount, holder.inventory);
+        else if (slot == 53) player.closeInventory();
+        else {
+            int[] slots = {19, 20, 21, 22, 24, 25, 26, 27};
+            long[] deltas = {-1000, -100, -10, -1, 1, 10, 100, 1000};
+            for (int index = 0; index < slots.length; index++) {
+                if (slots[index] == slot) {
+                    long next = Math.max(1, Math.min(PlayerProfileDatabaseManager.MAX_WALLET_BALANCE,
+                        holder.amount + deltas[index]));
+                    openTransferAmountMenu(player, holder.target, next, holder.parentMenu);
+                    return;
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onTransferConfirmClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof TransferConfirmHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
+                || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        if (event.getRawSlot() == 11) {
+            player.closeInventory();
+            executeWalletTransfer(player, holder.target, holder.amount);
+        } else if (event.getRawSlot() == 15) {
+            if (holder.parentMenu != null) player.openInventory(holder.parentMenu);
+            else openWalletMenu(player);
         }
     }
 
@@ -2131,6 +2437,7 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("pay")) return handlePayCommand(sender, args);
         debug("[RPG-DEBUG][Command] command=/vncoin, sender=" + sender.getName()
             + ", args=" + String.join(" ", args));
         if (!economyEnabled) {
@@ -2342,6 +2649,14 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (command.getName().equalsIgnoreCase("pay")) {
+            if (args.length == 1) return matching(args[0], Bukkit.getOnlinePlayers().stream()
+                .filter(target -> !(sender instanceof Player player)
+                    || !target.getUniqueId().equals(player.getUniqueId()))
+                .map(Player::getName).toList());
+            if (args.length == 2) return matching(args[1], List.of("1"));
+            return List.of();
+        }
         if (args.length == 1) {
             List<String> choices = new ArrayList<>(List.of("balance", "history"));
             if (sender.hasPermission(ADMIN_PERMISSION)) choices.add("stats");
@@ -2445,6 +2760,58 @@ public final class EconomyManager implements Listener, CommandExecutor, TabCompl
         public Inventory getInventory() {
             return inventory;
         }
+    }
+
+    private record TransferTarget(UUID uuid, String name) { }
+
+    private record PendingTransferName(int page, Inventory returnInventory) { }
+
+    private static final class TransferPlayerHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final int page;
+        private final Map<Integer, TransferTarget> targets = new HashMap<>();
+        private Inventory inventory;
+
+        private TransferPlayerHolder(UUID viewer, int page) {
+            this.viewer = viewer;
+            this.page = page;
+        }
+
+        @Override public Inventory getInventory() { return inventory; }
+    }
+
+    private static final class TransferAmountHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final TransferTarget target;
+        private final long amount;
+        private final Inventory parentMenu;
+        private Inventory inventory;
+
+        private TransferAmountHolder(UUID viewer, TransferTarget target, long amount, Inventory parentMenu) {
+            this.viewer = viewer;
+            this.target = target;
+            this.amount = amount;
+            this.parentMenu = parentMenu;
+        }
+
+        @Override public Inventory getInventory() { return inventory; }
+    }
+
+    private static final class TransferConfirmHolder implements InventoryHolder {
+        private final UUID viewer;
+        private final TransferTarget target;
+        private final long amount;
+        private final Inventory parentMenu;
+        private Inventory inventory;
+
+        private TransferConfirmHolder(UUID viewer, TransferTarget target, long amount, Inventory parentMenu) {
+            this.viewer = viewer;
+            this.target = target;
+            this.amount = amount;
+            this.parentMenu = parentMenu;
+        }
+
+        @Override public Inventory getInventory() { return inventory; }
     }
 
     private static final class MerchantMenuHolder implements InventoryHolder {

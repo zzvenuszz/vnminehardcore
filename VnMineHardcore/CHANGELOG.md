@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.36.10 — 2026-10-29
+
+- Lưu đường quay lại theo GUI nguồn để menu con mở từ `/vninit` và các nhánh khác trở về đúng nơi đã mở; chuẩn hóa nút quay lại thành Bàn chế tạo, trang trước thành thảm xanh lá mạ và trang tiếp thành thảm xanh nước biển.
+- Sắp xếp lại ví VNCOIN với nút quay lại ở hàng cuối; thêm menu chuyển tiền cho người chơi online và nhập tên người chơi offline, các mức cộng/trừ 1, 10, 100, 1000 cùng màn hình xác nhận người nhận và số tiền.
+- Thêm `/pay <tên người chơi> <số tiền>`; giao dịch chuyển tiền được ghi atomically trong một transaction DB và không cho phép tự chuyển, vượt số dư hay vượt giới hạn ví.
+- Lịch sử ví chỉ hiện các giao dịch mua/bán tại shop; việc nhặt coin và các nguồn khác không còn lẫn vào lịch sử này.
+- Schema Build chấp nhận schematic chứa `waterlogged=false` không được API server hỗ trợ bằng cách loại riêng thuộc tính false đó và giữ nguyên các thuộc tính còn lại như `axis=z`.
+
 ## 2.36.9 — 2026-10-29
 
 - Làm rõ nút chọn NPC Tutorial trong menu sửa đại lục `/vninit`; danh sách hiển thị tên, ID, world và NPC đang được gán, chỉ liệt kê loại `tutorial` trong đúng world.
