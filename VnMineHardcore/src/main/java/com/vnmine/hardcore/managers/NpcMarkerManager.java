@@ -107,17 +107,13 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
         if (!hasAvailableQuest && !unreadStory && !tutorialPending) return null;
         List<String> hologramLines = new java.util.ArrayList<>();
         if (hasAvailableQuest) {
-            // Compose the quest exclamation from multiple bold glyph lines for a clear hologram silhouette.
-            hologramLines.add("§6✦");
+            // Compose the quest exclamation from its bold stem and dot, without decorative glyphs.
             hologramLines.add("§e§l┃");
             hologramLines.add("§e§l●");
-            hologramLines.add("§6✦");
         }
         if (unreadStory || tutorialPending) {
             if (!hologramLines.isEmpty()) hologramLines.add("");
-            hologramLines.add("§b✦");
             hologramLines.add("§b§l?");
-            hologramLines.add("§b✦");
         }
         return String.join("\n", hologramLines);
     }
@@ -228,7 +224,7 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
         double configured = plugin.getConfig().getDouble("rpg.npc.markers.scale", 2.0);
         double baseScale = Double.isFinite(configured) && configured >= 1.0 && configured <= 4.0
             ? configured : 2.0;
-        return (float) (baseScale * 3.0);
+        return (float) (baseScale * 1.5);
     }
 
     private void debug(String message) {

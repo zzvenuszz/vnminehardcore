@@ -1194,3 +1194,12 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] JAR `VnMineHardcore-2.41.0.jar`, 2.562.665 bytes, SHA-256 `6334f07f15b837a9074ef6658c3d3462d403f9eb48bf6640024ea1fc647a7e73`; xác minh chỉ chứa SQLite native Linux x86_64.
 - [x] Sao lưu 2.39.2 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.39.2-pre-2.41.0-20261030.jar`; cài 2.41.0 vào `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.41.0.jar`, checksum khớp artifact và chỉ còn một JAR plugin hoạt động.
 - [ ] Chưa gameplay test. Cần kiểm tra glyph với resource pack/client khác nhau, khoảng cách đọc, vị trí trên NPC cao, visibility xuyên tường và hiệu năng khi nhiều marker cùng lúc; đồng thời kiểm tra editor quest khởi đầu và quest được giao từ NPC tutorial.
+
+## Tinh chỉnh marker theo phản hồi — 2.41.1 — 2026-10-30
+
+- [x] Giảm scale mặc định từ 6.0 xuống 3.0 (50%); giữ hệ số cấu hình nền hiện tại tương thích và đổi phép nhân từ 3.0 sang 1.5.
+- [x] Bỏ glyph ngôi sao. Dấu `!` chỉ ghép từ thân `┃` và chấm `●` in đậm trên hai dòng; dấu `?` bỏ glyph trang trí.
+- [x] `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64 mvn -DskipTests clean package` thành công lúc `2026-10-30 14:31:22 UTC`; test suite được bỏ qua.
+- [x] JAR `VnMineHardcore-2.41.1.jar`, 2.562.624 bytes, SHA-256 `0ba37f187ec378f59e2ad5abf10b01fdf6d9ad1b1cc2695632bc5c767c757c70`; xác minh chỉ chứa SQLite native Linux x86_64.
+- [x] Sao lưu 2.41.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.41.0-pre-2.41.1-20261030.jar`, cài 2.41.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.41.1.jar`; checksum khớp artifact và chỉ còn một JAR plugin hoạt động.
+- [ ] Chưa test trên client. Cần xem độ dễ đọc và khoảng cách sau restart server.

@@ -1,5 +1,12 @@
 # Changelog
 
+## [v2.41.1] - 2026-10-30
+
+- Giảm kích thước hologram marker NPC còn 50% so với 2.41.0 (scale mặc định 6 → 3).
+- Bỏ glyph ngôi sao; dấu `!` chỉ còn thân và chấm in đậm trên hai dòng. Bỏ glyph trang trí quanh dấu `?`.
+- Build Java 25 thành công lúc `2026-10-30 14:31:22 UTC`; test suite bỏ qua. JAR 2.41.1: 2.562.624 bytes, SHA-256 `0ba37f187ec378f59e2ad5abf10b01fdf6d9ad1b1cc2695632bc5c767c757c70`.
+- Backup 2.41.0 và cài 2.41.1 vào thư mục plugin; chưa gameplay test sau restart.
+
 ## [v2.41.0] - 2026-10-30
 
 - Phóng lớn hologram dấu quest `!` lên scale hiển thị mặc định 6.0 (gấp 3 scale trước), dùng thân/chấm đậm cùng glyph trang trí nhiều dòng; marker `?` cũng có bố cục hologram đồng bộ.

@@ -267,8 +267,8 @@ rpg:
       # [VI] Tầm hiển thị marker tính theo block; mặc định 48, hợp lệ 8-128.
       # [EN] Marker visibility range in blocks; default 48, valid range 8-128.
       tracking-range-blocks: 48
-      # [VI] Hệ số nền của hologram !/?; mặc định 2.0 được nhân 3 thành scale hiển thị 6.0, hợp lệ 1.0-4.0 (scale hiển thị 3.0-12.0).
-      # [EN] Base scale for !/? holograms; default 2.0 is multiplied by 3 for display scale 6.0, valid 1.0-4.0 (display scale 3.0-12.0).
+      # [VI] Hệ số nền của hologram !/?; mặc định 2.0 được nhân 1.5 thành scale hiển thị 3.0, hợp lệ 1.0-4.0 (scale hiển thị 1.5-6.0).
+      # [EN] Base scale for !/? holograms; default 2.0 is multiplied by 1.5 for display scale 3.0, valid 1.0-4.0 (display scale 1.5-6.0).
       scale: 2.0
   text-display:
     # [VI] Số text display quản lý tối đa; mặc định 100, hợp lệ 1-500.
