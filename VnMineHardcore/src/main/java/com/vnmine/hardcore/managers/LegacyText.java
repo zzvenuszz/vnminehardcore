@@ -13,19 +13,21 @@ public final class LegacyText {
         if (input == null || input.isEmpty()) return input == null ? "" : input;
         StringBuilder output = new StringBuilder(input.length() + 16);
         int cursor = 0;
+        boolean foundRainbow = false;
         while (cursor < input.length()) {
             RainbowToken token = rainbowAt(input, cursor);
             if (token == null) {
                 cursor++;
                 continue;
             }
+            foundRainbow = true;
             output.append(ChatColor.translateAlternateColorCodes('&', input.substring(cursor, token.start())));
             int segmentEnd = token.end();
             while (segmentEnd < input.length() && rainbowAt(input, segmentEnd) == null) segmentEnd++;
             appendRainbow(output, input.substring(token.end(), segmentEnd), token.mode());
             cursor = segmentEnd;
         }
-        if (cursor == 0) return ChatColor.translateAlternateColorCodes('&', input);
+        if (!foundRainbow) return ChatColor.translateAlternateColorCodes('&', input);
         return output.append(ChatColor.translateAlternateColorCodes('&', input.substring(cursor))).toString();
     }
 

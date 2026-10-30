@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.36.16 — 2026-10-30
+
+- Fix formatter `LegacyText`: văn bản thường không có marker rainbow trước đó trả về chuỗi rỗng, làm title quest bị từ chối khi plugin khởi động. Nay đường xử lý text thường vẫn dịch mã màu `&` và giữ nguyên nội dung.
+
 ## 2.36.15 — 2026-10-30
 
 - Hoàn thiện cache quyền màu/format alias để kiểm tra Bukkit permissions khi quyền được cấp hoặc thu hồi, không gọi permission API từ luồng chat async.

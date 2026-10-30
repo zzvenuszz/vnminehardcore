@@ -1,3 +1,12 @@
+## Fix plugin tự disable khi khởi động 2.36.15 — log 2026-10-30
+
+- [x] `latest.log` cho thấy plugin 2.36.15 dừng ở `QuestCatalogManager.loadDefinitions()` với `Quest 'world-start-class-nhan-toc-selected' has invalid fields or unsupported bounds.`
+- [x] Nguyên nhân: `LegacyText.translate()` trả chuỗi rỗng cho input không chứa rainbow marker; tên quest First Step bị coi là trống. Các lỗi `/feed`, `/debug` và tab-completion sau đó xảy ra do plugin đã bị disable.
+- [x] Sửa formatter để text bình thường vẫn được chuyển màu legacy và giữ nguyên nội dung.
+- [x] Build Java 25 bằng `mvn -DskipTests package`, version 2.36.16; JAR 3,106,873 bytes, SHA-256 `dbae8f8f54cdc2f6a08b6fc8356ee137653c811676d6d33ad402de078b3e52a9`; có SQLite native Linux x86_64 và AArch64.
+- [x] Sao lưu 2.36.15 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.15-pre-2.36.16-20261030.jar`, cài 2.36.16 tại thư mục plugin; chỉ còn một JAR VnMineHardcore ở cấp thư mục plugin.
+- [ ] Restart xác nhận plugin enable cùng quest catalog load thành công.
+
 ## Alias, format text và quest-dialog riêng theo quest — yêu cầu 2026-10-30
 
 - [x] Thêm formatter legacy dùng chung cho mã màu `&0–&f`, format `&k–&o`, `&r` và rainbow `&rl`, `&r1`, `&r2`, `&r3`; áp dụng cho tên NPC/đại lục, text display, sign, nhãn quest/item, dialogue và nội dung leaderboard có cấu hình.
