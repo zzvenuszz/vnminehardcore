@@ -109,6 +109,12 @@ public final class PermissionManager implements Listener, CommandExecutor, TabCo
         String group = data.getString(path + ".group", defaultGroup);
         addPermissions(attachment, "groups." + group + ".permissions");
         addPermissions(attachment, path + ".permissions");
+        // Permission attachments can explicitly deny a node and override Bukkit's default-op
+        // permission value. Restore every plugin-declared node for operators after group/user data.
+        if (player.isOp()) {
+            plugin.getDescription().getPermissions().forEach(permission ->
+                attachment.setPermission(permission.getName(), true));
+        }
         if (plugin.getAliasManager() != null) plugin.getAliasManager().refreshPermissionCache(player);
     }
 

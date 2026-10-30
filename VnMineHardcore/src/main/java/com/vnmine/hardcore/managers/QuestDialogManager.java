@@ -62,7 +62,8 @@ public final class QuestDialogManager implements Listener {
     }
 
     public void openSelector(Player player, String selectedId, Consumer<String> callback) {
-        player.sendMessage("§cKhông xác định được quest và trạng thái cho quest-dialog này.");
+        openSelector(player, selectedId,
+            new DialogContext("", "AVAILABLE", 0, selectedId, callback), 0);
     }
 
     public void openSelector(Player player, String selectedId, Consumer<String> callback,
@@ -82,15 +83,17 @@ public final class QuestDialogManager implements Listener {
         List<QuestDialog> values = dialogs.values().stream()
             .filter(dialog -> visibleFor(dialog, context))
             .sorted(java.util.Comparator.comparing(QuestDialog::id)).toList();
-        int pageCount = Math.max(1, (values.size() + 44) / 45);
+        int pageCount = Math.max(1, (values.size() + 17) / 18);
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         DialogContext pageContext = context.withPage(page);
         DialogHolder holder = new DialogHolder(player.getUniqueId(), Menu.SELECT, null, page, context.callback(), pageContext);
         holder.selectedId = selectedId;
         Inventory menu = Bukkit.createInventory(holder, 54, "Quest-dialog • " + context.dialogType());
         holder.inventory = menu;
-        for (int slot = 0; slot < 45 && page * 45 + slot < values.size(); slot++) {
-            QuestDialog dialog = values.get(page * 45 + slot);
+        for (int slot = 18; slot <= 26; slot++)
+            menu.setItem(slot, item(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
+        for (int slot = 0; slot < 18 && page * 18 + slot < values.size(); slot++) {
+            QuestDialog dialog = values.get(page * 18 + slot);
             menu.setItem(slot, item(Material.WRITABLE_BOOK,
                 (dialog.id().equals(selectedId) ? "§a✓ " : "§f") + LegacyText.translate(dialog.title()),
                 List.of("§7ID: §f" + dialog.id(), "§7Loại: §f" + dialogTypeLabel(dialog.type()),
@@ -98,22 +101,30 @@ public final class QuestDialogManager implements Listener {
                     "§7Số trang: §f" + dialog.pages().size(), "§eChuột trái: chọn • chuột phải: sửa")));
             holder.dialogSlots.put(slot, dialog.id());
         }
-        menu.setItem(45, item(Material.BARRIER, "§cKhông dùng hội thoại", List.of("§7Xóa lựa chọn hiện tại.")));
-        menu.setItem(46, item(Material.LIME_DYE, "§aTạo dialog cho quest này", List.of(
+        menu.setItem(27, item(Material.BARRIER, "§cKhông dùng hội thoại", List.of("§7Xóa lựa chọn hiện tại.")));
+        boolean hasQuestContext = context.questId() != null && !context.questId().isBlank();
+        menu.setItem(28, item(!hasQuestContext ? Material.BARRIER : Material.LIME_DYE,
+            !hasQuestContext ? "§8Tạo dialog tại edit quest" : "§aTạo dialog cho quest này", List.of(
             "§7Loại dialog: §f" + dialogTypeLabel(context.dialogType()),
-            "§7Sau khi nhập nội dung, chọn dialog riêng hoặc public.", "§eNhấn để bắt đầu.")));
-        if (page > 0) menu.setItem(48, item(Material.LIME_CARPET, "§eTrang trước", List.of()));
+            !hasQuestContext ? "§7Dialog mở đầu ở đây chỉ chọn dialog public đã tạo từ quest."
+                : "§7Sau khi nhập nội dung, chọn dialog riêng hoặc public.",
+            !hasQuestContext ? "§8Không thể tạo dialog thiếu quest context." : "§eNhấn để bắt đầu.")));
+        if (page > 0) menu.setItem(45, item(Material.LIME_CARPET, "§eTrang trước", List.of()));
         menu.setItem(49, item(Material.CRAFTING_TABLE, "§eQuay lại quest", List.of()));
-        if (page + 1 < pageCount) menu.setItem(50, item(Material.CYAN_CARPET, "§eTrang sau", List.of()));
-        menu.setItem(53, item(Material.PAPER, "§fĐang chọn: " + (selectedId == null ? "không có" : selectedId),
-            List.of("§7Trang " + (page + 1) + "/" + pageCount)));
-        if (values.isEmpty()) menu.setItem(22, item(Material.BOOK, "§7Chưa có dialog phù hợp", List.of(
-            "§7Dialog private của quest khác không xuất hiện ở đây.", "§eDùng nút tạo để viết hội thoại cho trạng thái này.")));
+        menu.setItem(51, item(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
+            List.of("§7Đang chọn: " + (selectedId == null ? "không có" : selectedId))));
+        if (page + 1 < pageCount) menu.setItem(53, item(Material.CYAN_CARPET, "§eTrang sau", List.of()));
+        if (values.isEmpty()) menu.setItem(4, item(Material.BOOK, "§7Chưa có dialog phù hợp", List.of(
+            "§7Dialog private của quest khác không xuất hiện ở đây.",
+            hasQuestContext ? "§eDùng nút tạo để viết hội thoại cho trạng thái này."
+                : "§eTạo dialog public loại Có thể nhận trong phần edit quest.")));
         player.openInventory(menu);
     }
 
     private boolean visibleFor(QuestDialog dialog, DialogContext context) {
         if ("LEGACY".equals(dialog.type())) return dialog.isPublic();
+        if (context.questId() == null || context.questId().isBlank())
+            return dialog.isPublic() && "AVAILABLE".equals(dialog.type());
         if (!dialog.type().equals(context.dialogType())) return false;
         return dialog.isPublic() || context.questId().equals(dialog.questId());
     }
@@ -276,7 +287,21 @@ public final class QuestDialogManager implements Listener {
         String formatted = LegacyText.translate(speaker);
         String plain = ChatColor.stripColor(formatted);
         if (plain.length() <= 20) return formatted;
-        return LegacyText.translate(plain.substring(0, 20));
+        StringBuilder shortened = new StringBuilder(formatted.length());
+        int visible = 0;
+        for (int offset = 0; offset < formatted.length() && visible < 20;) {
+            char current = formatted.charAt(offset);
+            if (current == ChatColor.COLOR_CHAR && offset + 1 < formatted.length()) {
+                shortened.append(current).append(formatted.charAt(offset + 1));
+                offset += 2;
+                continue;
+            }
+            int codePoint = formatted.codePointAt(offset);
+            shortened.appendCodePoint(codePoint);
+            visible++;
+            offset += Character.charCount(codePoint);
+        }
+        return shortened.toString();
     }
 
     @EventHandler
@@ -291,15 +316,19 @@ public final class QuestDialogManager implements Listener {
         }
         int slot = event.getRawSlot();
         if (holder.menu == Menu.SELECT) {
-            if (slot == 45) {
+            if (slot == 27) {
                 finishSelection(player, holder, null);
-            } else if (slot == 46) {
-                prompt(player, new PendingInput(InputField.CREATE_ID, null, holder.page, null, holder.context));
+            } else if (slot == 28) {
+                if (holder.context.questId() == null || holder.context.questId().isBlank()) {
+                    player.sendMessage("§eTạo dialog trong phần edit quest; tại đây chỉ chọn dialog public đã có.");
+                } else {
+                    prompt(player, new PendingInput(InputField.CREATE_ID, null, holder.page, null, holder.context));
+                }
             } else if (slot == 49) {
                 finishSelection(player, holder, holder.selectedId);
-            } else if (slot == 48) {
+            } else if (slot == 45) {
                 openSelector(player, holder.selectedId, holder.context, holder.page - 1);
-            } else if (slot == 50) {
+            } else if (slot == 53) {
                 openSelector(player, holder.selectedId, holder.context, holder.page + 1);
             } else if (holder.dialogSlots.containsKey(slot)) {
                 String id = holder.dialogSlots.get(slot);

@@ -26,7 +26,7 @@ public class TutorialQuestDefinitionLoaderTest {
         assertEquals("first-steps", definition.id());
         assertTrue(definition.enabled());
         assertEquals("reach-human-realm-spawn", definition.objective().id());
-        assertEquals("visit-realm-spawn", definition.objective().type());
+        assertEquals("visit-start-world-tutorial-npc", definition.objective().type());
         assertEquals("human-realm", definition.objective().realmId());
         assertEquals(8, definition.objective().radiusBlocks());
         assertTrue(definition.objective().waypointEnabled());
@@ -48,7 +48,7 @@ public class TutorialQuestDefinitionLoaderTest {
     @Test
     public void unsupportedObjectiveTypeRejectsTheWholeQuest() throws Exception {
         File file = copyDefinition("unsupported-type.yml");
-        replace(file, "type: visit-realm-spawn", "type: kill-monster");
+        replace(file, "type: visit-start-world-tutorial-npc", "type: kill-monster");
 
         assertTrue(TutorialQuestDefinitionLoader.load(file, Logger.getAnonymousLogger()).isEmpty());
     }

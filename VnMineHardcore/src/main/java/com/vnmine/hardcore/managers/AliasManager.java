@@ -17,6 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
@@ -50,9 +51,15 @@ public final class AliasManager implements Listener, CommandExecutor, TabComplet
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onChat(AsyncChatEvent event) {
+        Player player = event.getPlayer();
+        String plainMessage = PlainTextComponentSerializer.plainText().serialize(event.message());
+        String formattedMessage = renderText(player, plainMessage, false);
+        if (!formattedMessage.equals(plainMessage)) {
+            event.message(LegacyComponentSerializer.legacySection().deserialize(formattedMessage));
+        }
         Alias alias = aliases.get(event.getPlayer().getUniqueId());
         if (alias == null) return;
-        String formatted = renderAlias(event.getPlayer(), alias);
+        String formatted = renderAlias(player, alias);
         Component name = LegacyComponentSerializer.legacySection().deserialize(formatted);
         event.renderer(ChatRenderer.viewerUnaware((source, displayName, message) ->
             name.append(Component.text(": ")).append(message)));
@@ -69,18 +76,24 @@ public final class AliasManager implements Listener, CommandExecutor, TabComplet
     }
 
     private String renderAlias(Player player, Alias alias) {
-        if (alias.adminSet()) return LegacyText.translate(alias.value());
+        return renderText(player, alias.value(), alias.adminSet());
+    }
+
+    private String renderText(Player player, String input, boolean bypassFormattingPermissions) {
+        if (input == null || input.isEmpty()) return input == null ? "" : input;
+        if (bypassFormattingPermissions) return LegacyText.translate(input.replace('§', '&'));
+        String value = input.replace('§', '&');
         Set<String> allowed = formatPermissions.getOrDefault(player.getUniqueId(), Set.of());
-        StringBuilder safe = new StringBuilder(alias.value().length());
-        for (int i = 0; i < alias.value().length();) {
-            int rainbowLength = rainbowTokenLength(alias.value(), i);
+        StringBuilder safe = new StringBuilder(value.length());
+        for (int i = 0; i < value.length();) {
+            int rainbowLength = rainbowTokenLength(value, i);
             if (rainbowLength > 0) {
-                if (allowed.contains("vnmine.alias.rainbow")) safe.append(alias.value(), i, i + rainbowLength);
+                if (allowed.contains("vnmine.alias.rainbow")) safe.append(value, i, i + rainbowLength);
                 i += rainbowLength;
                 continue;
             }
-            if (alias.value().charAt(i) == '&' && i + 1 < alias.value().length()) {
-                char code = Character.toLowerCase(alias.value().charAt(i + 1));
+            if (value.charAt(i) == '&' && i + 1 < value.length()) {
+                char code = Character.toLowerCase(value.charAt(i + 1));
                 String permission = formatPermission(code);
                 if (permission != null) {
                     if (allowed.contains(permission)) safe.append('&').append(code);
@@ -88,7 +101,7 @@ public final class AliasManager implements Listener, CommandExecutor, TabComplet
                     continue;
                 }
             }
-            safe.append(alias.value().charAt(i++));
+            safe.append(value.charAt(i++));
         }
         return LegacyText.translate(safe.toString());
     }
@@ -112,13 +125,14 @@ public final class AliasManager implements Listener, CommandExecutor, TabComplet
         Set<String> allowed = new java.util.HashSet<>();
         for (char code : "0123456789abcdef".toCharArray()) {
             String permission = formatPermission(code);
-            if (player.hasPermission(permission)) allowed.add(permission);
+            if (player.isOp() || player.hasPermission(permission)) allowed.add(permission);
         }
         for (char code : "klmnor".toCharArray()) {
             String permission = formatPermission(code);
-            if (player.hasPermission(permission)) allowed.add(permission);
+            if (player.isOp() || player.hasPermission(permission)) allowed.add(permission);
         }
-        if (player.hasPermission("vnmine.alias.rainbow")) allowed.add("vnmine.alias.rainbow");
+        if (player.isOp() || player.hasPermission("vnmine.alias.rainbow"))
+            allowed.add("vnmine.alias.rainbow");
         formatPermissions.put(player.getUniqueId(), Set.copyOf(allowed));
     }
 

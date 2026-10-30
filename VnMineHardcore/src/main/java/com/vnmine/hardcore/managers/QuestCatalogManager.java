@@ -82,6 +82,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private final java.util.Set<UUID> questStateLoaded = ConcurrentHashMap.newKeySet();
     private final java.util.Set<UUID> questStateLoading = ConcurrentHashMap.newKeySet();
     private final Map<UUID, java.util.Set<String>> pendingNpcVisits = new ConcurrentHashMap<>();
+    private final Map<UUID, List<SelectionObjectiveEvent>> pendingSelectionObjectives = new ConcurrentHashMap<>();
     private final Map<UUID, PendingTextInput> pendingTextInputs = new ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingRequirementItems = new ConcurrentHashMap<>();
     private final Map<UUID, ItemStack> pendingObjectiveItems = new ConcurrentHashMap<>();
@@ -124,7 +125,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     public List<String> getQuestIdsForNpc(String npcId) {
         if (npcId == null) return List.of();
-        return definitions.values().stream().filter(quest -> quest.enabled() && quest.giverNpcId().equals(npcId))
+        return definitions.values().stream().filter(quest -> quest.enabled() && quest.giverNpcId().equalsIgnoreCase(npcId))
             .map(QuestDefinition::id).sorted(String.CASE_INSENSITIVE_ORDER).toList();
     }
 
@@ -136,6 +137,37 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     public List<String> getEnabledQuestIds() {
         return definitions.values().stream().filter(QuestDefinition::enabled)
             .map(QuestDefinition::id).sorted(String.CASE_INSENSITIVE_ORDER).toList();
+    }
+
+    /**
+     * Filters assignment candidates by explicit world/race scope. Quests without a scope,
+     * and quests marked as any world/race, remain available under every filter.
+     */
+    public boolean matchesQuestAssignmentScope(String questId, String realmId, String raceId) {
+        QuestDefinition quest = definitions.get(questId);
+        if (quest == null) return false;
+        Set<String> realms = new java.util.HashSet<>();
+        Set<String> races = new java.util.HashSet<>();
+        collectQuestScope(quest.objectiveType(), quest.itemId(), realms, races);
+        for (QuestObjective objective : quest.additionalObjectives())
+            collectQuestScope(objective.type(), objective.itemId(), realms, races);
+        for (QuestRequirement requirement : quest.requirements()) {
+            if (requirement.type() == RequirementType.SELECTED_CONTINENT) realms.add(requirement.value());
+            else if (requirement.type() == RequirementType.SELECTED_RACE) races.add(requirement.value());
+        }
+        return matchesScopeFilter(realms, realmId) && matchesScopeFilter(races, raceId);
+    }
+
+    private void collectQuestScope(ObjectiveType type, String value, Set<String> realms, Set<String> races) {
+        if (value == null || value.isBlank()) return;
+        if (type == ObjectiveType.WORLD_SELECT) realms.add(value);
+        else if (type == ObjectiveType.RACE_SELECT) races.add(value);
+    }
+
+    private boolean matchesScopeFilter(Set<String> questScope, String selectedFilter) {
+        if (selectedFilter == null || selectedFilter.isBlank() || "*".equals(selectedFilter)
+                || questScope.isEmpty() || questScope.contains("*")) return true;
+        return questScope.stream().anyMatch(scope -> scope.equalsIgnoreCase(selectedFilter));
     }
 
     public void openAdminCompletedQuests(Player admin, UUID targetId) {
@@ -326,6 +358,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     java.util.Set<String> queuedVisits = pendingNpcVisits.remove(id);
                     if (queuedVisits != null) queuedVisits.stream().sorted()
                         .forEach(npcId -> recordLoadedNpcVisit(player, npcId));
+                    flushPendingSelectionObjectives(player);
                 }
             }));
     }
@@ -394,7 +427,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 holder.trackingSlots.put(slot + 1, quest.id());
             }
         }
-        if (page > 0) menu.setItem(45, adminItem(Material.ARROW, "§eTrang trước", List.of()));
+        if (page > 0) menu.setItem(45, adminItem(Material.LIME_CARPET, "§eTrang trước", List.of()));
         menu.setItem(46, adminItem(Material.WRITABLE_BOOK, "§dNhật ký nhiệm vụ", List.of(
             "§7Xem các nhiệm vụ đã hoàn thành.")));
         menu.setItem(47, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
@@ -732,6 +765,26 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
             return;
         }
+        if (holder.menu == QuestMenu.OBJECTIVE_REALM_SELECT || holder.menu == QuestMenu.OBJECTIVE_RACE_SELECT) {
+            event.setCancelled(true);
+            if (!player.hasPermission(ADMIN_PERMISSION)
+                    || event.getClickedInventory() != event.getView().getTopInventory()) return;
+            if (slot == 49) openObjectivesMenu(player, holder.questId);
+            else if (slot == 45 && holder.page > 0) {
+                if (holder.menu == QuestMenu.OBJECTIVE_REALM_SELECT)
+                    openObjectiveRealmChoices(player, holder.questId, holder.page - 1);
+                else openObjectiveRaceChoices(player, holder.questId, holder.page - 1);
+            } else if (slot == 53) {
+                if (holder.menu == QuestMenu.OBJECTIVE_REALM_SELECT)
+                    openObjectiveRealmChoices(player, holder.questId, holder.page + 1);
+                else openObjectiveRaceChoices(player, holder.questId, holder.page + 1);
+            } else if (holder.questSlots.containsKey(slot)) {
+                addSelectionObjective(player, holder.questId,
+                    holder.menu == QuestMenu.OBJECTIVE_REALM_SELECT ? ObjectiveType.WORLD_SELECT : ObjectiveType.RACE_SELECT,
+                    holder.questSlots.get(slot));
+            }
+            return;
+        }
         if (holder.menu == QuestMenu.CONTINENT_SELECT || holder.menu == QuestMenu.RACE_SELECT) {
             event.setCancelled(true);
             if (!player.hasPermission(ADMIN_PERMISSION)
@@ -784,7 +837,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             }
             if (slot != 11) return;
             QuestDefinition quest = definitions.get(holder.questId);
-            if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(holder.npcId)) {
+            if (quest == null || !quest.enabled() || !quest.giverNpcId().equalsIgnoreCase(holder.npcId)) {
                 player.closeInventory();
                 player.sendMessage("§cNhiệm vụ không còn khả dụng tại NPC này.");
                 return;
@@ -1069,7 +1122,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         if (stepPage + 1 < stepPages) menu.setItem(46, adminItem(Material.ARROW, "§eBước sau", List.of()));
         menu.setItem(48, adminItem(Material.PAPER, "§fBước " + (stepPage + 1) + "/" + stepPages,
             List.of("§7Tổng bước: " + objectives.size())));
-        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại quest", List.of()));
+        menu.setItem(49, adminItem(Material.CRAFTING_TABLE, "§eQuay lại quest", List.of()));
         if (optionPage > 0) menu.setItem(50, adminItem(Material.ARROW, "§eLoại trước", List.of()));
         menu.setItem(51, adminItem(Material.PAPER, "§fLoại " + (optionPage + 1) + "/" + optionPages,
             List.of("§7Chọn loại mục tiêu ở hai hàng dưới.")));
@@ -1082,6 +1135,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private List<ObjectiveType> availableObjectiveTypes() {
         return List.of(ObjectiveType.KILL_MOB, ObjectiveType.KILL_BOSS,
             ObjectiveType.COLLECT_EXACT_ITEM, ObjectiveType.SUBMIT_EXACT_ITEM, ObjectiveType.VISIT_NPC,
+            ObjectiveType.WORLD_SELECT, ObjectiveType.RACE_SELECT,
             ObjectiveType.BLOCK_BREAK, ObjectiveType.FISHING, ObjectiveType.TAME,
             ObjectiveType.CRAFT, ObjectiveType.ITEM_CONSUME, ObjectiveType.ENCHANT,
             ObjectiveType.BREW, ObjectiveType.SELL, ObjectiveType.PURCHASE,
@@ -1107,6 +1161,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             case COLLECT_EXACT_ITEM, COLLECT_RPG_ITEM -> Material.HOPPER;
             case SUBMIT_EXACT_ITEM -> Material.CHEST;
             case VISIT_NPC -> Material.VILLAGER_SPAWN_EGG;
+            case WORLD_SELECT -> Material.MAP;
+            case RACE_SELECT -> Material.TOTEM_OF_UNDYING;
         };
     }
 
@@ -1129,6 +1185,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             case COLLECT_EXACT_ITEM -> "Thu thập item";
             case SUBMIT_EXACT_ITEM -> "Nộp item";
             case VISIT_NPC -> "Gặp NPC";
+            case WORLD_SELECT -> "Chọn đại lục";
+            case RACE_SELECT -> "Chọn chủng tộc";
             case COLLECT_RPG_ITEM -> "Thu thập item RPG";
         };
     }
@@ -1196,7 +1254,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         }
         if (bossIds.isEmpty()) menu.setItem(22, adminItem(Material.BARRIER, "§cChưa có boss hệ thống", List.of(
             "§7Hãy tạo boss trước trong phần quản lý boss.")));
-        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại mục tiêu", List.of()));
+        menu.setItem(49, adminItem(Material.CRAFTING_TABLE, "§eQuay lại mục tiêu", List.of()));
         if (page > 0) menu.setItem(46, adminItem(Material.ARROW, "§eTrang trước", List.of()));
         menu.setItem(48, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
             List.of("§7Boss đã lưu: " + bossIds.size())));
@@ -1294,6 +1352,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             if ("KILL_MOB".equals(type)) prompt(player, new PendingTextInput(TextField.ADD_KILL_ENTITY, quest.id(), 0));
             else if ("KILL_BOSS".equals(type)) openBossSelector(player, quest.id(), 0);
             else if ("VISIT_NPC".equals(type)) openNpcSelector(player, quest.id(), NpcSelectPurpose.ADD_OBJECTIVE, 0);
+            else if ("WORLD_SELECT".equals(type)) openObjectiveRealmChoices(player, quest.id(), 0);
+            else if ("RACE_SELECT".equals(type)) openObjectiveRaceChoices(player, quest.id(), 0);
             else if ("BLOCK_BREAK".equals(type)) {
                 prompt(player, new PendingTextInput(TextField.ADD_BLOCK_BREAK, quest.id(), 0));
             }
@@ -1317,6 +1377,78 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 prompt(player, new PendingTextInput(TextField.ADD_OBJECTIVE_ITEM_AMOUNT, quest.id(), 0));
             }
         }
+    }
+
+    private void openObjectiveRealmChoices(Player player, String questId, int requestedPage) {
+        List<HumanRealmDefinitionLoader.HumanRealmDefinition> realms = plugin.getRpgWorldManager() == null
+            ? List.of() : plugin.getRpgWorldManager().getDefinitions().values().stream()
+                .sorted(java.util.Comparator.comparing(HumanRealmDefinitionLoader.HumanRealmDefinition::id)).toList();
+        int pages = Math.max(1, (realms.size() + 16) / 17);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.OBJECTIVE_REALM_SELECT, questId, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Mục tiêu • Chọn đại lục");
+        holder.inventory = menu;
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            adminItem(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
+        menu.setItem(27, adminItem(Material.MAP, "§aĐại lục bất kỳ", List.of(
+            "§7Hoàn thành khi người chơi chọn bất kỳ đại lục nào.", "§eNhấn để thêm mục tiêu.")));
+        holder.questSlots.put(27, "*");
+        for (int i = 0; i < 17; i++) {
+            int index = page * 17 + i;
+            if (index >= realms.size()) break;
+            var realm = realms.get(index);
+            holder.questSlots.put(i, realm.id());
+            menu.setItem(i, adminItem(Material.MAP, "§e" + LegacyText.translate(realm.displayName()), List.of(
+                "§7ID: §f" + realm.id(), "§7World: §f" + realm.worldName(), "§eNhấn để thêm mục tiêu.")));
+        }
+        menu.setItem(49, adminItem(Material.CRAFTING_TABLE, "§eQuay lại mục tiêu", List.of()));
+        if (page > 0) menu.setItem(45, adminItem(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        menu.setItem(51, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages, List.of()));
+        if (page + 1 < pages) menu.setItem(53, adminItem(Material.CYAN_CARPET, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void openObjectiveRaceChoices(Player player, String questId, int requestedPage) {
+        List<CharacterSelectionManager.RaceDefinition> races = plugin.getCharacterSelectionManager() == null
+            ? List.of() : plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions();
+        int pages = Math.max(1, (races.size() + 16) / 17);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.OBJECTIVE_RACE_SELECT, questId, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Mục tiêu • Chọn chủng tộc");
+        holder.inventory = menu;
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            adminItem(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
+        menu.setItem(27, adminItem(Material.TOTEM_OF_UNDYING, "§aChủng tộc bất kỳ", List.of(
+            "§7Hoàn thành khi người chơi chọn bất kỳ chủng tộc nào.", "§eNhấn để thêm mục tiêu.")));
+        holder.questSlots.put(27, "*");
+        for (int i = 0; i < 17; i++) {
+            int index = page * 17 + i;
+            if (index >= races.size()) break;
+            var race = races.get(index);
+            holder.questSlots.put(i, race.id());
+            menu.setItem(i, adminItem(race.material(), "§d" + LegacyText.translate(race.name()), List.of(
+                "§7ID: §f" + race.id(), "§eNhấn để thêm mục tiêu.")));
+        }
+        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại mục tiêu", List.of()));
+        if (page > 0) menu.setItem(45, adminItem(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        menu.setItem(51, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages, List.of()));
+        if (page + 1 < pages) menu.setItem(53, adminItem(Material.CYAN_CARPET, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private void addSelectionObjective(Player player, String questId, ObjectiveType type, String selectedId) {
+        QuestDefinition quest = definitions.get(questId);
+        if (quest == null || !Set.of(ObjectiveType.WORLD_SELECT, ObjectiveType.RACE_SELECT).contains(type)) return;
+        List<QuestObjective> objectives = new java.util.ArrayList<>(quest.objectives());
+        if (objectives.size() >= 45) {
+            player.sendMessage("§cQuest đã đạt tối đa 45 mục tiêu.");
+            return;
+        }
+        objectives.add(new QuestObjective(type, EntityType.ZOMBIE, 1, selectedId, null, "", 0));
+        replaceDefinition(quest, quest.withObjectives(objectives));
+        debugQuest("selection-objective-added admin=" + player.getName() + ", quest=" + questId
+            + ", type=" + type + ", target=" + selectedId);
+        openObjectivesMenu(player, questId);
     }
 
     private String objectiveDescription(QuestObjective objective) {
@@ -1347,7 +1479,23 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             case SUBMIT_EXACT_ITEM -> "Nộp " + exactItemDisplayName(objective)
                 + " × " + objective.amount();
             case VISIT_NPC -> visitNpcObjectiveDescription(objective);
+            case WORLD_SELECT -> "Chọn đại lục" + ("*".equals(objective.itemId()) ? " bất kỳ"
+                : " " + realmDisplayName(objective.itemId()));
+            case RACE_SELECT -> "Chọn chủng tộc" + ("*".equals(objective.itemId()) ? " bất kỳ"
+                : " " + raceDisplayName(objective.itemId()));
         };
+    }
+
+    private String realmDisplayName(String realmId) {
+        var realm = plugin.getRpgWorldManager() == null ? null : plugin.getRpgWorldManager().getRealmDefinition(realmId);
+        return realm == null ? realmId : LegacyText.translate(realm.displayName());
+    }
+
+    private String raceDisplayName(String raceId) {
+        return plugin.getCharacterSelectionManager() == null ? raceId
+            : plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions().stream()
+                .filter(race -> race.id().equalsIgnoreCase(raceId)).map(CharacterSelectionManager.RaceDefinition::name)
+                .findFirst().orElse(raceId);
     }
 
     private String visitNpcObjectiveDescription(QuestObjective objective) {
@@ -1443,38 +1591,54 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private void openRequirementsMenu(Player player, String questId) {
+        openRequirementsMenu(player, questId, 0);
+    }
+
+    private void openRequirementsMenu(Player player, String questId, int requestedPage) {
         QuestDefinition quest = definitions.get(questId);
         if (quest == null) return;
-        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.REQUIREMENTS, questId, 0);
+        int pages = Math.max(1, (quest.requirements().size() + 17) / 18);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.REQUIREMENTS, questId, page);
         Inventory menu = Bukkit.createInventory(holder, 54, "Điều kiện • " + quest.title());
         holder.inventory = menu;
-        for (int index = 0; index < Math.min(45, quest.requirements().size()); index++) {
-            QuestRequirement requirement = quest.requirements().get(index);
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            adminItem(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
+        for (int index = 0; index < 18; index++) {
+            int requirementIndex = page * 18 + index;
+            if (requirementIndex >= quest.requirements().size()) break;
+            QuestRequirement requirement = quest.requirements().get(requirementIndex);
             menu.setItem(index, adminItem(Material.PAPER, "§e" + formatRequirementDescription(requirement),
                 List.of("§7Nhấn để xóa điều kiện.")));
         }
-        menu.setItem(45, adminItem(Material.EXPERIENCE_BOTTLE, "§aThêm yêu cầu level RPG", List.of(
+        menu.setItem(27, adminItem(Material.EXPERIENCE_BOTTLE, "§aThêm yêu cầu level RPG", List.of(
             "§7Nhập level tối thiểu vào chat.")));
-        menu.setItem(46, adminItem(Material.WRITABLE_BOOK, "§aThêm quest prerequisite", List.of(
+        menu.setItem(28, adminItem(Material.WRITABLE_BOOK, "§aThêm quest prerequisite", List.of(
             "§7Chọn quest phải hoàn thành trước.")));
-        menu.setItem(47, adminItem(Material.HOPPER, "§aYêu cầu item đang cầm", List.of(
+        menu.setItem(29, adminItem(Material.HOPPER, "§aYêu cầu item đang cầm", List.of(
             "§7Cầm đúng item (kể cả item RPG) ở tay chính.", "§7Người chơi cần có ít nhất 1 item đó.")));
-        menu.setItem(50, adminItem(Material.MAP, "§aYêu cầu đã chọn đại lục", List.of(
-            "§7Chọn đại lục đã cấu hình trong /vninit.", "§7So khớp với home world trong hồ sơ người chơi.")));
-        menu.setItem(51, adminItem(Material.TOTEM_OF_UNDYING, "§aYêu cầu đã chọn chủng tộc", List.of(
-            "§7Chọn một chủng tộc đã cấu hình.", "§7Hồ sơ người chơi phải có đúng chủng tộc này.")));
-        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại quest", List.of()));
+        menu.setItem(30, adminItem(Material.MAP, "§aYêu cầu đã chọn đại lục", List.of(
+            "§7Chọn đại lục cụ thể hoặc bất kỳ đại lục nào.")));
+        menu.setItem(31, adminItem(Material.TOTEM_OF_UNDYING, "§aYêu cầu đã chọn chủng tộc", List.of(
+            "§7Chọn chủng tộc cụ thể hoặc bất kỳ chủng tộc nào.")));
+        if (page > 0) menu.setItem(45, adminItem(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        if (page + 1 < pages) menu.setItem(46, adminItem(Material.CYAN_CARPET, "§eTrang sau", List.of()));
+        menu.setItem(47, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages,
+            List.of("§7Tổng điều kiện: " + quest.requirements().size())));
+        menu.setItem(49, adminItem(Material.CRAFTING_TABLE, "§eQuay lại quest", List.of()));
         player.openInventory(menu);
     }
 
     private String formatRequirementDescription(QuestRequirement requirement) {
         return switch (requirement.type()) {
             case SELECTED_CONTINENT -> {
+                if ("*".equals(requirement.value())) yield "Đã chọn bất kỳ đại lục nào";
                 var realm = plugin.getRpgWorldManager() == null ? null
                     : plugin.getRpgWorldManager().getRealmDefinition(requirement.value());
                 yield "Đã chọn đại lục " + (realm == null ? requirement.value() : realm.displayName());
             }
             case SELECTED_RACE -> {
+                if ("*".equals(requirement.value())) yield "Đã chọn bất kỳ chủng tộc nào";
                 var race = plugin.getCharacterSelectionManager() == null ? null
                     : plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions().stream()
                         .filter(candidate -> candidate.id().equals(requirement.value())).findFirst().orElse(null);
@@ -1488,44 +1652,56 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         List<HumanRealmDefinitionLoader.HumanRealmDefinition> realms = plugin.getRpgWorldManager() == null
             ? List.of() : plugin.getRpgWorldManager().getDefinitions().values().stream()
                 .sorted(java.util.Comparator.comparing(HumanRealmDefinitionLoader.HumanRealmDefinition::id)).toList();
-        int pages = Math.max(1, (realms.size() + 44) / 45);
+        int pages = Math.max(1, (realms.size() + 16) / 17);
         int page = Math.max(0, Math.min(requestedPage, pages - 1));
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.CONTINENT_SELECT, questId, page);
         Inventory menu = Bukkit.createInventory(holder, 54, "Điều kiện • Chọn đại lục");
         holder.inventory = menu;
-        for (int index = 0; index < 45; index++) {
-            int position = page * 45 + index;
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            adminItem(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
+        menu.setItem(27, adminItem(Material.MAP, "§aĐại lục bất kỳ", List.of(
+            "§7Chỉ yêu cầu người chơi đã chọn đại lục.", "§eNhấn để thêm điều kiện.")));
+        holder.questSlots.put(27, "*");
+        for (int index = 0; index < 17; index++) {
+            int position = page * 17 + index;
             if (position >= realms.size()) break;
             var realm = realms.get(position);
             holder.questSlots.put(index, realm.id());
-            menu.setItem(index, adminItem(Material.MAP, "§e" + realm.displayName(), List.of(
+            menu.setItem(index, adminItem(Material.MAP, "§e" + LegacyText.translate(realm.displayName()), List.of(
                 "§7ID: §f" + realm.id(), "§7World: §f" + realm.worldName(), "§eNhấn để thêm điều kiện.")));
         }
-        if (page > 0) menu.setItem(45, adminItem(Material.ARROW, "§eTrang trước", List.of()));
-        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại điều kiện", List.of()));
-        menu.setItem(53, adminItem(Material.ARROW, "§eTrang sau", List.of()));
+        if (page > 0) menu.setItem(45, adminItem(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        menu.setItem(49, adminItem(Material.CRAFTING_TABLE, "§eQuay lại điều kiện", List.of()));
+        menu.setItem(51, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages, List.of()));
+        if (page + 1 < pages) menu.setItem(53, adminItem(Material.CYAN_CARPET, "§eTrang sau", List.of()));
         player.openInventory(menu);
     }
 
     private void openRequirementRaceChoices(Player player, String questId, int requestedPage) {
         List<CharacterSelectionManager.RaceDefinition> races = plugin.getCharacterSelectionManager() == null
             ? List.of() : plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions();
-        int pages = Math.max(1, (races.size() + 44) / 45);
+        int pages = Math.max(1, (races.size() + 16) / 17);
         int page = Math.max(0, Math.min(requestedPage, pages - 1));
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.RACE_SELECT, questId, page);
         Inventory menu = Bukkit.createInventory(holder, 54, "Điều kiện • Chọn chủng tộc");
         holder.inventory = menu;
-        for (int index = 0; index < 45; index++) {
-            int position = page * 45 + index;
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            adminItem(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
+        menu.setItem(27, adminItem(Material.TOTEM_OF_UNDYING, "§aChủng tộc bất kỳ", List.of(
+            "§7Chỉ yêu cầu người chơi đã chọn chủng tộc.", "§eNhấn để thêm điều kiện.")));
+        holder.questSlots.put(27, "*");
+        for (int index = 0; index < 17; index++) {
+            int position = page * 17 + index;
             if (position >= races.size()) break;
             var race = races.get(position);
             holder.questSlots.put(index, race.id());
             menu.setItem(index, adminItem(race.material(), "§d" + race.name(), List.of(
                 "§7ID: §f" + race.id(), "§eNhấn để thêm điều kiện.")));
         }
-        if (page > 0) menu.setItem(45, adminItem(Material.ARROW, "§eTrang trước", List.of()));
-        menu.setItem(49, adminItem(Material.ARROW, "§eQuay lại điều kiện", List.of()));
-        menu.setItem(53, adminItem(Material.ARROW, "§eTrang sau", List.of()));
+        if (page > 0) menu.setItem(45, adminItem(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        menu.setItem(49, adminItem(Material.CRAFTING_TABLE, "§eQuay lại điều kiện", List.of()));
+        menu.setItem(51, adminItem(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages, List.of()));
+        if (page + 1 < pages) menu.setItem(53, adminItem(Material.CYAN_CARPET, "§eTrang sau", List.of()));
         player.openInventory(menu);
     }
 
@@ -1737,13 +1913,18 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         }
         QuestDefinition quest = definitions.get(holder.questId);
         if (quest == null) return;
-        if (slot == 49) {
+        int pages = Math.max(1, (quest.requirements().size() + 17) / 18);
+        if (slot == 45 && holder.page > 0) {
+            openRequirementsMenu(player, quest.id(), holder.page - 1);
+        } else if (slot == 46 && holder.page + 1 < pages) {
+            openRequirementsMenu(player, quest.id(), holder.page + 1);
+        } else if (slot == 49) {
             openQuestEditor(player, quest.id());
-        } else if (slot == 45) {
+        } else if (slot == 27) {
             prompt(player, new PendingTextInput(TextField.ADD_LEVEL_REQUIREMENT, quest.id(), 0));
-        } else if (slot == 46) {
+        } else if (slot == 28) {
             openPrerequisiteQuestList(player, quest.id());
-        } else if (slot == 47) {
+        } else if (slot == 29) {
             ItemStack held = player.getInventory().getItemInMainHand();
             if (held.getType().isAir()) {
                 player.sendMessage("§cCầm item muốn kiểm tra ở tay chính trước.");
@@ -1753,15 +1934,15 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             exact.setAmount(1);
             pendingRequirementItems.put(player.getUniqueId(), exact);
             prompt(player, new PendingTextInput(TextField.ADD_ITEM_AMOUNT, quest.id(), 0));
-        } else if (slot == 50) {
+        } else if (slot == 30) {
             openRequirementRealmChoices(player, quest.id(), 0);
-        } else if (slot == 51) {
+        } else if (slot == 31) {
             openRequirementRaceChoices(player, quest.id(), 0);
-        } else if (slot >= 0 && slot < quest.requirements().size()) {
+        } else if (slot >= 0 && slot < 18 && holder.page * 18 + slot < quest.requirements().size()) {
             List<QuestRequirement> requirements = new java.util.ArrayList<>(quest.requirements());
-            requirements.remove(slot);
+            requirements.remove(holder.page * 18 + slot);
             replaceDefinition(quest, quest.withRequirements(requirements));
-            openRequirementsMenu(player, quest.id());
+            openRequirementsMenu(player, quest.id(), holder.page);
         }
     }
 
@@ -2404,6 +2585,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 case COLLECT_EXACT_ITEM -> "collect-exact-item";
                 case SUBMIT_EXACT_ITEM -> "submit-exact-item";
                 case VISIT_NPC -> "visit-npc";
+                case WORLD_SELECT -> "world-select";
+                case RACE_SELECT -> "race-select";
             });
             yaml.set(base + ".objective.entity", quest.targetEntity().name());
             yaml.set(base + ".objective.amount", quest.target());
@@ -2448,6 +2631,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 yaml.set(base + ".objective.drop-chance-percent", quest.dropChancePercent());
             } else if (quest.objectiveType() == ObjectiveType.VISIT_NPC) {
                 yaml.set(base + ".objective.npc-id", quest.itemId());
+            } else if (quest.objectiveType() == ObjectiveType.WORLD_SELECT) {
+                yaml.set(base + ".objective.realm-id", quest.itemId());
+            } else if (quest.objectiveType() == ObjectiveType.RACE_SELECT) {
+                yaml.set(base + ".objective.race-id", quest.itemId());
             }
             List<Map<String, Object>> extraObjectives = new java.util.ArrayList<>();
             for (QuestObjective objective : quest.additionalObjectives()) {
@@ -2471,6 +2658,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     case COLLECT_EXACT_ITEM -> "collect-exact-item";
                     case SUBMIT_EXACT_ITEM -> "submit-exact-item";
                     case VISIT_NPC -> "visit-npc";
+                    case WORLD_SELECT -> "world-select";
+                    case RACE_SELECT -> "race-select";
                 });
                 if (objective.type() == ObjectiveType.KILL_MOB) saved.put("entity", objective.entity().name());
                 else if (objective.type() == ObjectiveType.BLOCK_BREAK) saved.put("material", objective.itemMaterial().name());
@@ -2497,6 +2686,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 }
                 else if (objective.type() == ObjectiveType.KILL_BOSS) saved.put("boss-id", objective.itemId());
                 else if (objective.type() == ObjectiveType.VISIT_NPC) saved.put("npc-id", objective.itemId());
+                else if (objective.type() == ObjectiveType.WORLD_SELECT) saved.put("realm-id", objective.itemId());
+                else if (objective.type() == ObjectiveType.RACE_SELECT) saved.put("race-id", objective.itemId());
                 else if (objective.type() == ObjectiveType.COLLECT_EXACT_ITEM
                         || objective.type() == ObjectiveType.SUBMIT_EXACT_ITEM)
                     saved.put("item", objective.requiredItem().serialize());
@@ -2719,10 +2910,16 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 case "collect-rpg-item" -> ObjectiveType.COLLECT_RPG_ITEM;
                 case "kill-boss" -> ObjectiveType.KILL_BOSS;
                 case "visit-npc" -> ObjectiveType.VISIT_NPC;
+                case "world-select" -> ObjectiveType.WORLD_SELECT;
+                case "race-select" -> ObjectiveType.RACE_SELECT;
                 default -> null;
             };
             String itemId = objectiveType == ObjectiveType.VISIT_NPC
                 ? quest.getString("objective.npc-id", "").trim()
+                : objectiveType == ObjectiveType.WORLD_SELECT
+                    ? quest.getString("objective.realm-id", "").trim()
+                : objectiveType == ObjectiveType.RACE_SELECT
+                    ? quest.getString("objective.race-id", "").trim()
                 : objectiveType == ObjectiveType.ENTITY_DAMAGE && !quest.getString("objective.boss-id", "").isBlank()
                     ? "boss:" + quest.getString("objective.boss-id", "").trim().toLowerCase(Locale.ROOT)
                 : objectiveType == ObjectiveType.ENCHANT
@@ -2755,6 +2952,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     || !giver.matches("[a-z0-9]+(?:-[a-z0-9]+)*") || giver.length() > 64
                     || title.isBlank() || title.length() > 64 || objectiveType == null
                     || (objectiveType != ObjectiveType.KILL_BOSS && objectiveType != ObjectiveType.VISIT_NPC
+                        && objectiveType != ObjectiveType.WORLD_SELECT && objectiveType != ObjectiveType.RACE_SELECT
                         && !entityType.isAlive())
                     || target < 1 || target > 100_000 || reward < 0 || reward > 1_000_000
                     || experienceReward < 0 || experienceReward > 100_000
@@ -2790,7 +2988,16 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                         && !Set.of("points", "levels").contains(itemId))
                     || (objectiveType == ObjectiveType.COMMAND && !itemId.matches("[a-z0-9_:-]{1,64}"))
                     || (objectiveType == ObjectiveType.VISIT_NPC
-                        && !itemId.matches("[a-z0-9]+(?:-[a-z0-9]+)*"))) {
+                        && !itemId.matches("[a-z0-9]+(?:-[a-z0-9]+)*"))
+                    || (objectiveType == ObjectiveType.WORLD_SELECT
+                        && !("*".equals(itemId) || (itemId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                            && plugin.getRpgWorldManager() != null
+                            && plugin.getRpgWorldManager().getRealmDefinition(itemId) != null)))
+                    || (objectiveType == ObjectiveType.RACE_SELECT
+                        && !("*".equals(itemId) || (itemId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                            && plugin.getCharacterSelectionManager() != null
+                            && plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions().stream()
+                                .anyMatch(race -> race.id().equalsIgnoreCase(itemId)))))) {
                 throw new IOException("Quest '" + id + "' has invalid fields or unsupported bounds.");
             }
             definitions.put(id, new QuestDefinition(id, giver, title, objectiveType, entityType,
@@ -2997,6 +3204,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     && npcId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) {
                 objectives.add(new QuestObjective(ObjectiveType.VISIT_NPC, EntityType.ZOMBIE,
                     amount, npcId, null, "", 0));
+            } else if ("world-select".equals(type) && raw.get("realm-id") instanceof String realmId
+                    && ("*".equals(realmId) || (realmId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                        && plugin.getRpgWorldManager() != null
+                        && plugin.getRpgWorldManager().getRealmDefinition(realmId) != null))) {
+                objectives.add(new QuestObjective(ObjectiveType.WORLD_SELECT, EntityType.ZOMBIE,
+                    amount, realmId, null, "", 0));
+            } else if ("race-select".equals(type) && raw.get("race-id") instanceof String raceId
+                    && ("*".equals(raceId) || (raceId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                        && plugin.getCharacterSelectionManager() != null
+                        && plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions().stream()
+                            .anyMatch(race -> race.id().equalsIgnoreCase(raceId))))) {
+                objectives.add(new QuestObjective(ObjectiveType.RACE_SELECT, EntityType.ZOMBIE,
+                    amount, raceId, null, "", 0));
             } else {
                 throw new IOException("Quest '" + questId + "' has an unsupported additional objective.");
             }
@@ -3063,13 +3283,15 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 }
                 case "selected-continent" -> {
                     Object value = raw.get("realm-id");
-                    if (!(value instanceof String realmId) || !realmId.matches("[a-z0-9]+(?:-[a-z0-9]+){0,7}"))
+                    if (!(value instanceof String realmId) || (!"*".equals(realmId)
+                            && !realmId.matches("[a-z0-9]+(?:-[a-z0-9]+){0,7}")))
                         throw new IOException("Quest '" + questId + "' has invalid selected-continent requirement.");
                     requirements.add(new QuestRequirement(RequirementType.SELECTED_CONTINENT, realmId, 1, null));
                 }
                 case "selected-race" -> {
                     Object value = raw.get("race-id");
-                    if (!(value instanceof String raceId) || !raceId.matches("[a-z0-9]+(?:-[a-z0-9]+){0,7}"))
+                    if (!(value instanceof String raceId) || (!"*".equals(raceId)
+                            && !raceId.matches("[a-z0-9]+(?:-[a-z0-9]+){0,7}")))
                         throw new IOException("Quest '" + questId + "' has invalid selected-race requirement.");
                     requirements.add(new QuestRequirement(RequirementType.SELECTED_RACE, raceId, 1, null));
                 }
@@ -3123,7 +3345,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     private void acceptQuest(Player player, String npcId, String questId, Consumer<AcceptStatus> completion) {
         QuestDefinition quest = definitions.get(questId);
-        if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(npcId)) {
+        if (quest == null || !quest.enabled() || !quest.giverNpcId().equalsIgnoreCase(npcId)) {
             player.sendMessage("§cNhiệm vụ này không khả dụng tại NPC hiện tại.");
             plugin.getLogger().warning("[Quest] Rejected accept action: npc=" + npcId + ", quest=" + questId);
             return;
@@ -3163,15 +3385,21 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     }
                 }
                 if (requirement.type() == RequirementType.SELECTED_CONTINENT) {
-                    var realm = plugin.getRpgWorldManager() == null ? null
-                        : plugin.getRpgWorldManager().getRealmDefinition(requirement.value());
-                    if (realm == null || profile.get().homeWorld() == null
-                            || !realm.worldName().equalsIgnoreCase(profile.get().homeWorld()))
-                        return AcceptResult.REQUIREMENTS_NOT_MET;
+                    if ("*".equals(requirement.value())) {
+                        if (profile.get().homeWorld() == null || profile.get().homeWorld().isBlank())
+                            return AcceptResult.REQUIREMENTS_NOT_MET;
+                    } else {
+                        var realm = plugin.getRpgWorldManager() == null ? null
+                            : plugin.getRpgWorldManager().getRealmDefinition(requirement.value());
+                        if (realm == null || profile.get().homeWorld() == null
+                                || !realm.worldName().equalsIgnoreCase(profile.get().homeWorld()))
+                            return AcceptResult.REQUIREMENTS_NOT_MET;
+                    }
                 }
                 if (requirement.type() == RequirementType.SELECTED_RACE
-                        && (profile.get().selectedRace() == null
-                            || !requirement.value().equalsIgnoreCase(profile.get().selectedRace()))) {
+                        && (profile.get().selectedRace() == null || profile.get().selectedRace().isBlank()
+                            || (!"*".equals(requirement.value())
+                                && !requirement.value().equalsIgnoreCase(profile.get().selectedRace())))) {
                     return AcceptResult.REQUIREMENTS_NOT_MET;
                 }
             }
@@ -3224,6 +3452,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 player.sendMessage("§aĐã nhận nhiệm vụ: §f" + quest.title() + " §7(0/" + quest.target() + ")");
                 player.sendMessage("§7Phần thưởng: §e" + quest.vncoinReward() + " VNCOIN");
                 refreshBoard(player);
+                replayExistingSelectionsForQuest(player, questId);
             }
             if (completion != null) completion.accept(result.status());
         }));
@@ -3244,7 +3473,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             .getOrDefault(player.getUniqueId(), Map.of());
         java.util.Set<String> completed = completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of());
         return definitions.values().stream()
-            .filter(quest -> quest.enabled() && quest.giverNpcId().equals(npcId))
+            .filter(quest -> quest.enabled() && quest.giverNpcId().equalsIgnoreCase(npcId))
             .sorted(java.util.Comparator.comparing(QuestDefinition::id))
             .map(quest -> {
                 String state = active.containsKey(quest.id()) ? "§e[Đang làm] "
@@ -3258,7 +3487,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     public void handleNpcQuestInteraction(Player player, String npcId, String questId) {
         QuestDefinition quest = definitions.get(questId);
-        if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(npcId)) {
+        if (quest == null || !quest.enabled() || !quest.giverNpcId().equalsIgnoreCase(npcId)) {
             player.sendMessage("§cNhiệm vụ này không khả dụng tại NPC hiện tại.");
             return;
         }
@@ -3326,11 +3555,97 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         }
     }
 
+    public void recordWorldSelected(Player player, String realmId) {
+        recordSelectionObjective(player, ObjectiveType.WORLD_SELECT, realmId);
+    }
+
+    public void recordRaceSelected(Player player, String raceId) {
+        recordSelectionObjective(player, ObjectiveType.RACE_SELECT, raceId);
+    }
+
+    private void recordSelectionObjective(Player player, ObjectiveType type, String selectedId) {
+        if (player == null || selectedId == null || selectedId.isBlank()) return;
+        UUID playerId = player.getUniqueId();
+        SelectionObjectiveEvent selection = new SelectionObjectiveEvent(type, selectedId.toLowerCase(Locale.ROOT));
+        if (!questStateLoaded.contains(playerId)) {
+            pendingSelectionObjectives.compute(playerId, (ignored, pending) -> {
+                List<SelectionObjectiveEvent> updated = pending == null ? new java.util.ArrayList<>()
+                    : new java.util.ArrayList<>(pending);
+                if (updated.size() < 16) updated.add(selection);
+                return updated;
+            });
+            loadQuestState(player, "character-selection");
+            debugQuest("selection-objective-queued player=" + player.getName() + ", type=" + type
+                + ", selected=" + selectedId);
+            return;
+        }
+        advanceSelectionObjective(player, selection);
+    }
+
+    private void flushPendingSelectionObjectives(Player player) {
+        List<SelectionObjectiveEvent> pending = pendingSelectionObjectives.remove(player.getUniqueId());
+        if (pending != null) pending.forEach(selection -> advanceSelectionObjective(player, selection));
+    }
+
+    private void advanceSelectionObjective(Player player, SelectionObjectiveEvent selection) {
+        Map<String, PlayerProfileDatabaseManager.QuestProgress> active = activeByPlayer.get(player.getUniqueId());
+        if (active == null) return;
+        for (String questId : List.copyOf(active.keySet())) {
+            QuestDefinition quest = definitions.get(questId);
+            if (quest == null) continue;
+            int step = currentObjectiveIndex(active.get(questId), quest);
+            QuestObjective objective = quest.objectives().get(step);
+            if (objective.type() == selection.type()
+                    && ("*".equals(objective.itemId())
+                        || objective.itemId().equalsIgnoreCase(selection.selectedId()))) {
+                debugQuest("selection-objective-matched player=" + player.getName() + ", quest=" + questId
+                    + ", type=" + selection.type() + ", selected=" + selection.selectedId());
+                increment(player, quest, step, 1);
+            }
+        }
+    }
+
+    private void replayCharacterSelectionsForQuest(Player player, String questId, List<SelectionObjectiveEvent> selections,
+                                                    int index) {
+        if (!player.isOnline() || index >= selections.size()) return;
+        PlayerProfileDatabaseManager.QuestProgress progress = activeByPlayer
+            .getOrDefault(player.getUniqueId(), Map.of()).get(questId);
+        QuestDefinition quest = definitions.get(questId);
+        if (progress == null || quest == null) return;
+        int step = currentObjectiveIndex(progress, quest);
+        QuestObjective objective = quest.objectives().get(step);
+        SelectionObjectiveEvent selection = selections.get(index);
+        if (objective.type() == selection.type()
+                && ("*".equals(objective.itemId()) || objective.itemId().equalsIgnoreCase(selection.selectedId()))) {
+            increment(player, quest, step, 1);
+            Bukkit.getScheduler().runTaskLater(plugin,
+                () -> replayCharacterSelectionsForQuest(player, questId, selections, index + 1), 3L);
+        } else {
+            replayCharacterSelectionsForQuest(player, questId, selections, index + 1);
+        }
+    }
+
+    private void replayExistingSelectionsForQuest(Player player, String questId) {
+        var profile = plugin.getCharacterSelectionManager() == null ? java.util.Optional.<PlayerProfileDatabaseManager.PlayerProfile>empty()
+            : plugin.getCharacterSelectionManager().getLoadedProfile(player.getUniqueId());
+        if (profile.isEmpty()) return;
+        String worldName = profile.get().homeWorld();
+        String realmId = plugin.getRpgWorldManager() == null || worldName == null ? null
+            : plugin.getRpgWorldManager().getDefinitions().values().stream()
+                .filter(realm -> realm.worldName().equalsIgnoreCase(worldName))
+                .map(HumanRealmDefinitionLoader.HumanRealmDefinition::id).findFirst().orElse(null);
+        List<SelectionObjectiveEvent> selections = new java.util.ArrayList<>(2);
+        if (realmId != null) selections.add(new SelectionObjectiveEvent(ObjectiveType.WORLD_SELECT, realmId));
+        if (profile.get().selectedRace() != null)
+            selections.add(new SelectionObjectiveEvent(ObjectiveType.RACE_SELECT, profile.get().selectedRace()));
+        replayCharacterSelectionsForQuest(player, questId, selections, 0);
+    }
+
     private void openNpcQuestOffer(Player player, String npcId, String questId) {
         QuestDefinition quest = definitions.get(questId);
         Map<String, PlayerProfileDatabaseManager.QuestProgress> active =
             activeByPlayer.getOrDefault(player.getUniqueId(), Map.of());
-        if (quest == null || !quest.enabled() || !quest.giverNpcId().equals(npcId)
+        if (quest == null || !quest.enabled() || !quest.giverNpcId().equalsIgnoreCase(npcId)
                 || active.containsKey(questId)
                 || !isRepeatable(questId)
                     && completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of()).contains(questId)
@@ -3365,7 +3680,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         QuestDefinition quest = definitions.get(questId);
         PlayerProfileDatabaseManager.QuestProgress progress = activeByPlayer
             .getOrDefault(player.getUniqueId(), Map.of()).get(questId);
-        if (quest == null || progress == null || !quest.giverNpcId().equals(npcId)) return;
+        if (quest == null || progress == null || !quest.giverNpcId().equalsIgnoreCase(npcId)) return;
         int step = currentObjectiveIndex(progress, quest);
         QuestObjective objective = quest.objectives().get(step);
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.NPC_SUBMIT, questId, 0);
@@ -3390,7 +3705,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         QuestDefinition quest = definitions.get(questId);
         PlayerProfileDatabaseManager.QuestProgress progress = activeByPlayer
             .getOrDefault(player.getUniqueId(), Map.of()).get(questId);
-        if (quest == null || progress == null || !quest.giverNpcId().equals(npcId)) {
+        if (quest == null || progress == null || !quest.giverNpcId().equalsIgnoreCase(npcId)) {
             player.sendMessage("§cNhiệm vụ nộp vật phẩm không còn khả dụng tại NPC này.");
             return;
         }
@@ -3526,6 +3841,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     java.util.Set<String> queuedVisits = pendingNpcVisits.remove(playerId);
                     if (queuedVisits != null) queuedVisits.stream().sorted()
                         .forEach(npcId -> recordLoadedNpcVisit(player, npcId));
+                    flushPendingSelectionObjectives(player);
                 }
             }));
     }
@@ -4035,14 +4351,19 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                     if (countExactItems(player, requirement.item()) < requirement.amount()) return false;
                 }
                 case SELECTED_CONTINENT -> {
-                    var realm = plugin.getRpgWorldManager() == null ? null
-                        : plugin.getRpgWorldManager().getRealmDefinition(requirement.value());
-                    if (profile.isEmpty() || realm == null || profile.get().homeWorld() == null
-                            || !realm.worldName().equalsIgnoreCase(profile.get().homeWorld())) return false;
+                    if (profile.isEmpty() || profile.get().homeWorld() == null
+                            || profile.get().homeWorld().isBlank()) return false;
+                    if (!"*".equals(requirement.value())) {
+                        var realm = plugin.getRpgWorldManager() == null ? null
+                            : plugin.getRpgWorldManager().getRealmDefinition(requirement.value());
+                        if (realm == null || !realm.worldName().equalsIgnoreCase(profile.get().homeWorld())) return false;
+                    }
                 }
                 case SELECTED_RACE -> {
                     if (profile.isEmpty() || profile.get().selectedRace() == null
-                            || !requirement.value().equalsIgnoreCase(profile.get().selectedRace())) return false;
+                            || profile.get().selectedRace().isBlank()
+                            || (!"*".equals(requirement.value())
+                                && !requirement.value().equalsIgnoreCase(profile.get().selectedRace()))) return false;
                 }
             }
         }
@@ -4091,6 +4412,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             String targetNpcId = switch (objective.type()) {
                 case VISIT_NPC -> objective.itemId();
                 case SUBMIT_EXACT_ITEM -> quest.giverNpcId();
+                case WORLD_SELECT, RACE_SELECT -> null;
                 default -> null;
             };
             if (targetNpcId == null || plugin.getNpcManager() == null) {
@@ -4199,7 +4521,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
 
     private enum ObjectiveType { KILL_MOB, KILL_BOSS, COLLECT_RPG_ITEM, COLLECT_EXACT_ITEM,
         SUBMIT_EXACT_ITEM, VISIT_NPC, BLOCK_BREAK, FISHING, TAME, CRAFT, ITEM_CONSUME,
-        ENCHANT, BREW, SELL, PURCHASE, ENTITY_DAMAGE, EXPERIENCE_GAIN, COMMAND }
+        ENCHANT, BREW, SELL, PURCHASE, ENTITY_DAMAGE, EXPERIENCE_GAIN, COMMAND, WORLD_SELECT, RACE_SELECT }
+    private record SelectionObjectiveEvent(ObjectiveType type, String selectedId) { }
     private record BrewOwner(UUID playerId, long expiresAt) { }
     private record QuestObjective(ObjectiveType type, EntityType entity, int amount,
                                   String itemId, Material itemMaterial, String itemName,
@@ -4226,8 +4549,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 case LEVEL -> "Level RPG tối thiểu " + value;
                 case COMPLETED_QUEST -> "Đã hoàn thành quest " + value;
                 case EXACT_ITEM -> "Có " + amount + " × " + item.getType().name();
-                case SELECTED_CONTINENT -> "Đã chọn đại lục " + value;
-                case SELECTED_RACE -> "Đã chọn chủng tộc " + value;
+                case SELECTED_CONTINENT -> "*".equals(value) ? "Đã chọn đại lục bất kỳ" : "Đã chọn đại lục " + value;
+                case SELECTED_RACE -> "*".equals(value) ? "Đã chọn chủng tộc bất kỳ" : "Đã chọn chủng tộc " + value;
             };
         }
     }
@@ -4336,7 +4659,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private enum QuestMenu { LIST, EDIT, CONFIRM_DELETE, CONFIRM_ABANDON, REQUIREMENTS, NPC_SELECT, BOSS_SELECT,
-        CONTINENT_SELECT, RACE_SELECT,
+        CONTINENT_SELECT, RACE_SELECT, OBJECTIVE_REALM_SELECT, OBJECTIVE_RACE_SELECT,
         PREREQUISITE_SELECT, SUCCESSOR_SELECT, OBJECTIVES, REWARD_ITEMS, SUBMIT_ITEM_CONFIG,
         PLAYER_JOURNAL, PLAYER_HISTORY, PLAYER_DETAILS, NPC_ACCEPT, NPC_SUBMIT, ADMIN_PLAYER_HISTORY, ADMIN_RESET_CONFIRM }
     private enum QuestDialogStage {

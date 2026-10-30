@@ -1,3 +1,67 @@
+# Chuẩn hóa luồng quest và quản lý dialog — rà soát 2026-10-30
+
+## Đã làm trong lượt này
+
+- [x] Thêm lọc quest tự giao cho NPC tutorial trong `/vninit` theo đại lục và chủng tộc; bộ lọc có lựa chọn bất kỳ, phân trang và giữ lựa chọn khi đổi trang.
+- [x] Áp dụng scope từ điều kiện `selected-continent`/`selected-race` và objective `world-select`/`race-select`. Quest không có scope cụ thể hoặc đặt `*` vẫn xuất hiện ở mọi bộ lọc.
+- [x] Rà soát flow hiện tại và ghi các điểm cần thống nhất dưới đây; cập nhật README/changelog, version nguồn 2.38.0.
+- [ ] Chưa build JAR/chưa thử trong server.
+
+## Luồng người chơi hiện tại và điểm cần làm rõ
+
+| Giai đoạn | Flow hiện có | Rủi ro/điểm chưa thống nhất | Quy trình đích |
+|---|---|---|---|
+| Vào server | Hồ sơ mới được đưa qua world bắt đầu; nhiệm vụ hướng dẫn yêu cầu gặp NPC; `/start` có thể mở lại lựa chọn đại lục. | Có onboarding state, quest `First Steps` legacy và quest catalog cùng tồn tại; người chơi/admin khó phân biệt nhiệm vụ hệ thống với quest RPG. | Một state machine onboarding duy nhất; mỗi bước hiển thị rõ điều kiện, NPC/world đích, cách tiếp tục và trạng thái đã hoàn thành. Quest legacy chỉ là adapter tương thích, không tạo luồng song song. |
+| Chọn đại lục/race/class | NPC world bắt đầu mở chọn đại lục; sau đó NPC đại lục hướng dẫn chọn race/class; sách skill lấy theo mapping. | Các quest auto-grant được cấu hình ở global, world, race và class; hiện chưa có một thứ tự duy nhất và có thể cấp nhiều quest cùng lúc. | Quy định thứ tự: quest global sau khi tạo nhân vật, tiếp đó quest theo world, race, class; loại trùng ID, kiểm tra giới hạn 3 quest, ghi log nguồn cấp và hiển thị xác nhận rõ. |
+| Tìm và nhận quest | NPC ghép quest theo giver ID; có dialog theo trạng thái, điều kiện, GUI nhận và tối đa 3 quest active. | NPC có thể có danh sách dài; status chưa thay thế được bộ lọc theo world/race/category; tên role của NPC không đủ để người chơi hiểu nhóm quest. | NPC mở tab/category (cốt truyện, hướng dẫn, săn quái, thu thập, boss, nghề nghiệp); chỉ hiện quest phù hợp với người chơi, có bộ lọc và trang; giữ dialog theo từng trạng thái. |
+| Tiến hành quest | Objective tuần tự, tracking, nộp item, NPC/boss/thu thập và scoreboard đã có. | Hành vi tracking phụ thuộc loại objective; objective mới cần được kiểm tra mapping tới sự kiện, tiến độ, tên hiển thị, phần thưởng và world đích. | Mỗi objective phải khai báo đồng bộ: điều kiện kích hoạt, đích/tracking nếu có, tiến độ, tên bản địa hóa, tiêu chí hoàn tất và log debug. Wizard chỉ cho lưu cấu hình hợp lệ. |
+| Hoàn tất/chuỗi quest | Có dialog hoàn thành, nhận thưởng, lặp lại, giới hạn ngày và quest tiếp theo. | Quest auto-grant ở onboarding/race và successor có thể đụng nhau hoặc cấp vượt giới hạn active. | Một hàng đợi quest tiếp theo có nguồn và thứ tự rõ; idempotent khi login/retry; báo rõ quest đã nhận, bị bỏ qua do trùng, hoặc đang chờ slot. |
+
+## Đích chuẩn hóa quản trị quest
+
+1. **Tạo quest bằng wizard nhiều bước:** thông tin cơ bản → category → NPC giao → scope world/race/class → điều kiện nhận → objective tuần tự → reward/giới hạn lặp → dialog → xem trước → lưu/bật. Có thể quay lại sửa và lưu nháp.
+2. **Phân loại rõ:** category bắt buộc (tutorial, story, side, daily, hunt, gather, boss, profession, class/race); tag tùy chọn. Filter theo category, NPC, world, race, trạng thái enabled và từ khóa; mặc định không đổ toàn bộ quest vào một trang.
+3. **Chọn từ dữ liệu đã lưu:** NPC/world/race/class/item/boss/quest/dialog phải là GUI picker có tìm kiếm/phân trang. Ngay trong picker có nút tạo mới khi admin có quyền, sau khi lưu quay lại đúng picker và giữ các filter.
+4. **Scope và điều kiện tách bạch:** scope xác định quest thuộc world/race/category nào để tìm kiếm; requirements quyết định người chơi có đủ điều kiện nhận hay không. Không dùng requirement như cách phân loại duy nhất.
+5. **Preview trước khi lưu:** xem đúng tên NPC/world/item, các bước objective, điều kiện, dialog theo trạng thái, reward, repeat limit và cách quest hiện trong GUI người chơi.
+
+## Đích chuẩn hóa dialog/NPC
+
+- Dialog quest riêng nằm trong edit quest và khóa theo quest + trạng thái; dialog public có category, trạng thái, ngôn ngữ/tags, người tạo và phạm vi dùng.
+- Dialog mở đầu/tutorial/story gắn trực tiếp với NPC hoặc chapter; dialog public có picker riêng, không trộn vào list private của mọi quest.
+- Bộ quản lý có nhóm theo category → NPC/chapter → public/private → trạng thái; tìm kiếm theo ID/tên, preview nội dung và hiển thị nơi đang được tham chiếu trước khi sửa/xóa.
+- Chỉ cho chọn dialog cùng loại trạng thái; dialog được dùng ở nhiều nơi phải có xác nhận trước khi sửa nội dung dùng chung.
+
+## Các phase tiếp theo chưa làm
+
+- [ ] Phase 1: thêm category/tag cho quest, migration an toàn cho quest cũ và filter category/NPC/world/race trong admin list.
+- [ ] Phase 2: thống nhất API picker dùng chung (tìm kiếm, phân trang, tạo mới tại chỗ, quay lại giữ state) cho quest/NPC/world/race/item/boss.
+- [ ] Phase 3: wizard tạo quest và preview; validate objective/scope/reward trước khi bật.
+- [ ] Phase 4: tổ chức dialog theo NPC/chapter, category và public/private; có tham chiếu sử dụng và bảo vệ dialog public đang được dùng.
+- [ ] Phase 5: chuẩn hóa bộ điều phối onboarding và auto-grant theo thứ tự global → world → race → class → successor, chống cấp trùng và log nguyên nhân bỏ qua.
+- [ ] Phase 6: kiểm thử flow người chơi mới, từng nhánh điều kiện, NPC nhiều quest, dialog 4 trạng thái, nộp item, world khác, repeat/daily và full 3 quest.
+
+# Chat formatting và tên NPC trong hội thoại — yêu cầu 2026-10-30
+
+- [x] Áp dụng mã màu/format/rainbow cho nội dung tin nhắn chat theo quyền riêng từng mã; OP được bỏ qua permission.
+- [x] Dùng chung bộ lọc permission cho alias và text chat; alias do admin đặt vẫn giữ quyền dùng mọi định dạng.
+- [x] Bảo toàn tên NPC đã format trong hội thoại story, quest và tutorial; cắt tên dài trên action bar không làm mất mã màu.
+- [x] Khi click NPC Tutorial lúc hồ sơ đang tải, phát lại tương tác sau khi hồ sơ hoàn tất thay vì chỉ gửi thông báo chung.
+- [x] Cập nhật README/changelog, tăng version nguồn lên 2.37.1.
+- [ ] Chưa build JAR/chưa thử trong server. Xác minh chat bằng OP, người chơi có một quyền màu/format, người không có quyền; alias admin/player; NPC story/quest/tutorial có tên màu.
+
+# OP, NPC tutorial và mục tiêu lựa chọn nhân vật — yêu cầu 2026-10-30
+
+- [x] OP giữ mọi permission plugin sau khi PermissionManager áp dụng group/user attachments, kể cả khi attachment chứa deny cho node plugin.
+- [x] NPC tutorial sau khi hoàn tất onboarding tiếp tục vào cùng luồng quest list/quest-dialog theo trạng thái như quest-giver; giữ riêng luồng hội thoại chọn đại lục/race khi người chơi còn trong onboarding.
+- [x] Sửa bộ chọn dialog mở đầu NPC tutorial: context public `AVAILABLE`, chỉ hiển thị dialog public tương ứng; dialog theo trạng thái tạo và gán trong edit quest, không hiện lỗi thiếu quest/state.
+- [x] `/vninit` thay nút sửa First Step bằng GUI chọn quest RPG đầu tiên tự giao sau khi người chơi chọn race/class; quest nội dung tiếp tục quản lý trong `/vnquest admin`.
+- [x] Thêm mục tiêu tuần tự `world-select` và `race-select`, mỗi loại chọn đích cụ thể hoặc “bất kỳ” bằng GUI, lưu được vào quest definitions và ghi nhận khi người chơi chọn nhân vật.
+- [x] Điều kiện nhận quest đại lục/race hỗ trợ đích cụ thể hoặc “bất kỳ”; bất kỳ nghĩa là hồ sơ đã có lựa chọn hợp lệ.
+- [x] Menu điều kiện quest theo bố cục hai hàng dữ liệu, một hàng glass ngăn cách, hai hàng thao tác và hàng cuối cho điều hướng; cập nhật `.clinerules` thành quy tắc bố cục dùng chung.
+- [x] Cập nhật README/changelog, tăng version nguồn lên 2.37.0.
+- [ ] Chưa build JAR và chưa xác minh trong server thật. Sau build cần thử OP có deny permission trong group; NPC tutorial trong onboarding và sau onboarding; quest-dialog public/private; objectives/requirements chọn world/race cụ thể/bất kỳ; quest đầu tiên được chọn trong `/vninit`.
+
 ## Fix plugin tự disable khi khởi động 2.36.15 — log 2026-10-30
 
 - [x] `latest.log` cho thấy plugin 2.36.15 dừng ở `QuestCatalogManager.loadDefinitions()` với `Quest 'world-start-class-nhan-toc-selected' has invalid fields or unsupported bounds.`
@@ -1059,3 +1123,13 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Build JAR 2.36.2 bằng Java 25 (`mvn -DskipTests package`) thành công lúc `2026-10-28 13:50:30 UTC`; 3.017.729 bytes, SHA-256 `55ee211f91279c2e7ee54d5596a47c7a6edcd6c2e5364c236d67676177a771e2`. Đã xác minh SQLite native Linux x86_64 và AArch64; test suite bỏ qua.
 - [x] Sao lưu 2.36.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.1.jar`, cài 2.36.2 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.36.2.jar`; checksum khớp artifact và chỉ còn một JAR VnMineHardcore.
 - [ ] Chưa xác minh client protocol trên Paper; restart server rồi thử đăng nhập. Nếu vẫn ngắt, cần lấy log client Minecraft để xác định decoder exception cụ thể.
+
+## Phát hành 2.38.0 — bộ lọc quest onboarding và chuẩn hóa workflow — 2026-10-30
+
+- [x] Bộ chọn quest tự giao trong `/vninit` lọc được theo đại lục và chủng tộc; hỗ trợ bỏ bộ lọc và giữ scope khi chuyển trang.
+- [x] Quest có scope world/race cụ thể được lọc theo scope khai báo ở điều kiện nhận hoặc objective `world-select`/`race-select`; quest không giới hạn vẫn xuất hiện.
+- [x] Ghi roadmap chuẩn hóa cách tổ chức quest/dialog và lựa chọn dữ liệu đã tồn tại bằng GUI; ưu tiên phân loại quest theo world, race, NPC và trạng thái dialog, cho phép tạo ngay tại selector, đồng thời tránh tự giao quest trùng lặp.
+- [x] Maven `clean package` bằng Java 25 hoàn tất lúc `2026-10-30 01:06:26 UTC`; 104 test pass, không có failure/error. Cập nhật hai kỳ vọng test tutorial cũ sang objective `visit-start-world-tutorial-npc` hiện hành.
+- [x] JAR `VnMineHardcore-2.38.0.jar`, SHA-256 `7a588fbd6963e226b8c78c92ffc1d1a669e7e2a93e317c65a6f25ab85750f37d`; xác minh chỉ đóng gói SQLite native Linux x86_64.
+- [x] Sao lưu JAR 2.36.16 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.16-pre-2.38.0-20261030.jar`; cài 2.38.0 vào `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.38.0.jar`. SHA-256 bản cài trùng artifact và thư mục plugin chỉ còn một JAR VnMineHardcore.
+- [ ] Chưa Paper/gameplay test bản này; sau restart cần kiểm tra bộ lọc quest tutorial theo world/race, menu phân trang và toàn bộ onboarding/quest flow trên server thật.

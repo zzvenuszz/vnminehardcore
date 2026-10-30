@@ -158,11 +158,15 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                 "§7Tên này được dùng trong nội dung và mục tiêu quest.",
                 "§7Không thay đổi tên kỹ thuật của world.",
                 "§eNhấn để nhập tên hiển thị.")));
-        boolean tutorialQuestEnabled = tutorialQuestEnabled();
-        menu.setItem(40, item(tutorialQuestEnabled ? Material.WRITABLE_BOOK : Material.BARRIER,
-            (tutorialQuestEnabled ? "§b" : "§c") + "Quest RPG và quest hướng dẫn", List.of(
-            tutorialQuestEnabled ? "§afirst-steps.yml đang bật." : "§cfirst-steps.yml chưa có hoặc đang tắt.",
-            "§7Mở trình sửa First Step và trạng thái quest RPG.", "§eNhấn để quản lý.")));
+        String defaultQuestId = plugin.getConfig().getString(
+            "rpg.onboarding.character-complete.default-quest-id", "");
+        String defaultQuestTitle = defaultQuestId.isBlank() || plugin.getQuestCatalogManager() == null
+            ? "Chưa chọn" : plugin.getQuestCatalogManager().getQuestTitle(defaultQuestId);
+        menu.setItem(40, item(defaultQuestId.isBlank() ? Material.BOOK : Material.ENCHANTED_BOOK,
+            "§bQuest RPG sau tutorial: §f" + defaultQuestTitle, List.of(
+            "§7Chọn quest RPG tự giao sau khi người chơi chọn race và class.",
+            "§7Sửa điều kiện, mục tiêu, phần thưởng và dialog trong /vnquest admin.",
+            "§eNhấn để chọn quest.")));
         if (safePage > 0) menu.setItem(45, item(Material.ARROW, "§eĐại lục trước", List.of()));
         menu.setItem(49, item(Material.BARRIER, "§cĐóng / tiếp tục sau", List.of(
             "§7Mọi thay đổi đã xác nhận đều được lưu ngay.",
@@ -562,13 +566,16 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         SetupHolder holder = new SetupHolder(player, "tutorial-config", realm.id(), 0);
         Inventory menu = Bukkit.createInventory(holder, 54, "NPC Tutorial • " + npcId);
         holder.inventory = menu;
-        menu.setItem(11, item(Material.WRITABLE_BOOK, "§dDialog: §f" + (dialogId == null ? "Chưa chọn" : dialogId), List.of(
-            "§7Chọn quest-dialog dùng khi người chơi gặp NPC.", "§7Tạo/sửa dialog trực tiếp trong bộ chọn quest.",
+        menu.setItem(11, item(Material.WRITABLE_BOOK, "§dDialog mở đầu: §f" + (dialogId == null ? "Chưa chọn" : dialogId), List.of(
+            "§7Chỉ chọn dialog public loại Có thể nhận để mở đầu tutorial.",
+            "§7Quest gắn với ID NPC này hiện trong hội thoại như NPC quest-giver.",
+            "§7Hội thoại theo trạng thái được cấu hình trong edit quest.",
             "§eNhấn để chọn.")));
         menu.setItem(15, item(Material.ENCHANTED_BOOK, "§bQuest tự giao: §f" + (questId == null ? "Chưa chọn" : questId), List.of(
             "§7Chỉ quest có giver NPC ID đúng là §f" + npcId + " §7mới được liệt kê.",
-            "§7Quest sẽ được giao sau khi hội thoại tutorial kết thúc.", "§eNhấn để chọn.")));
-        menu.setItem(49, item(Material.ARROW, "§7Quay lại cấu hình đại lục", List.of()));
+            "§7Quest type tutorial vẫn dùng giver ID và quest-dialog theo trạng thái như quest-giver.",
+            "§7Quest được giao sau khi dialog mở đầu kết thúc.", "§eNhấn để chọn.")));
+        menu.setItem(49, item(Material.CRAFTING_TABLE, "§7Quay lại cấu hình đại lục", List.of()));
         player.openInventory(menu);
     }
 
@@ -588,63 +595,193 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         SetupHolder holder = new SetupHolder(player, "start-tutorial-config", "__start__", 0);
         Inventory menu = Bukkit.createInventory(holder, 54, "NPC Tutorial World bắt đầu • " + npcId);
         holder.inventory = menu;
-        menu.setItem(11, item(Material.WRITABLE_BOOK, "§dDialog: §f" + (dialogId == null ? "Chưa chọn" : dialogId), List.of(
-            "§7Dialog sẽ phát khi người chơi tương tác NPC này.",
-            "§7Tạo/sửa dialog trực tiếp trong bộ chọn quest.", "§eNhấn để chọn.")));
+        menu.setItem(11, item(Material.WRITABLE_BOOK, "§dDialog mở đầu: §f" + (dialogId == null ? "Chưa chọn" : dialogId), List.of(
+            "§7Chỉ chọn dialog public loại Có thể nhận để mở đầu tutorial.",
+            "§7Hội thoại theo trạng thái quest được cấu hình trong edit quest.", "§eNhấn để chọn.")));
         menu.setItem(15, item(Material.ENCHANTED_BOOK, "§bQuest tự giao: §f" + (questId == null ? "Chưa chọn" : questId), List.of(
             "§7Chỉ liệt kê quest có giver NPC ID là §f" + npcId + "§7.",
-            "§7Quest được giao sau khi dialog kết thúc.", "§eNhấn để chọn.")));
-        menu.setItem(49, item(Material.ARROW, "§7Quay lại /vninit", List.of()));
+            "§7NPC type tutorial nhận quest và dialog theo cùng luồng quest-giver.",
+            "§7Quest được giao sau khi dialog mở đầu kết thúc.", "§eNhấn để chọn.")));
+        menu.setItem(49, item(Material.CRAFTING_TABLE, "§7Quay lại /vninit", List.of()));
         player.openInventory(menu);
     }
 
     private void openTutorialQuestChoices(Player player, String realmId) {
+        openTutorialQuestChoices(player, realmId, 0);
+    }
+
+    private void openTutorialQuestChoices(Player player, String realmId, int requestedPage) {
+        openTutorialQuestChoices(player, realmId, requestedPage, realmId, null);
+    }
+
+    private void openTutorialQuestChoices(Player player, String realmId, int requestedPage,
+                                          String filterRealmId, String filterRaceId) {
         var realm = plugin.getRpgWorldManager().getRealmDefinition(realmId);
-        List<String> quests = realm == null || plugin.getQuestCatalogManager() == null ? List.of()
-            : plugin.getQuestCatalogManager().getQuestIdsForNpc(realm.tutorialNpcId());
-        SetupHolder holder = new SetupHolder(player, "tutorial-quests", realmId, 0);
-        Inventory menu = Bukkit.createInventory(holder, 54, "Quest giao sau tutorial");
+        if (realm == null) return;
+        List<String> quests = filterNpcQuests(realm.tutorialNpcId(), filterRealmId, filterRaceId);
+        int pages = Math.max(1, (quests.size() + 16) / 17);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        SetupHolder holder = new SetupHolder(player, "tutorial-quests", realmId, page);
+        holder.filterRealmId = filterRealmId;
+        holder.raceId = filterRaceId;
+        Inventory menu = Bukkit.createInventory(holder, 54, "Quest giao sau tutorial • " + (page + 1) + "/" + pages);
         holder.inventory = menu;
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            item(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
         File file = findRealmFile(realmId);
         String current = file == null ? null : YamlConfiguration.loadConfiguration(file).getString("tutorial.auto-quest-id");
-        for (int i = 0; i < quests.size() && i < CONTENT_SLOTS.length; i++) {
-            String questId = quests.get(i);
-            int slot = CONTENT_SLOTS[i];
+        for (int i = 0; i < 17; i++) {
+            int index = page * 17 + i;
+            if (index >= quests.size()) break;
+            String questId = quests.get(index);
+            int slot = i;
             holder.choices.put(slot, questId);
             String title = plugin.getQuestCatalogManager().getQuestTitle(questId);
             menu.setItem(slot, item(questId.equals(current) ? Material.ENCHANTED_BOOK : Material.BOOK,
                 (questId.equals(current) ? "§a✓ " : "§f") + title, List.of("§7ID: §f" + questId,
                     "§7Giao bởi NPC: §f" + realm.tutorialNpcId(), "§eNhấn để chọn.")));
         }
-        if (quests.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có quest phù hợp", List.of(
+        if (quests.isEmpty()) menu.setItem(4, item(Material.BARRIER, "§cChưa có quest phù hợp", List.of(
             "§7Tạo quest trong /vnquest admin và đặt giver NPC ID thành:", "§f" + (realm == null ? "?" : realm.tutorialNpcId()))));
-        menu.setItem(45, item(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
-        menu.setItem(49, item(Material.ARROW, "§7Quay lại", List.of()));
+        menu.setItem(27, item(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
+        menu.setItem(28, item(Material.MAP, "§bLọc theo đại lục: §f" + scopeFilterName(filterRealmId), List.of(
+            "§7Lọc quest có scope đại lục cụ thể; quest dùng đại lục bất kỳ vẫn hiện.", "§eNhấn để chọn.")));
+        menu.setItem(29, item(Material.TOTEM_OF_UNDYING, "§dLọc theo chủng tộc: §f" + scopeFilterName(filterRaceId), List.of(
+            "§7Lọc quest có scope chủng tộc cụ thể; quest dùng mọi chủng tộc vẫn hiện.", "§eNhấn để chọn.")));
+        menu.setItem(36, item(Material.WRITABLE_BOOK, "§aTạo / quản lý quest", List.of(
+            "§7NPC giao quest: §f" + realm.tutorialNpcId(), "§7World NPC: §f" + realm.worldName(),
+            "§7Tạo quest tại đây rồi quay lại chọn; đặt đúng giver NPC ID.")));
+        if (page > 0) menu.setItem(45, item(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        menu.setItem(49, item(Material.CRAFTING_TABLE, "§7Quay lại", List.of()));
+        menu.setItem(51, item(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages, List.of()));
+        if (page + 1 < pages) menu.setItem(53, item(Material.CYAN_CARPET, "§eTrang sau", List.of()));
         player.openInventory(menu);
     }
 
     private void openStartTutorialQuestChoices(Player player) {
+        openStartTutorialQuestChoices(player, 0);
+    }
+
+    private void openStartTutorialQuestChoices(Player player, int requestedPage) {
+        openStartTutorialQuestChoices(player, requestedPage, null, null);
+    }
+
+    private void openStartTutorialQuestChoices(Player player, int requestedPage,
+                                               String filterRealmId, String filterRaceId) {
         String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
-        List<String> quests = npcId.isBlank() || plugin.getQuestCatalogManager() == null ? List.of()
-            : plugin.getQuestCatalogManager().getQuestIdsForNpc(npcId);
-        SetupHolder holder = new SetupHolder(player, "start-tutorial-quests", "__start__", 0);
-        Inventory menu = Bukkit.createInventory(holder, 54, "Quest giao sau tutorial world bắt đầu");
+        List<String> quests = filterNpcQuests(npcId, filterRealmId, filterRaceId);
+        int pages = Math.max(1, (quests.size() + 16) / 17);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        SetupHolder holder = new SetupHolder(player, "start-tutorial-quests", "__start__", page);
+        holder.filterRealmId = filterRealmId;
+        holder.raceId = filterRaceId;
+        Inventory menu = Bukkit.createInventory(holder, 54, "Quest NPC tutorial • " + (page + 1) + "/" + pages);
         holder.inventory = menu;
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            item(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
         String current = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial.auto-quest-id");
-        for (int i = 0; i < quests.size() && i < CONTENT_SLOTS.length; i++) {
-            String questId = quests.get(i);
-            int slot = CONTENT_SLOTS[i];
+        for (int i = 0; i < 17; i++) {
+            int index = page * 17 + i;
+            if (index >= quests.size()) break;
+            String questId = quests.get(index);
+            int slot = i;
             holder.choices.put(slot, questId);
             String title = plugin.getQuestCatalogManager().getQuestTitle(questId);
             menu.setItem(slot, item(questId.equals(current) ? Material.ENCHANTED_BOOK : Material.BOOK,
                 (questId.equals(current) ? "§a✓ " : "§f") + title, List.of("§7ID: §f" + questId,
                     "§7Giao bởi NPC: §f" + npcId, "§eNhấn để chọn.")));
         }
-        if (quests.isEmpty()) menu.setItem(22, item(Material.BARRIER, "§cChưa có quest phù hợp", List.of(
+        if (quests.isEmpty()) menu.setItem(4, item(Material.BARRIER, "§cChưa có quest phù hợp", List.of(
             "§7Tạo quest trong /vnquest admin và đặt giver NPC ID là:",
             "§f" + (npcId.isBlank() ? "chưa chọn NPC" : npcId))));
-        menu.setItem(45, item(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
-        menu.setItem(49, item(Material.ARROW, "§7Quay lại", List.of()));
+        menu.setItem(27, item(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
+        menu.setItem(28, item(Material.MAP, "§bLọc theo đại lục: §f" + scopeFilterName(filterRealmId), List.of(
+            "§7Lọc quest có scope đại lục cụ thể; quest dùng đại lục bất kỳ vẫn hiện.", "§eNhấn để chọn.")));
+        menu.setItem(29, item(Material.TOTEM_OF_UNDYING, "§dLọc theo chủng tộc: §f" + scopeFilterName(filterRaceId), List.of(
+            "§7Lọc quest có scope chủng tộc cụ thể; quest dùng mọi chủng tộc vẫn hiện.", "§eNhấn để chọn.")));
+        menu.setItem(36, item(Material.WRITABLE_BOOK, "§aTạo / quản lý quest", List.of(
+            "§7Quest giao bởi NPC: §f" + (npcId.isBlank() ? "chưa chọn" : npcId),
+            "§7World NPC: §f" + plugin.getConfig().getString("rpg.onboarding.start-world.name", "world_start"),
+            "§7Tạo quest tại đây rồi quay lại chọn; đặt đúng giver NPC ID.")));
+        if (page > 0) menu.setItem(45, item(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        menu.setItem(49, item(Material.CRAFTING_TABLE, "§7Quay lại", List.of()));
+        menu.setItem(51, item(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages, List.of()));
+        if (page + 1 < pages) menu.setItem(53, item(Material.CYAN_CARPET, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private List<String> filterNpcQuests(String npcId, String realmFilterId, String raceFilterId) {
+        if (npcId == null || npcId.isBlank() || plugin.getQuestCatalogManager() == null) return List.of();
+        return plugin.getQuestCatalogManager().getQuestIdsForNpc(npcId).stream()
+            .filter(id -> plugin.getQuestCatalogManager()
+                .matchesQuestAssignmentScope(id, realmFilterId, raceFilterId)).toList();
+    }
+
+    private void openNpcQuestChoices(Player player, String contextId, int page,
+                                     String realmFilterId, String raceFilterId) {
+        if ("__start__".equals(contextId))
+            openStartTutorialQuestChoices(player, page, realmFilterId, raceFilterId);
+        else openTutorialQuestChoices(player, contextId, page, realmFilterId, raceFilterId);
+    }
+
+    private String scopeFilterName(String id) {
+        if (id == null || id.isBlank() || "*".equals(id)) return "Bất kỳ";
+        var realm = plugin.getRpgWorldManager() == null ? null : plugin.getRpgWorldManager().getRealmDefinition(id);
+        if (realm != null) return LegacyText.translate(realm.displayName());
+        if (plugin.getCharacterSelectionManager() != null) {
+            return plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions().stream()
+                .filter(race -> race.id().equalsIgnoreCase(id)).map(race -> LegacyText.translate(race.name()))
+                .findFirst().orElse(id);
+        }
+        return id;
+    }
+
+    private void openNpcQuestScopeFilter(Player player, String contextId, int returnPage,
+                                         String realmFilterId, String raceFilterId, boolean raceFilter, int requestedPage) {
+        List<String> ids;
+        String title;
+        if (raceFilter) {
+            ids = plugin.getCharacterSelectionManager() == null ? List.of()
+                : plugin.getCharacterSelectionManager().getConfiguredRaceDefinitions().stream()
+                    .map(CharacterSelectionManager.RaceDefinition::id).toList();
+            title = "Lọc quest • Chủng tộc";
+        } else {
+            ids = plugin.getRpgWorldManager() == null ? List.of()
+                : plugin.getRpgWorldManager().getDefinitions().values().stream()
+                    .sorted(Comparator.comparing(HumanRealmDefinitionLoader.HumanRealmDefinition::displayName,
+                        String.CASE_INSENSITIVE_ORDER))
+                    .map(HumanRealmDefinitionLoader.HumanRealmDefinition::id).toList();
+            title = "Lọc quest • Đại lục";
+        }
+        int pages = Math.max(1, (ids.size() + 16) / 17);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        SetupHolder holder = new SetupHolder(player, raceFilter ? "npc-quest-filter-race" : "npc-quest-filter-world",
+            contextId, page);
+        holder.parentPage = returnPage;
+        holder.filterRealmId = realmFilterId;
+        holder.raceId = raceFilterId;
+        Inventory menu = Bukkit.createInventory(holder, 54, title + " • " + (page + 1) + "/" + pages);
+        holder.inventory = menu;
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            item(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
+        for (int index = 0; index < 17; index++) {
+            int choiceIndex = page * 17 + index;
+            if (choiceIndex >= ids.size()) break;
+            String id = ids.get(choiceIndex);
+            holder.choices.put(index, id);
+            String label = scopeFilterName(id);
+            menu.setItem(index, item(id.equals(raceFilter ? raceFilterId : realmFilterId)
+                    ? Material.ENCHANTED_BOOK : (raceFilter ? Material.TOTEM_OF_UNDYING : Material.MAP),
+                (id.equals(raceFilter ? raceFilterId : realmFilterId) ? "§a✓ " : "§f") + label,
+                List.of("§7ID: §f" + id, "§eNhấn để lọc quest.")));
+        }
+        menu.setItem(27, item(Material.COMPASS, "§aBất kỳ", List.of(
+            "§7Không giới hạn theo " + (raceFilter ? "chủng tộc" : "đại lục") + ".", "§eNhấn để bỏ lọc.")));
+        if (page > 0) menu.setItem(45, item(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        menu.setItem(49, item(Material.CRAFTING_TABLE, "§eQuay lại danh sách quest", List.of()));
+        menu.setItem(51, item(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages,
+            List.of("§7Đang chọn: " + scopeFilterName(raceFilter ? raceFilterId : realmFilterId))));
+        if (page + 1 < pages) menu.setItem(53, item(Material.CYAN_CARPET, "§eTrang sau", List.of()));
         player.openInventory(menu);
     }
 
@@ -923,32 +1060,41 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
     }
 
     private void openTutorialQuestSetup(Player player) {
-        File file = new File(plugin.getDataFolder(), "quests/tutorial/first-steps.yml");
-        YamlConfiguration quest = file.isFile() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration();
-        boolean enabled = quest.getBoolean("quest.enabled", false);
-        String title = quest.getString("quest.title", "First Steps");
-        String objectiveType = quest.getString("quest.objective.type", "visit-start-world-tutorial-npc");
-        SetupHolder holder = new SetupHolder(player, "tutorial-quest", null, 0);
-        Inventory menu = Bukkit.createInventory(holder, 54, "VnMine • Quest onboarding");
+        openTutorialQuestSetup(player, 0);
+    }
+
+    private void openTutorialQuestSetup(Player player, int requestedPage) {
+        var questManager = plugin.getQuestCatalogManager();
+        List<String> questIds = questManager == null ? List.of() : questManager.getEnabledQuestIds();
+        int pages = Math.max(1, (questIds.size() + 17) / 18);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        String current = plugin.getConfig().getString("rpg.onboarding.character-complete.default-quest-id", "");
+        SetupHolder holder = new SetupHolder(player, "first-quest-select", null, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Chọn quest đầu tiên sau tutorial • " + (page + 1) + "/" + pages);
         holder.inventory = menu;
-        menu.setItem(13, item(enabled ? Material.WRITABLE_BOOK : Material.BARRIER,
-            enabled ? "§aFirst Steps đang bật" : "§cFirst Steps đang tắt / thiếu file", List.of(
-                "§7Tên hiện tại: §f" + title,
-                "§7Mục tiêu: §f" + tutorialObjectiveName(objectiveType),
-                "§7Bấm mục First Step bên dưới để sửa tên, mô tả và mục tiêu.")));
-        menu.setItem(22, item(Material.ENCHANTED_BOOK, "§eSửa First Step: §f" + title, List.of(
-            "§7Mở trình sửa quest hướng dẫn first-steps.yml.",
-            "§7Có thể đổi tên và cấu hình objective giống quest RPG.", "§eNhấn để chỉnh sửa.")));
-        menu.setItem(29, item(enabled ? Material.REDSTONE_TORCH : Material.LEVER,
-            enabled ? "§eTắt quest First Steps" : "§eBật quest First Steps", List.of(
-                "§7Lưu trạng thái ngay và nạp lại quest manager.",
-                "§7Tắt sẽ dừng tracking đang chạy; bật áp dụng khi quest được khởi tạo lại.",
-                "§7Tiến trình đã lưu của người chơi không bị xóa.")));
-        menu.setItem(33, item(Material.BOOK, "§bMở quản lý quest giao bởi NPC", List.of(
-            "§7Mở /vnquest admin để tạo/sửa các quest RPG thường.",
-            "§7Quest onboarding first-steps.yml là luồng riêng.")));
-        menu.setItem(49, item(Material.ARROW, "§7Quay lại setup", List.of()));
-        menu.setItem(53, item(Material.BARRIER, "§cĐóng / tiếp tục sau", List.of("§7Chạy lại /vninit bất cứ lúc nào.")));
+        for (int slot = 18; slot <= 26; slot++) menu.setItem(slot,
+            item(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
+        for (int index = 0; index < 18; index++) {
+            int questIndex = page * 18 + index;
+            if (questIndex >= questIds.size()) break;
+            String questId = questIds.get(questIndex);
+            boolean selected = questId.equalsIgnoreCase(current);
+            holder.choices.put(index, questId);
+            String title = questManager.getQuestTitle(questId);
+            menu.setItem(index, item(selected ? Material.ENCHANTED_BOOK : Material.BOOK,
+                (selected ? "§a✓ " : "§e") + title, List.of("§7ID: §f" + questId,
+                    "§7Quest sẽ tự giao sau khi người chơi chọn race/class.", "§eNhấn để chọn.")));
+        }
+        menu.setItem(27, item(Material.PAPER, "§fĐang chọn: " + (current.isBlank() ? "chưa chọn" : current), List.of(
+            "§7Quản lý nội dung, mục tiêu và dialog tại /vnquest admin.")));
+        if (questIds.isEmpty()) menu.setItem(13, item(Material.BARRIER, "§cChưa có quest RPG bật", List.of(
+            "§7Tạo và bật một quest trước trong /vnquest admin.")));
+        if (page > 0) menu.setItem(45, item(Material.LIME_CARPET, "§eTrang trước", List.of()));
+        menu.setItem(46, item(Material.BARRIER, "§cBỏ quest tự giao", List.of()));
+        menu.setItem(49, item(Material.CRAFTING_TABLE, "§7Quay lại setup", List.of()));
+        menu.setItem(51, item(Material.PAPER, "§fTrang " + (page + 1) + "/" + pages, List.of("§7Quest khả dụng: " + questIds.size())));
+        if (page + 1 < pages) menu.setItem(53, item(Material.CYAN_CARPET, "§eTrang sau", List.of()));
+        else menu.setItem(53, item(Material.BARRIER, "§cĐóng / tiếp tục sau", List.of("§7Chạy lại /vninit bất cứ lúc nào.")));
         player.openInventory(menu);
     }
 
@@ -1317,13 +1463,20 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             else if (slot == 15 || slot == 18) openRealm(player, holder.realmId);
             return;
         }
-        if ("tutorial-quest".equals(holder.type)) {
+        if ("first-quest-select".equals(holder.type)) {
             if (slot == 49) openDashboard(player);
+            else if (slot == 45 && holder.page > 0) openTutorialQuestSetup(player, holder.page - 1);
+            else if (slot == 53 && plugin.getQuestCatalogManager() != null && holder.page + 1
+                    < Math.max(1, (plugin.getQuestCatalogManager().getEnabledQuestIds().size() + 17) / 18))
+                openTutorialQuestSetup(player, holder.page + 1);
             else if (slot == 53) player.closeInventory();
-            else if (slot == 22) openFirstStepsEditor(player);
-            else if (slot == 29) toggleTutorialQuest(player);
-            else if (slot == 33) {
-                Bukkit.dispatchCommand(player, "vnquest admin");
+            else if (slot == 46 || holder.choices.containsKey(slot)) {
+                String questId = slot == 46 ? null : holder.choices.get(slot);
+                plugin.getConfig().set("rpg.onboarding.character-complete.default-quest-id", questId);
+                savePluginConfig(player, "set first quest=" + questId);
+                player.sendMessage(questId == null ? "§eĐã bỏ quest tự giao sau khi hoàn tất tutorial."
+                    : "§aĐã chọn quest §f" + questId + " §ađể giao sau khi hoàn tất tutorial.");
+                openTutorialQuestSetup(player);
             }
             return;
         }
@@ -1372,8 +1525,19 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             if (slot == 49) {
                 String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
                 openTutorialNpcEditor(player, npcId);
-            } else if (slot == 45 || holder.choices.containsKey(slot)) {
-                saveStartWorldTutorialSetting(player, "auto-quest-id", slot == 45 ? null : holder.choices.get(slot));
+            } else if (slot == 45 && holder.page > 0)
+                openStartTutorialQuestChoices(player, holder.page - 1, holder.filterRealmId, holder.raceId);
+            else if (slot == 53 && holder.page + 1
+                    < Math.max(1, (filterNpcQuests(
+                        plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", ""),
+                        holder.filterRealmId, holder.raceId).size() + 16) / 17))
+                openStartTutorialQuestChoices(player, holder.page + 1, holder.filterRealmId, holder.raceId);
+            else if (slot == 28 || slot == 29)
+                openNpcQuestScopeFilter(player, "__start__", holder.page, holder.filterRealmId, holder.raceId,
+                    slot == 29, 0);
+            else if (slot == 36) Bukkit.dispatchCommand(player, "vnquest admin");
+            else if (slot == 27 || holder.choices.containsKey(slot)) {
+                saveStartWorldTutorialSetting(player, "auto-quest-id", slot == 27 ? null : holder.choices.get(slot));
                 String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
                 openTutorialNpcEditor(player, npcId);
             }
@@ -1383,12 +1547,45 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             if (slot == 49) {
                 var realm = plugin.getRpgWorldManager().getRealmDefinition(holder.realmId);
                 if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
-            } else if (slot == 45 || holder.choices.containsKey(slot)) {
-                String questId = slot == 45 ? null : holder.choices.get(slot);
+            } else if (slot == 45 && holder.page > 0)
+                openTutorialQuestChoices(player, holder.realmId, holder.page - 1,
+                    holder.filterRealmId, holder.raceId);
+            else if (slot == 53 && plugin.getRpgWorldManager() != null) {
+                var realm = plugin.getRpgWorldManager().getRealmDefinition(holder.realmId);
+                int pages = realm == null ? 1 : Math.max(1, (filterNpcQuests(realm.tutorialNpcId(),
+                    holder.filterRealmId, holder.raceId).size() + 16) / 17);
+                if (holder.page + 1 < pages) openTutorialQuestChoices(player, holder.realmId, holder.page + 1,
+                    holder.filterRealmId, holder.raceId);
+            } else if (slot == 28 || slot == 29) {
+                openNpcQuestScopeFilter(player, holder.realmId, holder.page, holder.filterRealmId, holder.raceId,
+                    slot == 29, 0);
+            } else if (slot == 36) {
+                Bukkit.dispatchCommand(player, "vnquest admin");
+            } else if (slot == 27 || holder.choices.containsKey(slot)) {
+                String questId = slot == 27 ? null : holder.choices.get(slot);
                 updateRealm(player, holder.realmId, config -> config.set("tutorial.auto-quest-id", questId),
                     "set tutorial auto quest=" + questId);
                 var realm = plugin.getRpgWorldManager().getRealmDefinition(holder.realmId);
                 if (realm != null) openTutorialNpcEditor(player, realm.tutorialNpcId());
+            }
+            return;
+        }
+        if (holder.type.equals("npc-quest-filter-world") || holder.type.equals("npc-quest-filter-race")) {
+            boolean raceFilter = holder.type.equals("npc-quest-filter-race");
+            if (slot == 49) {
+                openNpcQuestChoices(player, holder.realmId, holder.parentPage,
+                    holder.filterRealmId, holder.raceId);
+            } else if (slot == 45 && holder.page > 0) {
+                openNpcQuestScopeFilter(player, holder.realmId, holder.parentPage, holder.filterRealmId,
+                    holder.raceId, raceFilter, holder.page - 1);
+            } else if (slot == 53) {
+                openNpcQuestScopeFilter(player, holder.realmId, holder.parentPage, holder.filterRealmId,
+                    holder.raceId, raceFilter, holder.page + 1);
+            } else if (slot == 27 || holder.choices.containsKey(slot)) {
+                String selected = slot == 27 ? null : holder.choices.get(slot);
+                String worldFilter = raceFilter ? holder.filterRealmId : selected;
+                String raceId = raceFilter ? selected : holder.raceId;
+                openNpcQuestChoices(player, holder.realmId, holder.parentPage, worldFilter, raceId);
             }
             return;
         }
@@ -1777,7 +1974,9 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         private final String type;
         private final String realmId;
         private final int page;
+        private int parentPage;
         private String raceId;
+        private String filterRealmId;
         private final Map<Integer, String> choices = new HashMap<>();
         private Inventory inventory;
 

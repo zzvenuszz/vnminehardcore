@@ -215,6 +215,12 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return npc == null ? java.util.Optional.empty() : java.util.Optional.of(formatDisplayName(npc.displayName()));
     }
 
+    /** Replays a click that arrived while the player's onboarding/profile state was loading. */
+    public void replayInteraction(Player player, String npcId) {
+        if (player == null || !player.isOnline() || npcId == null) return;
+        handleNpcInteraction(player, npcId.toLowerCase(Locale.ROOT));
+    }
+
     public java.util.Optional<String> getNpcType(String npcId) {
         NpcRecord npc = npcId == null ? null : npcs.get(npcId.toLowerCase(Locale.ROOT));
         return npc == null ? java.util.Optional.empty() : java.util.Optional.of(npc.type());
@@ -763,7 +769,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                     + npc.storyChapterId() + "'.");
             }
             plugin.getQuestDialogManager().openStoryChapter(player,
-                ChatColor.stripColor(formatDisplayName(npc.displayName())), chapter,
+                formatDisplayName(npc.displayName()), chapter,
                 chapter == null ? null : () -> recordStoryChapterRead(player, npc.id(), chapter.id()));
             return;
         }

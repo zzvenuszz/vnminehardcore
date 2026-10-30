@@ -115,6 +115,15 @@ warning-seconds: 180
 
 Không được phép có thông số config nào không có comment hướng dẫn.
 
+## Quy tắc bố cục GUI chọn/cấu hình
+* Với menu cấu hình có danh sách lựa chọn, hai hàng trên cùng dành cho danh sách hiện tại hoặc các lựa chọn chính.
+* Hàng thứ ba (slot 18–26 trong chest 54 ô) là vạch ngăn bằng glass pane.
+* Hai hàng kế tiếp (slot 27–44) dành cho các tùy chọn/hành động cấu hình.
+* Hàng cuối (slot 45–53) dành cho quay lại, phân trang, trạng thái trang, lưu/hủy; không đặt lựa chọn chính vào vùng này.
+* Nếu danh sách dài hơn 18 mục, chỉ phân trang danh sách ở hai hàng đầu; giữ nguyên vạch ngăn, vùng tùy chọn và hàng điều hướng.
+* Thống nhất icon: quay lại dùng crafting table, trang trước dùng lime carpet, trang tiếp dùng cyan carpet.
+* Mọi click phải được ánh xạ bằng `InventoryHolder` và quay về đúng menu nguồn; chỉ lưu ngay khi thao tác có nhãn lưu/xác nhận.
+
 ---
 
 ## Maven Build Rules (Quy định bắt buộc khi biên dịch)

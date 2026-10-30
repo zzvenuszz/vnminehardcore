@@ -120,12 +120,13 @@ cá nhân được cộng lại, vì vậy xóa quyền cá nhân không thể p
 cấp bởi nhóm. Nhóm mặc định áp dụng cho người mới và `/vnuser reset`; đổi
 `default-group` không tự chuyển người đã có nhóm được lưu.
 
-#### Alias và quyền định dạng tên
+#### Alias và quyền định dạng tên/chat
 
 Người có `vnmine.alias.set` dùng `/alias set &6&lTên Mới` để đặt tên (có thể
 có khoảng trắng), và `/alias` để xóa. Alias hiển thị trong chat, tab list,
-thông báo vào/ra, thông báo chết và bảng xếp hạng. Các mã định dạng bị lọc theo
-permission của người đặt:
+thông báo vào/ra, thông báo chết và bảng xếp hạng. Mã `&`/`§` trong nội dung
+chat cũng được xử lý theo quyền format của người gửi. Mỗi mã cần permission
+tương ứng; OP được dùng tất cả mã. Mã không có quyền sẽ không áp dụng:
 
 - Màu `&0` đến `&f`: `vnmine.alias.color.0` ... `vnmine.alias.color.f`.
 - Format `&k`, `&l`, `&m`, `&n`, `&o`, `&r`: `vnmine.alias.format.k` ...
@@ -444,11 +445,14 @@ Nếu chưa có NPC hướng dẫn, tạo nó tại vị trí mong muốn bằng
 GUI báo từng điều kiện đã đạt/chưa đạt; mỗi thay đổi được lưu ngay vào file đại
 lục và catalog được nạp lại. Có thể đóng menu ở bất kỳ bước nào rồi chạy lại
 `/vninit`. Dashboard có nút mở cấu hình sách khởi đầu (`/vnskillbook config`) và
-quản lý quest RPG do NPC giao (`/vnquest admin`); quest First Steps có cấu hình
-riêng tại `plugins/VnMineHardcore/quests/tutorial/first-steps.yml`. Trong menu
-**Quest RPG và quest hướng dẫn**, chọn **Sửa First Step** để đổi tên, mô tả,
-thông báo và chọn objective phù hợp. Danh sách đại lục nằm ở hai hàng đầu của
-dashboard, ngăn cách với nhóm cài đặt bằng một hàng kính.
+quản lý quest RPG do NPC giao (`/vnquest admin`). Trong menu **Quest RPG và
+quest hướng dẫn**, chọn quest RPG sẽ tự giao sau khi người chơi hoàn tất
+onboarding; sửa tên, mục tiêu, điều kiện và quest-dialog theo từng trạng thái
+trong `/vnquest admin`. Quest hướng dẫn tương thích cũ vẫn dùng cấu hình tại
+`plugins/VnMineHardcore/quests/tutorial/first-steps.yml`. Khi gán quest tự giao
+cho NPC Tutorial của một đại lục, bộ chọn có thể lọc theo đại lục và chủng tộc;
+quest không giới hạn scope vẫn được giữ trong kết quả. Danh sách đại lục nằm
+ở hai hàng đầu của dashboard, ngăn cách với nhóm cài đặt bằng một hàng kính.
 
 Dashboard có nút **Bảo vệ World bắt đầu/reset** để cấu hình nhanh world bắt đầu.
 Menu **Menu chính → Admin → Quản lý world** hiển thị từng world đang nạp và lưu
@@ -463,7 +467,8 @@ người chơi chọn xong race/class: dịch chuyển tới spawn đại lục,
 quest mặc định từ danh sách quest đang bật. Quest gắn riêng với race vẫn có thể
 được cấp theo `races.yml`. Có công tắc **Dịch chuyển sau khi chọn class** để tắt
 riêng việc dịch chuyển mà vẫn giữ điểm đến đã cấu hình cho lần bật lại. Menu lưu
-từng lựa chọn ngay khi bấm.
+từng lựa chọn ngay khi bấm. Objective `world-select` và `race-select` trong
+editor quest yêu cầu chọn đại lục/chủng tộc cụ thể hoặc bất kỳ.
 
 Menu **Admin → Quản trị người chơi → Reset toàn bộ tiến trình RPG** xóa hồ sơ
 RPG, đại lục/race/class, level/EXP, tiến trình và lịch sử quest, skill/quick slot;
@@ -494,8 +499,8 @@ Mục tiêu **Nộp item** mở inventory cấu hình: admin đặt các stack c
 rồi bấm **Lưu mục tiêu nộp item**; số lượng trong mỗi stack được dùng làm số
 lượng yêu cầu và mỗi loại item thành một bước liên tiếp. Hủy/đóng kho sẽ trả các
 item cấu hình lại cho admin. Điều kiện nhận quest hỗ trợ chọn quest đã lưu, quest
-tutorial hệ thống **Bước chân đầu tiên** (`first-steps`), đại lục và chủng tộc
-qua GUI. Tên COD/SALMON và các item mục tiêu được diễn giải thành tên dễ đọc;
+tutorial hệ thống **Bước chân đầu tiên** (`first-steps`), đại lục/race cụ thể
+hoặc bất kỳ đại lục/race nào qua GUI. Tên COD/SALMON và các item mục tiêu được diễn giải thành tên dễ đọc;
 nhãn item rơi dùng bản dịch theo ngôn ngữ client Minecraft.
 
 ## Cấu hình (config.yml)

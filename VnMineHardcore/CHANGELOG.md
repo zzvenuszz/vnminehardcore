@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.38.0 — 2026-10-30
+
+- Menu chọn quest tự giao cho NPC tutorial ở `/vninit` có bộ lọc theo đại lục và chủng tộc, có lựa chọn bỏ lọc và giữ bộ lọc khi chuyển trang.
+- Quest được lọc theo scope khai báo trong điều kiện nhận hoặc objective `world-select`/`race-select`; quest dùng scope bất kỳ hoặc không giới hạn vẫn xuất hiện.
+- Rà soát luồng onboarding, quest, NPC và dialog; bổ sung roadmap chuẩn hóa phân loại quest/dialog, lựa chọn tại chỗ và tránh cấu hình tự giao chồng chéo vào `plan.md`.
+
+## 2.37.1 — 2026-10-30
+
+- Chat thường áp dụng mã `&`/`§` cho nội dung tin nhắn và tên alias; người chơi cần quyền riêng cho từng màu/format/rainbow, OP được bỏ qua kiểm tra này.
+- Giữ màu/format tên NPC trên action bar hội thoại truyện, quest và tutorial; cắt tên dài mà vẫn bảo toàn mã định dạng.
+- Nếu người chơi tương tác với NPC Tutorial trong lúc hồ sơ đang tải, phát lại tương tác sau khi hồ sơ hoàn tất để mở luồng NPC bình thường thay vì hiện thông báo đã hoàn thành chung.
+
+## 2.37.0 — 2026-10-30
+
+- Đồng bộ NPC type `tutorial` với luồng quest-giver sau khi người chơi hoàn thành onboarding; tương tác lại hiển thị quest gắn bằng giver NPC ID và dialog theo trạng thái trong edit quest.
+- Sửa bộ chọn quest-dialog mở đầu trong `/vninit`: chỉ liệt kê dialog public loại Có thể nhận; dialog theo trạng thái tiếp tục được tạo/gán trong quest editor, không còn lỗi thiếu quest context.
+- `/vninit` thay nút sửa First Step riêng bằng GUI chọn quest RPG đầu tiên tự giao sau khi người chơi chọn race/class.
+- Thêm objective tuần tự `world-select` và `race-select`, cho phép chọn đích cụ thể hoặc bất kỳ qua GUI; điều kiện nhận quest hỗ trợ yêu cầu đã chọn bất kỳ đại lục/race.
+- OP được cấp lại mọi permission node do plugin khai báo sau khi áp dụng group/user attachment, tránh quyền deny trong attachment làm mất quyền của OP.
+- Chuẩn hóa menu điều kiện quest theo 2 hàng danh sách, hàng kính ngăn cách, 2 hàng tùy chọn và hàng điều hướng; ghi quy tắc GUI dùng chung vào `.clinerules`.
+
 ## 2.36.16 — 2026-10-30
 
 - Fix formatter `LegacyText`: văn bản thường không có marker rainbow trước đó trả về chuỗi rỗng, làm title quest bị từ chối khi plugin khởi động. Nay đường xử lý text thường vẫn dịch mã màu `&` và giữ nguyên nội dung.
