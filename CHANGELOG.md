@@ -1,5 +1,11 @@
 # Changelog
 
+## [v2.39.2] - 2026-10-30
+
+- Sửa lỗi marker NPC `!`/`?` làm client bị ngắt kết nối trên Paper 26.3: bỏ metadata packet tự dựng, dùng TextDisplay do Paper quản lý.
+- Marker vẫn hiển thị riêng theo điều kiện của từng người chơi; xóa marker khi không còn đủ điều kiện, NPC di chuyển hoặc người chơi rời server.
+- Đã build và cài JAR 2.39.2; xác minh compile/package thành công. Test suite được bỏ qua; cần xác nhận tương tác trên server thật sau restart.
+
 ## [v2.36.6] - 2026-10-28
 
 - Trong trình sửa quest, chọn NPC giao nhiệm vụ, NPC mục tiêu và NPC bước đầu bằng GUI tải từ danh sách NPC đã lưu; chọn boss mục tiêu từ danh sách boss đã cấu hình.

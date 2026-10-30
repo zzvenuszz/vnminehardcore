@@ -1167,3 +1167,13 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] JAR `VnMineHardcore-2.39.1.jar`, 2.560.789 bytes, SHA-256 `2e1131a39d952d6b5a5ee655e5d5614308687e9ef479e27d8a379710e8e5c010`; xác minh chỉ có SQLite native Linux x86_64.
 - [x] Sao lưu bản 2.39.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.39.0-pre-2.39.1-20261030.jar`, cài 2.39.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.39.1.jar`; checksum cài đặt khớp artifact và thư mục chỉ giữ một JAR VnMineHardcore hoạt động.
 - [ ] Cần khởi động lại Paper để xác nhận plugin enable thành công và marker NPC hiển thị; kiểm tra log không còn lỗi `No serializer found for Vector3F`.
+
+## Sửa lỗi client disconnect khi hiển thị marker NPC — 2.39.2 — 2026-10-30
+
+- Log Paper 26.3 lúc `02:43:26` xác nhận tương tác NPC và hoàn thành quest thành công; ngay sau đó packet marker `!` lỗi `Vector3F cannot be cast to net.minecraft.core.Rotations`, khiến client bị ngắt kết nối. Lỗi lặp lại khi người chơi vào lại server.
+- [x] Thay packet metadata tự dựng bằng entity `TextDisplay` do Paper quản lý; đặt entity ẩn mặc định và chỉ `showEntity` cho người chơi đủ điều kiện nhận marker. Paper chịu trách nhiệm mã hóa metadata theo phiên bản server.
+- [x] Giữ marker theo từng người xem, cập nhật text trực tiếp, và xóa entity khi marker hết điều kiện, NPC đổi vị trí/biến mất, người chơi thoát hoặc plugin tắt.
+- [x] Tăng phiên bản patch lên 2.39.2. `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64 mvn -DskipTests clean package` thành công lúc `2026-10-30 02:46:07 UTC`; test suite được bỏ qua, compile/package thành công.
+- [x] JAR `VnMineHardcore-2.39.2.jar`, 2.560.044 bytes, SHA-256 `d85a56094722d5ad785f0bbdaefa368e9794e45f45396bb7436a5eaabd0ad074`; xác minh chỉ có SQLite native Linux x86_64.
+- [x] Sao lưu 2.39.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.39.1-pre-2.39.2-20261030.jar`, cài 2.39.2 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.39.2.jar`; checksum khớp và chỉ giữ một JAR plugin hoạt động.
+- [ ] Khởi động lại Paper và kiểm tra marker `!`/`?`, tương tác NPC quest-giver, tầm nhìn riêng theo người chơi, và log không còn lỗi `set_entity_data`/ngắt kết nối.
