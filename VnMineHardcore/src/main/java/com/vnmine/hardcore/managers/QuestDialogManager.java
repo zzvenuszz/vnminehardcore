@@ -79,6 +79,14 @@ public final class QuestDialogManager implements Listener {
         openSelector(player, selectedId, new DialogContext(questId, dialogType, 0, selectedId, callback), 0);
     }
 
+    public void openNpcSelector(Player player, String npcId, String selectedId, Consumer<String> callback) {
+        if (!player.hasPermission(PERMISSION) && !player.hasPermission("vnmine.command.npc.admin")) {
+            player.sendMessage("§cBạn không có quyền quản lý hội thoại NPC.");
+            return;
+        }
+        openSelector(player, selectedId, new DialogContext(npcId, "NPC", 0, selectedId, callback), 0);
+    }
+
     private void openSelector(Player player, String selectedId, DialogContext context, int requestedPage) {
         List<QuestDialog> values = dialogs.values().stream()
             .filter(dialog -> visibleFor(dialog, context))
@@ -88,7 +96,7 @@ public final class QuestDialogManager implements Listener {
         DialogContext pageContext = context.withPage(page);
         DialogHolder holder = new DialogHolder(player.getUniqueId(), Menu.SELECT, null, page, context.callback(), pageContext);
         holder.selectedId = selectedId;
-        Inventory menu = Bukkit.createInventory(holder, 54, "Quest-dialog • " + context.dialogType());
+        Inventory menu = Bukkit.createInventory(holder, 54, "Hội thoại • " + dialogTypeLabel(context.dialogType()));
         holder.inventory = menu;
         for (int slot = 18; slot <= 26; slot++)
             menu.setItem(slot, item(Material.GRAY_STAINED_GLASS_PANE, "§8────────", List.of()));
@@ -97,32 +105,37 @@ public final class QuestDialogManager implements Listener {
             menu.setItem(slot, item(Material.WRITABLE_BOOK,
                 (dialog.id().equals(selectedId) ? "§a✓ " : "§f") + LegacyText.translate(dialog.title()),
                 List.of("§7ID: §f" + dialog.id(), "§7Loại: §f" + dialogTypeLabel(dialog.type()),
-                    "§7Phạm vi: " + (dialog.isPublic() ? "§aPublic" : "§eRiêng quest " + dialog.questId()),
+                    "§7Phạm vi: " + (dialog.isPublic() ? "§aPublic"
+                        : ("NPC".equals(dialog.type()) ? "§eRiêng NPC " : "§eRiêng quest ") + dialog.questId()),
                     "§7Số trang: §f" + dialog.pages().size(), "§eChuột trái: chọn • chuột phải: sửa")));
             holder.dialogSlots.put(slot, dialog.id());
         }
         menu.setItem(27, item(Material.BARRIER, "§cKhông dùng hội thoại", List.of("§7Xóa lựa chọn hiện tại.")));
         boolean hasQuestContext = context.questId() != null && !context.questId().isBlank();
         menu.setItem(28, item(!hasQuestContext ? Material.BARRIER : Material.LIME_DYE,
-            !hasQuestContext ? "§8Tạo dialog tại edit quest" : "§aTạo dialog cho quest này", List.of(
+            !hasQuestContext ? "§8Tạo dialog tại edit quest"
+                : "§aTạo dialog cho " + ("NPC".equals(context.dialogType()) ? "NPC này" : "quest này"), List.of(
             "§7Loại dialog: §f" + dialogTypeLabel(context.dialogType()),
             !hasQuestContext ? "§7Dialog mở đầu ở đây chỉ chọn dialog public đã tạo từ quest."
                 : "§7Sau khi nhập nội dung, chọn dialog riêng hoặc public.",
             !hasQuestContext ? "§8Không thể tạo dialog thiếu quest context." : "§eNhấn để bắt đầu.")));
         if (page > 0) menu.setItem(45, item(Material.LIME_CARPET, "§eTrang trước", List.of()));
-        menu.setItem(49, item(Material.CRAFTING_TABLE, "§eQuay lại quest", List.of()));
+        menu.setItem(49, item(Material.CRAFTING_TABLE,
+            "§e" + ("NPC".equals(context.dialogType()) ? "Quay lại edit NPC" : "Quay lại quest"), List.of()));
         menu.setItem(51, item(Material.PAPER, "§fTrang " + (page + 1) + "/" + pageCount,
             List.of("§7Đang chọn: " + (selectedId == null ? "không có" : selectedId))));
         if (page + 1 < pageCount) menu.setItem(53, item(Material.CYAN_CARPET, "§eTrang sau", List.of()));
         if (values.isEmpty()) menu.setItem(4, item(Material.BOOK, "§7Chưa có dialog phù hợp", List.of(
             "§7Dialog private của quest khác không xuất hiện ở đây.",
-            hasQuestContext ? "§eDùng nút tạo để viết hội thoại cho trạng thái này."
+            hasQuestContext ? "§eDùng nút tạo để viết hội thoại tại chỗ."
                 : "§eTạo dialog public loại Có thể nhận trong phần edit quest.")));
         player.openInventory(menu);
     }
 
     private boolean visibleFor(QuestDialog dialog, DialogContext context) {
         if ("LEGACY".equals(dialog.type())) return dialog.isPublic();
+        if ("NPC".equals(context.dialogType()))
+            return "NPC".equals(dialog.type()) && (dialog.isPublic() || context.questId().equals(dialog.questId()));
         if (context.questId() == null || context.questId().isBlank())
             return dialog.isPublic() && "AVAILABLE".equals(dialog.type());
         if (!dialog.type().equals(context.dialogType())) return false;
@@ -135,6 +148,7 @@ public final class QuestDialogManager implements Listener {
             case "IN_PROGRESS" -> "Đang làm";
             case "COMPLETED" -> "Hoàn tất/nhận thưởng";
             case "UNAVAILABLE" -> "Chưa đủ điều kiện";
+            case "NPC" -> "NPC";
             default -> "Dialog cũ (public)";
         };
     }
@@ -310,7 +324,7 @@ public final class QuestDialogManager implements Listener {
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player) || !holder.viewer.equals(player.getUniqueId())
                 || event.getClickedInventory() != event.getView().getTopInventory()) return;
-        if (!player.hasPermission(PERMISSION)) {
+        if (!hasDialogPermission(player, holder.context)) {
             player.closeInventory();
             return;
         }
@@ -356,9 +370,11 @@ public final class QuestDialogManager implements Listener {
             else if (slot == 49) openSelector(player, holder.selectedId, holder.context, holder.page);
         } else if (holder.menu == Menu.CONFIRM_DELETE) {
             if (slot == 11) {
-                if (plugin.getQuestCatalogManager() != null
-                        && plugin.getQuestCatalogManager().isQuestDialogInUse(holder.dialogId)) {
-                    player.sendMessage("§cKhông thể xóa: hội thoại đang được gán cho ít nhất một quest.");
+                if ((plugin.getQuestCatalogManager() != null
+                        && plugin.getQuestCatalogManager().isQuestDialogInUse(holder.dialogId))
+                        || (plugin.getNpcManager() != null
+                        && plugin.getNpcManager().isNpcDialogInUse(holder.dialogId))) {
+                    player.sendMessage("§cKhông thể xóa: hội thoại đang được gán cho quest hoặc NPC.");
                     openEditor(player, holder.dialogId, holder.context);
                     return;
                 }
@@ -373,6 +389,12 @@ public final class QuestDialogManager implements Listener {
                 }
             } else if (slot == 15) openEditor(player, holder.dialogId, holder.context);
         }
+    }
+
+    private boolean hasDialogPermission(Player player, DialogContext context) {
+        return player.hasPermission(PERMISSION)
+            || (context != null && "NPC".equals(context.dialogType())
+                && player.hasPermission("vnmine.command.npc.admin"));
     }
 
     @EventHandler
@@ -432,15 +454,15 @@ public final class QuestDialogManager implements Listener {
         holder.inventory = menu;
         menu.setItem(4, item(Material.WRITABLE_BOOK, "§6" + LegacyText.translate(dialog.title()), List.of(
             "§7ID: §f" + id, "§7Loại: §f" + dialogTypeLabel(dialog.type()),
-            "§7Phạm vi: " + (dialog.isPublic() ? "§aPublic" : "§eRiêng quest " + dialog.questId()))));
+            "§7Phạm vi: " + (dialog.isPublic() ? "§aPublic"
+                : ("NPC".equals(dialog.type()) ? "§eRiêng NPC " : "§eRiêng quest ") + dialog.questId()))));
         menu.setItem(10, item(Material.NAME_TAG, "§eĐổi tên", List.of("§7Tên hiện tại: " + LegacyText.translate(dialog.title()))));
         menu.setItem(12, item(Material.PAPER, "§bSửa nội dung", List.of("§7" + dialog.pages().size()
             + " trang.", "§7Nhập các trang, phân tách bằng |.")));
         menu.setItem(14, item(Material.REDSTONE, "§cXóa hội thoại", List.of("§7Cần xác nhận trước khi xóa.")));
         menu.setItem(16, item(dialog.isPublic() ? Material.LIME_DYE : Material.GRAY_DYE,
             dialog.isPublic() ? "§aPublic: bật" : "§ePublic: tắt", List.of(
-                "§7Dialog public có thể được chọn bởi quest khác",
-                "§7khi cùng loại trạng thái.", "§eNhấn để đổi phạm vi.")));
+                "§7Dialog public có thể được dùng ở quest/NPC khác.", "§eNhấn để đổi phạm vi.")));
         menu.setItem(49, item(Material.CRAFTING_TABLE, "§eQuay lại danh sách dialog phù hợp", List.of()));
         player.openInventory(menu);
     }
@@ -470,9 +492,11 @@ public final class QuestDialogManager implements Listener {
         holder.inventory = menu;
         menu.setItem(4, item(Material.WRITABLE_BOOK, "§6" + LegacyText.translate(draft.title()), List.of(
             "§7Loại: §f" + dialogTypeLabel(draft.type()), "§7ID: §f" + draft.id())));
-        menu.setItem(20, item(Material.BOOK, "§eChỉ dùng cho quest này", List.of(
-            "§7Dialog chỉ xuất hiện trong quest §f" + context.questId(),
-            "§7và trạng thái §f" + dialogTypeLabel(context.dialogType()) + "§7.")));
+        String privateScope = "NPC".equals(context.dialogType()) ? "§eChỉ dùng cho NPC này"
+            : "§eChỉ dùng cho quest này";
+        menu.setItem(20, item(Material.BOOK, privateScope, List.of(
+            "§7Dialog gắn riêng với §f" + ("NPC".equals(context.dialogType()) ? "NPC " : "quest ")
+                + context.questId(), "§7Loại: §f" + dialogTypeLabel(context.dialogType()) + "§7.")));
         menu.setItem(24, item(Material.ENCHANTED_BOOK, "§aĐánh dấu Public", List.of(
             "§7Dialog có thể được chọn bởi các quest khác", "§7ở cùng loại trạng thái.")));
         menu.setItem(49, item(Material.CRAFTING_TABLE, "§eHủy và quay lại", List.of()));
@@ -496,7 +520,8 @@ public final class QuestDialogManager implements Listener {
             openSelector(player, holder.selectedId, holder.context, holder.page);
             return;
         }
-        player.sendMessage("§aĐã tạo dialog " + (isPublic ? "public" : "riêng cho quest này") + ".");
+        player.sendMessage("§aĐã tạo dialog " + (isPublic ? "public" : "riêng cho "
+            + ("NPC".equals(context.dialogType()) ? "NPC này" : "quest này")) + ".");
         context.callback().accept(saved.id());
     }
 
@@ -514,7 +539,8 @@ public final class QuestDialogManager implements Listener {
         if (!save()) {
             dialogs.put(old.id(), old);
             player.sendMessage("§cKhông lưu được phạm vi dialog.");
-        } else player.sendMessage("§aĐã đổi dialog thành " + (makePublic ? "public" : "riêng quest này") + ".");
+        } else player.sendMessage("§aĐã đổi dialog thành " + (makePublic ? "public"
+            : "riêng cho " + ("NPC".equals(holder.context.dialogType()) ? "NPC này" : "quest này")) + ".");
         openEditor(player, old.id(), holder.context);
     }
 
@@ -601,7 +627,7 @@ public final class QuestDialogManager implements Listener {
             throw new IOException("Quest-dialog data file is invalid YAML.", exception);
         }
         int schema = yaml.getInt("schema-version", -1);
-        if (schema != 1 && schema != 2) throw new IOException("Unsupported quest-dialog schema.");
+        if (schema < 1 || schema > 3) throw new IOException("Unsupported quest-dialog schema.");
         var section = yaml.getConfigurationSection("dialogs");
         if (section == null) return;
         if (section.getKeys(false).size() > MAX_DIALOGS) throw new IOException("Quest-dialog limit exceeded.");
@@ -614,13 +640,15 @@ public final class QuestDialogManager implements Listener {
             }
             String type = schema == 1 ? "LEGACY" : yaml.getString("dialogs." + id + ".type", "");
             boolean isPublic = schema == 1 || yaml.getBoolean("dialogs." + id + ".public", false);
-            String questId = schema == 1 ? null : yaml.getString("dialogs." + id + ".quest-id");
-            if (schema == 2 && !Set.of("AVAILABLE", "IN_PROGRESS", "COMPLETED", "UNAVAILABLE").contains(type)) {
+            String questId = schema == 1 ? null : "NPC".equals(type)
+                ? yaml.getString("dialogs." + id + ".npc-id")
+                : yaml.getString("dialogs." + id + ".quest-id");
+            if (schema >= 2 && !Set.of("AVAILABLE", "IN_PROGRESS", "COMPLETED", "UNAVAILABLE", "NPC", "LEGACY").contains(type)) {
                 plugin.getLogger().warning("[QuestDialog] Ignoring invalid type for id='" + id + "'.");
                 continue;
             }
             if (!isPublic && (questId == null || !ID_PATTERN.matcher(questId).matches())) {
-                plugin.getLogger().warning("[QuestDialog] Ignoring private dialog without valid quest id='" + id + "'.");
+                plugin.getLogger().warning("[QuestDialog] Ignoring private dialog without valid owner id='" + id + "'.");
                 continue;
             }
             dialogs.put(id, new QuestDialog(id, title, pages, type, isPublic, questId));
@@ -630,7 +658,7 @@ public final class QuestDialogManager implements Listener {
 
     private boolean save() {
         YamlConfiguration yaml = new YamlConfiguration();
-        yaml.set("schema-version", 2);
+        yaml.set("schema-version", 3);
         yaml.setComments("schema-version", List.of("[VI] Phiên bản cấu trúc file quest-dialog.",
             "[EN] Quest-dialog file schema version."));
         for (QuestDialog dialog : dialogs.values()) {
@@ -639,7 +667,7 @@ public final class QuestDialogManager implements Listener {
             yaml.set(base + ".pages", dialog.pages());
             yaml.set(base + ".type", dialog.type());
             yaml.set(base + ".public", dialog.isPublic());
-            if (!dialog.isPublic()) yaml.set(base + ".quest-id", dialog.questId());
+            if (!dialog.isPublic()) yaml.set(base + ("NPC".equals(dialog.type()) ? ".npc-id" : ".quest-id"), dialog.questId());
             yaml.setComments(base, List.of("[VI] Hội thoại RPG do admin tạo trong GUI.",
                 "[EN] RPG dialog created by an admin through the GUI."));
         }

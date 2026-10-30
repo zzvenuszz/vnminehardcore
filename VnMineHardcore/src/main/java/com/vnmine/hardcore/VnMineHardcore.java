@@ -279,6 +279,7 @@ public final class VnMineHardcore extends JavaPlugin {
         registerCommand("vntext", textDisplayManager, textDisplayManager);
         registerCommand("vnquest", questCatalogManager, questCatalogManager);
         registerCommand("alias", aliasManager, aliasManager);
+        registerCommand("realname", aliasManager, aliasManager);
         registerCommand("vngroup", permissionManager, permissionManager);
         registerCommand("vnuser", permissionManager, permissionManager);
         registerCommand("vnarmy", mercenaryManager, mercenaryManager);
@@ -768,6 +769,8 @@ public final class VnMineHardcore extends JavaPlugin {
                 "§e/alias set <tên> §7- Đặt alias chat/tab; §e/alias §7- Xóa alias.");
             sendHelpLine(sender, "vnmine.alias.admin",
                 "§e/alias set <người_chơi> <tên> §7| §e/alias clear <người_chơi> §7- Quản lý alias người chơi.");
+            sendHelpLine(sender, null,
+                "§e/realname <username|alias> §7- Tra username thật; alias nhập không kèm mã màu.");
             sendHelpLine(sender, "vnmine.command.utility", "§e/vn help §7- Hướng dẫn lệnh /vn.");
             sendHelpLine(sender, "vnmine.command.help", "§e/vnhelp §7- Hiển thị trợ giúp theo quyền của bạn.");
             sender.sendMessage("§6§m========================================");

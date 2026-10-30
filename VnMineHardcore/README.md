@@ -44,6 +44,7 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vnhelp`, `/vn help` | Hiển thị lệnh theo quyền người dùng; admin/OP thấy thêm lệnh quản trị | `vnmine.command.help`, `.utility` |
 | `/alias set <tên>`, `/alias` | Đặt hoặc xóa tên hiển thị trong chat, tab list, thông báo vào/ra, chết và bảng xếp hạng | `vnmine.alias.set`; từng mã màu/format cần quyền riêng |
 | `/alias set <người_chơi> <tên>`, `/alias clear <người_chơi>` | Admin đặt hoặc xóa alias người chơi khác; alias do admin đặt được dùng mọi format | `vnmine.alias.admin` |
+| `/realname <username|alias>` | Tra tên Minecraft thật từ username hoặc alias; nhập alias thuần, không kèm mã màu như `hoanbh` để tìm alias `&4hoanbh` | Không yêu cầu quyền riêng |
 | `/vnmenu` hoặc phím `F` | Mở menu chức năng; phím F thay thao tác đổi tay phụ | Không yêu cầu quyền riêng |
 | `/vninit` | Mở wizard setup RPG: chọn đại lục khởi đầu, world, NPC tutorial và spawn; mỗi thay đổi lưu ngay, thoát rồi chạy lại để tiếp tục | `vnmine.command.init` |
 | `/vnregion [wand]` | Mở quản lý vùng bảo vệ; `wand` cấp búa chọn hai góc, đặt tên và cấu hình flags | `vnmine.command.worldedit` |
@@ -123,7 +124,8 @@ cấp bởi nhóm. Nhóm mặc định áp dụng cho người mới và `/vnuse
 #### Alias và quyền định dạng tên/chat
 
 Người có `vnmine.alias.set` dùng `/alias set &6&lTên Mới` để đặt tên (có thể
-có khoảng trắng), và `/alias` để xóa. Alias hiển thị trong chat, tab list,
+có khoảng trắng), và `/alias` để xóa. Khi có alias, tên người gửi trong chat chỉ
+hiển thị alias thay cho username. Alias cũng hiển thị trong tab list,
 thông báo vào/ra, thông báo chết và bảng xếp hạng. Mã `&`/`§` trong nội dung
 chat cũng được xử lý theo quyền format của người gửi. Mỗi mã cần permission
 tương ứng; OP được dùng tất cả mã. Mã không có quyền sẽ không áp dụng:
@@ -135,6 +137,10 @@ tương ứng; OP được dùng tất cả mã. Mã không có quyền sẽ kh�
 - Admin có `vnmine.alias.admin` dùng `/alias set <người_chơi> <tên>` hoặc
   `/alias clear <người_chơi>`; alias do admin đặt được phép dùng mọi mã màu,
   format và rainbow mà không cần cấp riêng các node đó cho người chơi.
+
+Lệnh `/realname <username|alias>` tìm theo cả username và alias đã bỏ
+màu/format; ví dụ `/realname hoanbh` vẫn khớp với alias `&4hoanbh`. Nếu tên khớp
+nhiều người chơi, lệnh liệt kê các username thật phù hợp.
 
 Tên NPC, tên hiển thị đại lục, tiêu đề/nội dung quest-dialog, sign do NPC xử lý,
 text display và các trường văn bản cấu hình hỗ trợ mã legacy `&`. Các marker
@@ -453,6 +459,12 @@ trong `/vnquest admin`. Quest hướng dẫn tương thích cũ vẫn dùng cấ
 cho NPC Tutorial của một đại lục, bộ chọn có thể lọc theo đại lục và chủng tộc;
 quest không giới hạn scope vẫn được giữ trong kết quả. Danh sách đại lục nằm
 ở hai hàng đầu của dashboard, ngăn cách với nhóm cài đặt bằng một hàng kính.
+
+Trong `/vnnpc edit <id>` hoặc Shift + chuột phải NPC, nút **Quest nhận tại NPC
+này** liệt kê quest đang gắn, cho phép gán quest đã có hoặc tạo quest mới với ID
+NPC được điền sẵn làm người giao. Nút **Hội thoại NPC** chọn dialog private của
+NPC hoặc dialog public; tại đây có thể tạo, sửa và xóa dialog. Khi người chơi
+tương tác, nội dung chạy trên action bar rồi mới mở các lựa chọn quest/chức năng.
 
 Dashboard có nút **Bảo vệ World bắt đầu/reset** để cấu hình nhanh world bắt đầu.
 Menu **Menu chính → Admin → Quản lý world** hiển thị từng world đang nạp và lưu

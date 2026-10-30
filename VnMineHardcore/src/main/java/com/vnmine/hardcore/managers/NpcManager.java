@@ -230,6 +230,34 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         return npcId != null && npcs.containsKey(npcId.toLowerCase(Locale.ROOT));
     }
 
+    public void openAdminEditor(Player player, String npcId) {
+        if (!player.hasPermission(ADMIN_PERMISSION)) {
+            player.sendMessage("§cBạn không có quyền quản lý NPC.");
+            return;
+        }
+        openNpcEditor(player, npcId, 0);
+    }
+
+    public boolean isNpcDialogInUse(String dialogId) {
+        return dialogId != null && npcs.values().stream().anyMatch(npc -> dialogId.equals(npc.dialogId()));
+    }
+
+    private void setNpcDialog(Player player, String npcId, String dialogId) {
+        NpcRecord old = npcs.get(npcId);
+        if (old == null) return;
+        npcs.put(npcId, old.withDialogId(dialogId));
+        try {
+            saveNpcs();
+            player.sendMessage(dialogId == null
+                ? "§eĐã gỡ hội thoại riêng khỏi NPC §f" + npcId + "§e."
+                : "§aĐã gán hội thoại §f" + dialogId + " §acho NPC §f" + npcId + "§a.");
+        } catch (IOException exception) {
+            npcs.put(npcId, old);
+            reportNpcGuiError(player, exception);
+        }
+        openNpcEditor(player, npcId, 0);
+    }
+
     /** Returns a stable snapshot of currently configured runtime NPC IDs. */
     public List<String> getNpcIds() {
         return List.copyOf(npcs.keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList());
@@ -368,6 +396,13 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         menu.setItem(22, createDialogueItem(Material.PLAYER_HEAD, "§bCấu hình skin Player", List.of(
             "§7Skin account: §f" + (npc.skinOwner() == null ? "mặc định" : npc.skinOwner()),
             "§7Nhập username Minecraft Java để lấy skin.", "§eNhấn để nhập; !default để bỏ skin riêng.")));
+        menu.setItem(24, createDialogueItem(Material.FILLED_MAP, "§aQuest nhận tại NPC này", List.of(
+            "§7Chọn quest đã có hoặc tạo quest mới.", "§7NPC ID: §f" + npc.id(), "§eNhấn để quản lý quest.")));
+        menu.setItem(26, createDialogueItem(Material.WRITABLE_BOOK, "§dHội thoại NPC", List.of(
+            "§7Đang chọn: §f" + (npc.dialogId() == null ? "lời thoại theo loại NPC" : npc.dialogId()),
+            "§7Mặc định lấy từ npc-definitions.yml; dialog riêng sẽ thay nội dung đó.",
+            "§7Hội thoại riêng cho NPC này hoặc dùng dialog public.",
+            "§eNhấn để chọn, tạo, sửa hoặc xóa.")));
         if (npc.type().equals("story")) {
             String chapterId = npc.storyChapterId() == null ? "(chưa chọn)" : npc.storyChapterId();
             menu.setItem(18, createDialogueItem(Material.WRITTEN_BOOK, "§dChọn chapter cốt truyện", List.of(
@@ -493,7 +528,15 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             }
             openNpcEditor(player, holder.npcId, holder.page);
         } else if (slot == 16) openNpcDeleteConfirmation(player, holder.npcId, holder.page);
-        else if (slot == 18) {
+        else if (slot == 24) {
+            if (plugin.getQuestCatalogManager() != null)
+                plugin.getQuestCatalogManager().openNpcQuestManager(player, holder.npcId);
+        } else if (slot == 26) {
+            NpcRecord npc = npcs.get(holder.npcId);
+            if (npc != null && plugin.getQuestDialogManager() != null)
+                plugin.getQuestDialogManager().openNpcSelector(player, npc.id(), npc.dialogId(),
+                    selected -> setNpcDialog(player, npc.id(), selected));
+        } else if (slot == 18) {
             NpcRecord npc = npcs.get(holder.npcId);
             if (npc != null && "story".equals(npc.type())) openStoryChapterSelector(player, holder.npcId, 0);
         } else if (slot == 20) {
@@ -768,9 +811,15 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 plugin.getLogger().warning("[NPC] Story NPC '" + npc.id() + "' references missing chapter '"
                     + npc.storyChapterId() + "'.");
             }
-            plugin.getQuestDialogManager().openStoryChapter(player,
-                formatDisplayName(npc.displayName()), chapter,
-                chapter == null ? null : () -> recordStoryChapterRead(player, npc.id(), chapter.id()));
+            Runnable markRead = chapter == null ? null
+                : () -> recordStoryChapterRead(player, npc.id(), chapter.id());
+            if (npc.dialogId() != null) {
+                plugin.getQuestDialogManager().openQuestDialogue(player, npc.dialogId(),
+                    formatDisplayName(npc.displayName()), "Hãy lắng nghe câu chuyện của ta.", markRead);
+            } else {
+                plugin.getQuestDialogManager().openStoryChapter(player,
+                    formatDisplayName(npc.displayName()), chapter, markRead);
+            }
             return;
         }
         openNpcDialogue(player, npc, 0);
@@ -795,6 +844,14 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         NpcDefinitionLoader.NpcDefinition definition = findDialogueDefinition(npc.id(), npc.type(), definitions);
         if (definition == null) {
             definition = createFallbackDialogueDefinition(npc);
+        }
+        if (npc.dialogId() != null && actionPage == 0) {
+            NpcDefinitionLoader.NpcDefinition actionsOnly = new NpcDefinitionLoader.NpcDefinition(
+                definition.id(), definition.type(), definition.displayName(), List.of(), definition.actions());
+            plugin.getQuestDialogManager().openQuestDialogue(player, npc.dialogId(),
+                formatDisplayName(npc.displayName()), "Xin chào.",
+                () -> openDialogue(player, npc, actionsOnly, 0));
+            return;
         }
         openDialogue(player, npc, definition, actionPage);
     }
@@ -1696,9 +1753,14 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             if (!skinOwner.isBlank() && !isValidSkinOwner(skinOwner)) {
                 throw new InvalidConfigurationException("Invalid skin-owner username for NPC '" + id + "'.");
             }
+            String dialogId = entry.getString("dialog-id", "").trim();
+            if (!dialogId.isBlank() && !dialogId.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) {
+                throw new InvalidConfigurationException("Invalid dialog-id for NPC '" + id + "'.");
+            }
             npcs.put(id, new NpcRecord(id, type, displayName,
                 new Location(null, x, y, z, yaw, pitch), entityId, world,
-                storyChapterId.isBlank() ? null : storyChapterId, skinOwner.isBlank() ? null : skinOwner));
+                storyChapterId.isBlank() ? null : storyChapterId, skinOwner.isBlank() ? null : skinOwner,
+                dialogId.isBlank() ? null : dialogId));
             ConfigurationSection savedListings = entry.getConfigurationSection("merchant-offers");
             if (savedListings != null) {
                 if (!"merchant".equals(type)) {
@@ -1776,6 +1838,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             configuration.set(path + ".entity-uuid", npc.entityId() == null ? null : npc.entityId().toString());
             configuration.set(path + ".story-chapter-id", npc.storyChapterId());
             configuration.set(path + ".skin-owner", npc.skinOwner());
+            configuration.set(path + ".dialog-id", npc.dialogId());
+            configuration.setComments(path + ".dialog-id", List.of(
+                "[VI] ID hội thoại riêng của NPC; null dùng lời thoại mặc định, dialog public cũng có thể được gán.",
+                "[EN] NPC-specific dialog ID; null uses default dialogue, and public dialogs can also be assigned."));
             Map<Integer, MerchantListing> listings = merchantListings.get(npc.id());
             if (listings != null) {
                 for (Map.Entry<Integer, MerchantListing> offer : listings.entrySet()) {
@@ -2022,23 +2088,28 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     }
 
     private record NpcRecord(String id, String type, String displayName, Location location,
-                             UUID entityId, String world, String storyChapterId, String skinOwner) {
+                             UUID entityId, String world, String storyChapterId, String skinOwner, String dialogId) {
         private NpcRecord(String id, String type, String displayName, Location location, UUID entityId) {
-            this(id, type, displayName, location.clone(), entityId, location.getWorld().getName(), null, null);
+            this(id, type, displayName, location.clone(), entityId, location.getWorld().getName(), null, null, null);
         }
 
         private NpcRecord(String id, String type, String displayName, Location location,
                           UUID entityId, String world) {
-            this(id, type, displayName, location, entityId, world, null, null);
+            this(id, type, displayName, location, entityId, world, null, null, null);
         }
 
         private NpcRecord(String id, String type, String displayName, Location location,
                           UUID entityId, String world, String storyChapterId) {
-            this(id, type, displayName, location, entityId, world, storyChapterId, null);
+            this(id, type, displayName, location, entityId, world, storyChapterId, null, null);
         }
 
         private NpcRecord(String id, String type, String displayName, Location location,
                           UUID entityId, String world, String storyChapterId, String skinOwner) {
+            this(id, type, displayName, location, entityId, world, storyChapterId, skinOwner, null);
+        }
+
+        private NpcRecord(String id, String type, String displayName, Location location,
+                          UUID entityId, String world, String storyChapterId, String skinOwner, String dialogId) {
             this.id = id;
             this.type = type;
             this.displayName = displayName;
@@ -2047,6 +2118,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             this.world = world;
             this.storyChapterId = storyChapterId;
             this.skinOwner = skinOwner;
+            this.dialogId = dialogId;
         }
 
         private double x() {
@@ -2070,28 +2142,32 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
 
         private NpcRecord withDisplayName(String name) {
-            return new NpcRecord(id, type, name, location, entityId, world, storyChapterId, skinOwner);
+            return new NpcRecord(id, type, name, location, entityId, world, storyChapterId, skinOwner, dialogId);
         }
 
         private NpcRecord withType(String value) {
-            return new NpcRecord(id, value, displayName, location, entityId, world, storyChapterId, skinOwner);
+            return new NpcRecord(id, value, displayName, location, entityId, world, storyChapterId, skinOwner, dialogId);
         }
 
         private NpcRecord withLocation(Location newLocation, UUID newEntityId) {
             return new NpcRecord(id, type, displayName, newLocation, newEntityId,
-                newLocation.getWorld().getName(), storyChapterId, skinOwner);
+                newLocation.getWorld().getName(), storyChapterId, skinOwner, dialogId);
         }
 
         private NpcRecord withEntityId(UUID newEntityId) {
-            return new NpcRecord(id, type, displayName, location, newEntityId, world, storyChapterId, skinOwner);
+            return new NpcRecord(id, type, displayName, location, newEntityId, world, storyChapterId, skinOwner, dialogId);
         }
 
         private NpcRecord withStoryChapterId(String value) {
-            return new NpcRecord(id, type, displayName, location, entityId, world, value, skinOwner);
+            return new NpcRecord(id, type, displayName, location, entityId, world, value, skinOwner, dialogId);
         }
 
         private NpcRecord withSkinOwner(String value) {
-            return new NpcRecord(id, type, displayName, location, entityId, world, storyChapterId, value);
+            return new NpcRecord(id, type, displayName, location, entityId, world, storyChapterId, value, dialogId);
+        }
+
+        private NpcRecord withDialogId(String value) {
+            return new NpcRecord(id, type, displayName, location, entityId, world, storyChapterId, skinOwner, value);
         }
     }
 

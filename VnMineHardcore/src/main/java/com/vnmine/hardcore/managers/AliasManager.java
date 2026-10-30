@@ -146,6 +146,36 @@ public final class AliasManager implements Listener, CommandExecutor, TabComplet
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("realname")) {
+            String query = String.join(" ", args).trim();
+            if (args.length == 0 || query.contains("&") || query.contains("§")) {
+                sender.sendMessage("§eDùng: /realname <username|alias> §7(nhập alias không kèm mã màu)");
+                return true;
+            }
+            OfflinePlayer exact = Bukkit.getOfflinePlayerIfCached(query);
+            String normalized = normalizeAliasForLookup(query);
+            Map<UUID, String> matches = new java.util.LinkedHashMap<>();
+            if (exact != null && exact.hasPlayedBefore())
+                matches.put(exact.getUniqueId(), exact.getName() == null ? query : exact.getName());
+            aliases.entrySet().stream()
+                .filter(entry -> normalizeAliasForLookup(entry.getValue().value()).equals(normalized))
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    OfflinePlayer target = Bukkit.getOfflinePlayer(entry.getKey());
+                    String realName = target.getName();
+                    if (realName == null || realName.isBlank()) realName = entry.getValue().lastName();
+                    matches.putIfAbsent(entry.getKey(), realName);
+                });
+            if (matches.isEmpty()) {
+                sender.sendMessage("§cKhông tìm thấy người chơi theo username hoặc alias đó.");
+            } else if (matches.size() == 1) {
+                sender.sendMessage("§aTên thật: §f" + matches.values().iterator().next());
+            } else {
+                sender.sendMessage("§eUsername/alias này khớp với nhiều người chơi:");
+                matches.values().forEach(realName -> sender.sendMessage("§7- §f" + realName));
+            }
+            return true;
+        }
         if (!(sender instanceof Player player)) {
             sender.sendMessage("Lệnh này chỉ dùng trong game.");
             return true;
@@ -193,6 +223,10 @@ public final class AliasManager implements Listener, CommandExecutor, TabComplet
         if (player.hasPermission(ADMIN_PERMISSION))
             player.sendMessage("§eAdmin: /alias set <người_chơi> <tên> §7| §e/alias clear <người_chơi>");
         return true;
+    }
+
+    private static String normalizeAliasForLookup(String value) {
+        return LegacyText.strip(value == null ? "" : value).trim().toLowerCase(Locale.ROOT);
     }
 
     private boolean noAdmin(Player player) {
@@ -320,6 +354,13 @@ public final class AliasManager implements Listener, CommandExecutor, TabComplet
     }
 
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (command.getName().equalsIgnoreCase("realname")) {
+            if (args.length != 1) return List.of();
+            String prefix = args[0].toLowerCase(Locale.ROOT);
+            return java.util.stream.Stream.concat(Bukkit.getOnlinePlayers().stream().map(Player::getName),
+                    aliases.values().stream().map(value -> LegacyText.strip(value.value())))
+                .distinct().filter(value -> value.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
+        }
         if (args.length == 1) return List.of("set", "clear").stream()
             .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         if (args.length == 2 && sender.hasPermission(ADMIN_PERMISSION)

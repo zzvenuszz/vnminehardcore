@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.38.1 — 2026-10-30
+
+- Thêm `/realname <username|alias>`; alias được chuẩn hóa bằng cách bỏ màu/format trước khi so khớp, nên `/realname hoanbh` tìm được alias `&4hoanbh`. Nếu username và alias trỏ tới nhiều người, lệnh liệt kê các kết quả.
+- Bộ chọn quest tự giao đầu tiên trong `/vninit` có nút tạo quest; quay lại từ editor trở về đúng bộ chọn.
+- NPC editor có menu quest riêng để xem, gán quest có sẵn hoặc tạo quest mới với NPC giao đã điền sẵn.
+- NPC editor có menu hội thoại riêng: tạo dialog private gắn với NPC hoặc public, chọn/sửa/xóa dialog; text được phát qua action bar trước khi mở menu chức năng NPC. Lưu `dialog-id` theo NPC trong `npcs.yml`.
+
 ## 2.38.0 — 2026-10-30
 
 - Menu chọn quest tự giao cho NPC tutorial ở `/vninit` có bộ lọc theo đại lục và chủng tộc, có lựa chọn bỏ lọc và giữ bộ lọc khi chuyển trang.

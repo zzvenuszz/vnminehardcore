@@ -1133,3 +1133,15 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] JAR `VnMineHardcore-2.38.0.jar`, SHA-256 `7a588fbd6963e226b8c78c92ffc1d1a669e7e2a93e317c65a6f25ab85750f37d`; xác minh chỉ đóng gói SQLite native Linux x86_64.
 - [x] Sao lưu JAR 2.36.16 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.16-pre-2.38.0-20261030.jar`; cài 2.38.0 vào `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.38.0.jar`. SHA-256 bản cài trùng artifact và thư mục plugin chỉ còn một JAR VnMineHardcore.
 - [ ] Chưa Paper/gameplay test bản này; sau restart cần kiểm tra bộ lọc quest tutorial theo world/race, menu phân trang và toàn bộ onboarding/quest flow trên server thật.
+
+## Phát hành 2.38.1 — tra cứu alias và quản lý quest/dialog theo NPC — 2026-10-30
+
+- [x] `/realname <tên người chơi|alias>` tra cứu người chơi theo tên thật hoặc alias; chuẩn hóa mã màu/format trước khi so sánh để alias `&4hoanbh` vẫn tìm được bằng `hoanbh`.
+- [x] Trong `/vninit`, bộ chọn quest tự giao có nút tạo quest mới; sau khi lưu, quay lại đúng luồng cấu hình ban đầu.
+- [x] NPC quest-giver/tutorial có menu chọn quest hiện có hoặc tạo quest mới với NPC được điền sẵn.
+- [x] Menu NPC có quản lý hội thoại riêng: chọn, tạo, sửa, xóa dialog gắn với NPC hoặc dialog public. Dialog mặc định cũ không còn tự xuất hiện như một lựa chọn không rõ nguồn.
+- [x] Quest-dialog lưu phiên bản schema mới để hỗ trợ quan hệ NPC và phạm vi public/private; README và CHANGELOG đã cập nhật.
+- [x] `timeout 15m mvn clean package` thành công bằng Java 25 lúc `2026-10-30 01:32 UTC`; 104 test pass, 0 failure/error/skip.
+- [x] JAR `VnMineHardcore-2.38.1.jar`, kích thước 2.5 MB, SHA-256 `369285cdf6051f7d8522b71fd28f01448c621880910c84739f336dc228d0deaf`; xác minh chỉ đóng gói SQLite native Linux x86_64.
+- [x] Sao lưu JAR 2.38.0 trước khi thay bản, cài 2.38.1 vào `/home/ubuntu/DATA/VNMINE/plugins/`; checksum bản cài phải khớp artifact. Chỉ giữ một JAR VnMineHardcore trong thư mục plugin.
+- [ ] Chưa gameplay test. Sau khi khởi động lại server, kiểm tra `/realname` với alias có màu, tạo quest từ `/vninit` và NPC, selector dialog private/public, và điều hướng quay lại menu nguồn.

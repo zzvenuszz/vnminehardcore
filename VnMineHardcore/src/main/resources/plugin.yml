@@ -143,6 +143,9 @@ commands:
   alias:
     description: Đặt hoặc xóa tên hiển thị alias của người chơi
     usage: /alias [set <tên>|clear] hoặc /alias set|clear <người_chơi> [tên]
+  realname:
+    description: Tra tên thật của người chơi bằng username hoặc alias
+    usage: /realname <username|alias>
   vnmenu:
     description: Mở menu chức năng của VnMineHardcore
     usage: /vnmenu

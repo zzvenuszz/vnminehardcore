@@ -1087,6 +1087,9 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         }
         menu.setItem(27, item(Material.PAPER, "§fĐang chọn: " + (current.isBlank() ? "chưa chọn" : current), List.of(
             "§7Quản lý nội dung, mục tiêu và dialog tại /vnquest admin.")));
+        menu.setItem(28, item(Material.LIME_DYE, "§aTạo quest mới", List.of(
+            "§7Tạo quest ngay tại bước setup này.",
+            "§7Sau khi chỉnh quest, nút quay lại sẽ trở về danh sách này.", "§eNhấn để nhập ID quest.")));
         if (questIds.isEmpty()) menu.setItem(13, item(Material.BARRIER, "§cChưa có quest RPG bật", List.of(
             "§7Tạo và bật một quest trước trong /vnquest admin.")));
         if (page > 0) menu.setItem(45, item(Material.LIME_CARPET, "§eTrang trước", List.of()));
@@ -1464,7 +1467,9 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
             return;
         }
         if ("first-quest-select".equals(holder.type)) {
-            if (slot == 49) openDashboard(player);
+            if (slot == 28 && plugin.getQuestCatalogManager() != null)
+                plugin.getQuestCatalogManager().beginCreateQuest(player, () -> openTutorialQuestSetup(player));
+            else if (slot == 49) openDashboard(player);
             else if (slot == 45 && holder.page > 0) openTutorialQuestSetup(player, holder.page - 1);
             else if (slot == 53 && plugin.getQuestCatalogManager() != null && holder.page + 1
                     < Math.max(1, (plugin.getQuestCatalogManager().getEnabledQuestIds().size() + 17) / 18))
