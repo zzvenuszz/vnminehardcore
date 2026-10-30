@@ -105,13 +105,21 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
         boolean tutorialPending = "tutorial".equals(target.type()) && characters != null
             && characters.shouldShowTutorialMarker(viewer, target.id());
         if (!hasAvailableQuest && !unreadStory && !tutorialPending) return null;
-        StringBuilder text = new StringBuilder();
-        if (hasAvailableQuest) text.append("§e!");
-        if (unreadStory || tutorialPending) {
-            if (text.length() > 0) text.append(' ');
-            text.append("§b?");
+        List<String> hologramLines = new java.util.ArrayList<>();
+        if (hasAvailableQuest) {
+            // Compose the quest exclamation from multiple bold glyph lines for a clear hologram silhouette.
+            hologramLines.add("§6✦");
+            hologramLines.add("§e§l┃");
+            hologramLines.add("§e§l●");
+            hologramLines.add("§6✦");
         }
-        return text.toString();
+        if (unreadStory || tutorialPending) {
+            if (!hologramLines.isEmpty()) hologramLines.add("");
+            hologramLines.add("§b✦");
+            hologramLines.add("§b§l?");
+            hologramLines.add("§b✦");
+        }
+        return String.join("\n", hologramLines);
     }
 
     private void reconcileViewer(Player viewer, Map<String, String> desired,
@@ -167,8 +175,8 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
                 entity.setBillboard(Display.Billboard.CENTER);
                 entity.setAlignment(TextDisplay.TextAlignment.CENTER);
                 entity.setDefaultBackground(false);
-                entity.setShadowed(true);
-                entity.setSeeThrough(false);
+                entity.setShadowed(false);
+                entity.setSeeThrough(true);
                 entity.setGravity(false);
                 entity.setPersistent(false);
                 entity.setInvulnerable(true);
@@ -218,8 +226,9 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
 
     private float markerScale() {
         double configured = plugin.getConfig().getDouble("rpg.npc.markers.scale", 2.0);
-        return (float) (Double.isFinite(configured) && configured >= 1.0 && configured <= 4.0
-            ? configured : 2.0);
+        double baseScale = Double.isFinite(configured) && configured >= 1.0 && configured <= 4.0
+            ? configured : 2.0;
+        return (float) (baseScale * 3.0);
     }
 
     private void debug(String message) {

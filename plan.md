@@ -1177,3 +1177,20 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] JAR `VnMineHardcore-2.39.2.jar`, 2.560.044 bytes, SHA-256 `d85a56094722d5ad785f0bbdaefa368e9794e45f45396bb7436a5eaabd0ad074`; xác minh chỉ có SQLite native Linux x86_64.
 - [x] Sao lưu 2.39.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.39.1-pre-2.39.2-20261030.jar`, cài 2.39.2 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.39.2.jar`; checksum khớp và chỉ giữ một JAR plugin hoạt động.
 - [ ] Khởi động lại Paper và kiểm tra marker `!`/`?`, tương tác NPC quest-giver, tầm nhìn riêng theo người chơi, và log không còn lỗi `set_entity_data`/ngắt kết nối.
+
+## Editor quest khởi đầu và chọn quest tại NPC tutorial — 2.40.0 — 2026-10-30
+
+- [x] Đưa nút sửa **Bước chân đầu tiên** lên dashboard `/vninit` và editor NPC `tutorial`; từ editor NPC, nút quay lại trả admin về đúng menu cấu hình NPC.
+- [x] Mở rộng editor quest hướng dẫn: bật/tắt, sửa tiêu đề/mô tả/objective và thông báo, đổi loại thưởng EXP/VNCOIN, tăng/giảm lượng thưởng; lưu YAML nguyên tử, reload definition và ghi log thao tác admin.
+- [x] Đổi nhãn cấu hình `tutorial.auto-quest-id` thành **Quest khởi đầu tại NPC**, mô tả rõ đây là quest được giao sau dialog NPC. Bộ chọn vẫn lọc theo giver NPC; có thể chọn từ editor tutorial NPC hoặc `/vninit` cho world start/đại lục.
+- [x] Đóng gói cùng release 2.41.0 bằng Java 25 (`mvn -DskipTests clean package`); compile/package thành công, test suite bỏ qua.
+- [ ] Cần kiểm tra trong game lưu/reload các trường quest, giới hạn phần thưởng, nút quay lại từ từng NPC tutorial, chọn/bỏ quest gắn với NPC, và xác nhận quest được giao đúng sau khi hội thoại kết thúc.
+
+## Hologram marker NPC lớn và dễ thấy — 2.41.0 — 2026-10-30
+
+- [x] Tăng scale hiển thị marker từ cấu hình nền 2.0 lên 6.0 (nhân 3); giới hạn cấu hình cũ 1.0–4.0 vẫn hợp lệ và tương ứng scale hiển thị 3.0–12.0, nên config đã tồn tại tiếp tục dùng được.
+- [x] Tạo dấu `!` nhiều dòng, đậm, ghép từ glyph trang trí/thân/chấm; dấu `?` story/tutorial có kiểu hologram đồng bộ. TextDisplay trong suốt, billboard theo viewer và see-through để dễ nhận ra từ xa.
+- [x] `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64 mvn -DskipTests clean package` thành công lúc `2026-10-30 13:43:36 UTC`; test suite bỏ qua, compile/package thành công.
+- [x] JAR `VnMineHardcore-2.41.0.jar`, 2.562.665 bytes, SHA-256 `6334f07f15b837a9074ef6658c3d3462d403f9eb48bf6640024ea1fc647a7e73`; xác minh chỉ chứa SQLite native Linux x86_64.
+- [x] Sao lưu 2.39.2 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.39.2-pre-2.41.0-20261030.jar`; cài 2.41.0 vào `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.41.0.jar`, checksum khớp artifact và chỉ còn một JAR plugin hoạt động.
+- [ ] Chưa gameplay test. Cần kiểm tra glyph với resource pack/client khác nhau, khoảng cách đọc, vị trí trên NPC cao, visibility xuyên tường và hiệu năng khi nhiều marker cùng lúc; đồng thời kiểm tra editor quest khởi đầu và quest được giao từ NPC tutorial.

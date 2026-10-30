@@ -1,5 +1,19 @@
 # Changelog
 
+## [v2.41.0] - 2026-10-30
+
+- Phóng lớn hologram dấu quest `!` lên scale hiển thị mặc định 6.0 (gấp 3 scale trước), dùng thân/chấm đậm cùng glyph trang trí nhiều dòng; marker `?` cũng có bố cục hologram đồng bộ.
+- Hologram nền trong suốt, billboard theo người xem và hiển thị xuyên vật cản để dễ tìm NPC; entity vẫn do Paper quản lý và chỉ hiện cho viewer đủ điều kiện.
+- Bao gồm editor quest **Bước chân đầu tiên** và bộ chọn quest khởi đầu gắn với NPC tutorial từ 2.40.0.
+- Build Java 25 thành công lúc `2026-10-30 13:43:36 UTC`; test suite được bỏ qua. JAR 2.41.0 có 2.562.665 bytes, SHA-256 `6334f07f15b837a9074ef6658c3d3462d403f9eb48bf6640024ea1fc647a7e73`.
+- Sao lưu bản 2.39.2 và cài 2.41.0 vào thư mục plugin; chưa gameplay test sau restart.
+
+## [v2.40.0] - 2026-10-30
+
+- Mở editor **Bước chân đầu tiên** trực tiếp trong `/vninit` và editor NPC tutorial; cho phép sửa tiêu đề, mô tả, objective onboarding, thông báo, bật/tắt và loại/số lượng phần thưởng EXP hoặc VNCOIN.
+- Đổi nhãn cấu hình quest gắn với NPC tutorial thành **Quest khởi đầu tại NPC**, làm rõ quest này được giao sau khi dialog NPC kết thúc; giữ bộ chọn quest theo giver NPC trong editor NPC và `/vninit`.
+- Chưa build/test trong phiên này.
+
 ## [v2.39.2] - 2026-10-30
 
 - Sửa lỗi marker NPC `!`/`?` làm client bị ngắt kết nối trên Paper 26.3: bỏ metadata packet tự dựng, dùng TextDisplay do Paper quản lý.

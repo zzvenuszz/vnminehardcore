@@ -57,7 +57,7 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 
 ## Bắt đầu hành trình RPG
 
-1. Admin dùng `/vninit` để đặt world bắt đầu, các đại lục, NPC tutorial, race/class khả dụng và luồng quest hướng dẫn.
+1. Admin dùng `/vninit` để đặt world bắt đầu, các đại lục, NPC tutorial, race/class khả dụng và luồng quest hướng dẫn. Nút **Quest đầu tiên: Bước chân đầu tiên** mở editor để sửa tên, mô tả, objective, thông báo, trạng thái bật/tắt và phần thưởng.
 2. Tạo NPC loại `tutorial`, đặt đúng world, rồi chọn NPC đó ở trang setup tương ứng.
 3. Người chơi dùng `/start` để bắt đầu hoặc tiếp tục hành trình.
 4. Người chơi gặp NPC tutorial, chọn đại lục/race/class theo cấu hình và nhận sách skill khởi đầu cùng nhiệm vụ được thiết lập.
@@ -105,6 +105,7 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 ### Quản lý đại lục và world
 
 - `/vninit` có thể chạy lại để tiếp tục hoặc sửa cài đặt.
+- Quest **Bước chân đầu tiên** có editor trong `/vninit` và mở nhanh từ editor NPC loại `tutorial`. Tại editor NPC Tutorial, **Quest khởi đầu tại NPC** cho phép chọn quest RPG theo giver NPC đã gán; quest này được giao sau dialog của NPC. Cấu hình tương tự nằm trong phần NPC Tutorial của `/vninit`.
 - Menu **Quản lý đại lục/world** cho phép thêm đại lục bằng ID, tên hiển thị và tên world; sửa ID/tên/world, spawn, seed, environment và allowlist race/class; xóa có xác nhận. Khi đổi ID, ID cũ được giữ làm bí danh để profile/onboarding đang lưu tiếp tục được nhận diện.
 - Khi đổi environment của một đại lục đã tạo, GUI cảnh báo rằng dữ liệu world cũ sẽ được archive và world mới được tạo khi restart. Đây không phải cài đặt của `world_start`.
 - Đổi seed cũng yêu cầu tạo lại world theo thiết kế cấu hình. Sao lưu world trước khi xác nhận.
@@ -117,7 +118,7 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 - `/vnnpc create <id> <type>` và `/vnnpc edit <id>`: tạo/chỉnh NPC; shift + chuột phải mở editor theo loại NPC.
 - NPC được hiển thị như người chơi; trong editor chọn **Cấu hình skin Player**, nhập username Minecraft Java, ví dụ `Notch`. Hệ thống lấy skin theo tài khoản Mojang; nhập `!default` để bỏ skin tùy chỉnh. Skin tải ở nền, được cache tới khi server tắt và tự thử lại sau timeout.
 - “Player” là kiểu hiển thị. Loại chức năng của NPC vẫn là `merchant`, `quest-giver`, `story` hoặc `tutorial`; các luồng tương tác hiện tại tiếp tục hoạt động.
-- Marker `!` (quest có thể nhận) và `?` (story chưa đọc/tutorial đang chờ) được tạo bằng TextDisplay do Paper quản lý, chỉ gửi tới người chơi đủ điều kiện trong cùng world và tầm cấu hình. Marker được dọn khi trạng thái quest/story thay đổi, NPC di chuyển, người chơi rời server hoặc plugin tắt. Có thể bật/tắt và chỉnh tầm, kích thước, chu kỳ tại `rpg.npc.markers` trong `config.yml`.
+- Marker `!` (quest có thể nhận) và `?` (story chưa đọc/tutorial đang chờ) là hologram TextDisplay nhiều dòng do Paper quản lý, chỉ gửi tới người chơi đủ điều kiện trong cùng world và tầm cấu hình. Dấu `!` được ghép từ ký tự trang trí, thân và chấm đậm; scale hiển thị mặc định là 6 (gấp 3 lần scale 2 trước đây). Marker được dọn khi trạng thái quest/story thay đổi, NPC di chuyển, người chơi rời server hoặc plugin tắt. Có thể bật/tắt và chỉnh tầm, kích thước nền, chu kỳ tại `rpg.npc.markers` trong `config.yml`.
 - Player model được gửi sau khi người chơi vào server ổn định; packet NPC ảo không đi qua listener của entity thật. Tên NPC có màu/format được hiển thị bằng TextDisplay riêng; tên mặc định của fake-player được để trống để không lộ profile name.
 - Nội dung `/vntext`, chữ ghi lên bảng hiệu và tên NPC hỗ trợ mã màu/format legacy như `&6` (vàng), `&l` (đậm), `&o` (nghiêng), `&r` (đặt lại). Tên NPC có animation lặp vô hạn: `&rl:` (cả đoạn cùng màu), `&r1:` (trái sang phải), `&r2:` (phải sang trái), `&r3:` (từ giữa ra hai bên); `&r1`–`&r3` cũng nhận dạng khi bỏ dấu `:`. Hiệu ứng tác động từ mã đó đến mã rainbow kế tiếp hoặc hết tên.
 - NPC tự xoay về người chơi gần nhất cùng world trong tầm `rpg.npc.look-at.range-blocks`; tắt bằng `rpg.npc.look-at.enabled`.

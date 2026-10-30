@@ -413,6 +413,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             menu.setItem(20, createDialogueItem(Material.WRITABLE_BOOK, "§dThiết lập tutorial", List.of(
                 "§7Chọn dialog và quest tự giao sau hội thoại.",
                 "§7Cấu hình được lưu theo đại lục trong /vninit.", "§eNhấn để mở.")));
+            menu.setItem(30, createDialogueItem(Material.WRITTEN_BOOK, "§6Chỉnh quest đầu tiên", List.of(
+                "§7Sửa quest Bước chân đầu tiên được giao khi người chơi bắt đầu.",
+                "§7Tiêu đề, mô tả, mục tiêu, phần thưởng và thông báo.", "§eNhấn để chỉnh.")));
         }
         menu.setItem(49, createDialogueItem(Material.ARROW, "§eQuay lại danh sách", List.of()));
         player.openInventory(menu);
@@ -521,6 +524,11 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         else if (slot == 10) promptNpc(player, new PendingNpcInput(NpcTextField.RENAME, holder.npcId, holder.page, ""));
         else if (slot == 12) promptNpc(player, new PendingNpcInput(NpcTextField.CHANGE_TYPE, holder.npcId, holder.page, ""));
         else if (slot == 22) promptNpc(player, new PendingNpcInput(NpcTextField.SKIN, holder.npcId, holder.page, ""));
+        else if (slot == 30) {
+            NpcRecord npc = npcs.get(holder.npcId);
+            if (npc != null && "tutorial".equals(npc.type()) && plugin.getServerSetupWizardManager() != null)
+                plugin.getServerSetupWizardManager().openFirstStepsEditorFromTutorialNpc(player, npc.id());
+        }
         else if (slot == 14) promptNpc(player,
             new PendingNpcInput(NpcTextField.MOVE, holder.npcId, holder.page, ""));
         else if (slot == 16) openNpcDeleteConfirmation(player, holder.npcId, holder.page);
