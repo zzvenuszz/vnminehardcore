@@ -12,12 +12,7 @@ settings:
 # [EN] Player tooltips; only show instructions available to regular players.
 tooltips:
   players:
-    - "§eMẹo: Dùng §a/vnarmy gui §eđể thuê, triệu hồi và quản lý lính đánh thuê."
-    - "§eMẹo: Dùng §a/vnarmy gear <ID> §eđể chỉnh trang bị và kho đồ của lính."
-    - "§eMẹo: Boss có thể rơi lệnh triệu hồi lính; hãy xem Bậc ghi trên vật phẩm."
-    - "§eMẹo: Bấm §aF §ehoặc dùng §a/vnmenu §eđể mở menu chính."
-  # [VI] Tooltip quản trị; chỉ gửi cho OP hoặc người có ít nhất một quyền quản trị của plugin.
-  # [EN] Admin tooltips; sent only to operators or players with at least one plugin admin permission.
-  admins:
-    - "§eMẹo quản trị: Dùng §a/vnevent §eđể xem và gọi thiên tai."
-    - "§eMẹo quản trị: Dùng §a/vnboss §eđể xem và gọi boss."
+    - "§eMẹo: Bấm §aF §eđể mở menu chính, rồi chọn §aNhiệm vụ§e để xem quest và tiến độ."
+    - "§eMẹo: Bấm §aF §eđể mở menu nhân vật, xem kỹ năng, trang bị và VNCOIN."
+    - "§eMẹo: Nói chuyện với NPC để nhận quest; quest có thể nhận sẽ hiện trong danh sách NPC."
+    - "§eMẹo: Quest đã hoàn thành được lưu trong §aNhật ký nhiệm vụ§e tại menu NPC hoặc menu nhiệm vụ."

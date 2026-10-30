@@ -7,6 +7,7 @@ import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import com.comphenix.protocol.wrappers.WrappedDataValue;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
+import com.comphenix.protocol.wrappers.Vector3F;
 import com.vnmine.hardcore.VnMineHardcore;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +39,8 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
         WrappedDataWatcher.Registry.get(Integer.class);
     private static final WrappedDataWatcher.Serializer BYTE_SERIALIZER =
         WrappedDataWatcher.Registry.get(Byte.class);
+    private static final WrappedDataWatcher.Serializer VECTOR3F_SERIALIZER =
+        WrappedDataWatcher.Registry.get(Vector3F.class);
 
     private static final class MarkerEntry {
         private final UUID npcEntityUuid;
@@ -182,7 +185,7 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
         spawn.getIntegers().write(0, marker.entityId).write(1, 0);
         spawn.getUUIDs().write(0, marker.entityUuid);
         spawn.getEntityTypeModifier().write(0, EntityType.TEXT_DISPLAY);
-        spawn.getDoubles().write(0, location.getX()).write(1, location.getY() + 2.25)
+        spawn.getDoubles().write(0, location.getX()).write(1, location.getY() + 2.45)
             .write(2, location.getZ());
         spawn.getBytes().write(0, (byte) 0).write(1, (byte) 0).write(2, (byte) 0);
         spawn.getVectors().write(0, new Vector());
@@ -197,6 +200,7 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
         metadata.getIntegers().write(0, marker.entityId);
         metadata.getDataValueCollectionModifier().write(0, List.of(
             new WrappedDataValue(15, BYTE_SERIALIZER, (byte) 3),
+            new WrappedDataValue(12, VECTOR3F_SERIALIZER, new Vector3F(markerScale(), markerScale(), markerScale())),
             new WrappedDataValue(23, CHAT_COMPONENT_SERIALIZER,
                 WrappedChatComponent.fromLegacyText(marker.text).getHandle()),
             new WrappedDataValue(25, INTEGER_SERIALIZER, 0),
@@ -246,6 +250,12 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
         double configured = plugin.getConfig().getDouble("rpg.npc.markers.tracking-range-blocks", 48.0);
         if (!Double.isFinite(configured) || configured < 8.0 || configured > 128.0) return 48.0;
         return configured;
+    }
+
+    private float markerScale() {
+        double configured = plugin.getConfig().getDouble("rpg.npc.markers.scale", 2.0);
+        return (float) (Double.isFinite(configured) && configured >= 1.0 && configured <= 4.0
+            ? configured : 2.0);
     }
 
     private void debug(String message) {

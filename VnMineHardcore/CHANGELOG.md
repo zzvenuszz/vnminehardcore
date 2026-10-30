@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.39.0 — 2026-10-30
+
+- Phóng to marker `!`/`?` trên NPC bằng scale có cấu hình; tăng độ dài dòng hội thoại action bar và tương tác NPC lần nữa sẽ hoàn tất/skip dialog hiện tại thay vì khởi động lại.
+- Menu NPC đặt quest đang làm/có thể nhận ở hai hàng đầu, tách bằng kính khỏi các chức năng NPC; quest đã hoàn thành bị loại khỏi danh sách đó và có nút riêng mở nhật ký hoàn thành.
+- Nút edit NPC **Di chuyển NPC** vào chế độ chờ `!put`/`!cancel`; không còn dịch chuyển ngay khi bấm.
+- Tooltip chat chỉ còn hướng dẫn người chơi, ưu tiên nút F/menu chính; bỏ các gợi ý thiên tai/boss dành cho admin.
+- WorldEdit vẽ viền lựa chọn bằng particle đỏ; thêm `//square <bán_kính> [block]`, `//circle <bán_kính> [block]`, gợi ý lệnh `//` khi tab và `//limit unlimited` để bỏ trần block/chunk.
+- Menu quản lý world thêm công tắc sinh mob thân thiện riêng.
+
 ## 2.38.1 — 2026-10-30
 
 - Thêm `/realname <username|alias>`; alias được chuẩn hóa bằng cách bỏ màu/format trước khi so khớp, nên `/realname hoanbh` tìm được alias `&4hoanbh`. Nếu username và alias trỏ tới nhiều người, lệnh liệt kê các kết quả.

@@ -39,6 +39,7 @@ public final class WorldSettingsManager implements Listener {
         INTERACTIONS("interactions-enabled", "Cho phép tương tác block", Material.CHEST),
         PVP("pvp-enabled", "Cho phép PvP", Material.IRON_SWORD),
         MOB_SPAWNING("mob-spawning-enabled", "Cho phép sinh quái", Material.ZOMBIE_SPAWN_EGG),
+        FRIENDLY_MOB_SPAWNING("friendly-mob-spawning-enabled", "Sinh mob thân thiện", Material.COW_SPAWN_EGG),
         BOSS_SPAWNING("boss-spawning-enabled", "Cho phép boss hệ thống", Material.WITHER_SKELETON_SKULL),
         DISASTERS("disasters-enabled", "Cho phép thiên tai", Material.LIGHTNING_ROD),
         TIME("time-passes", "Thời gian trôi", Material.CLOCK),
@@ -83,6 +84,7 @@ public final class WorldSettingsManager implements Listener {
                     || !plugin.getConfig().getBoolean(start + ".protection.interactions", true);
                 case PVP -> plugin.getConfig().getBoolean(start + ".pvp-enabled", false);
                 case MOB_SPAWNING -> plugin.getConfig().getBoolean(start + ".mob-spawning-enabled", false);
+                case FRIENDLY_MOB_SPAWNING -> plugin.getConfig().getBoolean(start + ".friendly-mob-spawning-enabled", true);
                 case TIME -> plugin.getConfig().getBoolean(start + ".time-passes", false);
                 case HUNGER -> plugin.getConfig().getBoolean(start + ".hunger-drain-enabled", false);
                 case THIRST -> plugin.getConfig().getBoolean(start + ".thirst-drain-enabled", false);
@@ -148,15 +150,19 @@ public final class WorldSettingsManager implements Listener {
         holder.inventory = menu;
         menu.setItem(4, item(Material.COMPASS, "§b" + worldName, List.of(
             "§7Environment: §f" + world.getEnvironment(), "§7Múi giờ: §f" + world.getTime())));
-        int[] slots = {10, 11, 12, 13, 14, 15, 16, 28, 30, 32};
+        int[] slots = {10, 11, 12, 13, 14, 15, 16, 28, 29, 30, 32};
         Rule[] rules = Rule.values();
         for (int index = 0; index < rules.length; index++) {
             Rule rule = rules[index];
             boolean enabled = isEnabled(world, rule);
             holder.ruleSlots.put(slots[index], rule);
+            List<String> lore = new java.util.ArrayList<>(List.of(
+                "§7World: §f" + worldName, "§eNhấn để đổi trạng thái."));
+            if (rule == Rule.FRIENDLY_MOB_SPAWNING) {
+                lore.add("§7Mob thân thiện cần bật cả mục sinh quái chung.");
+            }
             menu.setItem(slots[index], item(enabled ? Material.LIME_DYE : Material.GRAY_DYE,
-                (enabled ? "§aBẬT • " : "§cTẮT • ") + rule.label, List.of(
-                    "§7World: §f" + worldName, "§eNhấn để đổi trạng thái.")));
+                (enabled ? "§aBẬT • " : "§cTẮT • ") + rule.label, lore));
         }
         menu.setItem(49, item(Material.ARROW, "§eQuay lại danh sách world", List.of()));
         menu.setItem(53, item(Material.BARRIER, "§cĐóng", List.of()));
@@ -274,7 +280,7 @@ public final class WorldSettingsManager implements Listener {
         return switch (rule) {
             case PVP -> true;
             case BLOCK_BREAK, BLOCK_PLACE, INTERACTIONS -> true;
-            case MOB_SPAWNING, BOSS_SPAWNING, DISASTERS, TIME, HUNGER, THIRST -> true;
+            case MOB_SPAWNING, FRIENDLY_MOB_SPAWNING, BOSS_SPAWNING, DISASTERS, TIME, HUNGER, THIRST -> true;
         };
     }
 

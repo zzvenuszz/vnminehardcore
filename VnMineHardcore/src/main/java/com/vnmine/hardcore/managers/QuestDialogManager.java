@@ -61,6 +61,17 @@ public final class QuestDialogManager implements Listener {
         return id != null && dialogs.containsKey(id);
     }
 
+    /** Completes the active typewriter dialogue when the player clicks its NPC again. */
+    public boolean skipActiveDialogue(Player player) {
+        if (player == null) return false;
+        DialogueSession session = sessions.remove(player.getUniqueId());
+        if (session == null) return false;
+        session.cancelled = true;
+        player.sendActionBar(" ");
+        if (session.onContinue != null) session.onContinue.run();
+        return true;
+    }
+
     public void openSelector(Player player, String selectedId, Consumer<String> callback) {
         openSelector(player, selectedId,
             new DialogContext("", "AVAILABLE", 0, selectedId, callback), 0);
@@ -204,7 +215,7 @@ public final class QuestDialogManager implements Listener {
         updatePlayback(session);
     }
 
-    private static List<String> splitDialoguePages(List<String> pages) {
+    private List<String> splitDialoguePages(List<String> pages) {
         List<String> chunks = new ArrayList<>();
         for (String page : pages) {
             String text = LegacyText.translate(page).replace('\n', ' ').trim();
@@ -226,7 +237,7 @@ public final class QuestDialogManager implements Listener {
                 chunk.appendCodePoint(cp);
                 visible++;
                 offset += Character.charCount(cp);
-                if (visible >= 36) {
+                if (visible >= dialogueChunkLength()) {
                     chunks.add(chunk.toString());
                     chunk = new StringBuilder(activeFormat);
                     visible = 0;
@@ -235,6 +246,11 @@ public final class QuestDialogManager implements Listener {
             if (!chunk.toString().replaceAll("§[0-9a-fk-or]", "").isBlank()) chunks.add(chunk.toString());
         }
         return List.copyOf(chunks);
+    }
+
+    private int dialogueChunkLength() {
+        return Math.max(36, Math.min(64,
+            plugin.getConfig().getInt("rpg.npc.dialogue.max-characters-per-line", 48)));
     }
 
     private void prepareChunk(DialogueSession session) {

@@ -465,10 +465,21 @@ này** liệt kê quest đang gắn, cho phép gán quest đã có hoặc tạo 
 NPC được điền sẵn làm người giao. Nút **Hội thoại NPC** chọn dialog private của
 NPC hoặc dialog public; tại đây có thể tạo, sửa và xóa dialog. Khi người chơi
 tương tác, nội dung chạy trên action bar rồi mới mở các lựa chọn quest/chức năng.
+Marker nhiệm vụ/story `!` và `?` trên đầu NPC được phóng to theo
+`rpg.npc.markers.scale`. Dialog action bar mặc định hiển thị tối đa 48 ký tự mỗi
+dòng; chỉnh `rpg.npc.dialogue.max-characters-per-line`. Bấm NPC lần nữa khi đang
+xem dialog sẽ bỏ qua phần chữ còn lại và tiếp tục luồng tương tác. Menu NPC xếp
+quest đang làm/có thể nhận ở hai hàng đầu, dấu phân cách ở hàng ba, chức năng ở
+hai hàng kế tiếp; quest hoàn thành mở riêng qua nút **Quest đã hoàn thành**.
+Trong menu edit NPC, **Di chuyển NPC** chờ admin gõ `!put` tại vị trí muốn đặt,
+hoặc `!cancel` để quay lại.
+Tooltip chat ngẫu nhiên chỉ hướng dẫn người chơi và ưu tiên mở tính năng qua nút
+**F**/menu chính; các gợi ý gọi boss/thiên tai dành cho admin đã bị bỏ.
 
 Dashboard có nút **Bảo vệ World bắt đầu/reset** để cấu hình nhanh world bắt đầu.
 Menu **Menu chính → Admin → Quản lý world** hiển thị từng world đang nạp và lưu
-các công tắc riêng cho đặt/phá khối, tương tác, PvP, sinh quái, boss hệ thống,
+các công tắc riêng cho đặt/phá khối, tương tác, PvP, sinh quái thường, sinh mob
+thân thiện, boss hệ thống,
 thiên tai, thời gian trôi, đói và khát trong `world-settings.yml`. Thiết lập theo
 world được áp dụng cho các luồng tương ứng; các mục chưa đổi tiếp tục dùng mặc
 định hoặc cấu hình cũ của world bắt đầu.
@@ -1033,10 +1044,11 @@ Búa hỗ trợ cú pháp gần WorldEdit, có thể gõ lệnh `//...` trực t
 //replace minecraft:dirt minecraft:stone
 //walls stone        //faces stone        //overlay grass_block
 //center gold_block  //count diamond_ore
+//pos1                 //square 8 minecraft:stone  //circle 12 minecraft:stone
 //expand 5 up        //contract 3         //shift 10 north
 //move 5 east air    //stack 3 east
 //copy               //cut [air]           //paste [-a] [-o]
-//undo / //redo      //size / //desel      //limit 32768
+//undo / //redo      //size / //desel      //limit 32768 / //limit unlimited
 ```
 
 Pattern nhận tên block/namespace, block state như
@@ -1044,8 +1056,11 @@ Pattern nhận tên block/namespace, block state như
 Các thay đổi được áp dụng theo từng batch để giảm giật. Giới hạn mặc định là
 32,768 block mỗi thao tác, 512 block mỗi tick; chỉnh tại `worldedit.max-blocks`,
 `worldedit.blocks-per-tick`, và tối đa 256 chunk mỗi tác vụ tại
-`worldedit.max-chunks-per-operation`. Plugin giữ các chunk được sửa trong lúc
-batch đang chạy. Undo/redo giữ 10 thao tác; clipboard và history
+`worldedit.max-chunks-per-operation`. Dùng `//limit unlimited` để bỏ giới hạn
+block/chunk; chỉ áp dụng trên chunk đã nạp và thao tác lớn có thể dùng nhiều
+RAM/tài nguyên server. Viền vùng chọn dùng particle đỏ; có thể tắt/chỉnh tầm xem
+trong `worldedit.selection-particles`. Các lệnh `//` có tab completion. Plugin
+giữ các chunk được sửa trong lúc batch đang chạy. Undo/redo giữ 10 thao tác; clipboard và history
 chỉ tồn tại trong phiên đăng nhập hiện tại. Hệ thống từ chối thao tác lên rương,
 bảng hiệu và các block entity khác vì không lưu nội dung của chúng.
 

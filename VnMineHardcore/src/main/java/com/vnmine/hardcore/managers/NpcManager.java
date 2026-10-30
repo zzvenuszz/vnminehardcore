@@ -388,9 +388,10 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             "§b&r3: từ giữa ra hai bên. Hiệu ứng kéo dài tới mã rainbow kế tiếp/hết tên.")));
         menu.setItem(12, createDialogueItem(Material.WRITABLE_BOOK, "§eĐổi loại NPC", List.of(
             "§7Hiện tại: §f" + npc.type(), "§7Nhập một loại được liệt kê trong prompt chat.")));
-        menu.setItem(14, createDialogueItem(Material.COMPASS, "§bDi chuyển tới vị trí hiện tại", List.of(
+        menu.setItem(14, createDialogueItem(Material.COMPASS, "§bDi chuyển NPC", List.of(
             "§7Thế giới: §f" + npc.world(), "§7" + formatCoordinate(npc.x()) + ", "
-                + formatCoordinate(npc.y()) + ", " + formatCoordinate(npc.z()), "§eNhấn để di chuyển NPC.")));
+                + formatCoordinate(npc.y()) + ", " + formatCoordinate(npc.z()),
+            "§eNhấn để vào chế độ di chuyển.", "§7Nhập §f!put §7để đặt NPC tại vị trí bạn đứng.")));
         menu.setItem(16, createDialogueItem(Material.REDSTONE, "§cXóa NPC", List.of(
             "§7Sẽ xóa thực thể NPC và dữ liệu shop liên quan.", "§eNhấn để xác nhận.")));
         menu.setItem(22, createDialogueItem(Material.PLAYER_HEAD, "§bCấu hình skin Player", List.of(
@@ -520,14 +521,9 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         else if (slot == 10) promptNpc(player, new PendingNpcInput(NpcTextField.RENAME, holder.npcId, holder.page, ""));
         else if (slot == 12) promptNpc(player, new PendingNpcInput(NpcTextField.CHANGE_TYPE, holder.npcId, holder.page, ""));
         else if (slot == 22) promptNpc(player, new PendingNpcInput(NpcTextField.SKIN, holder.npcId, holder.page, ""));
-        else if (slot == 14) {
-            try {
-                moveNpc(player, new String[]{"move", holder.npcId});
-            } catch (IOException exception) {
-                reportNpcGuiError(player, exception);
-            }
-            openNpcEditor(player, holder.npcId, holder.page);
-        } else if (slot == 16) openNpcDeleteConfirmation(player, holder.npcId, holder.page);
+        else if (slot == 14) promptNpc(player,
+            new PendingNpcInput(NpcTextField.MOVE, holder.npcId, holder.page, ""));
+        else if (slot == 16) openNpcDeleteConfirmation(player, holder.npcId, holder.page);
         else if (slot == 24) {
             if (plugin.getQuestCatalogManager() != null)
                 plugin.getQuestCatalogManager().openNpcQuestManager(player, holder.npcId);
@@ -574,10 +570,12 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 + String.join(", ", NpcDefinitionLoader.supportedTypes().stream().sorted().toList());
             case CREATE_NAME, RENAME -> "§eHãy nhập §ftên NPC§e (1-64 ký tự, hỗ trợ màu &), ví dụ: §fThợ săn &6Cổ đại";
             case SKIN -> "§eHãy nhập §fusername Minecraft Java§e để dùng skin, ví dụ: §fNotch§e; nhập §f!default§e để bỏ skin riêng.";
+            case MOVE -> "§eĐang ở chế độ di chuyển NPC §f" + input.npcId()
+                + "§e. Đứng tại vị trí đích rồi nhập §f!put§e để chuyển NPC.";
         };
         player.closeInventory();
         player.sendMessage("§6[Quản lý NPC] " + instruction);
-        player.sendMessage("§7Gõ §c!cancel §7để hủy và quay lại giao diện NPC.");
+        player.sendMessage("§7Gõ §f!cancel §7để hủy và quay lại menu edit NPC.");
     }
 
     private void handleNpcTextInput(Player player, PendingNpcInput input, String text) {
@@ -588,6 +586,21 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         }
         if (text.equalsIgnoreCase("!cancel")) {
             reopenNpcEditor(player, input);
+            return;
+        }
+        if (input.field() == NpcTextField.MOVE) {
+            if (!text.equalsIgnoreCase("!put")) {
+                player.sendMessage("§eĐứng tại vị trí muốn đặt NPC rồi nhập §f!put§e; hoặc §f!cancel§e để quay lại.");
+                promptNpc(player, input);
+                return;
+            }
+            try {
+                moveNpc(player, new String[]{"move", input.npcId()});
+                openNpcEditor(player, input.npcId(), input.page());
+            } catch (IOException exception) {
+                reportNpcGuiError(player, exception);
+                reopenNpcEditor(player, input);
+            }
             return;
         }
         try {
@@ -771,6 +784,8 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
             openNpcEditor(player, npc.id(), 0);
             return;
         }
+        if (plugin.getQuestDialogManager() != null
+                && plugin.getQuestDialogManager().skipActiveDialogue(player)) return;
         recordClassProgressionNpcVisit(player, npc.id());
         if (plugin.getCharacterSelectionManager() != null
                 && plugin.getCharacterSelectionManager().recordStartWorldTutorialNpcVisit(player, npc.id())) {
@@ -845,15 +860,27 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         if (definition == null) {
             definition = createFallbackDialogueDefinition(npc);
         }
-        if (npc.dialogId() != null && actionPage == 0) {
-            NpcDefinitionLoader.NpcDefinition actionsOnly = new NpcDefinitionLoader.NpcDefinition(
-                definition.id(), definition.type(), definition.displayName(), List.of(), definition.actions());
-            plugin.getQuestDialogManager().openQuestDialogue(player, npc.dialogId(),
-                formatDisplayName(npc.displayName()), "Xin chào.",
-                () -> openDialogue(player, npc, actionsOnly, 0));
+        if (npc.dialogId() != null) {
+            if (actionPage == 0) {
+                plugin.getQuestDialogManager().openQuestDialogue(player, npc.dialogId(),
+                    formatDisplayName(npc.displayName()), "Xin chào.",
+                    () -> openNpcActionMenu(player, npc, 0));
+            } else {
+                openNpcActionMenu(player, npc, actionPage);
+            }
             return;
         }
         openDialogue(player, npc, definition, actionPage);
+    }
+
+    private void openNpcActionMenu(Player player, NpcRecord npc, int page) {
+        NpcDefinitionLoader.NpcDefinition definition = findDialogueDefinition(npc.id(), npc.type(), definitions);
+        if (definition == null) definition = createFallbackDialogueDefinition(npc);
+        if (npc.dialogId() != null) {
+            definition = new NpcDefinitionLoader.NpcDefinition(
+                definition.id(), definition.type(), definition.displayName(), List.of(), definition.actions());
+        }
+        openDialogue(player, npc, definition, page);
     }
 
     @EventHandler
@@ -863,13 +890,24 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         if (!(event.getWhoClicked() instanceof Player player)
                 || !holder.viewer.equals(player.getUniqueId())
                 || event.getClickedInventory() != event.getView().getTopInventory()) return;
-        if (event.getRawSlot() == 49) {
+        if (event.getRawSlot() == 51) {
             player.closeInventory();
             return;
         }
-        if (event.getRawSlot() == 46 || event.getRawSlot() == 48) {
+        if (event.getRawSlot() == 47) {
+            if (plugin.getQuestCatalogManager() != null) {
+                NpcRecord npc = npcs.get(holder.npcId);
+                if (npc == null) return;
+                player.closeInventory();
+                plugin.getQuestCatalogManager().openCompletedQuestHistory(player,
+                    () -> openNpcActionMenu(player, npc, holder.page));
+            }
+            return;
+        }
+        if (event.getRawSlot() == 45 || event.getRawSlot() == 53) {
             NpcRecord npc = npcs.get(holder.npcId);
-            if (npc != null) openNpcDialogue(player, npc, holder.page + (event.getRawSlot() == 46 ? -1 : 1));
+            if (npc != null) openNpcDialogue(player, npc,
+                holder.page + (event.getRawSlot() == 45 ? -1 : 1));
             return;
         }
         NpcDefinitionLoader.NpcAction action = holder.actions.get(event.getRawSlot());
@@ -1425,36 +1463,37 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 createDialogueItem(Material.GRAY_STAINED_GLASS_PANE, " ", List.of()));
         }
 
-        inventory.setItem(4, createDialogueItem(Material.WRITABLE_BOOK,
-            formatDisplayName(npc.displayName()), List.of("§7" + titleCase(npc.type()))));
-        int[] dialogueSlots = {
-            10, 11, 12, 13, 14, 15, 16,
-            19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30, 31, 32, 33, 34
-        };
-        for (int index = 0; index < definition.dialogue().size(); index++) {
-            String line = definition.dialogue().get(index);
-            inventory.setItem(dialogueSlots[index], createDialogueItem(
-                Material.PAPER, "§eLời thoại " + (index + 1),
-                List.of(formatDisplayName(line), "§8" + (index + 1) + "/" + definition.dialogue().size())));
-        }
-        List<NpcDefinitionLoader.NpcAction> dialogueActions = new ArrayList<>(definition.actions());
-        java.util.Set<String> configuredQuestIds = definition.actions().stream()
-            .map(NpcDefinitionLoader.NpcAction::questId).filter(java.util.Objects::nonNull)
-            .collect(java.util.stream.Collectors.toSet());
-        for (NpcDefinitionLoader.NpcAction action : plugin.getQuestCatalogManager().getNpcQuestActions(player, npc.id())) {
-            if (!configuredQuestIds.contains(action.questId())) dialogueActions.add(action);
-        }
-        int pageCount = Math.max(1, (dialogueActions.size() + 8) / 9);
+        List<NpcDefinitionLoader.NpcAction> questActions = plugin.getQuestCatalogManager() == null
+            ? List.of() : plugin.getQuestCatalogManager().getNpcQuestActions(player, npc.id());
+        int pageCount = Math.max(1, (questActions.size() + 17) / 18);
         holder.page = Math.max(0, Math.min(requestedActionPage, pageCount - 1));
-        int[] actionSlots = {37, 38, 39, 40, 41, 42, 43, 44, 45};
-        for (int index = 0; index < actionSlots.length && holder.page * 9 + index < dialogueActions.size(); index++) {
-            NpcDefinitionLoader.NpcAction action = dialogueActions.get(holder.page * 9 + index);
-            int slot = actionSlots[index];
+        for (int index = 0; index < 18 && holder.page * 18 + index < questActions.size(); index++) {
+            NpcDefinitionLoader.NpcAction action = questActions.get(holder.page * 18 + index);
+            int slot = index;
+            Material material = action.label().startsWith("§e[Đang làm]") ? Material.WRITABLE_BOOK : Material.FILLED_MAP;
+            inventory.setItem(slot, createDialogueItem(material, "§a" + formatDisplayName(action.label()),
+                List.of("§7Nhiệm vụ có thể nhận hoặc đang làm.", "§eNhấn để tiếp tục với NPC.")));
+            holder.actions.put(slot, action);
+        }
+        if (questActions.isEmpty()) {
+            inventory.setItem(4, createDialogueItem(Material.BARRIER, "§7Chưa có nhiệm vụ khả dụng", List.of(
+                "§7Nhiệm vụ đã hoàn thành nằm trong Nhật ký nhiệm vụ.",
+                "§7Quest chưa đủ điều kiện sẽ xuất hiện khi bạn đáp ứng yêu cầu.")));
+        }
+
+        List<String> npcDialogue = definition.dialogue().stream().limit(8)
+            .map(line -> "§7• " + formatDisplayName(line)).toList();
+        if (!npcDialogue.isEmpty()) {
+            inventory.setItem(31, createDialogueItem(Material.PAPER, "§eLời nhắn của NPC", npcDialogue));
+        }
+        List<NpcDefinitionLoader.NpcAction> generalActions = definition.actions().stream()
+            .filter(action -> !isQuestAction(action)).toList();
+        int[] functionSlots = {27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44};
+        for (int index = 0; index < functionSlots.length && index < generalActions.size(); index++) {
+            NpcDefinitionLoader.NpcAction action = generalActions.get(index);
+            int slot = functionSlots[index];
             Material material = switch (action.type()) {
                 case "give-skill-book" -> Material.ENCHANTED_BOOK;
-                case "accept-quest" -> Material.FILLED_MAP;
-                case "quest-interaction" -> Material.FILLED_MAP;
                 case "open-skill-tree" -> Material.IRON_SWORD;
                 case "open-merchant" -> Material.EMERALD;
                 default -> Material.WRITABLE_BOOK;
@@ -1463,14 +1502,20 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
                 List.of("§7Nhấn để thực hiện.")));
             holder.actions.put(slot, action);
         }
-        if (holder.page > 0) inventory.setItem(46, createDialogueItem(Material.ARROW, "§eQuest trước", List.of()));
-        if (dialogueActions.size() > 9) inventory.setItem(47, createDialogueItem(Material.PAPER,
-            "§fTrang quest " + (holder.page + 1) + "/" + pageCount,
-            List.of("§7Tổng hành động: " + dialogueActions.size())));
-        if (holder.page + 1 < pageCount) inventory.setItem(48,
-            createDialogueItem(Material.ARROW, "§eQuest tiếp", List.of()));
-        inventory.setItem(49, createDialogueItem(Material.BARRIER, "§cĐóng", List.of("§7Đóng hội thoại.")));
+        if (holder.page > 0) inventory.setItem(45, createDialogueItem(Material.LIME_CARPET, "§eQuest trước", List.of()));
+        inventory.setItem(47, createDialogueItem(Material.WRITTEN_BOOK, "§dQuest đã hoàn thành", List.of(
+            "§7Mở nhật ký nhiệm vụ đã hoàn thành.")));
+        inventory.setItem(49, createDialogueItem(Material.PAPER, "§fTrang " + (holder.page + 1) + "/" + pageCount,
+            List.of("§7Quest khả dụng: " + questActions.size())));
+        inventory.setItem(51, createDialogueItem(Material.CRAFTING_TABLE, "§cĐóng menu", List.of()));
+        if (holder.page + 1 < pageCount)
+            inventory.setItem(53, createDialogueItem(Material.CYAN_CARPET, "§eQuest tiếp", List.of()));
         player.openInventory(inventory);
+    }
+
+    private static boolean isQuestAction(NpcDefinitionLoader.NpcAction action) {
+        return action.questId() != null || "accept-quest".equals(action.type())
+            || "quest-interaction".equals(action.type()) || "submit-quest".equals(action.type());
     }
 
     private static ItemStack createDialogueItem(Material material, String name, List<String> lore) {
@@ -2187,7 +2232,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     public record MerchantBuyQuote(int amount, long price, String merchantId) { }
 
     private enum NpcMenu { LIST, EDIT, CONFIRM_DELETE, STORY_CHAPTERS }
-    private enum NpcTextField { CREATE_ID, CREATE_TYPE, CREATE_NAME, RENAME, CHANGE_TYPE, SKIN }
+    private enum NpcTextField { CREATE_ID, CREATE_TYPE, CREATE_NAME, RENAME, CHANGE_TYPE, SKIN, MOVE }
     private record PendingNpcInput(NpcTextField field, String npcId, int page, String value) { }
 
     private static final class NpcMenuHolder implements InventoryHolder {

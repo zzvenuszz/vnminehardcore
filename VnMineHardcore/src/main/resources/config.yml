@@ -72,15 +72,25 @@ schema-build:
 # [VI] Giới hạn an toàn cho lệnh chỉnh sửa vùng //set, //replace, //paste... của búa WorldEdit tích hợp.
 # [EN] Safety limits for integrated selection-wand editing commands such as //set, //replace, and //paste.
 worldedit:
-  # [VI] Số block thay đổi tối đa cho một thao tác; mặc định 32768, hợp lệ 1-250000.
-  # [EN] Maximum changed blocks per operation; defaults to 32768, valid range 1-250000.
+  # [VI] Số block tối đa mỗi thao tác; mặc định 32768. Đặt bằng //limit <số> hoặc //limit unlimited để bỏ giới hạn.
+  # [EN] Maximum changed blocks per operation; defaults to 32768. Set with //limit <number> or //limit unlimited for no cap.
   max-blocks: 32768
   # [VI] Số block áp dụng mỗi tick để giảm giật server; mặc định 512, hợp lệ 32-4096.
   # [EN] Blocks applied each tick to reduce server stalls; defaults to 512, valid range 32-4096.
   blocks-per-tick: 512
-  # [VI] Số chunk tối đa được giữ nạp cho một thao tác; mặc định 256, hợp lệ 1-2048.
-  # [EN] Maximum chunks kept loaded during one operation; defaults to 256, valid range 1-2048.
+  # [VI] Số chunk tối đa được giữ nạp cho một thao tác; mặc định 256. Đặt -1 để không giới hạn (//limit unlimited).
+  # [EN] Maximum chunks kept loaded during one operation; defaults to 256. Set -1 for no cap (//limit unlimited).
   max-chunks-per-operation: 256
+  # [VI] Bật viền hạt đỏ cho vùng WorldEdit đã chọn; mặc định true.
+  # [EN] Show a red particle outline around the WorldEdit selection; defaults to true.
+  selection-particles:
+    enabled: true
+    # [VI] Chu kỳ vẽ viền (tick); mặc định 10, hợp lệ 5-40.
+    # [EN] Particle outline refresh interval (ticks); defaults to 10, valid range 5-40.
+    interval-ticks: 10
+    # [VI] Khoảng xem viền theo khoảng cách từ góc chọn (block); mặc định 96.
+    # [EN] Selection outline view distance from either corner (blocks); defaults to 96.
+    view-distance-blocks: 96
   # [VI] Số thao tác có thể undo; history chỉ tồn tại trong phiên người chơi/server, mặc định 10, hợp lệ 1-50.
   # [EN] Number of undoable operations; history is session-only, defaults to 10, valid range 1-50.
   history-size: 10
@@ -227,6 +237,10 @@ rpg:
     # [VI] Số NPC runtime tối đa có thể quản lý; mặc định 100, hợp lệ 1-100.
     # [EN] Maximum number of managed runtime NPCs; defaults to 100, valid range 1-100.
     max-runtime-npcs: 100
+    dialogue:
+      # [VI] Số ký tự tối đa của mỗi dòng action bar hội thoại trước khi ngắt; mặc định 48, hợp lệ 36-64.
+      # [EN] Maximum visible characters per action-bar dialogue line before wrapping; defaults to 48, valid 36-64.
+      max-characters-per-line: 48
     # [VI] Cho NPC tự quay về người chơi gần nhất cùng world; mặc định bật.
     # [EN] Make managed NPCs turn toward the nearest player in the same world; enabled by default.
     look-at:
@@ -253,6 +267,9 @@ rpg:
       # [VI] Tầm hiển thị marker tính theo block; mặc định 48, hợp lệ 8-128.
       # [EN] Marker visibility range in blocks; default 48, valid range 8-128.
       tracking-range-blocks: 48
+      # [VI] Tỉ lệ phóng to dấu !/? phía trên NPC; mặc định 2.0, hợp lệ 1.0-4.0.
+      # [EN] Scale multiplier for !/? markers above NPCs; defaults to 2.0, valid 1.0-4.0.
+      scale: 2.0
   text-display:
     # [VI] Số text display quản lý tối đa; mặc định 100, hợp lệ 1-500.
     # [EN] Maximum number of managed text displays; defaults to 100, valid range 1-500.

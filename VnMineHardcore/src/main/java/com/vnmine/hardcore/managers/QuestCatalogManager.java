@@ -460,6 +460,15 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         openPlayerJournal(player, 0);
     }
 
+    /** Opens only the completed quest history, used by the completed-quest tab on NPC menus. */
+    public void openCompletedQuestHistory(Player player) {
+        openQuestHistory(player, 0, null);
+    }
+
+    public void openCompletedQuestHistory(Player player, Runnable returnAction) {
+        openQuestHistory(player, 0, returnAction);
+    }
+
     private void openPlayerJournal(Player player, int requestedPage) {
         processPendingQuestSuccessors(player);
         Map<String, PlayerProfileDatabaseManager.QuestProgress> active =
@@ -530,12 +539,17 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private void openQuestHistory(Player player, int requestedPage) {
+        openQuestHistory(player, requestedPage, null);
+    }
+
+    private void openQuestHistory(Player player, int requestedPage, Runnable returnAction) {
         java.util.Set<String> completed = completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of());
         List<QuestDefinition> quests = completed.stream().map(definitions::get).filter(java.util.Objects::nonNull)
             .sorted(java.util.Comparator.comparing(QuestDefinition::title, String.CASE_INSENSITIVE_ORDER)).toList();
         int pageCount = Math.max(1, (quests.size() + 44) / 45);
         int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.PLAYER_HISTORY, null, page);
+        holder.returnAction = returnAction;
         Inventory menu = Bukkit.createInventory(holder, 54, "Nhật ký nhiệm vụ • " + (page + 1));
         holder.inventory = menu;
         if (quests.isEmpty()) menu.setItem(22, adminItem(Material.BOOK, "§7Chưa hoàn thành nhiệm vụ nào", List.of()));
@@ -556,6 +570,10 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private void openQuestDetails(Player player, String questId, boolean completed) {
+        openQuestDetails(player, questId, completed, null);
+    }
+
+    private void openQuestDetails(Player player, String questId, boolean completed, Runnable returnAction) {
         QuestDefinition quest = definitions.get(questId);
         if (quest == null) {
             openPlayerJournal(player);
@@ -564,6 +582,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         PlayerProfileDatabaseManager.QuestProgress progress = activeByPlayer
             .getOrDefault(player.getUniqueId(), Map.of()).get(questId);
         QuestMenuHolder holder = new QuestMenuHolder(player.getUniqueId(), QuestMenu.PLAYER_DETAILS, questId, completed ? 1 : 0);
+        holder.returnAction = returnAction;
         Inventory menu = Bukkit.createInventory(holder, 54, "Quest • " + quest.title());
         holder.inventory = menu;
         menu.setItem(4, adminItem(completed ? Material.ENCHANTED_BOOK : Material.WRITABLE_BOOK,
@@ -990,14 +1009,16 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 if (holder.menu == QuestMenu.PLAYER_JOURNAL) openQuestHistory(player, 0);
                 else openPlayerJournal(player, 0);
             } else if (slot == 49) {
-                plugin.getTutorialQuestManager().openJournal(player);
+                if (holder.returnAction != null) holder.returnAction.run();
+                else plugin.getTutorialQuestManager().openJournal(player);
             } else if (slot == 50) {
                 toggleWaypointParticles(player, () -> openPlayerJournal(player, holder.page));
             } else if (slot == 53) {
                 player.closeInventory();
             } else if (holder.questSlots.containsKey(slot)) {
                 String questId = holder.questSlots.get(slot);
-                openQuestDetails(player, questId, holder.menu == QuestMenu.PLAYER_HISTORY);
+                openQuestDetails(player, questId, holder.menu == QuestMenu.PLAYER_HISTORY,
+                    holder.menu == QuestMenu.PLAYER_HISTORY ? holder.returnAction : null);
             } else if (holder.trackingSlots.containsKey(slot)) {
                 toggleQuestTracking(player, holder.trackingSlots.get(slot), () -> openPlayerJournal(player, holder.page));
             }
@@ -1009,7 +1030,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             boolean completed = holder.page == 1;
             String questId = holder.questId;
             if (slot == 49) {
-                if (completed) openQuestHistory(player, 0);
+                if (completed) openQuestHistory(player, 0, holder.returnAction);
                 else openPlayerJournal(player, 0);
             } else if (!completed && slot == 32) {
                 openAbandonConfirmation(player, questId);
@@ -3606,12 +3627,13 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         java.util.Set<String> completed = completedByPlayer.getOrDefault(player.getUniqueId(), java.util.Set.of());
         return definitions.values().stream()
             .filter(quest -> quest.enabled() && quest.giverNpcId().equalsIgnoreCase(npcId))
+            .filter(quest -> active.containsKey(quest.id())
+                || ((!completed.contains(quest.id()) || isRepeatable(quest.id()))
+                    && active.size() < 3 && canDisplayQuest(player, quest)))
             .sorted(java.util.Comparator.comparing(QuestDefinition::id))
             .map(quest -> {
                 String state = active.containsKey(quest.id()) ? "§e[Đang làm] "
-                    : completed.contains(quest.id()) && !isRepeatable(quest.id()) ? "§a[Đã xong] "
-                    : completed.contains(quest.id()) ? "§d[Lặp lại] "
-                    : canDisplayQuest(player, quest) && active.size() < 3 ? "§a[Có thể nhận] " : "§c[Chưa đủ điều kiện] ";
+                    : completed.contains(quest.id()) ? "§d[Có thể lặp lại] " : "§a[Có thể nhận] ";
                 String title = quest.title().length() > 26 ? quest.title().substring(0, 26) : quest.title();
                 return new NpcDefinitionLoader.NpcAction("quest-interaction", state + title, null, quest.id());
             }).toList();
@@ -4841,6 +4863,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         private final Map<Integer, String> trackingSlots = new LinkedHashMap<>();
         private Inventory inventory;
         private boolean navigating;
+        private Runnable returnAction;
 
         private QuestMenuHolder(UUID viewer, QuestMenu menu, String questId, int page) {
             this.viewer = viewer;

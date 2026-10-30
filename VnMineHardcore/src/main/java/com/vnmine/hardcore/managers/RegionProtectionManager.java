@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.UUID;
+import org.bukkit.Color;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.GameRule;
@@ -28,8 +29,13 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.AbstractVillager;
+import org.bukkit.entity.Allay;
+import org.bukkit.entity.Animals;
+import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
+import org.bukkit.entity.Snowman;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -43,12 +49,14 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.server.TabCompleteEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -58,7 +66,7 @@ import org.bukkit.command.TabCompleter;
 public final class RegionProtectionManager implements Listener, CommandExecutor, TabCompleter {
     public static final String ADMIN_PERMISSION = "vnmine.command.worldedit";
     private static final int EDIT_BATCH_SIZE = 512;
-    private static final int DEFAULT_MAX_EDIT_BLOCKS = 32_768;
+    private static final long DEFAULT_MAX_EDIT_BLOCKS = 32_768L;
     private static final int DEFAULT_HISTORY_LIMIT = 10;
     private static final int DEFAULT_MAX_EDIT_CHUNKS = 256;
     private static final int[] CONTENT_SLOTS = {
@@ -84,6 +92,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private final Map<UUID, Deque<EditOperation>> redoHistory = new HashMap<>();
     private final Map<UUID, Clipboard> clipboards = new HashMap<>();
     private final Set<UUID> activeEdits = new HashSet<>();
+    private final BukkitTask selectionParticleTask;
 
     public RegionProtectionManager(VnMineHardcore plugin) {
         this.plugin = plugin;
@@ -91,6 +100,10 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         this.dataFile = new File(plugin.getDataFolder(), "protected-regions.yml");
         load();
         for (World world : Bukkit.getWorlds()) applyStartWorldSettings(world);
+        long interval = Math.max(5L, Math.min(40L,
+            plugin.getConfig().getLong("worldedit.selection-particles.interval-ticks", 10L)));
+        selectionParticleTask = Bukkit.getScheduler().runTaskTimer(plugin,
+            this::renderSelectionParticles, interval, interval);
     }
 
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -110,14 +123,49 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
-            "desel", "set", "replace", "walls", "faces", "overlay", "center", "count", "expand", "contract",
-            "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo", "clearhistory", "limit");
+        if (args.length == 1) return filter(List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
+            "desel", "set", "replace", "walls", "faces", "overlay", "center", "square", "circle", "count", "expand", "contract",
+            "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo", "clearhistory", "limit"), args[0]);
         if (args.length == 2 && Set.of("set", "walls", "faces", "overlay", "center", "cut").contains(args[0].toLowerCase(Locale.ROOT)))
             return blockSuggestions(args[1]);
         if (args.length == 3 && Set.of("replace", "cut").contains(args[0].toLowerCase(Locale.ROOT)))
             return blockSuggestions(args[2]);
+        if (args.length == 3 && Set.of("square", "circle").contains(args[0].toLowerCase(Locale.ROOT)))
+            return blockSuggestions(args[2]);
         return List.of();
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onWorldEditTabComplete(TabCompleteEvent event) {
+        if (!(event.getSender() instanceof Player player) || !canManage(player)) return;
+        String buffer = event.getBuffer();
+        if (buffer == null) return;
+        String input;
+        if (buffer.startsWith("//")) input = buffer.substring(2);
+        else if (buffer.startsWith("/")) input = buffer.substring(1);
+        else if (event.isCommand()) input = buffer;
+        else return;
+        String[] tokens = input.split("\\s+", -1);
+        List<String> commands = List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
+            "desel", "set", "replace", "walls", "faces", "overlay", "center", "square", "circle", "count",
+            "expand", "contract", "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo",
+            "clearhistory", "limit");
+        if (tokens.length == 1) {
+            if (!tokens[0].isEmpty() && commands.stream().noneMatch(value -> value.startsWith(tokens[0]))) return;
+            event.setCompletions(filter(commands, tokens[0]));
+            return;
+        }
+        String command = tokens[0].toLowerCase(Locale.ROOT);
+        if (tokens.length == 2 && Set.of("set", "walls", "faces", "overlay", "center", "cut", "replace")
+                .contains(command)) {
+            event.setCompletions(blockSuggestions(tokens[1]));
+        } else if (tokens.length == 3 && Set.of("replace", "cut").contains(command)) {
+            event.setCompletions(blockSuggestions(tokens[2]));
+        } else if (tokens.length == 3 && Set.of("square", "circle").contains(command)) {
+            event.setCompletions(blockSuggestions(tokens[2]));
+        } else if (tokens.length == 2 && "limit".equals(command)) {
+            event.setCompletions(filter(List.of("unlimited"), tokens[1]));
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -223,6 +271,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 case "faces", "outline" -> editShape(player, args, Shape.FACES);
                 case "overlay" -> editOverlay(player, args);
                 case "center", "middle" -> editCenter(player, args);
+                case "square", "circle" -> editPlane(player, command, args);
                 case "count" -> countBlocks(player, args);
                 case "expand" -> adjustSelection(player, args, true);
                 case "contract" -> adjustSelection(player, args, false);
@@ -250,13 +299,14 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private void sendWorldEditHelp(Player player) {
         player.sendMessage("§6WorldEdit tích hợp §7• chọn bằng búa hoặc //pos1 //pos2 //hpos1 //hpos2 //chunk");
         player.sendMessage("§e//set <block> §7• §e//replace <from> <to> §7• §e//walls <block> §7• §e//faces <block>");
-        player.sendMessage("§e//overlay <block> §7• §e//center <block> §7• §e//count <block> §7• §e//cut [block]");
+        player.sendMessage("§e//overlay <block> §7• §e//center <block> §7• §e//square <bán_kính> [block] §7• §e//circle <bán_kính> [block]");
+        player.sendMessage("§e//count <block> §7• §e//cut [block]");
         player.sendMessage("§e//copy §7• §e//paste [-a] §7• §e//undo §7• §e//redo §7• §e//size §7• §e//desel");
         player.sendMessage("§7Dùng //clearhistory để xóa lịch sử undo/redo hiện tại.");
         player.sendMessage("§7Điều chỉnh vùng: //expand <n> [up|down|north|south|east|west|vert], //contract <n> [hướng], //shift <n> [hướng].");
         player.sendMessage("§7//move <n> [hướng] [block_để_lại] • //stack <số_bản> [hướng]. Clipboard/undo chỉ lưu trong phiên.");
-        player.sendMessage("§7Block nhận ID như §fminecraft:stone§7 hoặc block state §fminecraft:oak_log[axis=x]§7. Giới hạn: §f"
-            + editLimit() + " §7block/thao tác. Clipboard và history theo phiên người chơi.");
+        player.sendMessage("§7Block nhận ID như §fminecraft:stone§7 hoặc block state §fminecraft:oak_log[axis=x]§7. Giới hạn hiện tại: §f"
+            + limitLabel() + " §7block/thao tác. Dùng //limit <số|unlimited> để đổi; thao tác không giới hạn vẫn phụ thuộc RAM và chunk đã nạp.");
     }
 
     private List<String> blockSuggestions(String prefix) {
@@ -310,7 +360,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         if (selection == null || !selection.complete()) throw new IllegalArgumentException("Chọn hai góc bằng búa hoặc //pos1 và //pos2 trước.");
         if (!selection.first.getWorld().equals(player.getWorld())) throw new IllegalArgumentException("Bạn phải ở cùng world với vùng đã chọn.");
         long volume = selection.volume();
-        if (enforceLimit && volume > editLimit()) throw new IllegalArgumentException("Vùng có " + volume + " block; giới hạn là " + editLimit() + ". Dùng //contract hoặc //limit.");
+        if (enforceLimit && volume > editLimit()) throw new IllegalArgumentException("Vùng có " + volume + " block; giới hạn là " + limitLabel() + ". Dùng //contract hoặc //limit.");
         if (enforceLimit && (selection.minY() < selection.first.getWorld().getMinHeight()
                 || selection.maxY() >= selection.first.getWorld().getMaxHeight()
                 || !selection.first.getWorld().getWorldBorder().isInside(selection.first)
@@ -384,6 +434,66 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         scheduleEdit(player, "//center", changes);
     }
 
+    private void editPlane(Player player, String command, String[] args) {
+        if (args.length < 1 || args.length > 2)
+            throw new IllegalArgumentException("Dùng //" + command + " <bán_kính> [block], ví dụ //"
+                + command + " 8 minecraft:stone.");
+        Selection selection = selections.get(player.getUniqueId());
+        if (selection == null || selection.first == null)
+            throw new IllegalArgumentException("Chọn tâm bằng pos1 trước; có thể dùng búa hoặc //pos1.");
+        Location center = selection.first;
+        World world = center.getWorld();
+        if (!world.equals(player.getWorld()))
+            throw new IllegalArgumentException("Bạn phải ở cùng world với điểm pos1.");
+        int radius = positiveInt(args[0]);
+        long side = 2L * radius + 1L;
+        long upperBound;
+        try {
+            upperBound = "circle".equals(command)
+                ? (long) Math.ceil(Math.PI * radius * radius) : Math.multiplyExact(side, side);
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException("Bán kính vượt mức có thể xử lý an toàn.");
+        }
+        if (upperBound > editLimit())
+            throw new IllegalArgumentException("Mặt phẳng cần tối đa " + upperBound
+                + " block; giới hạn hiện tại là " + limitLabel() + ". Dùng //limit <số|unlimited>.");
+        int centerX = center.getBlockX();
+        int centerY = center.getBlockY();
+        int centerZ = center.getBlockZ();
+        long minXLong = (long) centerX - radius;
+        long maxXLong = (long) centerX + radius;
+        long minZLong = (long) centerZ - radius;
+        long maxZLong = (long) centerZ + radius;
+        if (centerY < world.getMinHeight() || centerY >= world.getMaxHeight()
+                || minXLong < Integer.MIN_VALUE || maxXLong > Integer.MAX_VALUE
+                || minZLong < Integer.MIN_VALUE || maxZLong > Integer.MAX_VALUE)
+            throw new IllegalArgumentException("Mặt phẳng vượt giới hạn tọa độ của world.");
+        int minX = (int) minXLong, maxX = (int) maxXLong;
+        int minZ = (int) minZLong, maxZ = (int) maxZLong;
+        Location cornerA = new Location(world, minX, centerY, minZ);
+        Location cornerB = new Location(world, maxX, centerY, maxZ);
+        if (!world.getWorldBorder().isInside(cornerA) || !world.getWorldBorder().isInside(cornerB))
+            throw new IllegalArgumentException("Mặt phẳng vượt world border.");
+        for (int chunkX = minX >> 4; chunkX <= maxX >> 4; chunkX++) {
+            for (int chunkZ = minZ >> 4; chunkZ <= maxZ >> 4; chunkZ++) {
+                if (!world.isChunkLoaded(chunkX, chunkZ))
+                    throw new IllegalArgumentException("Một phần mặt phẳng nằm trong chunk chưa nạp; hãy nạp toàn bộ vùng trước.");
+            }
+        }
+        BlockPattern pattern = parsePattern(args.length == 2 ? args[1] : "minecraft:stone");
+        Random random = new Random();
+        List<BlockChange> changes = new ArrayList<>();
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                long dx = (long) x - centerX;
+                long dz = (long) z - centerZ;
+                if ("circle".equals(command) && dx * dx + dz * dz > (long) radius * radius) continue;
+                addChange(player, changes, world.getBlockAt(x, centerY, z), pattern.next(random));
+            }
+        }
+        scheduleEdit(player, "//" + command, changes);
+    }
+
     private int[] centerCoordinates(int min, int max) {
         int low = min + (max - min) / 2;
         return (max - min + 1) % 2 == 0 ? new int[]{low, low + 1} : new int[]{low};
@@ -400,7 +510,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private void adjustSelection(Player player, String[] args, boolean expand) {
         if (args.length < 1 || args.length > 2) throw new IllegalArgumentException("Dùng //" + (expand ? "expand" : "contract") + " <số> [hướng].");
         int amount = positiveInt(args[0]); Selection selection = requireSelection(player, false);
-        if (amount > editLimit()) throw new IllegalArgumentException("Khoảng mở rộng tối đa một lần là giới hạn block hiện tại: " + editLimit() + ".");
+        if (amount > editLimit()) throw new IllegalArgumentException("Khoảng mở rộng tối đa một lần là giới hạn block hiện tại: " + limitLabel() + ".");
         String direction = args.length == 2 ? args[1].toLowerCase(Locale.ROOT) : player.getFacing().name().toLowerCase(Locale.ROOT);
         if ("vert".equals(direction) && expand) {
             selection.first.setY(selection.first.getWorld().getMinHeight());
@@ -446,7 +556,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private void shiftSelection(Player player, String[] args) {
         if (args.length != 2) throw new IllegalArgumentException("Dùng //shift <số> <up|down|north|south|east|west>.");
         int amount = Integer.parseInt(args[0]); Selection selection = requireSelection(player, false);
-        if (Math.abs((long) amount) > editLimit()) throw new IllegalArgumentException("Dịch chuyển tối đa một lần là " + editLimit() + " block.");
+        if (Math.abs((long) amount) > editLimit()) throw new IllegalArgumentException("Dịch chuyển tối đa một lần là " + limitLabel() + " block.");
         int[] vector = directionVector(args[1]); selection.first.add(vector[0] * amount, vector[1] * amount, vector[2] * amount);
         selection.second.add(vector[0] * amount, vector[1] * amount, vector[2] * amount);
         player.sendMessage("§aĐã dịch chuyển vùng chọn " + amount + " block.");
@@ -455,7 +565,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private void moveSelection(Player player, String[] args) {
         if (args.length < 1 || args.length > 3) throw new IllegalArgumentException("Dùng //move <số> [hướng] [block_để_lại].");
         int amount = positiveInt(args[0]);
-        if (amount > editLimit()) throw new IllegalArgumentException("Khoảng move vượt giới hạn block.");
+        if (amount > editLimit()) throw new IllegalArgumentException("Khoảng move vượt giới hạn block hiện tại: " + limitLabel() + ".");
         int[] direction = args.length >= 2 ? directionVector(args[1]) : directionVector(player.getFacing().name());
         BlockData leave;
         try { leave = Bukkit.createBlockData(args.length == 3 ? args[2] : "minecraft:air"); }
@@ -490,7 +600,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         int[] vector = args.length == 2 ? directionVector(args[1]) : directionVector(player.getFacing().name());
         int depth = vector[0] != 0 ? selection.maxX() - selection.minX() + 1
             : vector[1] != 0 ? selection.maxY() - selection.minY() + 1 : selection.maxZ() - selection.minZ() + 1;
-        List<Map.Entry<BlockPosition, String>> source = new ArrayList<>((int) selection.volume());
+        List<Map.Entry<BlockPosition, String>> source = new ArrayList<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
                 Block block = world.getBlockAt(x, y, z);
@@ -498,7 +608,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 source.add(Map.entry(new BlockPosition(x, y, z), block.getBlockData().getAsString()));
             }
         long total = (long) source.size() * copies;
-        if (total > editLimit()) throw new IllegalArgumentException("Stack cần " + total + " block; giới hạn hiện tại " + editLimit() + ".");
+        if (total > editLimit()) throw new IllegalArgumentException("Stack cần " + total + " block; giới hạn hiện tại " + limitLabel() + ".");
         Map<BlockPosition, String> desired = new LinkedHashMap<>();
         for (int copy = 1; copy <= copies; copy++) for (Map.Entry<BlockPosition, String> entry : source) {
             BlockPosition target = entry.getKey().offset(vector[0] * depth * copy, vector[1] * depth * copy, vector[2] * depth * copy);
@@ -525,6 +635,21 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         catch (NumberFormatException exception) { throw new IllegalArgumentException("Số block phải là số nguyên dương."); }
     }
 
+    private long positiveLong(String value) {
+        try {
+            long parsed = Long.parseLong(value);
+            if (parsed < 1) throw new NumberFormatException();
+            return parsed;
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Giới hạn phải là số nguyên dương hoặc unlimited.");
+        }
+    }
+
+    private static List<String> filter(List<String> values, String prefix) {
+        String normalized = prefix.toLowerCase(Locale.ROOT);
+        return values.stream().filter(value -> value.toLowerCase(Locale.ROOT).startsWith(normalized)).toList();
+    }
+
     private int[] directionVector(String direction) {
         return switch (direction.toLowerCase(Locale.ROOT)) {
             case "up" -> new int[]{0, 1, 0}; case "down" -> new int[]{0, -1, 0};
@@ -537,7 +662,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private void copySelection(Player player) {
         Selection selection = requireSelection(player, true);
         Location origin = player.getLocation().getBlock().getLocation();
-        List<ClipboardBlock> blocks = new ArrayList<>((int) selection.volume());
+        List<ClipboardBlock> blocks = new ArrayList<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
                 Block block = selection.first.getWorld().getBlockAt(x, y, z);
@@ -578,7 +703,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                     || !world.isChunkLoaded(x >> 4, z >> 4)) throw new IllegalArgumentException("Paste vượt chiều cao/world border hoặc vào chunk chưa nạp; không đổi block nào.");
             addChange(player, changes, world.getBlockAt(x, y, z), data);
         }
-        if (changes.size() > editLimit()) throw new IllegalArgumentException("Paste vượt giới hạn " + editLimit() + " block.");
+        if (changes.size() > editLimit()) throw new IllegalArgumentException("Paste vượt giới hạn " + limitLabel() + " block.");
         scheduleEdit(player, "//paste", changes);
     }
 
@@ -614,7 +739,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             throw new IllegalArgumentException("Vùng chứa block entity (rương, bảng hiệu...) tại " + block.getX() + "," + block.getY() + "," + block.getZ()
                 + "; chỉnh sửa bị hủy để tránh mất dữ liệu.");
         changes.add(new BlockChange(block.getLocation(), current.getAsString(), target.getAsString()));
-        if (changes.size() > editLimit()) throw new IllegalArgumentException("Thao tác vượt giới hạn " + editLimit() + " block.");
+        if (changes.size() > editLimit()) throw new IllegalArgumentException("Thao tác vượt giới hạn " + limitLabel() + " block.");
     }
 
     private void scheduleEdit(Player player, String label, List<BlockChange> changes) {
@@ -707,14 +832,28 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private void setEditLimit(Player player, String[] args) {
-        if (args.length != 1) { player.sendMessage("§7Giới hạn hiện tại: " + editLimit() + ". Dùng //limit <1..250000>."); return; }
-        int limit = positiveInt(args[0]);
-        if (limit > 250_000) throw new IllegalArgumentException("Giới hạn lớn nhất là 250000 block.");
-        plugin.getConfig().set("worldedit.max-blocks", limit); plugin.saveConfig();
-        player.sendMessage("§aĐã lưu giới hạn thao tác: §f" + limit + "§a block.");
+        if (args.length != 1) {
+            player.sendMessage("§7Giới hạn hiện tại: " + limitLabel() + ". Dùng //limit <số|unlimited>.");
+            return;
+        }
+        boolean unlimited = "unlimited".equalsIgnoreCase(args[0]);
+        long limit = unlimited ? -1L : positiveLong(args[0]);
+        plugin.getConfig().set("worldedit.max-blocks", limit);
+        if (unlimited) plugin.getConfig().set("worldedit.max-chunks-per-operation", -1);
+        plugin.saveConfig();
+        player.sendMessage(unlimited
+            ? "§cĐã bỏ giới hạn block và chunk cho thao tác WorldEdit. Chỉ dùng trên vùng đã nạp và cân nhắc RAM/server load."
+            : "§aĐã đặt giới hạn thao tác thành §f" + limit + "§a block; giới hạn chunk hiện tại: §f"
+                + chunkLimitLabel() + "§a.");
     }
 
-    private int editLimit() { return Math.max(1, Math.min(250_000, plugin.getConfig().getInt("worldedit.max-blocks", DEFAULT_MAX_EDIT_BLOCKS))); }
+    private long editLimit() {
+        long configured = plugin.getConfig().getLong("worldedit.max-blocks", DEFAULT_MAX_EDIT_BLOCKS);
+        return configured <= 0 ? Long.MAX_VALUE : configured;
+    }
+    private String limitLabel() { return editLimit() == Long.MAX_VALUE ? "không giới hạn" : Long.toString(editLimit()); }
+    private int chunkLimit() { return plugin.getConfig().getInt("worldedit.max-chunks-per-operation", DEFAULT_MAX_EDIT_CHUNKS); }
+    private String chunkLimitLabel() { return chunkLimit() <= 0 ? "không giới hạn" : Integer.toString(chunkLimit()); }
     private int historyLimit() { return Math.max(1, Math.min(50, plugin.getConfig().getInt("worldedit.history-size", DEFAULT_HISTORY_LIMIT))); }
     private int editBatchSize() { return Math.max(32, Math.min(4096, plugin.getConfig().getInt("worldedit.blocks-per-tick", EDIT_BATCH_SIZE))); }
 
@@ -725,8 +864,10 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             int chunkX = change.location.getBlockX() >> 4, chunkZ = change.location.getBlockZ() >> 4;
             chunks.putIfAbsent(world.getUID() + ":" + chunkX + ":" + chunkZ, new ChunkTicket(world, chunkX, chunkZ));
         }
-        int maximum = Math.max(1, Math.min(2048, plugin.getConfig().getInt("worldedit.max-chunks-per-operation", DEFAULT_MAX_EDIT_CHUNKS)));
-        if (chunks.size() > maximum) throw new IllegalArgumentException("Thao tác đi qua " + chunks.size() + " chunk; giới hạn là " + maximum + ". Chia vùng nhỏ hơn.");
+        int maximum = chunkLimit();
+        if (maximum > 0 && chunks.size() > maximum)
+            throw new IllegalArgumentException("Thao tác đi qua " + chunks.size() + " chunk; giới hạn là " + maximum
+                + ". Dùng //limit unlimited để bỏ giới hạn hoặc tăng worldedit.max-chunks-per-operation.");
         List<ChunkTicket> acquired = new ArrayList<>();
         try {
             for (ChunkTicket ticket : chunks.values()) {
@@ -786,6 +927,61 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         player.sendMessage("§eĐiểm " + (action == Action.LEFT_CLICK_BLOCK ? "1" : "2") + " đã chọn: §f"
             + block.getWorld().getName() + " " + block.getX() + " " + block.getY() + " " + block.getZ());
         player.sendActionBar("§eLựa chọn WorldEdit: " + selectionText(selection));
+    }
+
+    private void renderSelectionParticles() {
+        if (!plugin.getConfig().getBoolean("worldedit.selection-particles.enabled", true)) return;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Selection selection = selections.get(player.getUniqueId());
+            if (selection == null || selection.first == null || !selection.first.getWorld().equals(player.getWorld())) continue;
+            if (!selection.complete()) {
+                Location point = selection.first.clone().add(0.5, 0.5, 0.5);
+                player.spawnParticle(org.bukkit.Particle.DUST, point, 1, 0, 0, 0,
+                    new org.bukkit.Particle.DustOptions(Color.RED, 1.4f));
+                continue;
+            }
+            double viewDistance = Math.max(16.0,
+                plugin.getConfig().getDouble("worldedit.selection-particles.view-distance-blocks", 96.0));
+            Location playerLocation = player.getLocation();
+            double closestX = Math.max(selection.minX(), Math.min(selection.maxX(), playerLocation.getX()));
+            double closestY = Math.max(selection.minY(), Math.min(selection.maxY(), playerLocation.getY()));
+            double closestZ = Math.max(selection.minZ(), Math.min(selection.maxZ(), playerLocation.getZ()));
+            double dx = closestX - playerLocation.getX(), dy = closestY - playerLocation.getY();
+            double dz = closestZ - playerLocation.getZ();
+            if (dx * dx + dy * dy + dz * dz > viewDistance * viewDistance) continue;
+            drawSelectionParticles(player, selection);
+        }
+    }
+
+    private void drawSelectionParticles(Player player, Selection selection) {
+        World world = selection.first.getWorld();
+        int minX = selection.minX(), maxX = selection.maxX();
+        int minY = selection.minY(), maxY = selection.maxY();
+        int minZ = selection.minZ(), maxZ = selection.maxZ();
+        drawParticleEdge(player, world, minX, minY, minZ, maxX, minY, minZ);
+        drawParticleEdge(player, world, minX, minY, maxZ, maxX, minY, maxZ);
+        drawParticleEdge(player, world, minX, maxY, minZ, maxX, maxY, minZ);
+        drawParticleEdge(player, world, minX, maxY, maxZ, maxX, maxY, maxZ);
+        drawParticleEdge(player, world, minX, minY, minZ, minX, minY, maxZ);
+        drawParticleEdge(player, world, maxX, minY, minZ, maxX, minY, maxZ);
+        drawParticleEdge(player, world, minX, maxY, minZ, minX, maxY, maxZ);
+        drawParticleEdge(player, world, maxX, maxY, minZ, maxX, maxY, maxZ);
+        drawParticleEdge(player, world, minX, minY, minZ, minX, maxY, minZ);
+        drawParticleEdge(player, world, maxX, minY, minZ, maxX, maxY, minZ);
+        drawParticleEdge(player, world, minX, minY, maxZ, minX, maxY, maxZ);
+        drawParticleEdge(player, world, maxX, minY, maxZ, maxX, maxY, maxZ);
+    }
+
+    private void drawParticleEdge(Player player, World world, int x1, int y1, int z1, int x2, int y2, int z2) {
+        int steps = Math.max(1, Math.min(32, Math.max(Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)),
+            Math.abs(z2 - z1))));
+        for (int index = 0; index <= steps; index++) {
+            double progress = (double) index / steps;
+            Location point = new Location(world, x1 + (x2 - x1) * progress + 0.5,
+                y1 + (y2 - y1) * progress + 0.5, z1 + (z2 - z1) * progress + 0.5);
+            player.spawnParticle(org.bukkit.Particle.DUST, point, 1, 0, 0, 0,
+                new org.bukkit.Particle.DustOptions(Color.RED, 1.2f));
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -870,18 +1066,32 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onCreatureSpawn(CreatureSpawnEvent event) {
         CreatureSpawnEvent.SpawnReason reason = event.getSpawnReason();
+        boolean pluginSpawn = reason == CreatureSpawnEvent.SpawnReason.CUSTOM
+            || reason == CreatureSpawnEvent.SpawnReason.COMMAND;
         WorldSettingsManager worldSettings = plugin.getWorldSettingsManager();
         boolean mobOverride = worldSettings != null
             && worldSettings.hasOverride(event.getLocation().getWorld(), WorldSettingsManager.Rule.MOB_SPAWNING);
         if (mobOverride && !worldSettings.isEnabled(event.getLocation().getWorld(), WorldSettingsManager.Rule.MOB_SPAWNING)
-                && reason != CreatureSpawnEvent.SpawnReason.CUSTOM && reason != CreatureSpawnEvent.SpawnReason.COMMAND) {
+                && !pluginSpawn) {
             event.setCancelled(true); return;
         }
         if (!mobOverride && isStartWorld(event.getLocation()) && !plugin.getConfig().getBoolean(startWorldPath() + ".mob-spawning-enabled", false)
-                && reason != CreatureSpawnEvent.SpawnReason.CUSTOM && reason != CreatureSpawnEvent.SpawnReason.COMMAND) {
+                && !pluginSpawn) {
             event.setCancelled(true); return;
         }
+        if (!pluginSpawn && worldSettings != null
+                && isFriendlyMob(event.getEntity())
+                && !worldSettings.isEnabled(event.getLocation().getWorld(),
+                    WorldSettingsManager.Rule.FRIENDLY_MOB_SPAWNING)) {
+            event.setCancelled(true);
+            return;
+        }
         if (regionsAt(event.getLocation()).stream().anyMatch(region -> region.flag("deny-mob-spawning"))) event.setCancelled(true);
+    }
+
+    private static boolean isFriendlyMob(Entity entity) {
+        return entity instanceof Animals || entity instanceof AbstractVillager
+            || entity instanceof IronGolem || entity instanceof Snowman || entity instanceof Allay;
     }
 
     @EventHandler

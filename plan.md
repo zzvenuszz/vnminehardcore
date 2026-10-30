@@ -1145,3 +1145,16 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] JAR `VnMineHardcore-2.38.1.jar`, kích thước 2.5 MB, SHA-256 `369285cdf6051f7d8522b71fd28f01448c621880910c84739f336dc228d0deaf`; xác minh chỉ đóng gói SQLite native Linux x86_64.
 - [x] Sao lưu JAR 2.38.0 trước khi thay bản, cài 2.38.1 vào `/home/ubuntu/DATA/VNMINE/plugins/`; checksum bản cài phải khớp artifact. Chỉ giữ một JAR VnMineHardcore trong thư mục plugin.
 - [ ] Chưa gameplay test. Sau khi khởi động lại server, kiểm tra `/realname` với alias có màu, tạo quest từ `/vninit` và NPC, selector dialog private/public, và điều hướng quay lại menu nguồn.
+
+## Phát hành 2.39.0 — NPC, dialog, WorldEdit và quản lý world — 2026-10-30
+
+- [x] Tăng scale mặc định marker `!`/`?` trên đầu NPC lên 2.0 và thêm cấu hình scale 1.0–4.0.
+- [x] Tăng độ dài dòng action bar dialog mặc định từ 36 lên 48 ký tự; bấm lại NPC khi dialog đang chạy sẽ skip và tiếp tục callback hiện tại.
+- [x] Sắp menu NPC thành hai hàng quest khả dụng/đang làm, hàng kính ngăn cách, hai hàng chức năng và hàng điều hướng cuối. Quest đã hoàn thành mở riêng trong nhật ký; đường quay lại nhật ký trở về menu NPC trước đó.
+- [x] Nút **Di chuyển NPC** vào chế độ chờ `!put`/`!cancel`; cập nhật tooltip chat ngẫu nhiên để bỏ hướng dẫn admin và ưu tiên nút F/menu.
+- [x] WorldEdit vẽ viền lựa chọn particle đỏ; thêm `//square <bán_kính> [block]`, `//circle <bán_kính> [block]`, tab completion cho lệnh `//`, và `//limit unlimited` để bỏ giới hạn block/chunk. Mặc định vẫn 32.768 block, 256 chunk.
+- [x] Menu quản lý world có công tắc riêng sinh mob thân thiện; cần bật cả công tắc sinh quái chung để các mob này xuất hiện.
+- [x] `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64 timeout 15m mvn clean package` thành công lúc `2026-10-30 02:32:04 UTC`; 104 test pass, 0 failure/error/skip. Build có cảnh báo deprecated API hiện hữu.
+- [x] JAR `VnMineHardcore-2.39.0.jar`, 2.5 MB, SHA-256 `b3cfcbad3b983e343dc066b931a333cc2f9bf6d0d9551703e8091bf3a1d7b8dd`; xác minh chỉ đóng gói SQLite native Linux x86_64.
+- [x] Sao lưu JAR đang cài 2.38.1 trước khi thay, cài 2.39.0 vào `/home/ubuntu/DATA/VNMINE/plugins/`; checksum bản cài phải khớp artifact và thư mục plugin chỉ giữ một JAR VnMineHardcore.
+- [ ] Chưa gameplay test. Sau restart, kiểm tra kích thước marker và tầm nhìn, skip dialog/callback, di chuyển NPC bằng chat, tab completion, `//square`/`//circle`, thao tác `//limit unlimited` trên vùng thử, và toggle mob thân thiện theo world.

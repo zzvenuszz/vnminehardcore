@@ -19,7 +19,6 @@ public final class TooltipManager {
     private final File configFile;
     private YamlConfiguration settings;
     private List<String> playerTooltips = List.of();
-    private List<String> adminTooltips = List.of();
     private String mode = "random";
     private int intervalSeconds = 300;
     private int nextIndex;
@@ -50,10 +49,9 @@ public final class TooltipManager {
         if (loaded.isList("tooltips")) {
             List<String> legacy = loaded.getStringList("tooltips");
             List<String> players = legacy.stream().filter(message -> !isLegacyAdminTooltip(message)).toList();
-            List<String> admins = legacy.stream().filter(TooltipManager::isLegacyAdminTooltip).toList();
             loaded.set("tooltips", null);
             loaded.set("tooltips.players", players);
-            loaded.set("tooltips.admins", admins);
+            loaded.set("tooltips.admins", null);
             try {
                 loaded.save(configFile);
             } catch (IOException exception) {
@@ -62,9 +60,8 @@ public final class TooltipManager {
             }
         }
         List<String> players = loaded.getStringList("tooltips.players").stream()
-            .map(String::trim).filter(value -> !value.isEmpty()).toList();
-        List<String> admins = loaded.getStringList("tooltips.admins").stream()
-            .map(String::trim).filter(value -> !value.isEmpty()).toList();
+            .map(String::trim).filter(value -> !value.isEmpty())
+            .map(TooltipManager::preferMenuHint).toList();
         if (players.isEmpty()) {
             plugin.getLogger().severe("[Tooltip] tooltips.yml must define at least one player tooltip.");
             return false;
@@ -73,14 +70,23 @@ public final class TooltipManager {
         intervalSeconds = interval;
         mode = selection.toLowerCase(Locale.ROOT);
         playerTooltips = players;
-        adminTooltips = admins;
-        nextIndex = Math.floorMod(nextIndex, Math.max(players.size(), admins.size()));
+        nextIndex = Math.floorMod(nextIndex, players.size());
         startTask();
         return true;
     }
 
     private static boolean isLegacyAdminTooltip(String message) {
         return message.contains("/vnevent") || message.contains("/vnboss");
+    }
+
+    private static String preferMenuHint(String message) {
+        if (message.contains("/vnarmy gui"))
+            return "§eMẹo: Bấm §aF §eđể mở menu chính, chọn §aQuân đội§e để thuê và quản lý lính.";
+        if (message.contains("/vnarmy gear"))
+            return "§eMẹo: Bấm §aF §eđể mở menu chính, chọn §aQuân đội§e để chỉnh trang bị lính.";
+        if (message.contains("/vnmenu"))
+            return "§eMẹo: Bấm §aF §eđể mở menu chính và tìm các chức năng RPG.";
+        return message;
     }
 
     private void startTask() {
@@ -92,37 +98,12 @@ public final class TooltipManager {
     private void broadcastNext() {
         if (playerTooltips.isEmpty()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
-            List<String> messages = new java.util.ArrayList<>(playerTooltips);
-            if (isAdmin(player)) messages.addAll(adminTooltips);
-            if (messages.isEmpty()) continue;
             int index = mode.equals("random")
-                ? ThreadLocalRandom.current().nextInt(messages.size())
-                : Math.floorMod(nextIndex, messages.size());
-            player.sendMessage(messages.get(index));
+                ? ThreadLocalRandom.current().nextInt(playerTooltips.size())
+                : Math.floorMod(nextIndex, playerTooltips.size());
+            player.sendMessage(playerTooltips.get(index));
         }
         if (mode.equals("sequential")) nextIndex++;
-    }
-
-    private boolean isAdmin(Player player) {
-        return player.isOp() || List.of(
-            "vnmine.command.reload",
-            "vnmine.command.disasters",
-            "vnmine.command.bosses",
-            "vnmine.command.utility",
-            "vnmine.command.scoreboard.reset",
-            "vnmine.command.time.manage",
-            "vnmine.command.day.manage",
-            "vnmine.command.spawn.manage",
-            "vnmine.command.teleport.other",
-            "vnmine.command.gamemode",
-            "vnmine.command.fly",
-            "vnmine.command.nodame",
-            "vnmine.command.groups.manage",
-            "vnmine.command.users.manage",
-            "vnmine.command.army.admin",
-            "vnmine.command.death.history"
-        ).stream().anyMatch(permission ->
-            plugin.getPermissionManager().hasPermission(player, permission));
     }
 
     public void stop() {
