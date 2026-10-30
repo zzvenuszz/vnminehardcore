@@ -1158,3 +1158,12 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] JAR `VnMineHardcore-2.39.0.jar`, 2.5 MB, SHA-256 `b3cfcbad3b983e343dc066b931a333cc2f9bf6d0d9551703e8091bf3a1d7b8dd`; xác minh chỉ đóng gói SQLite native Linux x86_64.
 - [x] Sao lưu JAR đang cài 2.38.1 trước khi thay, cài 2.39.0 vào `/home/ubuntu/DATA/VNMINE/plugins/`; checksum bản cài phải khớp artifact và thư mục plugin chỉ giữ một JAR VnMineHardcore.
 - [ ] Chưa gameplay test. Sau restart, kiểm tra kích thước marker và tầm nhìn, skip dialog/callback, di chuyển NPC bằng chat, tab completion, `//square`/`//circle`, thao tác `//limit unlimited` trên vùng thử, và toggle mob thân thiện theo world.
+
+## Sửa lỗi khởi động 2.39.1 — serializer NPC marker — 2026-10-30
+
+- Log server 2.39.0 lúc `02:33:10` cho thấy plugin bị disable trong `onEnable`: `WrappedDataWatcher.Registry.get(Vector3F.class)` không tìm thấy serializer. Lệnh `/vnarmy` sau đó lỗi vì plugin đã bị disable.
+- [x] Dùng API `WrappedDataWatcher.Registry.getVectorSerializer()` để lấy serializer vector Minecraft đúng kiểu; tăng phiên bản patch lên 2.39.1.
+- [x] `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64 mvn -DskipTests clean package` build thành công lúc `2026-10-30 02:40:43 UTC`; test suite được bỏ qua theo yêu cầu build, compile hoàn tất.
+- [x] JAR `VnMineHardcore-2.39.1.jar`, 2.560.789 bytes, SHA-256 `2e1131a39d952d6b5a5ee655e5d5614308687e9ef479e27d8a379710e8e5c010`; xác minh chỉ có SQLite native Linux x86_64.
+- [x] Sao lưu bản 2.39.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.39.0-pre-2.39.1-20261030.jar`, cài 2.39.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.39.1.jar`; checksum cài đặt khớp artifact và thư mục chỉ giữ một JAR VnMineHardcore hoạt động.
+- [ ] Cần khởi động lại Paper để xác nhận plugin enable thành công và marker NPC hiển thị; kiểm tra log không còn lỗi `No serializer found for Vector3F`.

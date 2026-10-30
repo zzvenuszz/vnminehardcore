@@ -40,7 +40,7 @@ public final class NpcMarkerManager implements Listener, AutoCloseable {
     private static final WrappedDataWatcher.Serializer BYTE_SERIALIZER =
         WrappedDataWatcher.Registry.get(Byte.class);
     private static final WrappedDataWatcher.Serializer VECTOR3F_SERIALIZER =
-        WrappedDataWatcher.Registry.get(Vector3F.class);
+        WrappedDataWatcher.Registry.getVectorSerializer();
 
     private static final class MarkerEntry {
         private final UUID npcEntityUuid;
