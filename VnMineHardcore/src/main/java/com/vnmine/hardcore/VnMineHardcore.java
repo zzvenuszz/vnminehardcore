@@ -51,6 +51,7 @@ public final class VnMineHardcore extends JavaPlugin {
     private DeathHistoryManager deathHistoryManager;
     private SpawnProtectionManager spawnProtectionManager;
     private PermissionManager permissionManager;
+    private AliasManager aliasManager;
     private PortalManager portalManager;
     private MercenaryManager mercenaryManager;
     private PlayerAdminManager playerAdminManager;
@@ -101,6 +102,7 @@ public final class VnMineHardcore extends JavaPlugin {
 
         // Load config first
         this.configManager = new ConfigManager(this);
+        this.aliasManager = new AliasManager(this);
         this.playerProfileDatabaseManager = new PlayerProfileDatabaseManager(getDataFolder(),
             configManager.profileDatabaseBackupRetentionCount,
             configManager.profileDatabaseWriteRetries,
@@ -260,6 +262,7 @@ public final class VnMineHardcore extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(graveListener, this);
         Bukkit.getPluginManager().registerEvents(spawnProtectionManager, this);
         Bukkit.getPluginManager().registerEvents(permissionManager, this);
+        Bukkit.getPluginManager().registerEvents(aliasManager, this);
         Bukkit.getPluginManager().registerEvents(portalManager, this);
         Bukkit.getPluginManager().registerEvents(menuNavigationManager, this);
 
@@ -275,7 +278,7 @@ public final class VnMineHardcore extends JavaPlugin {
         registerCommand("vnnpc", npcManager, npcManager);
         registerCommand("vntext", textDisplayManager, textDisplayManager);
         registerCommand("vnquest", questCatalogManager, questCatalogManager);
-        registerCommand("vnquestdialog", questDialogManager, questDialogManager);
+        registerCommand("alias", aliasManager, aliasManager);
         registerCommand("vngroup", permissionManager, permissionManager);
         registerCommand("vnuser", permissionManager, permissionManager);
         registerCommand("vnarmy", mercenaryManager, mercenaryManager);
@@ -761,6 +764,10 @@ public final class VnMineHardcore extends JavaPlugin {
                 "§e/quatanthu §7- Nhận túi quà tân thủ nếu đủ điều kiện.");
             sendHelpLine(sender, null,
                 "§e/vnmenu §7- Mở menu chính; phím F cũng mở menu này.");
+            sendHelpLine(sender, "vnmine.alias.set",
+                "§e/alias set <tên> §7- Đặt alias chat/tab; §e/alias §7- Xóa alias.");
+            sendHelpLine(sender, "vnmine.alias.admin",
+                "§e/alias set <người_chơi> <tên> §7| §e/alias clear <người_chơi> §7- Quản lý alias người chơi.");
             sendHelpLine(sender, "vnmine.command.utility", "§e/vn help §7- Hướng dẫn lệnh /vn.");
             sendHelpLine(sender, "vnmine.command.help", "§e/vnhelp §7- Hiển thị trợ giúp theo quyền của bạn.");
             sender.sendMessage("§6§m========================================");
@@ -1350,6 +1357,7 @@ public final class VnMineHardcore extends JavaPlugin {
     public GraveManager getGraveManager() { return graveManager; }
     public SpawnProtectionManager getSpawnProtectionManager() { return spawnProtectionManager; }
     public PermissionManager getPermissionManager() { return permissionManager; }
+    public AliasManager getAliasManager() { return aliasManager; }
     public MenuNavigationManager getMenuNavigationManager() { return menuNavigationManager; }
     public MercenaryManager getMercenaryManager() { return mercenaryManager; }
     public PlayerAdminManager getPlayerAdminManager() { return playerAdminManager; }

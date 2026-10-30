@@ -1,3 +1,16 @@
+## Alias, format text và quest-dialog riêng theo quest — yêu cầu 2026-10-30
+
+- [x] Thêm formatter legacy dùng chung cho mã màu `&0–&f`, format `&k–&o`, `&r` và rainbow `&rl`, `&r1`, `&r2`, `&r3`; áp dụng cho tên NPC/đại lục, text display, sign, nhãn quest/item, dialogue và nội dung leaderboard có cấu hình.
+- [x] Thêm `/alias set <tên>` và `/alias` để xóa alias; hỗ trợ alias có khoảng trắng và lưu theo UUID trong `aliases.yml`.
+- [x] Áp dụng alias ở chat thường, tab list, thông báo join/quit/death và tên bảng xếp hạng; quản trị viên có thể đặt/xóa alias cho online/offline player.
+- [x] Khai báo permission riêng theo từng màu (`vnmine.alias.color.<code>`), format (`vnmine.alias.format.<code>`) và rainbow (`vnmine.alias.rainbow`). Người đặt alias chỉ được dùng các mã được cấp; alias do admin đặt không cần cấp mã format cho người chơi.
+- [x] Bỏ mục quản lý quest-dialog độc lập và đưa tạo/sửa dialog vào selector của từng trạng thái trong quest editor. Dialog mới lưu stage type, mặc định private theo quest; public có thể được dùng bởi quest khác cùng stage.
+- [x] Duy trì dữ liệu dialog trước đây bằng cách nạp schema cũ như dialog public legacy; dialog tạo mới luôn có stage rõ ràng.
+- [x] Cache quyền màu/format alias; cập nhật cache sau khi PermissionManager áp dụng lại quyền, để lọc mã ngay cả khi nhóm hoặc quyền người chơi thay đổi.
+- [x] Build Java 25 bằng `mvn -DskipTests package`, version 2.36.15; JAR 3,106,833 bytes, SHA-256 `de5ae7866063815e9ad74eb83d7f4b9c855941811dd39ca366164e6973c04638`; JAR có SQLite native Linux x86_64 và AArch64.
+- [x] Sao lưu 2.36.14 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.36.14-pre-2.36.15-20261030.jar`, cài 2.36.15 tại thư mục plugin; chỉ còn một JAR VnMineHardcore ở thư mục plugin.
+- [ ] Kiểm thử runtime: chat/tab list alias, từng permission format, admin đặt alias cho offline player, reset alias; tạo private/public dialog ở đủ bốn trạng thái và xác nhận lọc không lộ dialog private của quest khác.
+
 ## Sửa lỗi tương tác NPC Tutorial và onboarding — yêu cầu 2026-10-29
 
 - [x] Log server 2.36.12 cho thấy ProtocolLib 5.4.0 ném `ExceptionInInitializerError` trong `WrappedEnumEntityUseAction.<clinit>` khi nhận packet tương tác trên Paper 26.3. Các lần click sau đó tiếp tục ném `NoClassDefFoundError`, làm listener không xử lý packet NPC player-model.

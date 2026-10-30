@@ -2559,7 +2559,9 @@ public class BossEventManager implements Listener {
     */
    private void showWarningBarToPlayer(Player player) {
       if (this.pendingBoss != null) {
-         this.bossBar.name(Component.text("§e§l⚠ " + this.pendingBoss.displayName + " §7- §c§l" + this.warningTimeLeft + "s"));
+         this.bossBar.name(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+             .deserialize("§e§l⚠ " + LegacyText.translate(this.pendingBoss.displayName)
+                 + " §7- §c§l" + this.warningTimeLeft + "s"));
          this.bossBar.progress((float)this.warningTimeLeft / this.pendingBoss.warningSeconds);
          player.showBossBar(this.bossBar);
       }
@@ -2715,7 +2717,9 @@ public class BossEventManager implements Listener {
    private void updateWarningBar() {
       // Update warning bar
       if (this.warningTimeLeft > 0 && this.pendingBoss != null) {
-         this.bossBar.name(Component.text("§e§l⚠ " + this.pendingBoss.displayName + " §7- §c§l" + this.warningTimeLeft + "s"));
+         this.bossBar.name(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+             .deserialize("§e§l⚠ " + LegacyText.translate(this.pendingBoss.displayName)
+                 + " §7- §c§l" + this.warningTimeLeft + "s"));
          this.bossBar.progress((float)this.warningTimeLeft / this.pendingBoss.warningSeconds);
          if (this.warningTimeLeft <= 10 || this.warningTimeLeft == 30) {
             Bukkit.broadcastMessage("§c§l⚠ " + this.pendingBoss.displayName + " §csẽ xuất hiện trong §4§l" + this.warningTimeLeft + "§c giây!");

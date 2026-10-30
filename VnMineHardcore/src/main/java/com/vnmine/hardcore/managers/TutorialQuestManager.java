@@ -87,7 +87,8 @@ public final class TutorialQuestManager implements Listener {
     }
 
     private String startWorldDisplayName() {
-        return plugin.getConfig().getString("rpg.onboarding.start-world.display-name", "Đại lục khởi đầu");
+        return LegacyText.translate(plugin.getConfig().getString(
+            "rpg.onboarding.start-world.display-name", "Đại lục khởi đầu"));
     }
 
     private String startTutorialNpcName() {

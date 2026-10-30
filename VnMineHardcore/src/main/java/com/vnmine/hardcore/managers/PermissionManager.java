@@ -52,7 +52,7 @@ public final class PermissionManager implements Listener, CommandExecutor, TabCo
         "vnmine.command.worldedit", "vnmine.command.portal.admin", "vnmine.command.portal.use",
         "vnmine.command.text.manage", "vnmine.command.vncoin.admin", "vnmine.command.vncoin.history.others",
         "vnmine.command.coin", "vnmine.command.menu", "vnmine.command.quest", "vnmine.command.start",
-        "vnmine.command.newbie-gift",
+        "vnmine.command.newbie-gift", "vnmine.alias.admin",
         "vnmine.command.stats", "vnmine.command.status", "vnmine.command.reload", "vnmine.command.debug",
         "vnmine.command.disasters",
         "vnmine.command.bosses", "vnmine.command.utility", "vnmine.command.death.reset",
@@ -109,6 +109,7 @@ public final class PermissionManager implements Listener, CommandExecutor, TabCo
         String group = data.getString(path + ".group", defaultGroup);
         addPermissions(attachment, "groups." + group + ".permissions");
         addPermissions(attachment, path + ".permissions");
+        if (plugin.getAliasManager() != null) plugin.getAliasManager().refreshPermissionCache(player);
     }
 
     @EventHandler

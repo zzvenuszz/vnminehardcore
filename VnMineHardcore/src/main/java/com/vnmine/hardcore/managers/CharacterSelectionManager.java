@@ -616,7 +616,8 @@ public final class CharacterSelectionManager implements Listener {
             ? "Gặp NPC Tutorial" : plugin.getTutorialQuestManager().objectiveLabel();
         if ("awaiting-start-tutorial".equals(stage)) {
             String npcId = plugin.getConfig().getString("rpg.onboarding.start-world.tutorial-npc-id", "");
-            String world = plugin.getConfig().getString("rpg.onboarding.start-world.display-name", "Đại lục khởi đầu");
+            String world = LegacyText.translate(plugin.getConfig().getString(
+                "rpg.onboarding.start-world.display-name", "Đại lục khởi đầu"));
             String npcName = npcId.isBlank() ? "NPC chưa cấu hình"
                 : plugin.getNpcManager() == null ? npcId
                     : plugin.getNpcManager().getNpcDisplayName(npcId).orElse(npcId);

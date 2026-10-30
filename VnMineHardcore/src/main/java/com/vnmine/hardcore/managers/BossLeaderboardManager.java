@@ -625,8 +625,19 @@ public final class BossLeaderboardManager implements Listener {
 
     private String nameOf(UUID uuid) {
         Player online = Bukkit.getPlayer(uuid);
-        if (online != null) return online.getName();
+        if (online != null) return plugin.getAliasManager() == null ? online.getName()
+            : plugin.getAliasManager().displayName(online);
         return playerNames.getOrDefault(uuid, uuid.toString().substring(0, 8));
+    }
+
+    public void updateAliasName(UUID playerId, String displayName) {
+        if (playerId == null) return;
+        String previous = playerNames.put(playerId, displayName);
+        if (!saveData()) {
+            if (previous == null) playerNames.remove(playerId); else playerNames.put(playerId, previous);
+            return;
+        }
+        refreshAllBoards();
     }
 
     private String shortName(String name) {
@@ -638,7 +649,7 @@ public final class BossLeaderboardManager implements Listener {
     }
 
     private String color(String text) {
-        return ChatColor.translateAlternateColorCodes('&', text == null ? "" : text);
+        return LegacyText.translate(text == null ? "" : text);
     }
 
     public static void applyMetadata(ItemStack item, String name, List<String> lore,
@@ -648,10 +659,10 @@ public final class BossLeaderboardManager implements Listener {
         if (meta == null) return;
         if (name != null && !name.isBlank()) {
             meta.setDisplayName(EconomyManager.sanitizeVisibleName(
-                ChatColor.translateAlternateColorCodes('&', name)));
+                LegacyText.translate(name)));
         }
         if (lore != null && !lore.isEmpty()) {
-            meta.setLore(lore.stream().map(line -> ChatColor.translateAlternateColorCodes('&', line)).toList());
+            meta.setLore(lore.stream().map(LegacyText::translate).toList());
         }
         applyEnchantments(meta, enchantments);
         if (meta instanceof EnchantmentStorageMeta stored && bookEnchantments != null) {

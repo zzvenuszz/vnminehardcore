@@ -140,10 +140,9 @@ commands:
     description: Mở nhật ký quest hoặc giao diện quản trị quest RPG
     usage: /vnquest <journal|detail <id>|admin>
     permission: vnmine.command.quest
-  vnquestdialog:
-    description: Mở giao diện quản lý hội thoại quest RPG
-    usage: /vnquestdialog admin
-    permission: vnmine.command.quest.admin
+  alias:
+    description: Đặt hoặc xóa tên hiển thị alias của người chơi
+    usage: /alias [set <tên>|clear] hoặc /alias set|clear <người_chơi> [tên]
   vnmenu:
     description: Mở menu chức năng của VnMineHardcore
     usage: /vnmenu
@@ -192,6 +191,81 @@ commands:
 
 
 permissions:
+  vnmine.alias.set:
+    description: Cho phép người chơi tự đặt alias hiển thị
+    default: false
+  vnmine.alias.admin:
+    description: Cho phép đặt hoặc xóa alias cho người chơi khác, không cần quyền mã màu
+    default: op
+  vnmine.alias.rainbow:
+    description: Cho phép dùng các mã hiệu ứng rainbow trong alias
+    default: false
+  vnmine.alias.color.0:
+    description: Cho phép dùng mã màu đen trong alias
+    default: false
+  vnmine.alias.color.1:
+    description: Cho phép dùng mã màu xanh dương đậm trong alias
+    default: false
+  vnmine.alias.color.2:
+    description: Cho phép dùng mã màu xanh lá đậm trong alias
+    default: false
+  vnmine.alias.color.3:
+    description: Cho phép dùng mã màu xanh ngọc đậm trong alias
+    default: false
+  vnmine.alias.color.4:
+    description: Cho phép dùng mã màu đỏ sẫm trong alias
+    default: false
+  vnmine.alias.color.5:
+    description: Cho phép dùng mã màu tím đậm trong alias
+    default: false
+  vnmine.alias.color.6:
+    description: Cho phép dùng mã màu vàng kim trong alias
+    default: false
+  vnmine.alias.color.7:
+    description: Cho phép dùng mã màu xám trong alias
+    default: false
+  vnmine.alias.color.8:
+    description: Cho phép dùng mã màu xám đậm trong alias
+    default: false
+  vnmine.alias.color.9:
+    description: Cho phép dùng mã màu xanh dương trong alias
+    default: false
+  vnmine.alias.color.a:
+    description: Cho phép dùng mã màu xanh lá trong alias
+    default: false
+  vnmine.alias.color.b:
+    description: Cho phép dùng mã màu xanh lam trong alias
+    default: false
+  vnmine.alias.color.c:
+    description: Cho phép dùng mã màu đỏ trong alias
+    default: false
+  vnmine.alias.color.d:
+    description: Cho phép dùng mã màu tím nhạt trong alias
+    default: false
+  vnmine.alias.color.e:
+    description: Cho phép dùng mã màu vàng trong alias
+    default: false
+  vnmine.alias.color.f:
+    description: Cho phép dùng mã màu trắng trong alias
+    default: false
+  vnmine.alias.format.k:
+    description: Cho phép dùng mã ký tự ngẫu nhiên trong alias
+    default: false
+  vnmine.alias.format.l:
+    description: Cho phép dùng mã in đậm trong alias
+    default: false
+  vnmine.alias.format.m:
+    description: Cho phép dùng mã gạch ngang trong alias
+    default: false
+  vnmine.alias.format.n:
+    description: Cho phép dùng mã gạch chân trong alias
+    default: false
+  vnmine.alias.format.o:
+    description: Cho phép dùng mã in nghiêng trong alias
+    default: false
+  vnmine.alias.format.r:
+    description: Cho phép dùng mã reset định dạng trong alias
+    default: false
   vnmine.command.menu:
     description: Cho phép mở menu chính /vnmenu
     default: false

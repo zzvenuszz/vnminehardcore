@@ -212,7 +212,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
 
     public java.util.Optional<String> getNpcDisplayName(String npcId) {
         NpcRecord npc = npcId == null ? null : npcs.get(npcId.toLowerCase(Locale.ROOT));
-        return npc == null ? java.util.Optional.empty() : java.util.Optional.of(npc.displayName());
+        return npc == null ? java.util.Optional.empty() : java.util.Optional.of(formatDisplayName(npc.displayName()));
     }
 
     public java.util.Optional<String> getNpcType(String npcId) {
@@ -677,7 +677,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         for (int line = 0; line < 4; line++) {
             String text = event.getLine(line);
             if (text != null && text.indexOf('&') >= 0) {
-                event.setLine(line, ChatColor.translateAlternateColorCodes('&', text));
+                event.setLine(line, LegacyText.translate(text));
             }
         }
     }
@@ -1414,8 +1414,8 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(name);
-            if (!lore.isEmpty()) meta.setLore(lore);
+            meta.setDisplayName(LegacyText.translate(name));
+            if (!lore.isEmpty()) meta.setLore(lore.stream().map(LegacyText::translate).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -1974,7 +1974,7 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
     }
 
     private static String formatDisplayName(String displayName) {
-        return EconomyManager.sanitizeVisibleName(ChatColor.translateAlternateColorCodes('&', displayName));
+        return EconomyManager.sanitizeVisibleName(LegacyText.translate(displayName));
     }
 
     private static String titleCase(String value) {

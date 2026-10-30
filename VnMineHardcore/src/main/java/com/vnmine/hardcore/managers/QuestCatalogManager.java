@@ -582,8 +582,6 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         if ((safePage + 1) * 45 < quests.size()) menu.setItem(50,
             adminItem(Material.ARROW, "§eTrang sau", List.of()));
         menu.setItem(53, adminItem(Material.BARRIER, "§cĐóng", List.of()));
-        menu.setItem(51, adminItem(Material.WRITABLE_BOOK, "§dQuản lý quest-dialog", List.of(
-            "§7Tạo, sửa và xóa các hội thoại dùng lại.", "§eNhấn để mở trình quản lý.")));
         player.openInventory(menu);
     }
 
@@ -912,8 +910,6 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                 openAdminList(player, holder.page - 1);
             } else if (slot == 50) {
                 openAdminList(player, holder.page + 1);
-            } else if (slot == 51) {
-                plugin.getQuestDialogManager().openAdmin(player);
             } else if (slot == 53) {
                 player.closeInventory();
             } else if (holder.questSlots.containsKey(slot)) {
@@ -973,7 +969,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             QuestDialogStage stage = QuestDialogStage.values()[slot - 28];
             String selected = dialogRefs(quest.id()).forStage(stage);
             plugin.getQuestDialogManager().openSelector(player, selected, dialogId ->
-                updateQuestDialog(player, quest.id(), stage, dialogId));
+                updateQuestDialog(player, quest.id(), stage, dialogId), quest.id(), stage.name());
         } else if (slot == 19) {
             openObjectivesMenu(player, quest.id());
         } else if (slot == 21) {
@@ -1211,7 +1207,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     private String npcDisplayLabel(String npcId) {
         if (npcId == null || npcId.isBlank() || plugin.getNpcManager() == null) return "Chưa chọn";
         String displayName = plugin.getNpcManager().getNpcDisplayName(npcId).orElse(npcId);
-        return org.bukkit.ChatColor.stripColor(org.bukkit.ChatColor.translateAlternateColorCodes('&', displayName));
+        return LegacyText.translate(displayName);
     }
 
     private void applyNpcSelection(Player player, String questId, NpcSelectPurpose purpose, String npcId) {
@@ -1368,7 +1364,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
     }
 
     private String exactItemDisplayName(QuestObjective objective) {
-        if (!objective.itemName().isBlank()) return org.bukkit.ChatColor.stripColor(objective.itemName());
+        if (!objective.itemName().isBlank()) return LegacyText.translate(objective.itemName());
         return objective.requiredItem() == null ? materialDisplayName(objective.itemMaterial())
             : materialDisplayName(objective.requiredItem().getType());
     }
@@ -1926,7 +1922,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
                         prompt(player, input);
                         return;
                     }
-                    replaceDefinition(old, old.withTitle(text));
+                    replaceDefinition(old, old.withTitle(LegacyText.translate(text)));
                     openQuestEditor(player, old.id());
                 }
                 case GIVER -> {
@@ -2387,8 +2383,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             yaml.set(base + ".dialogs.completed", refs.completed());
             yaml.set(base + ".dialogs.unavailable", refs.unavailable());
             yaml.setComments(base + ".dialogs", List.of(
-                "[VI] ID hội thoại tùy chọn cho từng trạng thái quest; tạo trong GUI Quản lý quest-dialog.",
-                "[EN] Optional dialog ID for each quest state; create these in the Quest Dialog Manager GUI."));
+                "[VI] ID hội thoại riêng theo từng trạng thái; tạo ngay trong bộ chọn dialog của quest, public mới dùng chung.",
+                "[EN] State-specific dialog ID; create it in the quest dialog selector; only public dialogs are shared."));
             yaml.set(base + ".objective.type", switch (quest.objectiveType()) {
                 case KILL_MOB -> "kill-mob";
                 case BLOCK_BREAK -> "block-break";
@@ -2609,8 +2605,8 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
+            meta.setDisplayName(LegacyText.translate(name));
+            meta.setLore(lore.stream().map(LegacyText::translate).toList());
             item.setItemMeta(meta);
         }
         return item;
@@ -2679,7 +2675,7 @@ public final class QuestCatalogManager implements Listener, CommandExecutor, Tab
             if (!quest.contains("repeatable.enabled") || !quest.contains("repeatable.daily-limit"))
                 needsRepeatableDefaults = true;
             String giver = quest.getString("giver-npc-id", "").trim();
-            String title = quest.getString("title", "").trim();
+            String title = LegacyText.translate(quest.getString("title", "").trim());
             String successorQuestId = quest.getString("successor-quest-id", "").trim();
             if (successorQuestId.isEmpty()) successorQuestId = null;
             String type = quest.getString("objective.type", "").trim().toLowerCase(Locale.ROOT);

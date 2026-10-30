@@ -42,6 +42,8 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vnreload` | Tải lại config và các hệ thống | `vnmine.command.reload` |
 | `/debug ON\|OFF` | Bật/tắt `logging.console-debug` và lưu ngay vào `config.yml` | `vnmine.command.debug` |
 | `/vnhelp`, `/vn help` | Hiển thị lệnh theo quyền người dùng; admin/OP thấy thêm lệnh quản trị | `vnmine.command.help`, `.utility` |
+| `/alias set <tên>`, `/alias` | Đặt hoặc xóa tên hiển thị trong chat, tab list, thông báo vào/ra, chết và bảng xếp hạng | `vnmine.alias.set`; từng mã màu/format cần quyền riêng |
+| `/alias set <người_chơi> <tên>`, `/alias clear <người_chơi>` | Admin đặt hoặc xóa alias người chơi khác; alias do admin đặt được dùng mọi format | `vnmine.alias.admin` |
 | `/vnmenu` hoặc phím `F` | Mở menu chức năng; phím F thay thao tác đổi tay phụ | Không yêu cầu quyền riêng |
 | `/vninit` | Mở wizard setup RPG: chọn đại lục khởi đầu, world, NPC tutorial và spawn; mỗi thay đổi lưu ngay, thoát rồi chạy lại để tiếp tục | `vnmine.command.init` |
 | `/vnregion [wand]` | Mở quản lý vùng bảo vệ; `wand` cấp búa chọn hai góc, đặt tên và cấu hình flags | `vnmine.command.worldedit` |
@@ -117,6 +119,26 @@ Nhóm/quyền không hỗ trợ wildcard, phủ định hoặc kế thừa; quy�
 cá nhân được cộng lại, vì vậy xóa quyền cá nhân không thể phủ định quyền được
 cấp bởi nhóm. Nhóm mặc định áp dụng cho người mới và `/vnuser reset`; đổi
 `default-group` không tự chuyển người đã có nhóm được lưu.
+
+#### Alias và quyền định dạng tên
+
+Người có `vnmine.alias.set` dùng `/alias set &6&lTên Mới` để đặt tên (có thể
+có khoảng trắng), và `/alias` để xóa. Alias hiển thị trong chat, tab list,
+thông báo vào/ra, thông báo chết và bảng xếp hạng. Các mã định dạng bị lọc theo
+permission của người đặt:
+
+- Màu `&0` đến `&f`: `vnmine.alias.color.0` ... `vnmine.alias.color.f`.
+- Format `&k`, `&l`, `&m`, `&n`, `&o`, `&r`: `vnmine.alias.format.k` ...
+  `vnmine.alias.format.r`.
+- Rainbow `&rl`, `&r1`, `&r2`, `&r3`: `vnmine.alias.rainbow`.
+- Admin có `vnmine.alias.admin` dùng `/alias set <người_chơi> <tên>` hoặc
+  `/alias clear <người_chơi>`; alias do admin đặt được phép dùng mọi mã màu,
+  format và rainbow mà không cần cấp riêng các node đó cho người chơi.
+
+Tên NPC, tên hiển thị đại lục, tiêu đề/nội dung quest-dialog, sign do NPC xử lý,
+text display và các trường văn bản cấu hình hỗ trợ mã legacy `&`. Các marker
+`&rl`, `&r1`, `&r2`, `&r3` cũng được nhận diện trong trường text; màu/format
+chuẩn gồm `&0–&f`, `&k–&o`, `&r`.
 
 ### Lính đánh thuê (`armies.yml`)
 

@@ -132,7 +132,7 @@ public final class HumanRealmDefinitionLoader {
         if (!valid) return Optional.empty();
 
         return Optional.of(new HumanRealmDefinition(
-            id, displayName, worldName, fallbackWorldName, tutorialNpcId, startingSelectable,
+            id, LegacyText.translate(displayName), worldName, fallbackWorldName, tutorialNpcId, startingSelectable,
             access,
             new Spawn(useWorldSpawn, x, y, z, yawValue.floatValue(), pitchValue.floatValue()),
             new SafeZone(safeZoneEnabled, safeZoneRadius)

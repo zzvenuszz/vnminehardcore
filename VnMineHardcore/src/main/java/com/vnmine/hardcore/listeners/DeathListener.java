@@ -156,7 +156,10 @@ public class DeathListener implements Listener {
         logger.info("[Death] " + player.getName() + " DIED! Cause: " + deathMessage);
 
         // Set a clean death message for broadcast
-        event.deathMessage(Component.text("§4§l☠ " + player.getName() + " đã chết (" + deathMessage + ")"));
+        String deathDisplayName = plugin.getAliasManager() == null ? player.getName()
+            : plugin.getAliasManager().displayName(player);
+        event.deathMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+            .deserialize("§4§l☠ " + deathDisplayName + " đã chết (" + deathMessage + ")"));
 
         // Drop ALL inventory
         event.setKeepInventory(false);
@@ -495,7 +498,10 @@ public class DeathListener implements Listener {
         }
         logManager.trackFirstJoin(player);
 
-        event.joinMessage(Component.text("§8[§a+§8] §7" + player.getName()));
+        String joinDisplayName = plugin.getAliasManager() == null ? player.getName()
+            : plugin.getAliasManager().displayName(player);
+        event.joinMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+            .deserialize("§8[§a+§8] §7" + joinDisplayName));
 
         player.sendTitle(
             "§4§lVnMineHardcore",
@@ -539,7 +545,10 @@ public class DeathListener implements Listener {
         noDamagePlayers.remove(player.getUniqueId());
         combatTagged.remove(player.getUniqueId());
 
-        event.quitMessage(Component.text("§8[§c-§8] §7" + player.getName()));
+        String quitDisplayName = plugin.getAliasManager() == null ? player.getName()
+            : plugin.getAliasManager().displayName(player);
+        event.quitMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()
+            .deserialize("§8[§c-§8] §7" + quitDisplayName));
     }
 
     /**

@@ -181,7 +181,7 @@ public class OreControlListener implements Listener {
 
     private void sendConfiguredMessage(Player player, String message) {
         if (message != null && !message.isBlank()) {
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+            player.sendMessage(com.vnmine.hardcore.managers.LegacyText.translate(message));
         }
     }
 }

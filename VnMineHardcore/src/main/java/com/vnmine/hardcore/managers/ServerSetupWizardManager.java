@@ -563,7 +563,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         Inventory menu = Bukkit.createInventory(holder, 54, "NPC Tutorial • " + npcId);
         holder.inventory = menu;
         menu.setItem(11, item(Material.WRITABLE_BOOK, "§dDialog: §f" + (dialogId == null ? "Chưa chọn" : dialogId), List.of(
-            "§7Chọn quest-dialog dùng khi người chơi gặp NPC.", "§7Có thể tạo/sửa nội dung bằng /vnquestdialog admin.",
+            "§7Chọn quest-dialog dùng khi người chơi gặp NPC.", "§7Tạo/sửa dialog trực tiếp trong bộ chọn quest.",
             "§eNhấn để chọn.")));
         menu.setItem(15, item(Material.ENCHANTED_BOOK, "§bQuest tự giao: §f" + (questId == null ? "Chưa chọn" : questId), List.of(
             "§7Chỉ quest có giver NPC ID đúng là §f" + npcId + " §7mới được liệt kê.",
@@ -590,7 +590,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
         holder.inventory = menu;
         menu.setItem(11, item(Material.WRITABLE_BOOK, "§dDialog: §f" + (dialogId == null ? "Chưa chọn" : dialogId), List.of(
             "§7Dialog sẽ phát khi người chơi tương tác NPC này.",
-            "§7Có thể tạo/sửa bằng /vnquestdialog admin.", "§eNhấn để chọn.")));
+            "§7Tạo/sửa dialog trực tiếp trong bộ chọn quest.", "§eNhấn để chọn.")));
         menu.setItem(15, item(Material.ENCHANTED_BOOK, "§bQuest tự giao: §f" + (questId == null ? "Chưa chọn" : questId), List.of(
             "§7Chỉ liệt kê quest có giver NPC ID là §f" + npcId + "§7.",
             "§7Quest được giao sau khi dialog kết thúc.", "§eNhấn để chọn.")));
@@ -664,7 +664,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
     }
 
     private String startWorldDisplayName() {
-        return plugin.getConfig().getString("rpg.onboarding.start-world.display-name", "Đại lục khởi đầu");
+        return LegacyText.translate(plugin.getConfig().getString(
+            "rpg.onboarding.start-world.display-name", "Đại lục khởi đầu"));
     }
 
     private boolean realmAvailabilityEnabled(String realmId) {
@@ -792,7 +793,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                     return;
                 }
                 saveFirstStepsField(player, "quest." + field,
-                    ChatColor.translateAlternateColorCodes('&', input));
+                    LegacyText.translate(input));
                 return;
             }
             if ("__start_display_name__".equals(realmId)) {
@@ -801,7 +802,7 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
                     pendingWorldNames.put(player.getUniqueId(), realmId);
                     return;
                 }
-                String displayName = ChatColor.translateAlternateColorCodes('&', input);
+                String displayName = LegacyText.translate(input);
                 plugin.getConfig().set("rpg.onboarding.start-world.display-name", displayName);
                 savePluginConfig(player, "rpg.onboarding.start-world.display-name=" + input);
                 player.sendMessage("§aĐã lưu tên hiển thị đại lục bắt đầu: §f" + displayName);
@@ -1757,8 +1758,8 @@ public final class ServerSetupWizardManager implements Listener, CommandExecutor
     private static ItemStack item(Material material, String name, List<String> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
-        meta.setLore(lore);
+        meta.setDisplayName(LegacyText.translate(name));
+        meta.setLore(lore.stream().map(LegacyText::translate).toList());
         item.setItemMeta(meta);
         return item;
     }

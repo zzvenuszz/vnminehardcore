@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.36.15 — 2026-10-30
+
+- Hoàn thiện cache quyền màu/format alias để kiểm tra Bukkit permissions khi quyền được cấp hoặc thu hồi, không gọi permission API từ luồng chat async.
+- Chốt parser `&rl:` đúng cú pháp rainbow line, không làm lộ dấu hai chấm; hoàn thiện tên có màu/format trong boss bar và các nội dung cấu hình liên quan.
+
+## 2.36.14 — 2026-10-30
+
+- Thêm `/alias set <tên>` và `/alias` để đặt/xóa alias; admin dùng `/alias set <người_chơi> <tên>` hoặc `/alias clear <người_chơi>`. Alias được lưu bền vững, hiển thị trong chat, tab list, join/quit, death và bảng xếp hạng.
+- Tách permission alias theo từng mã màu `vnmine.alias.color.<code>`, format `vnmine.alias.format.<code>` và `vnmine.alias.rainbow`; alias do admin đặt bỏ qua yêu cầu permission format của người chơi.
+- Tạo bộ xử lý legacy text dùng chung cho màu/format `&` và rainbow `&rl`, `&r1`, `&r2`, `&r3`; áp dụng cho tên NPC/đại lục và các trường text quest, dialogue, sign, text display, leaderboard.
+- Chuyển quest-dialog vào selector trạng thái trong editor quest: tạo dialog tại chỗ, gán loại Có thể nhận/Đang làm/Hoàn tất/Chưa đủ điều kiện, mặc định private theo quest; có tùy chọn public để quest khác cùng trạng thái sử dụng. Bỏ lệnh/menu quản lý dialog độc lập; dialog cũ được nạp như public để tương thích dữ liệu.
+
 ## 2.36.13 — 2026-10-29
 
 - Fix click NPC player-model: bỏ `WrappedEnumEntityUseAction` vì ProtocolLib 5.4.0 không khởi tạo được wrapper này trên Paper 26.3; packet nhắm đến entity NPC ảo được nhận và chuyển vào luồng tương tác NPC.
