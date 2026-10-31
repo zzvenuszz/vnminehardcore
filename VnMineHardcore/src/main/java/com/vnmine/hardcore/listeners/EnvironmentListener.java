@@ -2,6 +2,7 @@ package com.vnmine.hardcore.listeners;
 
 import com.vnmine.hardcore.VnMineHardcore;
 import com.vnmine.hardcore.managers.ConfigManager;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -14,6 +15,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockGrowEvent;
 import org.bukkit.event.weather.WeatherChangeEvent;
 import org.bukkit.event.player.PlayerBedEnterEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
 import org.bukkit.inventory.ItemStack;
@@ -179,6 +181,10 @@ public class EnvironmentListener implements Listener {
 
                 for (Player player : plugin.getServer().getOnlinePlayers()) {
                     UUID uuid = player.getUniqueId();
+                    if (player.getGameMode() == GameMode.CREATIVE) {
+                        clearEnvironmentalTracking(uuid);
+                        continue;
+                    }
                     Long lastCheck = lastTemperatureCheck.get(uuid);
                     boolean checkTemperature = lastCheck == null || now - lastCheck >= tempCheckIntervalMs;
                     if (checkTemperature) {
@@ -320,6 +326,7 @@ public class EnvironmentListener implements Listener {
             public void run() {
                 int count = 0;
                 for (Player player : plugin.getServer().getOnlinePlayers()) {
+                    if (player.getGameMode() == GameMode.CREATIVE) continue;
                     player.addPotionEffect(new PotionEffect(
                         PotionEffectType.DARKNESS,
                         fogEffectDurationTicks,
@@ -345,6 +352,25 @@ public class EnvironmentListener implements Listener {
         player.sendMessage("§c§l⚠ Không thể ngủ! §7Quái vật không để bạn yên!");
         player.sendTitle("§4§lKHÔNG THỂ NGỦ!", "§cThức suốt đêm!", 10, 40, 10);
         logger.info("[Environment] " + player.getName() + " tried to sleep - damage " + config.sleepDamage);
+    }
+
+    @EventHandler
+    public void onPlayerGameModeChange(PlayerGameModeChangeEvent event) {
+        if (event.getNewGameMode() != GameMode.CREATIVE) return;
+        Player player = event.getPlayer();
+        clearEnvironmentalTracking(player.getUniqueId());
+        for (PotionEffectType effect : List.of(PotionEffectType.DARKNESS, PotionEffectType.MINING_FATIGUE,
+                PotionEffectType.NAUSEA, PotionEffectType.SLOWNESS, PotionEffectType.WEAKNESS)) {
+            player.removePotionEffect(effect);
+        }
+    }
+
+    private void clearEnvironmentalTracking(UUID playerId) {
+        lastTemperatureCheck.remove(playerId);
+        lastWaterDamage.remove(playerId);
+        lastAcidRainDamage.remove(playerId);
+        heatExposureStart.remove(playerId);
+        coldExposureStart.remove(playerId);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -378,6 +404,7 @@ public class EnvironmentListener implements Listener {
     @EventHandler
     public void onPlayerToggleFlight(PlayerToggleFlightEvent event) {
         if (!config.flightBlock) return;
+        if (event.getPlayer().getGameMode() == GameMode.CREATIVE) return;
         if (event.isFlying()) {
             Player player = event.getPlayer();
             if (!player.hasPermission("vnmine.hardcore.bypass") &&
@@ -394,6 +421,8 @@ public class EnvironmentListener implements Listener {
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
+
+        if (player.getGameMode() == GameMode.CREATIVE) return;
 
         if (event.getTo() == null) return;
 

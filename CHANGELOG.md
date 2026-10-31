@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.42.0] - 2026-10-30
+
+- Creative được miễn debuff môi trường của plugin (sợ hầm, choáng độ cao, sương mù, nhiệt độ, mưa axit/nước lạnh và khát); potion effect liên quan được gỡ khi chuyển mode, và plugin không chặn bay Creative.
+- `//pos1`/`//pos2` không có tọa độ lấy block đang đứng; `//hpos1`/`//hpos2` lấy block đang ngắm. Tin nhắn xác nhận có world và tọa độ.
+- Tăng mật độ viền particle WorldEdit; thêm `worldedit.selection-particles.spacing-blocks` (mặc định 0.5, hợp lệ 0.25–2.0).
+- Build Java 25 thành công lúc `2026-10-30 23:59:52 UTC` bằng `mvn -DskipTests package`; test suite bỏ qua. JAR 2.42.0: 2.560.691 bytes, SHA-256 `67f5a7ac881a5a9461d20e04c5e3c16bbd871de801e9e676896231e4097ddefb`. Chỉ giữ SQLite native Linux x86_64.
+- Backup 2.41.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.41.1-pre-2.42.0-20261030.jar`, cài 2.42.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.42.0.jar`; checksum khớp. Chưa restart server để gameplay test.
+
 ## [v2.41.1] - 2026-10-30
 
 - Giảm kích thước hologram marker NPC còn 50% so với 2.41.0 (scale mặc định 6 → 3).

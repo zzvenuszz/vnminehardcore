@@ -1,3 +1,12 @@
+# Creative và sửa chọn vùng WorldEdit — yêu cầu 2026-10-30
+
+- [x] Creative miễn các debuff môi trường/khát của plugin; xóa potion effect môi trường khi chuyển sang Creative và không chặn bay Creative.
+- [x] `//pos1`/`//pos2` không tọa độ chọn vị trí người chơi; `//hpos1`/`//hpos2` chọn block đang ngắm; xác nhận điểm hiển thị world và tọa độ.
+- [x] Tăng mật độ viền particle và thêm cấu hình khoảng cách hạt `worldedit.selection-particles.spacing-blocks`.
+- [x] Tăng version lên 2.42.0; build Java 25 thành công (`mvn -DskipTests package`), test suite bỏ qua; xác nhận SQLite native Linux x86_64.
+- [x] Backup JAR 2.41.1 và cài JAR 2.42.0 vào `/home/ubuntu/DATA/VNMINE/plugins`; đối chiếu SHA-256 khớp artifact.
+- [ ] Chưa restart server/gameplay test sau khi cài.
+
 # Chuẩn hóa luồng quest và quản lý dialog — rà soát 2026-10-30
 
 ## Đã làm trong lượt này

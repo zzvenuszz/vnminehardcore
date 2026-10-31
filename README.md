@@ -128,7 +128,8 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 
 ### WorldEdit, vùng bảo vệ và công trình
 
-- `/vnregion wand` cấp búa chọn vùng. `//pos1`, `//pos2`, `//set`, `//replace`, `//copy`, `//paste`, `//undo` và các thao tác tích hợp phụ thuộc quyền WorldEdit.
+- `/vnregion wand` cấp búa chọn vùng. `//pos1`/`//pos2` không tọa độ chọn block đang đứng; `//hpos1`/`//hpos2` chọn block đang ngắm. `//set`, `//replace`, `//copy`, `//paste`, `//undo` và các thao tác tích hợp phụ thuộc quyền WorldEdit; chỉnh độ dày viền particle tại `worldedit.selection-particles.spacing-blocks`.
+- Creative được miễn debuff môi trường của plugin như sợ hầm, choáng độ cao, sương mù, nhiệt độ, khát và các tác động mưa axit/nước lạnh.
 - Vùng có thể đặt tên và có rule bảo vệ do plugin hỗ trợ; đây là hệ thống tích hợp, không phải phụ thuộc WorldEdit/WorldGuard.
 - `/vnbuild select` chọn công trình Schema gần nhất. `/vnbuild` mở browser `.schem`; preview, xoay/lật, đặt, undo/redo và protect tùy workflow trong menu.
 - `/vntext` tạo và chỉnh text display; hỗ trợ hướng mặt, màu, scale và góc xoay.

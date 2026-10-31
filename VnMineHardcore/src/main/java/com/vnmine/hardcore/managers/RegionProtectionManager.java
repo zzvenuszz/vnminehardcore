@@ -319,17 +319,23 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
 
     private void selectPosition(Player player, String command, String[] args) {
         Location point;
-        if (args.length == 0 || command.startsWith("hpos")) {
-            point = player.getTargetBlockExact(256) == null ? null : player.getTargetBlockExact(256).getLocation();
+        if (command.startsWith("hpos")) {
+            Block target = player.getTargetBlockExact(256);
+            point = target == null ? null : target.getLocation();
         } else {
-            int[] xyz = parseCoordinates(args);
-            point = new Location(player.getWorld(), xyz[0], xyz[1], xyz[2]);
+            if (args.length == 0) {
+                point = player.getLocation().getBlock().getLocation();
+            } else {
+                int[] xyz = parseCoordinates(args);
+                point = new Location(player.getWorld(), xyz[0], xyz[1], xyz[2]);
+            }
         }
-        if (point == null) { player.sendMessage("§cKhông thấy block đích trong 256 block."); return; }
+        if (point == null) { player.sendMessage("§cKhông thấy block đang ngắm trong 256 block."); return; }
         Selection selection = selections.computeIfAbsent(player.getUniqueId(), ignored -> new Selection());
         if (command.endsWith("1")) selection.setFirst(point); else selection.setSecond(point);
-        player.sendMessage("§aĐiểm " + (command.endsWith("1") ? "1" : "2") + ": §f" + point.getBlockX() + " "
-            + point.getBlockY() + " " + point.getBlockZ() + " §7(" + selectionText(selection) + ")");
+        player.sendMessage("§aĐiểm " + (command.endsWith("1") ? "1" : "2") + ": §f" + point.getWorld().getName()
+            + " " + point.getBlockX() + " " + point.getBlockY() + " " + point.getBlockZ()
+            + " §7(" + selectionText(selection) + ")");
     }
 
     private int[] parseCoordinates(String[] args) {
@@ -973,8 +979,11 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private void drawParticleEdge(Player player, World world, int x1, int y1, int z1, int x2, int y2, int z2) {
-        int steps = Math.max(1, Math.min(32, Math.max(Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)),
-            Math.abs(z2 - z1))));
+        double distance = Math.sqrt((double) (x2 - x1) * (x2 - x1)
+            + (double) (y2 - y1) * (y2 - y1) + (double) (z2 - z1) * (z2 - z1));
+        double spacing = Math.max(0.25, Math.min(2.0,
+            plugin.getConfig().getDouble("worldedit.selection-particles.spacing-blocks", 0.5)));
+        int steps = Math.max(1, Math.min(512, (int) Math.ceil(distance / spacing)));
         for (int index = 0; index <= steps; index++) {
             double progress = (double) index / steps;
             Location point = new Location(world, x1 + (x2 - x1) * progress + 0.5,

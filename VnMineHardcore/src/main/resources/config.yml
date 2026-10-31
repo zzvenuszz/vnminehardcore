@@ -91,6 +91,9 @@ worldedit:
     # [VI] Khoảng xem viền theo khoảng cách từ góc chọn (block); mặc định 96.
     # [EN] Selection outline view distance from either corner (blocks); defaults to 96.
     view-distance-blocks: 96
+    # [VI] Khoảng cách giữa các hạt trên viền (block); mặc định 0.5, hợp lệ 0.25-2.0.
+    # [EN] Spacing between outline particles (blocks); defaults to 0.5, valid range 0.25-2.0.
+    spacing-blocks: 0.5
   # [VI] Số thao tác có thể undo; history chỉ tồn tại trong phiên người chơi/server, mặc định 10, hợp lệ 1-50.
   # [EN] Number of undoable operations; history is session-only, defaults to 10, valid range 1-50.
   history-size: 10
@@ -821,8 +824,8 @@ environment:
 
   # ===== BAY / FLIGHT =====
   flight:
-    # [VI] Chặn bay (kể cả Creative mode, trừ khi có permission vnmine.hardcore.bypass)
-    # [EN] Block flight (even in Creative mode, unless has vnmine.hardcore.bypass permission)
+    # [VI] Chặn bay trong Survival/Adventure; Creative luôn được bay.
+    # [EN] Block flight in Survival/Adventure; Creative players can always fly.
     block: false
 
   # ===== SỢ HẦM / CLAUSTROPHOBIA =====

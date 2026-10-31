@@ -2,6 +2,7 @@ package com.vnmine.hardcore.managers;
 
 import com.vnmine.hardcore.VnMineHardcore;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -90,6 +91,13 @@ public class ThirstManager {
                 int playersAffected = 0;
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     UUID uuid = player.getUniqueId();
+
+                    if (player.getGameMode() == GameMode.CREATIVE) {
+                        // Pause thirst drain without letting Creative time accumulate toward the next drain.
+                        lastDrink.put(uuid, System.currentTimeMillis());
+                        damagedByThirst.remove(uuid);
+                        continue;
+                    }
 
                     if (plugin.getRegionProtectionManager() != null
                             && plugin.getRegionProtectionManager().isThirstDrainDisabled(player)) {
