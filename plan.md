@@ -1321,5 +1321,5 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Build Java 25 thành công lúc `2026-11-02 14:45 UTC` bằng `mvn -DskipTests clean package`; test suite bỏ qua, compile/package thành công.
 - [x] JAR `VnMineHardcore-2.52.0.jar`, 2.583.406 bytes, SHA-256 `e420871c2c4c44325ec16a55b7c43419adeffb700c54cac7e662f7366e3cb189`; plugin.yml là 2.52.0, SQLite native chỉ có Linux x86_64.
 - [x] Backup JAR 2.51.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.51.0-pre-2.52.0-20261102.jar`; cài JAR 2.52.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.52.0.jar`, thư mục plugin chỉ còn một JAR hoạt động.
-- [ ] Push thay đổi lên `origin/main`.
+- [x] Push commit triển khai `cbf877a` lên `origin/main`.
 - [ ] Chưa xác minh gameplay; sau restart cần theo dõi khi đặt schema và xác nhận watchdog không còn lặp stack `snakeyaml.serializer.Serializer`.
