@@ -129,6 +129,7 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 ### WorldEdit, vùng bảo vệ và công trình
 
 - `/vnregion wand` cấp búa chọn vùng. `//pos1`/`//pos2` không tọa độ chọn block đang đứng; `//hpos1`/`//hpos2` chọn block đang ngắm. WorldEdit nhận `//set air`, `//set 0`, ID cũ có data như `//set 35:14`, tên material và block state; `//set` áp dụng lên cả rương/bảng hiệu và sẽ xóa dữ liệu entity của chúng khi thay block. `//square <r> <block>` tạo hình vuông đặc, `//circle <r> <block>` tạo đĩa tròn đặc, `//round <r> <block>` tạo vòng tròn rỗng đối xứng 8 hướng. Chỉnh độ dày viền particle tại `worldedit.selection-particles.spacing-blocks`.
+- Để vẽ pattern đường sá: chọn vùng mẫu bằng búa, chạy `//copy`, vào **Admin → WorldEdit → Lấy Clipboard Brush** rồi chuột phải lên block để đóng dấu. Air trong clipboard bị bỏ qua; mỗi lần brush áp dụng là một mục `//undo` riêng.
 - Sidebar boss/quest hiển thị tên, cấp, máu, world và race/class ở phía trên; có thể bật/tắt từng dòng trong `scoreboard.yml`.
 - Đặt `schema-build.preview-blocks: -1` để preview toàn bộ block và `schema-build.max-blocks: -1` để bỏ trần block cấu hình của Schema Build; giới hạn file/NBT nhằm bảo vệ bộ đọc vẫn áp dụng.
 - Creative được miễn debuff môi trường của plugin như sợ hầm, choáng độ cao, sương mù, nhiệt độ, khát và các tác động mưa axit/nước lạnh.

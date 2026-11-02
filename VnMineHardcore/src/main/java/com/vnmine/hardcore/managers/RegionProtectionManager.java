@@ -54,6 +54,7 @@ import org.bukkit.event.server.TabCompleteEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -85,6 +86,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
 
     private final VnMineHardcore plugin;
     private final NamespacedKey wandKey;
+    private final NamespacedKey brushKey;
     private final File dataFile;
     private final Map<String, ProtectedRegion> regions = new LinkedHashMap<>();
     private final Map<UUID, Selection> selections = new HashMap<>();
@@ -98,6 +100,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     public RegionProtectionManager(VnMineHardcore plugin) {
         this.plugin = plugin;
         this.wandKey = new NamespacedKey(plugin, "worldedit_region_wand");
+        this.brushKey = new NamespacedKey(plugin, "worldedit_clipboard_brush");
         this.dataFile = new File(plugin.getDataFolder(), "protected-regions.yml");
         load();
         for (World world : Bukkit.getWorlds()) applyStartWorldSettings(world);
@@ -217,10 +220,14 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             "§eNhấn để đặt tên vùng bằng chat.")));
         menu.setItem(46, icon(Material.WRITABLE_BOOK, "§dLệnh WorldEdit tích hợp", List.of(
             "§7//set <pattern> • //replace <from> <to>", "§7//walls <pattern> • //faces <pattern> • //overlay <pattern>",
-            "§7//copy • //cut • //paste [-a] • //undo • //redo", "§eGõ //help để xem hướng dẫn.")));
+            "§7//copy • //cut • //paste [-a] • //undo • //redo", "§7Copy vùng rồi nhận stick brush để vẽ pattern.",
+            "§eGõ //help để xem hướng dẫn.")));
         if (page > 0) menu.setItem(45, icon(Material.ARROW, "§eTrang trước", List.of()));
         menu.setItem(47, icon(Material.SUNFLOWER, "§bCài đặt World bắt đầu/reset", List.of(
             "§7Bảo vệ block, tương tác, PvP, quái, thời gian, đói và khát.")));
+        menu.setItem(50, icon(Material.STICK, "§aLấy Clipboard Brush", List.of(
+            "§7Dùng pattern đã //copy để vẽ lên mặt đất.", "§7Chuột phải block để đóng dấu; air trong clipboard được bỏ qua.",
+            "§7Mỗi lần vẽ là một bước //undo.", "§eCần //copy một vùng trước.")));
         menu.setItem(49, icon(Material.ARROW, "§7Quay lại menu Admin", List.of()));
         if ((page + 1) * CONTENT_SLOTS.length < ordered.size()) menu.setItem(53, icon(Material.ARROW, "§eTrang sau", List.of()));
         player.openInventory(menu);
@@ -309,6 +316,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         player.sendMessage("§7Dùng //clearhistory để xóa lịch sử undo/redo hiện tại.");
         player.sendMessage("§7Điều chỉnh vùng: //expand <n> [up|down|north|south|east|west|vert], //contract <n> [hướng], //shift <n> [hướng].");
         player.sendMessage("§7//move <n> [hướng] [block_để_lại] • //stack <số_bản> [hướng]. Clipboard/undo chỉ lưu trong phiên.");
+        player.sendMessage("§7Copy vùng bằng búa + //copy, nhận stick brush tại Admin → WorldEdit, chuột phải để vẽ; mỗi lần dùng brush có thể //undo.");
         player.sendMessage("§7Block nhận ID như §fminecraft:stone§7 hoặc block state §fminecraft:oak_log[axis=x]§7. Giới hạn hiện tại: §f"
             + limitLabel() + " §7block/thao tác. Dùng //limit <số|unlimited> để đổi; thao tác không giới hạn vẫn phụ thuộc RAM và chunk đã nạp.");
     }
@@ -770,6 +778,45 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         scheduleEdit(player, "//paste", changes);
     }
 
+    private void applyClipboardBrush(Player player, Clipboard clipboard, Block target) {
+        if (activeEdits.contains(player.getUniqueId())) {
+            player.sendMessage("§eThao tác vùng trước vẫn đang chạy.");
+            return;
+        }
+        World world = player.getWorld();
+        Location anchor = target.getLocation();
+        List<BlockChange> changes = new ArrayList<>();
+        try {
+            for (ClipboardBlock saved : clipboard.blocks) {
+                BlockData data = Bukkit.createBlockData(saved.blockData());
+                if (data.getMaterial().isAir()) continue;
+                long x = (long) anchor.getBlockX() + saved.x();
+                long y = (long) anchor.getBlockY() + saved.y();
+                long z = (long) anchor.getBlockZ() + saved.z();
+                if (x < Integer.MIN_VALUE || x > Integer.MAX_VALUE || z < Integer.MIN_VALUE || z > Integer.MAX_VALUE
+                        || y < world.getMinHeight() || y >= world.getMaxHeight())
+                    throw new IllegalArgumentException("Brush vượt giới hạn tọa độ/chiều cao của world.");
+                int blockX = (int) x, blockY = (int) y, blockZ = (int) z;
+                Location location = new Location(world, blockX, blockY, blockZ);
+                if (!world.getWorldBorder().isInside(location))
+                    throw new IllegalArgumentException("Brush vượt world border; không đổi block nào.");
+                if (!world.isChunkLoaded(blockX >> 4, blockZ >> 4))
+                    throw new IllegalArgumentException("Brush đi vào chunk chưa nạp; không đổi block nào.");
+                addChange(player, changes, world.getBlockAt(blockX, blockY, blockZ), data);
+            }
+            if (changes.isEmpty()) {
+                player.sendMessage("§eBrush không có block nào cần thay đổi (air được bỏ qua).");
+                return;
+            }
+            scheduleEdit(player, "//brush", changes);
+        } catch (IllegalArgumentException exception) {
+            player.sendMessage("§c" + exception.getMessage());
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.WARNING, "[WorldRegion] brush failed player=" + player.getName(), exception);
+            player.sendMessage("§cKhông thể áp dụng brush; không có thay đổi nào được xác nhận.");
+        }
+    }
+
     private BlockPattern parsePattern(String raw) {
         List<WeightedBlock> choices = new ArrayList<>(); double total = 0;
         for (String entry : raw.split(",")) {
@@ -1016,7 +1063,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         ItemMeta meta = wand.getItemMeta();
         meta.setDisplayName("§6WorldEdit • Búa chọn vùng");
         meta.setLore(List.of("§7Chuột trái: điểm 1 • Chuột phải: điểm 2", "§7//set / //replace / //walls / //faces",
-            "§7//copy / //paste / //undo / //redo", "§7/vnregion để quản lý vùng và flags."));
+            "§7//copy / //paste / //undo / //redo", "§7Copy pattern rồi dùng stick brush để vẽ.",
+            "§7/vnregion để quản lý vùng và flags."));
         meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
         wand.setItemMeta(meta);
         Map<Integer, ItemStack> leftovers = player.getInventory().addItem(wand);
@@ -1028,6 +1076,65 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private boolean isWand(ItemStack item) {
         return item != null && item.getType() == Material.WOODEN_AXE && item.hasItemMeta()
             && item.getItemMeta().getPersistentDataContainer().has(wandKey, PersistentDataType.BYTE);
+    }
+
+    private boolean isBrush(ItemStack item) {
+        return item != null && item.getType() == Material.STICK && item.hasItemMeta()
+            && item.getItemMeta().getPersistentDataContainer().has(brushKey, PersistentDataType.BYTE);
+    }
+
+    private void giveBrush(Player player) {
+        Clipboard clipboard = clipboards.get(player.getUniqueId());
+        if (clipboard == null) {
+            player.sendMessage("§cChọn vùng bằng búa rồi dùng //copy trước khi lấy brush.");
+            return;
+        }
+        ItemStack brush = new ItemStack(Material.STICK);
+        ItemMeta meta = brush.getItemMeta();
+        meta.setDisplayName("§aWorldEdit • Clipboard Brush");
+        meta.setLore(List.of("§7Pattern: §f" + clipboard.blocks().size() + " block",
+            "§7Chuột phải block để đóng dấu pattern lên mặt đất.",
+            "§7Block air trong clipboard sẽ bị bỏ qua.", "§eMỗi lần dùng brush lưu riêng vào //undo."));
+        meta.getPersistentDataContainer().set(brushKey, PersistentDataType.BYTE, (byte) 1);
+        brush.setItemMeta(meta);
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(brush);
+        if (!leftovers.isEmpty()) player.getWorld().dropItemNaturally(player.getLocation(), brush);
+        player.sendMessage("§aĐã cấp stick Clipboard Brush. §eChuột phải lên block để vẽ pattern; mỗi lần có một bước //undo.");
+        plugin.getLogger().info("[WorldRegion] brush-issued player=" + player.getName() + ", blocks=" + clipboard.blocks().size());
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onClipboardBrushUse(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || !isBrush(event.getItem())) return;
+        Action action = event.getAction();
+        if (action != Action.LEFT_CLICK_AIR && action != Action.LEFT_CLICK_BLOCK
+                && action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+        event.setCancelled(true);
+        if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) return;
+        Player player = event.getPlayer();
+        if (!canManage(player)) {
+            player.sendMessage("§cBạn không có quyền dùng WorldEdit brush.");
+            return;
+        }
+        if (activeEdits.contains(player.getUniqueId())) {
+            player.sendMessage("§eThao tác vùng trước vẫn đang chạy.");
+            return;
+        }
+        Clipboard clipboard = clipboards.get(player.getUniqueId());
+        if (clipboard == null) {
+            player.sendMessage("§cClipboard trống. Chọn vùng bằng búa rồi dùng //copy trước.");
+            return;
+        }
+        Block target = event.getClickedBlock();
+        if (target == null) {
+            org.bukkit.util.RayTraceResult hit = player.rayTraceBlocks(64.0);
+            target = hit == null ? null : hit.getHitBlock();
+        }
+        if (target == null) {
+            player.sendMessage("§eHãy nhắm vào một block để vẽ pattern.");
+            return;
+        }
+        applyClipboardBrush(player, clipboard, target);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -1317,6 +1424,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             else if (slot == 8) beginCreateRegion(player);
             else if (slot == 46) sendWorldEditHelp(player);
             else if (slot == 47) openStartWorldSettings(player);
+            else if (slot == 50) giveBrush(player);
             else if (slot == 49) plugin.getMercenaryManager().openAdminMenu(player);
             else if (slot == 45 && holder.page > 0) openAdminMenu(player, holder.page - 1);
             else if (slot == 53) openAdminMenu(player, holder.page + 1);

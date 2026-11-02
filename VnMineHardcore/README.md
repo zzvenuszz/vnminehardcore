@@ -1,5 +1,4 @@
 # VnMineHardcore
-
 Plugin tăng độ khó sinh tồn cho Minecraft Paper 26.3. Người chơi không bị ban khi chết.
 
 Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ trợ Minecraft 26.3 ([official builds](https://github.com/dmulloy2/ProtocolLib/releases/tag/dev-build)). Plugin không tải hoặc đóng gói ProtocolLib thay server.
@@ -1062,6 +1061,13 @@ entity có sẵn trước lệnh, undo lưu snapshot để có thể khôi phụ
 vuông đặc, `//circle <bán_kính> <block>` tạo đĩa tròn đặc, còn
 `//round <bán_kính> <block>` tạo chu vi tròn rỗng theo thuật toán midpoint đối
 xứng 8 hướng. Cả ba lệnh lấy tâm tại `//pos1`.
+
+Để vẽ lặp một mẫu đường sá, chọn mẫu bằng búa gỗ rồi dùng `//copy`. Mở **Menu
+chính → Admin → WorldEdit**, nhấn **Lấy Clipboard Brush** để nhận stick. Chuột
+phải lên block mặt đất để đóng dấu clipboard tại vị trí đó; block air trong
+clipboard được bỏ qua để không xóa nền xung quanh. Mỗi lần dùng brush được ghi
+thành một thao tác riêng và có thể hoàn tác bằng `//undo`; clipboard và lịch sử
+chỉ tồn tại trong phiên server hiện tại.
 
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)
