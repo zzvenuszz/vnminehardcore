@@ -1083,12 +1083,16 @@ Các thay đổi được áp dụng theo từng batch để giảm giật. Gi�
 block/chunk; chỉ áp dụng trên chunk đã nạp và thao tác lớn có thể dùng nhiều
 RAM/tài nguyên server. Viền vùng chọn dùng particle đỏ; có thể tắt/chỉnh tầm xem
 trong `worldedit.selection-particles`. Các lệnh `//` có tab completion. Plugin
-giữ các chunk được sửa trong lúc batch đang chạy. Undo/redo giữ 10 thao tác; clipboard và history
-chỉ tồn tại trong phiên đăng nhập hiện tại. Các thao tác ngoài `//set`/`//clear`
-vẫn từ chối block entity vì chưa lưu dữ liệu inventory/sign.
+giữ các chunk được sửa trong lúc batch đang chạy. WorldEdit undo/redo mặc định
+giữ 50 thao tác; cấu hình `worldedit.history-size` nhận 1-100. Clipboard và
+history chỉ tồn tại trong phiên đăng nhập hiện tại. History giữ snapshot trước/sau
+của block đã đổi nên RAM tăng theo tổng số block trong các thao tác được giữ;
+50 bước phù hợp với brush nhỏ và thao tác vừa, còn server thường `//set` vùng rất
+lớn nên cấu hình ít bước hơn. Các thao tác ngoài `//set`/`//clear` vẫn từ chối
+block entity vì chưa lưu dữ liệu inventory/sign.
 
 Các lệnh này hiện chỉ hỗ trợ vùng cuboid, block placement/replacement và
-clipboard block. Brush, generator, biome/entity editing và các loại selection
+clipboard block và Clipboard Brush. Generator, biome/entity editing và các loại selection
 phi cuboid chưa được đưa vào. Cách chia nhóm tính năng theo selection, region
 operations, clipboard, patterns và history dựa trên
 [tài liệu lệnh WorldEdit](https://worldedit.enginehub.org/en/latest/commands/),

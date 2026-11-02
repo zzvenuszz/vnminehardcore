@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.49.0 — 2026-11-02
+
+- Tăng WorldEdit undo history mặc định từ 10 lên 50 thao tác; cho phép cấu hình 1-100 bước và ghi chú tác động RAM theo kích thước các thao tác.
+
 ## 2.48.0 — 2026-11-02
 
 - Clipboard Brush hiển thị preview theo bề mặt block người chơi ngắm; lớp thấp nhất của pattern được canh vào bề mặt và các lớp còn lại giữ độ cao tương đối. Nhấp phải xác nhận; thêm cấu hình giới hạn preview.

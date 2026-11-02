@@ -70,7 +70,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     public static final String ADMIN_PERMISSION = "vnmine.command.worldedit";
     private static final int EDIT_BATCH_SIZE = 512;
     private static final long DEFAULT_MAX_EDIT_BLOCKS = 32_768L;
-    private static final int DEFAULT_HISTORY_LIMIT = 10;
+    private static final int DEFAULT_HISTORY_LIMIT = 50;
     private static final int DEFAULT_MAX_EDIT_CHUNKS = 256;
     private static final int DEFAULT_BRUSH_PREVIEW_BLOCKS = -1;
     private static final int[] CONTENT_SLOTS = {
@@ -1022,7 +1022,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private String limitLabel() { return editLimit() == Long.MAX_VALUE ? "không giới hạn" : Long.toString(editLimit()); }
     private int chunkLimit() { return plugin.getConfig().getInt("worldedit.max-chunks-per-operation", DEFAULT_MAX_EDIT_CHUNKS); }
     private String chunkLimitLabel() { return chunkLimit() <= 0 ? "không giới hạn" : Integer.toString(chunkLimit()); }
-    private int historyLimit() { return Math.max(1, Math.min(50, plugin.getConfig().getInt("worldedit.history-size", DEFAULT_HISTORY_LIMIT))); }
+    private int historyLimit() { return Math.max(1, Math.min(100, plugin.getConfig().getInt("worldedit.history-size", DEFAULT_HISTORY_LIMIT))); }
     private int editBatchSize() { return Math.max(32, Math.min(4096, plugin.getConfig().getInt("worldedit.blocks-per-tick", EDIT_BATCH_SIZE))); }
 
     private void restoreBlockChange(BlockChange change, boolean useAfter) {

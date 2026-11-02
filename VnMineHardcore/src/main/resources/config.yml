@@ -94,9 +94,9 @@ worldedit:
     # [VI] Khoảng cách giữa các hạt trên viền (block); mặc định 0.5, hợp lệ 0.25-2.0.
     # [EN] Spacing between outline particles (blocks); defaults to 0.5, valid range 0.25-2.0.
     spacing-blocks: 0.5
-  # [VI] Số thao tác có thể undo; history chỉ tồn tại trong phiên người chơi/server, mặc định 10, hợp lệ 1-50.
-  # [EN] Number of undoable operations; history is session-only, defaults to 10, valid range 1-50.
-  history-size: 10
+  # [VI] Số thao tác WorldEdit có thể undo; history chỉ tồn tại trong phiên, mặc định 50, hợp lệ 1-100. Nhiều bước giữ nhiều snapshot trong RAM.
+  # [EN] Number of undoable WorldEdit operations; session-only, defaults to 50, valid range 1-100. More steps retain more snapshots in RAM.
+  history-size: 50
   # [VI] Số BlockDisplay tối đa trong preview Clipboard Brush; mặc định -1 là không giới hạn, đặt 1-32768 để giới hạn.
   # [EN] Maximum BlockDisplay entities in Clipboard Brush preview; defaults to -1 for unlimited, set 1-32768 to cap it.
   brush-preview-blocks: -1

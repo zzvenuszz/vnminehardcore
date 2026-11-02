@@ -1,3 +1,13 @@
+# Tăng dung lượng WorldEdit undo history — 2.49.0 — 2026-11-02
+
+- [x] Tăng `worldedit.history-size` mặc định từ 10 lên 50 và trần cấu hình từ 50 lên 100.
+- [x] README ghi rõ tradeoff: history chỉ lưu trong phiên; RAM tăng tuyến tính theo tổng số block snapshot, đặc biệt với `//set` lớn.
+- [x] Backup config runtime tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-config-before-history-50-20261102.yml`; đặt `worldedit.history-size: 50`.
+- [x] Build Java 25 thành công lúc `2026-11-02 14:18:13 UTC` bằng `mvn -DskipTests clean package`; JAR 2.49.0: 2.575.340 bytes, SHA-256 `62e1a560b8224221e21022ff8215cd75b0c25091bcc6039c413131c425e7417b`; plugin.yml là 2.49.0, SQLite native Linux x86_64.
+- [x] Backup 2.48.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.48.0-pre-2.49.0-20261102.jar`; cài JAR 2.49.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.49.0.jar`.
+- [ ] Commit/push code và kế hoạch lên `origin/main`.
+- [ ] Chưa gameplay test undo/redo quá 10 thao tác và quan sát RAM với brush/region lớn.
+
 # Clipboard Brush surface preview — 2.48.0 — 2026-11-02
 
 - [x] Preview stick brush bám theo block player đang ngắm; cùng một anchor được dùng khi đặt để vị trí preview và kết quả không lệch nhau.
