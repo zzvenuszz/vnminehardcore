@@ -1047,7 +1047,8 @@ Búa hỗ trợ cú pháp gần WorldEdit, có thể gõ lệnh `//...` trực t
 //replace minecraft:dirt minecraft:stone
 //walls stone        //faces stone        //overlay grass_block
 //center gold_block  //count diamond_ore
-//pos1                 //square 8 minecraft:stone  //circle 12 minecraft:stone
+//pos1                 //square 8 minecraft:stone
+//circle 12 minecraft:stone   //round 12 minecraft:stone
 //expand 5 up        //contract 3         //shift 10 north
 //move 5 east air    //stack 3 east
 //copy               //cut [air]           //paste [-a] [-o]
@@ -1057,7 +1058,10 @@ Búa hỗ trợ cú pháp gần WorldEdit, có thể gõ lệnh `//...` trực t
 `//set` áp dụng lên cả block entity: đặt `air` sẽ xóa rương, bảng hiệu và dữ liệu
 của chúng; đặt material khác sẽ thay block entity bằng block mới. Với block
 entity có sẵn trước lệnh, undo lưu snapshot để có thể khôi phục dữ liệu.
-`//clear` là lệnh tắt của `//set air`.
+`//clear` là lệnh tắt của `//set air`. `//square <bán_kính> <block>` tạo mặt
+vuông đặc, `//circle <bán_kính> <block>` tạo đĩa tròn đặc, còn
+`//round <bán_kính> <block>` tạo chu vi tròn rỗng theo thuật toán midpoint đối
+xứng 8 hướng. Cả ba lệnh lấy tâm tại `//pos1`.
 
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)

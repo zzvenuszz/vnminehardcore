@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.45.0 — 2026-11-02
+
+- Các lệnh `//square`, `//circle` yêu cầu block đích; thêm `//round <bán_kính> <block>` để dựng vòng tròn rỗng bằng thuật toán midpoint đối xứng 8 hướng. Đĩa `//circle` dùng khoảng cách Euclid trên lưới block.
+
 ## 2.39.0 — 2026-10-30
 
 - Phóng to marker `!`/`?` trên NPC bằng scale có cấu hình; tăng độ dài dòng hội thoại action bar và tương tác NPC lần nữa sẽ hoàn tất/skip dialog hiện tại thay vì khởi động lại.

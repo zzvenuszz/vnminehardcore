@@ -125,13 +125,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
 
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return filter(List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
-            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "square", "circle", "count", "expand", "contract",
+            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "square", "circle", "round", "count", "expand", "contract",
             "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo", "clearhistory", "limit"), args[0]);
         if (args.length == 2 && Set.of("set", "walls", "faces", "overlay", "center", "cut").contains(args[0].toLowerCase(Locale.ROOT)))
             return blockSuggestions(args[1]);
         if (args.length == 3 && Set.of("replace", "cut").contains(args[0].toLowerCase(Locale.ROOT)))
             return blockSuggestions(args[2]);
-        if (args.length == 3 && Set.of("square", "circle").contains(args[0].toLowerCase(Locale.ROOT)))
+        if (args.length == 3 && Set.of("square", "circle", "round").contains(args[0].toLowerCase(Locale.ROOT)))
             return blockSuggestions(args[2]);
         return List.of();
     }
@@ -148,7 +148,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         else return;
         String[] tokens = input.split("\\s+", -1);
         List<String> commands = List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
-            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "square", "circle", "count",
+            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "square", "circle", "round", "count",
             "expand", "contract", "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo",
             "clearhistory", "limit");
         if (tokens.length == 1) {
@@ -162,7 +162,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             event.setCompletions(blockSuggestions(tokens[1]));
         } else if (tokens.length == 3 && Set.of("replace", "cut").contains(command)) {
             event.setCompletions(blockSuggestions(tokens[2]));
-        } else if (tokens.length == 3 && Set.of("square", "circle").contains(command)) {
+        } else if (tokens.length == 3 && Set.of("square", "circle", "round").contains(command)) {
             event.setCompletions(blockSuggestions(tokens[2]));
         } else if (tokens.length == 2 && "limit".equals(command)) {
             event.setCompletions(filter(List.of("unlimited"), tokens[1]));
@@ -273,7 +273,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 case "faces", "outline" -> editShape(player, args, Shape.FACES);
                 case "overlay" -> editOverlay(player, args);
                 case "center", "middle" -> editCenter(player, args);
-                case "square", "circle" -> editPlane(player, command, args);
+                case "square", "circle", "round" -> editPlane(player, command, args);
                 case "count" -> countBlocks(player, args);
                 case "expand" -> adjustSelection(player, args, true);
                 case "contract" -> adjustSelection(player, args, false);
@@ -302,7 +302,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         player.sendMessage("§6WorldEdit tích hợp §7• chọn bằng búa hoặc //pos1 //pos2 //hpos1 //hpos2 //chunk");
         player.sendMessage("§e//set <pattern> §7• §e//clear §7• §e//replace <from> <to> §7• §e//walls <pattern> §7• §e//faces <pattern>");
         player.sendMessage("§7Pattern: stone, air, 0, ID cũ (35:14), block state hoặc 50%stone,50%glass.");
-        player.sendMessage("§e//overlay <block> §7• §e//center <block> §7• §e//square <bán_kính> [block] §7• §e//circle <bán_kính> [block]");
+        player.sendMessage("§e//overlay <block> §7• §e//center <block> §7• §e//square <bán_kính> <block>");
+        player.sendMessage("§e//circle <bán_kính> <block> (đĩa đặc) §7• §e//round <bán_kính> <block> (vòng rỗng)");
         player.sendMessage("§e//count <block> §7• §e//cut [block]");
         player.sendMessage("§e//copy §7• §e//paste [-a] §7• §e//undo §7• §e//redo §7• §e//size §7• §e//desel");
         player.sendMessage("§7Dùng //clearhistory để xóa lịch sử undo/redo hiện tại.");
@@ -456,8 +457,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private void editPlane(Player player, String command, String[] args) {
-        if (args.length < 1 || args.length > 2)
-            throw new IllegalArgumentException("Dùng //" + command + " <bán_kính> [block], ví dụ //"
+        if (args.length != 2)
+            throw new IllegalArgumentException("Dùng //" + command + " <bán_kính> <block>, ví dụ //"
                 + command + " 8 minecraft:stone.");
         Selection selection = selections.get(player.getUniqueId());
         if (selection == null || selection.first == null)
@@ -470,8 +471,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         long side = 2L * radius + 1L;
         long upperBound;
         try {
-            upperBound = "circle".equals(command)
-                ? (long) Math.ceil(Math.PI * radius * radius) : Math.multiplyExact(side, side);
+            upperBound = "square".equals(command) ? Math.multiplyExact(side, side) : 0L;
         } catch (ArithmeticException exception) {
             throw new IllegalArgumentException("Bán kính vượt mức có thể xử lý an toàn.");
         }
@@ -501,18 +501,60 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                     throw new IllegalArgumentException("Một phần mặt phẳng nằm trong chunk chưa nạp; hãy nạp toàn bộ vùng trước.");
             }
         }
-        BlockPattern pattern = parsePattern(args.length == 2 ? args[1] : "minecraft:stone");
+        BlockPattern pattern = parsePattern(args[1]);
         Random random = new Random();
         List<BlockChange> changes = new ArrayList<>();
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                long dx = (long) x - centerX;
-                long dz = (long) z - centerZ;
-                if ("circle".equals(command) && dx * dx + dz * dz > (long) radius * radius) continue;
-                addChange(player, changes, world.getBlockAt(x, centerY, z), pattern.next(random));
+        if ("round".equals(command)) {
+            Set<BlockPosition> circumference = rasterizeCircle(centerX, centerY, centerZ, radius);
+            if (circumference.size() > editLimit())
+                throw new IllegalArgumentException("Vòng tròn cần " + circumference.size()
+                    + " block; giới hạn hiện tại là " + limitLabel() + ". Dùng //limit <số|unlimited>.");
+            for (BlockPosition point : circumference) {
+                addChange(player, changes, world.getBlockAt(point.x(), point.y(), point.z()), pattern.next(random));
+            }
+        } else {
+            long radiusSquared = (long) radius * radius;
+            for (long xLong = minX; xLong <= maxX; xLong++) {
+                int x = (int) xLong;
+                for (long zLong = minZ; zLong <= maxZ; zLong++) {
+                    int z = (int) zLong;
+                    long dx = (long) x - centerX;
+                    long dz = (long) z - centerZ;
+                    if ("circle".equals(command) && dx * dx + dz * dz > radiusSquared) continue;
+                    addChange(player, changes, world.getBlockAt(x, centerY, z), pattern.next(random));
+                }
             }
         }
         scheduleEdit(player, "//" + command, changes);
+    }
+
+    private Set<BlockPosition> rasterizeCircle(int centerX, int centerY, int centerZ, int radius) {
+        Set<BlockPosition> points = new HashSet<>();
+        long x = radius;
+        long z = 0;
+        long error = 1L - radius;
+        while (x >= z) {
+            addCircleOctants(points, centerX, centerY, centerZ, x, z);
+            z++;
+            if (error < 0) {
+                error += 2L * z + 1L;
+            } else {
+                x--;
+                error += 2L * (z - x) + 1L;
+            }
+        }
+        return points;
+    }
+
+    private void addCircleOctants(Set<BlockPosition> points, int centerX, int centerY, int centerZ, long x, long z) {
+        points.add(new BlockPosition(centerX + (int) x, centerY, centerZ + (int) z));
+        points.add(new BlockPosition(centerX + (int) z, centerY, centerZ + (int) x));
+        points.add(new BlockPosition(centerX - (int) z, centerY, centerZ + (int) x));
+        points.add(new BlockPosition(centerX - (int) x, centerY, centerZ + (int) z));
+        points.add(new BlockPosition(centerX - (int) x, centerY, centerZ - (int) z));
+        points.add(new BlockPosition(centerX - (int) z, centerY, centerZ - (int) x));
+        points.add(new BlockPosition(centerX + (int) z, centerY, centerZ - (int) x));
+        points.add(new BlockPosition(centerX + (int) x, centerY, centerZ - (int) z));
     }
 
     private int[] centerCoordinates(int min, int max) {
