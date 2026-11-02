@@ -4,7 +4,7 @@
 - [x] Dùng đĩa Euclid cho `//circle`, giữ vuông đặc cho `//square`; thêm gợi ý block cho `//round` và cập nhật help/README/changelog.
 - [x] Build Java 25 thành công lúc `2026-11-02 13:37:27 UTC` bằng `mvn -DskipTests clean package`; JAR 2.45.0: 2.569.230 bytes, SHA-256 `6de2fef6ef0cffb05a3dab3e2103080eb341c7c02ba8082aae72d957506d4ce8`; plugin.yml là 2.45.0, SQLite native Linux x86_64.
 - [x] Backup 2.44.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.44.0-pre-2.45.0-20261102.jar`; cài JAR 2.45.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.45.0.jar`.
-- [ ] Commit/push code và kế hoạch lên `origin/main`.
+- [x] Push commit phát hành `a5ea570` lên `origin/main`.
 - [ ] Chưa restart server/gameplay test các bán kính nhỏ/lớn, đối xứng, particle selection.
 
 # Mở rộng //set qua block entity và khôi phục Schema Build — 2.44.0 — 2026-11-02
