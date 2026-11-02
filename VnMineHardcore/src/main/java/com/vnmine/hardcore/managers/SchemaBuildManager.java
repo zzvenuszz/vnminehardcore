@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,6 +15,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.LinkedHashMap;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
@@ -71,6 +77,13 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     private final Map<UUID, BuildSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Deque<BuildOperation>> undoHistory = new HashMap<>();
     private final Map<UUID, Deque<BuildOperation>> redoHistory = new HashMap<>();
+    private final ExecutorService buildSaveExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "VnMine-SchemaBuild-Save");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private final AtomicReference<Map<String, BuildRecord>> pendingBuildSave = new AtomicReference<>();
+    private final AtomicBoolean buildSaveWorkerRunning = new AtomicBoolean();
     private final BukkitTask previewTask;
 
     public SchemaBuildManager(VnMineHardcore plugin) throws IOException {
@@ -714,8 +727,36 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private boolean saveBuilds() {
+        pendingBuildSave.set(Map.copyOf(builds));
+        return scheduleBuildSave();
+    }
+
+    private boolean scheduleBuildSave() {
+        if (!buildSaveWorkerRunning.compareAndSet(false, true)) return true;
+        try {
+            buildSaveExecutor.execute(this::drainBuildSaves);
+            return true;
+        } catch (java.util.concurrent.RejectedExecutionException exception) {
+            buildSaveWorkerRunning.set(false);
+            pendingBuildSave.set(null);
+            plugin.getLogger().log(Level.SEVERE, "[SchemaBuild] Could not queue builds.yml save.", exception);
+            return false;
+        }
+    }
+
+    private void drainBuildSaves() {
+        try {
+            Map<String, BuildRecord> snapshot;
+            while ((snapshot = pendingBuildSave.getAndSet(null)) != null) saveBuildSnapshot(snapshot);
+        } finally {
+            buildSaveWorkerRunning.set(false);
+            if (pendingBuildSave.get() != null) scheduleBuildSave();
+        }
+    }
+
+    private void saveBuildSnapshot(Map<String, BuildRecord> records) {
         YamlConfiguration yaml = new YamlConfiguration();
-        for (BuildRecord record : builds.values()) {
+        for (BuildRecord record : records.values()) {
             String path = "builds." + record.id;
             yaml.set(path + ".schema", record.schemaPath); yaml.set(path + ".world", record.world);
             yaml.set(path + ".anchor.x", record.anchor.getX()); yaml.set(path + ".anchor.y", record.anchor.getY()); yaml.set(path + ".anchor.z", record.anchor.getZ());
@@ -730,8 +771,19 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             }
             yaml.set(path + ".blocks", blocks);
         }
-        try { yaml.save(buildsFile); return true; }
-        catch (IOException exception) { plugin.getLogger().log(Level.SEVERE, "[SchemaBuild] Could not save builds.yml", exception); return false; }
+        File temporary = new File(buildsFile.getParentFile(), buildsFile.getName() + ".tmp");
+        try {
+            yaml.save(temporary);
+            try {
+                Files.move(temporary.toPath(), buildsFile.toPath(), StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
+                Files.move(temporary.toPath(), buildsFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException exception) {
+            try { Files.deleteIfExists(temporary.toPath()); } catch (IOException ignored) { }
+            plugin.getLogger().log(Level.SEVERE, "[SchemaBuild] Could not save builds.yml", exception);
+        }
     }
 
     private void tickPreviews() {
@@ -1115,6 +1167,17 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         previewTask.cancel();
         sessions.values().forEach(this::removePreview);
         sessions.clear();
+        buildSaveExecutor.shutdown();
+        try {
+            if (!buildSaveExecutor.awaitTermination(120, TimeUnit.SECONDS)) {
+                plugin.getLogger().severe("[SchemaBuild] Timed out while waiting for builds.yml save worker.");
+                buildSaveExecutor.shutdownNow();
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            buildSaveExecutor.shutdownNow();
+            plugin.getLogger().log(Level.WARNING, "[SchemaBuild] Interrupted while waiting for builds.yml save worker.", exception);
+        }
     }
 
     private record SchemaFile(String relativePath, SchemaDefinition schema) { }

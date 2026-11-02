@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.52.0 — 2026-11-02
+
+- Ghi `builds.yml` bất đồng bộ qua worker tuần tự và file tạm nguyên tử; tránh chặn server thread khi danh sách build lớn.
+
 ## 2.51.0 — 2026-11-02
 
 - Schema Build mở danh sách thư mục trước, sau đó hiển thị các schema nằm trong thư mục đã chọn; thêm nút quay lại danh sách thư mục và phân trang riêng.
