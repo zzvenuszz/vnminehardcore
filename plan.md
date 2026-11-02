@@ -5,7 +5,7 @@
 - [x] Thêm `worldedit.brush-preview-blocks` (mặc định `-1` không giới hạn), cập nhật README/changelog và tăng version 2.48.0.
 - [x] Build Java 25 thành công lúc `2026-11-02 14:14:23 UTC` bằng `mvn -DskipTests clean package`; JAR 2.48.0: 2.575.296 bytes, SHA-256 `b74963cca107e5246c8336d6710a894146d297273008d7fc261f11e94cf262f6`; plugin.yml là 2.48.0, SQLite native Linux x86_64.
 - [x] Backup 2.47.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.47.0-pre-2.48.0-20261102.jar` và bản 2.48.0 đã cài trước đó tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.48.0-before-surface-preview-20261102.jar`; cài JAR 2.48.0 hoàn chỉnh tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.48.0.jar`.
-- [ ] Commit/push code và kế hoạch lên `origin/main`.
+- [x] Push commit triển khai `8cc5653` lên `origin/main`.
 - [ ] Chưa gameplay test preview bám theo ngắm trên mặt đất dốc, canh lớp pattern và từng bước `//undo`.
 
 # WorldEdit clipboard brush — 2.47.0 — 2026-11-02
