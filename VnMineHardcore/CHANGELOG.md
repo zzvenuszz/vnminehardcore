@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.51.0 — 2026-11-02
+
+- Schema Build mở danh sách thư mục trước, sau đó hiển thị các schema nằm trong thư mục đã chọn; thêm nút quay lại danh sách thư mục và phân trang riêng.
+
 ## 2.50.0 — 2026-11-02
 
 - Thêm `/skin <tên skin>` để người chơi đặt skin của chính mình; skin tải từ Mojang bất đồng bộ và được giữ lại khi đăng nhập lần sau.

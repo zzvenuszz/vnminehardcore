@@ -97,7 +97,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             player.sendMessage("§cBạn không có quyền sử dụng Schema Build.");
             return;
         }
-        openList(player, 0);
+        openFolderMenu(player, 0);
     }
 
     @Override
@@ -134,35 +134,83 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         return values.stream().filter(value -> value.startsWith(normalized)).toList();
     }
 
-    private void openList(Player player, int requestedPage) {
-        List<SchemaFile> files = findSchemaFiles(player);
+    private void openFolderMenu(Player player, int requestedPage) {
+        List<SchemaFolder> folders = findSchemaFolders(findSchemaFiles(player));
+        int pages = Math.max(1, (folders.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        int page = Math.max(0, Math.min(requestedPage, pages - 1));
+        SchemaHolder holder = new SchemaHolder(player.getUniqueId(), View.FOLDERS, page);
+        Inventory menu = Bukkit.createInventory(holder, 54, "Schema Build • Thư mục • " + (page + 1) + "/" + pages);
+        holder.inventory = menu;
+        int end = Math.min(folders.size(), (page + 1) * PAGE_SIZE);
+        for (int index = page * PAGE_SIZE; index < end; index++) {
+            SchemaFolder folder = folders.get(index);
+            int slot = index - page * PAGE_SIZE;
+            holder.folders.put(slot, folder);
+            String name = folder.relativePath().isEmpty() ? "schemas/ (gốc)" : folder.relativePath() + "/";
+            menu.setItem(slot, icon(Material.CHEST, "§e" + name, List.of(
+                "§7Số schema: §f" + folder.schemaCount(),
+                "§eNhấn để xem schema trong thư mục này.")));
+        }
+        if (folders.isEmpty()) menu.setItem(22, icon(Material.BARRIER, "§cChưa có schema hợp lệ", List.of(
+            "§7Đặt file Sponge Schematic .schem vào:", "§fplugins/VnMineHardcore/schemas/",
+            "§7Các thư mục con sẽ được hiển thị riêng.")));
+        if (page > 0) menu.setItem(45, icon(Material.ARROW, "§eTrang trước", List.of()));
+        menu.setItem(48, icon(Material.SUNFLOWER, "§eQuét lại thư mục", List.of("§7Đọc schema mới/thay đổi ngay.")));
+        menu.setItem(49, icon(Material.ARROW, "§7Về menu Admin", List.of()));
+        if ((page + 1) * PAGE_SIZE < folders.size()) menu.setItem(53, icon(Material.ARROW, "§eTrang sau", List.of()));
+        player.openInventory(menu);
+    }
+
+    private List<SchemaFolder> findSchemaFolders(List<SchemaFile> files) {
+        Map<String, Integer> counts = new HashMap<>();
+        for (SchemaFile file : files) counts.merge(folderOf(file.relativePath()), 1, Integer::sum);
+        return counts.entrySet().stream().map(entry -> new SchemaFolder(entry.getKey(), entry.getValue()))
+            .sorted(Comparator.comparing(SchemaFolder::relativePath, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(SchemaFolder::relativePath)).toList();
+    }
+
+    private void openList(Player player, String folderPath, int folderPage, int requestedPage) {
+        List<SchemaFile> files = findSchemaFiles(player).stream()
+            .filter(file -> folderOf(file.relativePath()).equals(folderPath)).toList();
         int pages = Math.max(1, (files.size() + PAGE_SIZE - 1) / PAGE_SIZE);
         int page = Math.max(0, Math.min(requestedPage, pages - 1));
-        SchemaHolder holder = new SchemaHolder(player.getUniqueId(), View.LIST, page);
-        Inventory menu = Bukkit.createInventory(holder, 54, "Schema Build • " + (page + 1) + "/" + pages);
+        SchemaHolder holder = new SchemaHolder(player.getUniqueId(), View.LIST, page, folderPath, folderPage);
+        String displayFolder = folderPath.isEmpty() ? "schemas/" : folderPath + "/";
+        Inventory menu = Bukkit.createInventory(holder, 54, "Schema • " + displayFolder + " • " + (page + 1) + "/" + pages);
         holder.inventory = menu;
         int end = Math.min(files.size(), (page + 1) * PAGE_SIZE);
         for (int index = page * PAGE_SIZE; index < end; index++) {
             SchemaFile file = files.get(index);
             int slot = index - page * PAGE_SIZE;
             holder.choices.put(slot, file);
-            menu.setItem(slot, icon(Material.STRUCTURE_BLOCK, "§b" + file.relativePath(), List.of(
+            menu.setItem(slot, icon(Material.STRUCTURE_BLOCK, "§b" + fileName(file.relativePath()), List.of(
+                "§7Thư mục: §f" + displayFolder,
                 "§7Tên: §f" + file.schema().name(),
                 "§7Số block: §f" + file.schema().blocks().size(),
                 "§7Kích thước: §f" + file.schema().sizeX() + "×" + file.schema().sizeY() + "×" + file.schema().sizeZ(),
                 "§eNhấn để xoay/chỉnh preview.")));
         }
-        if (files.isEmpty()) menu.setItem(22, icon(Material.BARRIER, "§cChưa có schema hợp lệ", List.of(
-            "§7Đặt file Sponge Schematic .schem vào:", "§fplugins/VnMineHardcore/schemas/",
-            "§7Có thể tạo thư mục con để nhóm công trình.", "§eVí dụ: schemas/examples/small-platform.schem")));
-        if (page > 0) menu.setItem(45, icon(Material.ARROW, "§eTrang trước", List.of()));
+        if (files.isEmpty()) menu.setItem(22, icon(Material.BARRIER, "§cThư mục không có schema hợp lệ", List.of(
+            "§7Đặt file Sponge Schematic .schem vào:", "§fplugins/VnMineHardcore/schemas/" + displayFolder)));
+        menu.setItem(45, icon(Material.ARROW, "§eQuay lại chọn thư mục", List.of("§7Trở về danh sách thư mục.")));
         menu.setItem(46, icon(Material.SPECTRAL_ARROW, "§bUndo build gần nhất", List.of(
             "§7Tối đa 10 lần đặt trong phiên này.", "§7Hoặc dùng /vnbuild undo.")));
         menu.setItem(47, icon(Material.TIPPED_ARROW, "§dRedo build vừa Undo", List.of("§7Có thể dùng /vnbuild redo.")));
         menu.setItem(48, icon(Material.SUNFLOWER, "§eQuét lại thư mục", List.of("§7Đọc schema mới/thay đổi ngay.")));
         menu.setItem(49, icon(Material.ARROW, "§7Về menu Admin", List.of()));
+        if (page > 0) menu.setItem(50, icon(Material.ARROW, "§eTrang trước", List.of()));
         if ((page + 1) * PAGE_SIZE < files.size()) menu.setItem(53, icon(Material.ARROW, "§eTrang sau", List.of()));
         player.openInventory(menu);
+    }
+
+    private String folderOf(String relativePath) {
+        int separator = relativePath.lastIndexOf('/');
+        return separator < 0 ? "" : relativePath.substring(0, separator);
+    }
+
+    private String fileName(String relativePath) {
+        int separator = relativePath.lastIndexOf('/');
+        return separator < 0 ? relativePath : relativePath.substring(separator + 1);
     }
 
     private List<SchemaFile> findSchemaFiles(Player player) {
@@ -278,13 +326,17 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private void openBuilder(Player player, SchemaFile schema) {
-        openBuilder(player, schema, null);
+        openBuilder(player, schema, null, 0, 0);
     }
 
     private void openBuilder(Player player, SchemaFile schema, BuildRecord existing) {
+        openBuilder(player, schema, existing, 0, 0);
+    }
+
+    private void openBuilder(Player player, SchemaFile schema, BuildRecord existing, int folderPage, int schemaPage) {
         BuildSession previous = sessions.remove(player.getUniqueId());
         if (previous != null) removePreview(previous);
-        BuildSession session = new BuildSession(schema);
+        BuildSession session = new BuildSession(schema, folderPage, schemaPage);
         if (existing != null) {
             session.buildId = existing.id;
             session.protect = existing.protect;
@@ -353,15 +405,29 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
                 || !holder.viewer.equals(player.getUniqueId()) || event.getClickedInventory() != event.getView().getTopInventory()) return;
         int slot = event.getRawSlot();
         if (!player.hasPermission(PERMISSION)) { player.closeInventory(); return; }
+        if (holder.view == View.FOLDERS) {
+            if (slot == 49) {
+                if (plugin.getMercenaryManager() != null) plugin.getMercenaryManager().openAdminMenu(player);
+            } else if (slot == 45 && holder.page > 0) openFolderMenu(player, holder.page - 1);
+            else if (slot == 53) openFolderMenu(player, holder.page + 1);
+            else if (slot == 48) openFolderMenu(player, holder.page);
+            else if (holder.folders.containsKey(slot)) {
+                openList(player, holder.folders.get(slot).relativePath(), holder.page, 0);
+            }
+            return;
+        }
         if (holder.view == View.LIST) {
             if (slot == 49) {
                 if (plugin.getMercenaryManager() != null) plugin.getMercenaryManager().openAdminMenu(player);
-            } else if (slot == 45 && holder.page > 0) openList(player, holder.page - 1);
-            else if (slot == 53) openList(player, holder.page + 1);
-            else if (slot == 46) { undo(player); openList(player, holder.page); }
-            else if (slot == 47) { redo(player); openList(player, holder.page); }
-            else if (slot == 48) openList(player, holder.page);
-            else if (holder.choices.containsKey(slot)) openBuilder(player, holder.choices.get(slot));
+            } else if (slot == 45) openFolderMenu(player, holder.folderPage);
+            else if (slot == 50 && holder.page > 0) openList(player, holder.folderPath, holder.folderPage, holder.page - 1);
+            else if (slot == 53) openList(player, holder.folderPath, holder.folderPage, holder.page + 1);
+            else if (slot == 46) { undo(player); openList(player, holder.folderPath, holder.folderPage, holder.page); }
+            else if (slot == 47) { redo(player); openList(player, holder.folderPath, holder.folderPage, holder.page); }
+            else if (slot == 48) openList(player, holder.folderPath, holder.folderPage, holder.page);
+            else if (holder.choices.containsKey(slot)) {
+                openBuilder(player, holder.choices.get(slot), null, holder.folderPage, holder.page);
+            }
             return;
         }
         BuildSession session = sessions.get(player.getUniqueId());
@@ -383,7 +449,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             case 45 -> {
                 sessions.remove(player.getUniqueId());
                 removePreview(session);
-                openList(player, 0);
+                openList(player, folderOf(session.schema.relativePath()), session.sourceFolderPage, session.sourceSchemaPage);
             }
             case 49 -> {
                 sessions.remove(player.getUniqueId());
@@ -972,7 +1038,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             + ", protect=" + session.protect + ", undo-history=" + undo.size() + "/" + historyLimit());
         sessions.remove(player.getUniqueId());
         removePreview(session);
-        openList(player, 0);
+        openFolderMenu(player, 0);
     }
 
     private void undo(Player player) {
@@ -1052,13 +1118,14 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private record SchemaFile(String relativePath, SchemaDefinition schema) { }
+    private record SchemaFolder(String relativePath, int schemaCount) { }
     private record SchemaDefinition(String name, List<SchemaBlock> blocks, int sizeX, int sizeY, int sizeZ) { }
     private record SchemaBlock(int x, int y, int z, String blockData) { }
     private record RotatedBlock(int x, int y, int z, String blockData) { }
     private record PlacedBlock(int x, int y, int z, String blockData) { }
     private record BlockSnapshot(Location location, String beforeData, String afterData, String baselineBeforeData) { }
     private record BuildOperation(String schema, List<BlockSnapshot> blocks) { }
-    private enum View { LIST, BUILDER }
+    private enum View { FOLDERS, LIST, BUILDER }
 
     private static final class BuildRecord {
         private final String id, schemaPath, world;
@@ -1094,7 +1161,14 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         private List<BlockSnapshot> baseline;
         private volatile boolean placementPreview;
         private boolean previewTruncated;
-        private BuildSession(SchemaFile schema) { this.schema = schema; }
+        private final int sourceFolderPage;
+        private final int sourceSchemaPage;
+        private BuildSession(SchemaFile schema) { this(schema, 0, 0); }
+        private BuildSession(SchemaFile schema, int sourceFolderPage, int sourceSchemaPage) {
+            this.schema = schema;
+            this.sourceFolderPage = sourceFolderPage;
+            this.sourceSchemaPage = sourceSchemaPage;
+        }
     }
 
     private static final class SchemaHolder implements InventoryHolder {
@@ -1102,11 +1176,25 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         private final View view;
         private final int page;
         private final Map<Integer, SchemaFile> choices = new HashMap<>();
+        private final Map<Integer, SchemaFolder> folders = new HashMap<>();
+        private final String folderPath;
+        private final int folderPage;
         private Inventory inventory;
         private final BuildSession session;
-        private SchemaHolder(UUID viewer, View view, int page) { this(viewer, view, page, null); }
+        private SchemaHolder(UUID viewer, View view, int page) { this(viewer, view, page, "", 0, null); }
         private SchemaHolder(UUID viewer, View view, int page, BuildSession session) {
-            this.viewer = viewer; this.view = view; this.page = page; this.session = session;
+            this(viewer, view, page, "", 0, session);
+        }
+        private SchemaHolder(UUID viewer, View view, int page, String folderPath, int folderPage) {
+            this(viewer, view, page, folderPath, folderPage, null);
+        }
+        private SchemaHolder(UUID viewer, View view, int page, String folderPath, int folderPage, BuildSession session) {
+            this.viewer = viewer;
+            this.view = view;
+            this.page = page;
+            this.folderPath = folderPath;
+            this.folderPage = folderPage;
+            this.session = session;
         }
         @Override public Inventory getInventory() { return inventory; }
     }

@@ -192,7 +192,7 @@ Hãy dùng menu/command editor khi có; thao tác trực tiếp với YAML cần
 | `/vnportal <subcommand>` | Portal RPG | `vnmine.command.portal.admin` |
 | `/vntext <subcommand>` | Text display | `vnmine.command.text.manage` |
 | `/vnregion [wand]` | WorldEdit/vùng bảo vệ tích hợp | `vnmine.command.worldedit` |
-| `/vnbuild [select|undo|redo]` | Schema Build | `vnmine.command.schemabuild` |
+| `/vnbuild [select|undo|redo]` | Schema Build; menu chọn thư mục rồi chọn schema trong thư mục đó | `vnmine.command.schemabuild` |
 | `/vnevent [id ...|stop]` | Thiên tai | `vnmine.command.disasters` |
 | `/vnboss <id> ...|kill` | Boss | `vnmine.command.bosses` |
 | `/vntime set <day\|night> <phút> [world]` | Chu kỳ ngày/đêm | `vnmine.command.time.manage` |
