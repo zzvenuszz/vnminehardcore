@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.53.0 — 2026-11-02
+
+- Thêm Clipboard Paste Tool bằng cuốc chim gỗ: preview clipboard trên bề mặt đang ngắm, chuột trái xoay 90°, chuột phải đặt; mỗi lần đặt có thể `//undo`.
+
 ## 2.52.0 — 2026-11-02
 
 - Ghi `builds.yml` bất đồng bộ qua worker tuần tự và file tạm nguyên tử; tránh chặn server thread khi danh sách build lớn.

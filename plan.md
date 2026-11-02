@@ -1312,6 +1312,17 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Push commit triển khai `38c71b4` lên `origin/main`.
 - [ ] Chưa gameplay test danh sách thư mục lồng nhau, phân trang và quay lại.
 
+## Clipboard Paste Tool xoay preview và đặt clipboard — 2.53.0 — 2026-11-02
+
+- [x] Thêm **Lấy Clipboard Paste Tool** vào menu Admin → WorldEdit; cấp cuốc chim gỗ có PDC riêng.
+- [x] Khi cầm tool, preview BlockDisplay bám theo mặt block đang ngắm; chuột trái xoay clipboard 90° cả tọa độ và block state, chuột phải đặt.
+- [x] Đặt bao gồm air như `//paste`; dùng batch/history WorldEdit hiện có để mỗi lần đặt có thể `//undo`.
+- [x] Cập nhật README/changelog và tăng phiên bản lên 2.53.0.
+- [x] Build Java 25 thành công lúc `2026-11-02 14:51 UTC` bằng `mvn -DskipTests clean package`; test suite bỏ qua, compile/package thành công.
+- [x] JAR `VnMineHardcore-2.53.0.jar`, 2.587.616 bytes, SHA-256 `a7dda047d765a1727b2a06b10a8cb4d23e7f87946e89d26c45faf78f70f542e2`; plugin.yml là 2.53.0, SQLite native chỉ có Linux x86_64.
+- [ ] Backup/cài JAR và push lên `origin/main`.
+- [ ] Chưa gameplay test preview, xoay block directionals, paste block air và //undo.
+
 ## Khắc phục server khựng khi lưu Schema Build — 2.52.0 — 2026-11-02
 
 - [x] Log `latest.log` 14:41 cho thấy Paper Watchdog dump server thread đang ở `YamlConfiguration.save()` → `SchemaBuildManager.saveBuilds()` → `place()`. `builds.yml` lúc kiểm tra có 59.495.193 bytes / 3.112.269 dòng; lần treo 10–15 giây xảy ra ngay trước build-complete của BapLuoc.

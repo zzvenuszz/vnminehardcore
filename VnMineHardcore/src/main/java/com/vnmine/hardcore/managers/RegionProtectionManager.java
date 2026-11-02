@@ -25,6 +25,8 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.structure.StructureRotation;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.ConfigurationSection;
@@ -89,6 +91,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private final VnMineHardcore plugin;
     private final NamespacedKey wandKey;
     private final NamespacedKey brushKey;
+    private final NamespacedKey clipboardPasteToolKey;
     private final File dataFile;
     private final Map<String, ProtectedRegion> regions = new LinkedHashMap<>();
     private final Map<UUID, Selection> selections = new HashMap<>();
@@ -97,6 +100,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private final Map<UUID, Deque<EditOperation>> redoHistory = new HashMap<>();
     private final Map<UUID, Clipboard> clipboards = new HashMap<>();
     private final Map<UUID, BrushPreview> brushPreviews = new HashMap<>();
+    private final Map<UUID, PastePreview> pastePreviews = new HashMap<>();
     private final Set<UUID> activeEdits = new HashSet<>();
     private final BukkitTask selectionParticleTask;
     private final BukkitTask brushPreviewTask;
@@ -105,6 +109,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         this.plugin = plugin;
         this.wandKey = new NamespacedKey(plugin, "worldedit_region_wand");
         this.brushKey = new NamespacedKey(plugin, "worldedit_clipboard_brush");
+        this.clipboardPasteToolKey = new NamespacedKey(plugin, "worldedit_clipboard_paste_tool");
         this.dataFile = new File(plugin.getDataFolder(), "protected-regions.yml");
         load();
         for (World world : Bukkit.getWorlds()) applyStartWorldSettings(world);
@@ -195,6 +200,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         UUID id = event.getPlayer().getUniqueId();
         undoHistory.remove(id); redoHistory.remove(id); clipboards.remove(id); selections.remove(id); pendingNames.remove(id);
         removeBrushPreview(id);
+        removePastePreview(id);
     }
 
     public void openAdminMenu(Player player) { openAdminMenu(player, 0); }
@@ -203,6 +209,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         selectionParticleTask.cancel();
         brushPreviewTask.cancel();
         for (UUID playerId : new HashSet<>(brushPreviews.keySet())) removeBrushPreview(playerId);
+        for (UUID playerId : new HashSet<>(pastePreviews.keySet())) removePastePreview(playerId);
     }
 
     private void openAdminMenu(Player player, int requestedPage) {
@@ -232,7 +239,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             "§eNhấn để đặt tên vùng bằng chat.")));
         menu.setItem(46, icon(Material.WRITABLE_BOOK, "§dLệnh WorldEdit tích hợp", List.of(
             "§7//set <pattern> • //replace <from> <to>", "§7//walls <pattern> • //faces <pattern> • //overlay <pattern>",
-            "§7//copy • //cut • //paste [-a] • //undo • //redo", "§7Copy vùng rồi nhận stick brush để vẽ pattern.",
+            "§7//copy • //cut • //paste [-a] • //undo • //redo", "§7Nhận stick brush để vẽ hoặc cuốc chim để preview/xoay/đặt clipboard.",
             "§eGõ //help để xem hướng dẫn.")));
         if (page > 0) menu.setItem(45, icon(Material.ARROW, "§eTrang trước", List.of()));
         menu.setItem(47, icon(Material.SUNFLOWER, "§bCài đặt World bắt đầu/reset", List.of(
@@ -240,6 +247,9 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         menu.setItem(50, icon(Material.STICK, "§aLấy Clipboard Brush", List.of(
             "§7Dùng pattern đã //copy; preview bám mặt block đang ngắm.", "§7Chuột phải để xác nhận đóng dấu; air được bỏ qua.",
             "§7Mỗi lần vẽ là một bước //undo.", "§eCần //copy một vùng trước.")));
+        menu.setItem(51, icon(Material.WOODEN_PICKAXE, "§bLấy Clipboard Paste Tool", List.of(
+            "§7Preview đầy đủ nội dung đã //copy trên mặt đất.", "§7Chuột trái xoay 90°; chuột phải đặt.",
+            "§7Block air trong clipboard cũng được đặt.", "§7Mỗi lần đặt lưu thành một bước //undo.")));
         menu.setItem(49, icon(Material.ARROW, "§7Quay lại menu Admin", List.of()));
         if ((page + 1) * CONTENT_SLOTS.length < ordered.size()) menu.setItem(53, icon(Material.ARROW, "§eTrang sau", List.of()));
         player.openInventory(menu);
@@ -328,7 +338,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         player.sendMessage("§7Dùng //clearhistory để xóa lịch sử undo/redo hiện tại.");
         player.sendMessage("§7Điều chỉnh vùng: //expand <n> [up|down|north|south|east|west|vert], //contract <n> [hướng], //shift <n> [hướng].");
         player.sendMessage("§7//move <n> [hướng] [block_để_lại] • //stack <số_bản> [hướng]. Clipboard/undo chỉ lưu trong phiên.");
-        player.sendMessage("§7Copy vùng bằng búa + //copy, nhận stick brush tại Admin → WorldEdit, chuột phải để vẽ; mỗi lần dùng brush có thể //undo.");
+        player.sendMessage("§7Copy vùng bằng búa + //copy; stick brush để vẽ, cuốc chim preview clipboard, chuột trái xoay/phải đặt; //undo hoàn tác.");
         player.sendMessage("§7Block nhận ID như §fminecraft:stone§7 hoặc block state §fminecraft:oak_log[axis=x]§7. Giới hạn hiện tại: §f"
             + limitLabel() + " §7block/thao tác. Dùng //limit <số|unlimited> để đổi; thao tác không giới hạn vẫn phụ thuộc RAM và chunk đã nạp.");
     }
@@ -1077,7 +1087,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         ItemMeta meta = wand.getItemMeta();
         meta.setDisplayName("§6WorldEdit • Búa chọn vùng");
         meta.setLore(List.of("§7Chuột trái: điểm 1 • Chuột phải: điểm 2", "§7//set / //replace / //walls / //faces",
-            "§7//copy / //paste / //undo / //redo", "§7Copy pattern rồi dùng stick brush để vẽ.",
+            "§7//copy / //paste / //undo / //redo", "§7Copy rồi lấy stick brush để vẽ hoặc cuốc chim để preview/xoay/đặt.",
             "§7/vnregion để quản lý vùng và flags."));
         meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
         wand.setItemMeta(meta);
@@ -1095,6 +1105,11 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private boolean isBrush(ItemStack item) {
         return item != null && item.getType() == Material.STICK && item.hasItemMeta()
             && item.getItemMeta().getPersistentDataContainer().has(brushKey, PersistentDataType.BYTE);
+    }
+
+    private boolean isClipboardPasteTool(ItemStack item) {
+        return item != null && item.getType() == Material.WOODEN_PICKAXE && item.hasItemMeta()
+            && item.getItemMeta().getPersistentDataContainer().has(clipboardPasteToolKey, PersistentDataType.BYTE);
     }
 
     private void giveBrush(Player player) {
@@ -1115,6 +1130,27 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         if (!leftovers.isEmpty()) player.getWorld().dropItemNaturally(player.getLocation(), brush);
         player.sendMessage("§aĐã cấp stick Clipboard Brush. §eCầm stick để xem preview bám mặt block; chuột phải xác nhận, mỗi lần có một bước //undo.");
         plugin.getLogger().info("[WorldRegion] brush-issued player=" + player.getName() + ", blocks=" + clipboard.blocks().size());
+    }
+
+    private void giveClipboardPasteTool(Player player) {
+        Clipboard clipboard = clipboards.get(player.getUniqueId());
+        if (clipboard == null) {
+            player.sendMessage("§cChọn vùng bằng búa rồi dùng //copy trước.");
+            return;
+        }
+        ItemStack tool = new ItemStack(Material.WOODEN_PICKAXE);
+        ItemMeta meta = tool.getItemMeta();
+        meta.setDisplayName("§bWorldEdit • Clipboard Paste Tool");
+        meta.setLore(List.of("§7Clipboard: §f" + clipboard.blocks().size() + " block",
+            "§7Cầm để xem preview bám mặt đất đang ngắm.",
+            "§7Chuột trái xoay 90°; chuột phải đặt.", "§7Có thể //undo sau khi đặt."));
+        meta.getPersistentDataContainer().set(clipboardPasteToolKey, PersistentDataType.BYTE, (byte) 1);
+        tool.setItemMeta(meta);
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(tool);
+        if (!leftovers.isEmpty()) player.getWorld().dropItemNaturally(player.getLocation(), tool);
+        player.sendMessage("§aĐã cấp cuốc chim Clipboard Paste Tool. Cầm cuốc để xem preview; chuột trái xoay, chuột phải đặt và có thể //undo.");
+        plugin.getLogger().info("[WorldRegion] paste-tool-issued player=" + player.getName()
+            + ", blocks=" + clipboard.blocks().size());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -1147,6 +1183,83 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         applyClipboardBrush(player, clipboard, target);
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onClipboardPasteToolUse(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || !isClipboardPasteTool(event.getItem())) return;
+        Action action = event.getAction();
+        if (action != Action.LEFT_CLICK_AIR && action != Action.LEFT_CLICK_BLOCK
+                && action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+        event.setCancelled(true);
+        Player player = event.getPlayer();
+        if (!canManage(player)) {
+            player.sendMessage("§cBạn không có quyền dùng WorldEdit clipboard tool.");
+            return;
+        }
+        if (activeEdits.contains(player.getUniqueId())) {
+            player.sendMessage("§eThao tác vùng trước vẫn đang chạy.");
+            return;
+        }
+        Clipboard clipboard = clipboards.get(player.getUniqueId());
+        if (clipboard == null) {
+            removePastePreview(player.getUniqueId());
+            player.sendMessage("§cClipboard trống. Chọn vùng bằng búa rồi dùng //copy trước.");
+            return;
+        }
+        PastePreview preview = pastePreviews.get(player.getUniqueId());
+        if (preview == null || preview.clipboard != clipboard) {
+            removePastePreview(player.getUniqueId());
+            preview = new PastePreview(clipboard, rotateClipboard(clipboard, 0));
+            pastePreviews.put(player.getUniqueId(), preview);
+        }
+        if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+            preview.rotation = (preview.rotation + 90) % 360;
+            preview.transformedBlocks = rotateClipboard(clipboard, preview.rotation);
+            preview.anchor = null;
+            Block anchor = pasteSurfaceAnchor(player, null, null);
+            if (anchor != null) updatePastePreview(player, preview, anchor);
+            player.sendActionBar("§bClipboard xoay §f" + preview.rotation + "°§b. Chuột phải để đặt.");
+            return;
+        }
+        Block anchor = pasteSurfaceAnchor(player, event.getClickedBlock(), event.getBlockFace());
+        if (anchor == null) {
+            player.sendMessage("§eHãy ngắm vào mặt đất hoặc block để xem vị trí đặt.");
+            return;
+        }
+        placeClipboardTool(player, preview, anchor);
+    }
+
+    private void placeClipboardTool(Player player, PastePreview preview, Block anchor) {
+        World world = player.getWorld();
+        List<BlockChange> changes = new ArrayList<>();
+        try {
+            for (ClipboardBlock saved : preview.transformedBlocks) {
+                long x = (long) anchor.getX() + saved.x();
+                long y = (long) anchor.getY() + saved.y();
+                long z = (long) anchor.getZ() + saved.z();
+                if (x < Integer.MIN_VALUE || x > Integer.MAX_VALUE || z < Integer.MIN_VALUE || z > Integer.MAX_VALUE
+                        || y < world.getMinHeight() || y >= world.getMaxHeight()) {
+                    throw new IllegalArgumentException("Clipboard vượt giới hạn tọa độ/chiều cao của world.");
+                }
+                int blockX = (int) x, blockY = (int) y, blockZ = (int) z;
+                Location location = new Location(world, blockX, blockY, blockZ);
+                if (!world.getWorldBorder().isInside(location))
+                    throw new IllegalArgumentException("Clipboard vượt world border; không đổi block nào.");
+                if (!world.isChunkLoaded(blockX >> 4, blockZ >> 4))
+                    throw new IllegalArgumentException("Clipboard đi vào chunk chưa nạp; không đổi block nào.");
+                addChange(player, changes, world.getBlockAt(blockX, blockY, blockZ),
+                    Bukkit.createBlockData(saved.blockData()));
+            }
+            if (changes.size() > editLimit())
+                throw new IllegalArgumentException("Clipboard cần " + changes.size() + " block; giới hạn hiện tại là " + limitLabel() + ".");
+            scheduleEdit(player, "//paste-tool", changes);
+            plugin.getLogger().info("[WorldRegion] paste-tool-place player=" + player.getName() + ", rotation="
+                + preview.rotation + ", blocks=" + changes.size() + ", anchor=" + world.getName() + ":"
+                + anchor.getX() + "," + anchor.getY() + "," + anchor.getZ());
+        } catch (IllegalArgumentException exception) {
+            player.sendMessage("§c" + exception.getMessage());
+        }
+    }
+
     private void tickBrushPreviews() {
         Set<UUID> active = new HashSet<>();
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -1168,6 +1281,117 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         for (UUID playerId : new HashSet<>(brushPreviews.keySet())) {
             if (!active.contains(playerId)) removeBrushPreview(playerId);
         }
+        tickClipboardPastePreviews();
+    }
+
+    private void tickClipboardPastePreviews() {
+        Set<UUID> active = new HashSet<>();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            UUID playerId = player.getUniqueId();
+            ItemStack held = player.getInventory().getItemInMainHand();
+            Clipboard clipboard = clipboards.get(playerId);
+            if (!canManage(player) || !isClipboardPasteTool(held) || clipboard == null) {
+                removePastePreview(playerId);
+                continue;
+            }
+            Block anchor = pasteSurfaceAnchor(player, null, null);
+            if (anchor == null) {
+                removePastePreview(playerId);
+                continue;
+            }
+            PastePreview preview = pastePreviews.get(playerId);
+            if (preview == null || preview.clipboard != clipboard) {
+                removePastePreview(playerId);
+                preview = new PastePreview(clipboard, rotateClipboard(clipboard, 0));
+                pastePreviews.put(playerId, preview);
+            }
+            active.add(playerId);
+            updatePastePreview(player, preview, anchor);
+        }
+        for (UUID playerId : new HashSet<>(pastePreviews.keySet())) {
+            if (!active.contains(playerId)) removePastePreview(playerId);
+        }
+    }
+
+    private Block pasteSurfaceAnchor(Player player, Block clicked, BlockFace face) {
+        if (clicked == null) {
+            org.bukkit.util.RayTraceResult hit = player.rayTraceBlocks(64.0);
+            if (hit == null || hit.getHitBlock() == null) return null;
+            clicked = hit.getHitBlock();
+            face = hit.getHitBlockFace();
+        }
+        if (face == null || face == BlockFace.SELF) face = BlockFace.UP;
+        return clicked.getRelative(face);
+    }
+
+    private List<ClipboardBlock> rotateClipboard(Clipboard clipboard, int degrees) {
+        List<ClipboardBlock> result = new ArrayList<>(clipboard.blocks().size());
+        int turns = Math.floorMod(degrees, 360) / 90;
+        for (ClipboardBlock saved : clipboard.blocks()) {
+            int x = saved.x(), z = saved.z();
+            BlockData data = Bukkit.createBlockData(saved.blockData());
+            for (int turn = 0; turn < turns; turn++) {
+                int oldX = x;
+                x = z;
+                z = -oldX;
+                data.rotate(StructureRotation.CLOCKWISE_90);
+            }
+            result.add(new ClipboardBlock(x, saved.y(), z, data.getAsString()));
+        }
+        return List.copyOf(result);
+    }
+
+    private void updatePastePreview(Player player, PastePreview preview, Block anchorBlock) {
+        Location anchor = anchorBlock.getLocation();
+        if (preview.anchor != null && preview.anchor.getWorld().equals(anchor.getWorld())
+                && preview.anchor.getBlockX() == anchor.getBlockX()
+                && preview.anchor.getBlockY() == anchor.getBlockY()
+                && preview.anchor.getBlockZ() == anchor.getBlockZ()) return;
+        preview.anchor = anchor;
+        List<ClipboardBlock> visible = preview.transformedBlocks.stream()
+            .filter(block -> !Bukkit.createBlockData(block.blockData()).getMaterial().isAir()).toList();
+        int configuredLimit = plugin.getConfig().getInt("worldedit.brush-preview-blocks", DEFAULT_BRUSH_PREVIEW_BLOCKS);
+        int displayLimit = configuredLimit == -1 ? Integer.MAX_VALUE : Math.max(1, Math.min(32_768, configuredLimit));
+        int count = Math.min(visible.size(), displayLimit);
+        while (preview.displays.size() > count) preview.displays.remove(preview.displays.size() - 1).remove();
+        for (int index = 0; index < count; index++) {
+            ClipboardBlock saved = visible.get(index);
+            Location location = anchor.clone().add(saved.x(), saved.y(), saved.z());
+            BlockDisplay display;
+            if (index >= preview.displays.size()) {
+                display = anchor.getWorld().spawn(location, BlockDisplay.class, entity -> {
+                    entity.setBlock(Bukkit.createBlockData(saved.blockData()));
+                    entity.setGlowing(true);
+                    entity.setVisibleByDefault(false);
+                    entity.setPersistent(false);
+                });
+                preview.displays.add(display);
+            } else {
+                display = preview.displays.get(index);
+                if (!display.getWorld().equals(location.getWorld())) {
+                    display.remove();
+                    display = anchor.getWorld().spawn(location, BlockDisplay.class, entity -> {
+                        entity.setBlock(Bukkit.createBlockData(saved.blockData()));
+                        entity.setGlowing(true);
+                        entity.setVisibleByDefault(false);
+                        entity.setPersistent(false);
+                    });
+                    preview.displays.set(index, display);
+                } else {
+                    display.teleport(location);
+                    display.setBlock(Bukkit.createBlockData(saved.blockData()));
+                }
+            }
+            player.showEntity(plugin, display);
+        }
+        String truncated = visible.size() > displayLimit ? " §e(preview giới hạn)" : "";
+        player.sendActionBar("§bClipboard preview §f" + preview.rotation + "°§b tại §f" + anchorBlock.getX()
+            + " " + anchorBlock.getY() + " " + anchorBlock.getZ() + " §7• chuột trái xoay, chuột phải đặt" + truncated);
+    }
+
+    private void removePastePreview(UUID playerId) {
+        PastePreview preview = pastePreviews.remove(playerId);
+        if (preview != null) for (BlockDisplay display : preview.displays) display.remove();
     }
 
     private Block brushSurfaceAnchor(Player player, Block clicked) {
@@ -1527,6 +1751,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             else if (slot == 46) sendWorldEditHelp(player);
             else if (slot == 47) openStartWorldSettings(player);
             else if (slot == 50) giveBrush(player);
+            else if (slot == 51) giveClipboardPasteTool(player);
             else if (slot == 49) plugin.getMercenaryManager().openAdminMenu(player);
             else if (slot == 45 && holder.page > 0) openAdminMenu(player, holder.page - 1);
             else if (slot == 53) openAdminMenu(player, holder.page + 1);
@@ -1800,6 +2025,17 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             this.clipboard = clipboard;
             this.pattern = pattern;
             this.surfaceLayer = surfaceLayer;
+        }
+    }
+    private static final class PastePreview {
+        private final Clipboard clipboard;
+        private final List<BlockDisplay> displays = new ArrayList<>();
+        private List<ClipboardBlock> transformedBlocks;
+        private int rotation;
+        private Location anchor;
+        private PastePreview(Clipboard clipboard, List<ClipboardBlock> transformedBlocks) {
+            this.clipboard = clipboard;
+            this.transformedBlocks = transformedBlocks;
         }
     }
     @FunctionalInterface private interface BlockMatcher { boolean matches(BlockData data); }
