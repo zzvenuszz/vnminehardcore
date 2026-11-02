@@ -1309,5 +1309,5 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Build Java 25 thành công lúc `2026-11-02 14:38 UTC` bằng `mvn -DskipTests clean package`; test suite bỏ qua, compile/package thành công.
 - [x] JAR `VnMineHardcore-2.51.0.jar`, 2.581.807 bytes, SHA-256 `58d3822b14c4e549c4d9695f20cb1df3990d9b78ea7758b62749b6737c4114d6`; plugin.yml là 2.51.0, SQLite native chỉ có Linux x86_64.
 - [x] Backup JAR 2.50.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.50.0-pre-2.51.0-20261102.jar`; cài JAR 2.51.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.51.0.jar`, thư mục plugin chỉ còn một JAR hoạt động.
-- [ ] Push thay đổi lên `origin/main`.
+- [x] Push commit triển khai `38c71b4` lên `origin/main`.
 - [ ] Chưa gameplay test danh sách thư mục lồng nhau, phân trang và quay lại.
