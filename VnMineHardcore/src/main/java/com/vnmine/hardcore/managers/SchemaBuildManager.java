@@ -187,30 +187,13 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         int maxBlocks = configuredMaxBlocks == -1 ? -1 : Math.max(1, Math.min(500_000, configuredMaxBlocks));
         SpongeSchematicReader.Schematic schematic = SpongeSchematicReader.read(file, maxBlocks);
         List<SchemaBlock> blocks = new ArrayList<>(schematic.blockStates().size());
-        java.util.Set<String> normalizedLegacyStates = new java.util.HashSet<>();
+        java.util.Set<String> normalizedStates = new java.util.HashSet<>();
         int index = 0;
         for (int y = 0; y < schematic.height(); y++) {
             for (int z = 0; z < schematic.length(); z++) {
                 for (int x = 0; x < schematic.width(); x++) {
                     String state = schematic.blockStates().get(index++);
-                    BlockData data;
-                    try { data = Bukkit.createBlockData(state); }
-                    catch (IllegalArgumentException exception) {
-                        String compatible = stripUnsupportedFalseWaterlogged(state);
-                        if (compatible == null) {
-                            throw new IOException("unsupported block state in schematic: " + state, exception);
-                        }
-                        try {
-                            data = Bukkit.createBlockData(compatible);
-                            if (normalizedLegacyStates.add(state)) {
-                                plugin.getLogger().info("[SchemaBuild] Normalized unsupported waterlogged=false "
-                                    + "property while loading " + file.getFileName() + ": " + state);
-                            }
-                        } catch (IllegalArgumentException retryFailure) {
-                            retryFailure.addSuppressed(exception);
-                            throw new IOException("unsupported block state in schematic: " + state, retryFailure);
-                        }
-                    }
+                    BlockData data = parseSchematicBlockData(state, file, normalizedStates);
                     if (!data.getMaterial().isBlock()) throw new IOException("non-block palette entry: " + state);
                     blocks.add(new SchemaBlock(x, y, z, data.getAsString()));
                 }
@@ -220,22 +203,59 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             schematic.height(), schematic.length());
     }
 
-    private String stripUnsupportedFalseWaterlogged(String state) {
-        int open = state.indexOf('[');
-        int close = state.lastIndexOf(']');
-        if (open < 1 || close <= open || !state.substring(open + 1, close).contains("waterlogged=false")) {
-            return null;
+    private BlockData parseSchematicBlockData(String state, Path file, java.util.Set<String> normalizedStates) throws IOException {
+        int stateOpen = state.indexOf('[');
+        String originalMaterialName = stateOpen < 0 ? state : state.substring(0, stateOpen);
+        String canonicalMaterialName = switch (originalMaterialName.toLowerCase(Locale.ROOT)) {
+            case "grass", "minecraft:grass" -> "minecraft:short_grass";
+            case "grass_path", "minecraft:grass_path" -> "minecraft:dirt_path";
+            default -> originalMaterialName;
+        };
+        String canonical = canonicalMaterialName + (stateOpen < 0 ? "" : state.substring(stateOpen));
+        try {
+            BlockData data = Bukkit.createBlockData(canonical);
+            logSchemaNormalization(state, data, file, normalizedStates);
+            return data;
+        } catch (IllegalArgumentException originalFailure) {
+            int open = canonical.indexOf('[');
+            int close = canonical.lastIndexOf(']');
+            String materialName = open < 0 ? canonical : canonical.substring(0, open);
+            String unqualifiedName = materialName.startsWith("minecraft:")
+                ? materialName.substring("minecraft:".length()) : materialName;
+            Material material = Material.matchMaterial(unqualifiedName);
+            if (material == null || !material.isBlock()) {
+                throw new IOException("unsupported block state in schematic: " + state, originalFailure);
+            }
+
+            BlockData resolved = Bukkit.createBlockData(material);
+            List<String> acceptedProperties = new ArrayList<>();
+            if (open >= 0 && close > open) {
+                String[] properties = canonical.substring(open + 1, close).split(",");
+                for (String rawProperty : properties) {
+                    String property = rawProperty.trim();
+                    if (property.isEmpty()) continue;
+                    List<String> candidateProperties = new ArrayList<>(acceptedProperties);
+                    candidateProperties.add(property);
+                    String candidate = materialName + "[" + String.join(",", candidateProperties) + "]";
+                    try {
+                        resolved = Bukkit.createBlockData(candidate);
+                        acceptedProperties.add(property);
+                    } catch (IllegalArgumentException ignoredUnsupportedProperty) {
+                        // Keep loading the block with the properties supported by this server version.
+                    }
+                }
+            }
+            logSchemaNormalization(state, resolved, file, normalizedStates);
+            return resolved;
         }
-        String[] properties = state.substring(open + 1, close).split(",");
-        List<String> retained = new ArrayList<>();
-        boolean removed = false;
-        for (String property : properties) {
-            if (property.trim().equals("waterlogged=false")) removed = true;
-            else retained.add(property.trim());
+    }
+
+    private void logSchemaNormalization(String original, BlockData resolved, Path file,
+                                        java.util.Set<String> normalizedStates) {
+        if (!original.equals(resolved.getAsString()) && normalizedStates.add(original)) {
+            plugin.getLogger().info("[SchemaBuild] Normalized unsupported block state while loading "
+                + file.getFileName() + ": " + original + " -> " + resolved.getAsString());
         }
-        if (!removed) return null;
-        return retained.isEmpty() ? state.substring(0, open)
-            : state.substring(0, open) + "[" + String.join(",", retained) + "]";
     }
 
     private String invalidSchemaFingerprint(Path path) {
@@ -825,23 +845,37 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             }
         }
         int applied = 0;
-        for (BlockSnapshot snapshot : snapshots) {
-            Block block = snapshot.location().getBlock();
-            BlockData after = Bukkit.createBlockData(snapshot.afterData());
-            ItemStack placedItem = new ItemStack(after.getMaterial().isAir() ? Material.BARRIER : after.getMaterial());
-            BlockPlaceEvent placeEvent = new BlockPlaceEvent(block, block.getState(), block.getRelative(BlockFace.DOWN),
-                placedItem, player, true, EquipmentSlot.HAND);
-            Bukkit.getPluginManager().callEvent(placeEvent);
-            if (placeEvent.isCancelled()) {
-                restoreSnapshots(snapshots.subList(0, applied), false);
-                player.sendMessage("§cMột plugin bảo vệ đã từ chối đặt tại " + block.getX() + ", "
-                    + block.getY() + ", " + block.getZ() + ". Đã hoàn tác phần đã đặt.");
-                plugin.getLogger().warning("[SchemaBuild] placement-cancelled player=" + player.getName()
-                    + ", schema=" + session.schema.relativePath() + ", applied-before-cancel=" + applied);
-                return;
+        try {
+            for (BlockSnapshot snapshot : snapshots) {
+                Block block = snapshot.location().getBlock();
+                BlockData after = Bukkit.createBlockData(snapshot.afterData());
+                Material itemMaterial = after.getMaterial().isItem() ? after.getMaterial() : Material.BARRIER;
+                ItemStack placedItem = new ItemStack(itemMaterial);
+                BlockPlaceEvent placeEvent = new BlockPlaceEvent(block, block.getState(), block.getRelative(BlockFace.DOWN),
+                    placedItem, player, true, EquipmentSlot.HAND);
+                Bukkit.getPluginManager().callEvent(placeEvent);
+                if (placeEvent.isCancelled()) {
+                    restoreSnapshots(snapshots.subList(0, applied), false);
+                    player.sendMessage("§cMột plugin bảo vệ đã từ chối đặt tại " + block.getX() + ", "
+                        + block.getY() + ", " + block.getZ() + ". Đã hoàn tác phần đã đặt.");
+                    plugin.getLogger().warning("[SchemaBuild] placement-cancelled player=" + player.getName()
+                        + ", schema=" + session.schema.relativePath() + ", applied-before-cancel=" + applied);
+                    return;
+                }
+                block.setBlockData(after, false);
+                applied++;
             }
-            block.setBlockData(after, false);
-            applied++;
+        } catch (RuntimeException exception) {
+            try {
+                restoreSnapshots(snapshots.subList(0, applied), false);
+            } catch (RuntimeException rollbackFailure) {
+                exception.addSuppressed(rollbackFailure);
+            }
+            plugin.getLogger().log(Level.SEVERE, "[SchemaBuild] placement failed and rolled back player="
+                + player.getName() + ", schema=" + session.schema.relativePath() + ", applied-before-failure=" + applied,
+                exception);
+            player.sendMessage("§cKhông thể đặt schema hoàn chỉnh. Đã hoàn tác " + applied + " block đã đặt.");
+            return;
         }
         BuildOperation operation = new BuildOperation(session.schema.relativePath(), List.copyOf(snapshots));
         List<BlockSnapshot> persistedSnapshots = snapshots.stream().map(snapshot -> new BlockSnapshot(snapshot.location(),

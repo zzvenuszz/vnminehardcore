@@ -1061,7 +1061,9 @@ block entity được bỏ qua để giữ nguyên dữ liệu.
 
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)
-và các lựa chọn phân bố ngẫu nhiên có trọng số.
+và các lựa chọn phân bố ngẫu nhiên có trọng số. ID `1` map thành stone, `2`
+map thành grass block; ID có hậu tố metadata như `35:14` được chuyển đổi theo
+bảng block legacy.
 Các thay đổi được áp dụng theo từng batch để giảm giật. Giới hạn mặc định là
 32,768 block mỗi thao tác, 512 block mỗi tick; chỉnh tại `worldedit.max-blocks`,
 `worldedit.blocks-per-tick`, và tối đa 256 chunk mỗi tác vụ tại

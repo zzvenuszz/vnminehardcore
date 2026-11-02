@@ -770,6 +770,14 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             }
             if (dataValue > 15) throw new IllegalArgumentException("Data ID block cũ phải nằm trong khoảng 0-15: " + value);
             if (id == 0 && dataValue == 0) return Bukkit.createBlockData(Material.AIR);
+            if (dataValue == 0) {
+                Material commonNumericBlock = switch (id) {
+                    case 1 -> Material.STONE;
+                    case 2 -> Material.GRASS_BLOCK;
+                    default -> null;
+                };
+                if (commonNumericBlock != null) return Bukkit.createBlockData(commonNumericBlock);
+            }
             Material legacyMaterial = java.util.Arrays.stream(Material.values())
                 .filter(Material::isLegacy)
                 .filter(material -> material.getId() == id)

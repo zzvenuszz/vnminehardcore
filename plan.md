@@ -6,8 +6,18 @@
 - [x] Tăng version nguồn lên 2.43.0 và cập nhật README/changelog.
 - [x] Build Java 25 bằng `mvn -DskipTests clean package` lúc `2026-11-02 12:54:51 UTC`; JAR 2.43.0: 2.567.056 bytes, SHA-256 `32cbfecfd70ed7f7e41674f6083100af8a4dd04eb6943421b70b5817ad310bda`; chỉ có SQLite native Linux x86_64.
 - [x] Backup 2.42.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.42.0-pre-2.43.0-20261102.jar` và cài JAR 2.43.0 vào `/home/ubuntu/DATA/VNMINE/plugins/`; backup config runtime rồi đặt `schema-build.preview-blocks: -1`.
-- [x] Push commit phát hành `a38435b` lên `origin/main`.
+- [x] Push commit phát hành `a38435b` và cập nhật kế hoạch `c77e374` lên `origin/main`.
 - [ ] Chưa restart server/gameplay test; xác nhận `//clear`, `//set` có block entity, sidebar và schema preview sau restart.
+
+## Sửa lỗi runtime và phát hành patch 2.43.1 — 2026-11-02
+
+- [x] Đọc `logs/latest.log`: `//set 1`/`//set 2` không tới bước `edit-start`; Schema Build bị dừng khi tạo `ItemStack` cho `WHITE_WALL_BANNER` và `LAVA_CAULDRON`.
+- [x] Xác nhận lỗi bỏ schema do state cũ như `chain[axis=...,waterlogged=false]`, `grass` và `grass_path` không tương thích trực tiếp với Paper hiện tại.
+- [x] Sửa nguồn: map ID `1`/`2` rõ ràng, chuẩn hóa block state/thuộc tính schema không hỗ trợ, dùng placeholder hợp lệ cho `BlockPlaceEvent` và rollback nếu placement gặp exception.
+- [x] Tăng version patch lên 2.43.1; build Java 25 thành công lúc `2026-11-02 13:09:51 UTC` bằng `mvn -DskipTests clean package`; JAR 2.43.1: 2.568.013 bytes, SHA-256 `a9002cc2ce21984b116759b39ace8c3638ec3e160c79d430021a05a18f270991`, SQLite native Linux x86_64.
+- [x] Backup 2.43.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.43.0-pre-2.43.1-20261102.jar` và cài JAR 2.43.1 vào `/home/ubuntu/DATA/VNMINE/plugins/`.
+- [ ] Push bản sửa 2.43.1 lên `origin/main`.
+- [ ] Sau restart xác nhận numeric IDs, load các schema có chain và đặt đủ các tầng.
 
 # Creative và sửa chọn vùng WorldEdit — yêu cầu 2026-10-30
 

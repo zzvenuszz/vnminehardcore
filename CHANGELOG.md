@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.43.1] - 2026-11-02
+
+- `//set 1` và `//set 2` map lần lượt thành stone và grass block; numeric ID cũ khác tiếp tục dùng bảng chuyển đổi legacy của Bukkit.
+- Schema Build chuẩn hóa block state cũ `grass`/`grass_path`, bỏ riêng thuộc tính không được server hỗ trợ thay vì bỏ cả schematic; block trong schema không phải item dùng item placeholder an toàn khi kiểm tra event.
+- Nếu một lỗi runtime khác xảy ra giữa lúc đặt schema, hoàn tác phần đã đặt thay vì để công trình dang dở.
+- Build Java 25 thành công lúc `2026-11-02 13:09:51 UTC` bằng `mvn -DskipTests clean package`; test suite bỏ qua. JAR 2.43.1: 2.568.013 bytes, SHA-256 `a9002cc2ce21984b116759b39ace8c3638ec3e160c79d430021a05a18f270991`; chỉ đóng gói SQLite native Linux x86_64.
+- Backup 2.43.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.43.0-pre-2.43.1-20261102.jar`, cài 2.43.1 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.43.1.jar`. Chưa restart server/gameplay test.
+
 ## [v2.43.0] - 2026-11-02
 
 - WorldEdit tích hợp `//set` và các lệnh pattern nhận `air`, ID block cũ dạng số (`0`, `1`, `35:14`), tên material, block state và pattern trọng số theo cú pháp `//set <pattern>`.
