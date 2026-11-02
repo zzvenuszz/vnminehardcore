@@ -4,7 +4,7 @@
 - [x] Thêm `!cancel`/`/vnbuild cancel` để xóa preview và thoát; Esc đóng menu chỉnh sẽ dọn preview. Esc trong preview ngoài world không thể nhận từ server vì client không gửi sự kiện phím này.
 - [x] Build Java 25 thành công lúc `2026-11-02 13:52:15 UTC` bằng `mvn -DskipTests clean package`; JAR 2.46.0: 2.569.928 bytes, SHA-256 `db96bdbf7b3987dc34d025ae8d0cf4927855fe05184f96c3273071f0b1b5f0c5`; plugin.yml là 2.46.0, SQLite native Linux x86_64.
 - [x] Backup 2.45.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.45.0-pre-2.46.0-20261102.jar`; cài JAR 2.46.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.46.0.jar`.
-- [ ] Commit/push code và kế hoạch lên `origin/main`.
+- [x] Push commit phát hành `f78a529` lên `origin/main`.
 - [ ] Chưa gameplay test xoay hai hướng, đặt schema sau xoay, thoát bằng `!cancel`/Esc trong menu.
 
 # Hình học WorldEdit circle/square/round — 2.45.0 — 2026-11-02
