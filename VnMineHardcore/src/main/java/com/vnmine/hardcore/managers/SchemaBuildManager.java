@@ -102,6 +102,8 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) { sender.sendMessage("Lệnh này chỉ dùng trong game."); return true; }
         if (!player.hasPermission(PERMISSION)) { player.sendMessage("§cBạn không có quyền Schema Build."); return true; }
+        if (args.length == 1 && "undo".equalsIgnoreCase(args[0])) { undo(player); return true; }
+        if (args.length == 1 && "redo".equalsIgnoreCase(args[0])) { redo(player); return true; }
         if (args.length == 1 && "select".equalsIgnoreCase(args[0])) {
             BuildRecord nearest = builds.values().stream()
                 .filter(record -> record.world.equals(player.getWorld().getName()))
@@ -121,7 +123,12 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        return args.length == 1 ? List.of("select") : List.of();
+        return args.length == 1 ? filter(List.of("select", "undo", "redo"), args[0]) : List.of();
+    }
+
+    private List<String> filter(List<String> values, String prefix) {
+        String normalized = prefix.toLowerCase(Locale.ROOT);
+        return values.stream().filter(value -> value.startsWith(normalized)).toList();
     }
 
     private void openList(Player player, int requestedPage) {
@@ -146,8 +153,9 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             "§7Đặt file Sponge Schematic .schem vào:", "§fplugins/VnMineHardcore/schemas/",
             "§7Có thể tạo thư mục con để nhóm công trình.", "§eVí dụ: schemas/examples/small-platform.schem")));
         if (page > 0) menu.setItem(45, icon(Material.ARROW, "§eTrang trước", List.of()));
-        menu.setItem(46, icon(Material.SPECTRAL_ARROW, "§bUndo build gần nhất", List.of("§7Chỉ lùi thay đổi Schema Build.")));
-        menu.setItem(47, icon(Material.TIPPED_ARROW, "§dRedo build vừa Undo", List.of()));
+        menu.setItem(46, icon(Material.SPECTRAL_ARROW, "§bUndo build gần nhất", List.of(
+            "§7Tối đa 10 lần đặt trong phiên này.", "§7Hoặc dùng /vnbuild undo.")));
+        menu.setItem(47, icon(Material.TIPPED_ARROW, "§dRedo build vừa Undo", List.of("§7Có thể dùng /vnbuild redo.")));
         menu.setItem(48, icon(Material.SUNFLOWER, "§eQuét lại thư mục", List.of("§7Đọc schema mới/thay đổi ngay.")));
         menu.setItem(49, icon(Material.ARROW, "§7Về menu Admin", List.of()));
         if ((page + 1) * PAGE_SIZE < files.size()) menu.setItem(53, icon(Material.ARROW, "§eTrang sau", List.of()));
@@ -317,7 +325,8 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         menu.setItem(20, icon(session.flipZ ? Material.LIME_DYE : Material.GRAY_DYE,
             "§eLật trục Z: " + (session.flipZ ? "§aBẬT" : "§cTẮT"), List.of("§7Nhấn để đổi đối xứng.")));
         menu.setItem(37, icon(Material.SPECTRAL_ARROW, "§bUndo build gần nhất", List.of(
-            "§7Chỉ lùi thay đổi do Schema Build thực hiện.", "§7Tối đa: §f" + historyLimit() + " bản.")));
+            "§7Chỉ lùi thay đổi do Schema Build thực hiện.", "§7Tối đa: §f" + historyLimit() + " bước.",
+            "§eCó thể dùng /vnbuild undo.")));
         menu.setItem(40, icon(Material.LIME_CONCRETE, "§aPreview ngoài world", List.of(
             "§7Đóng menu và giữ bóng mờ trong world.",
             "§7Di chuyển tự do để chọn vị trí đặt.",
@@ -328,7 +337,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         menu.setItem(53, icon(Material.COMPASS, "§bCách đặt", List.of(
             "§7Xoay và lật từng trục, rồi bật preview ngoài world.",
             "§7Trong preview, di chuyển/ngắm mặt block để chọn vị trí.",
-            "§e!put đặt công trình; !back mở lại menu xoay/lật.")));
+            "§e!put đặt công trình; !back mở lại menu xoay/lật.", "§e/vnbuild undo khôi phục trước khi đặt.")));
         player.openInventory(menu);
     }
 
@@ -914,12 +923,13 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         undo.push(operation);
         while (undo.size() > historyLimit()) undo.removeLast();
         redoHistory.remove(player.getUniqueId());
-        player.sendMessage("§aĐã dựng schema §f" + session.schema.schema().name() + "§a: " + snapshots.size() + " block. ID: §f" + buildId);
+        player.sendMessage("§aĐã dựng schema §f" + session.schema.schema().name() + "§a: " + snapshots.size()
+            + " block. ID: §f" + buildId + "§a. Dùng §f/vnbuild undo§a để khôi phục trạng thái trước khi đặt.");
         plugin.getLogger().info("[SchemaBuild] build-complete player=" + player.getName() + ", schema="
             + session.schema.relativePath() + ", blocks=" + snapshots.size() + ", world="
             + session.anchor.getWorld().getName() + ", anchor=" + locationText(session.anchor)
             + ", rotation=" + session.rotationX + "/" + session.rotationY + "/" + session.rotationZ + ", id=" + buildId
-            + ", protect=" + session.protect);
+            + ", protect=" + session.protect + ", undo-history=" + undo.size() + "/" + historyLimit());
         sessions.remove(player.getUniqueId());
         removePreview(session);
         openList(player, 0);
@@ -929,10 +939,6 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         Deque<BuildOperation> undo = undoHistory.get(player.getUniqueId());
         if (undo == null || undo.isEmpty()) { player.sendMessage("§eKhông có schema build để Undo."); return; }
         BuildOperation operation = undo.peek();
-        if (containsTileEntity(operation)) {
-            player.sendMessage("§cKhông thể Undo an toàn: công trình có block entity (rương/sign...) mà schema không lưu dữ liệu bên trong.");
-            return;
-        }
         if (!matches(operation, true)) { player.sendMessage("§cKhông thể Undo: một hay nhiều block đã bị thay đổi sau khi dựng."); return; }
         undo.pop();
         restoreSnapshots(operation.blocks(), false);
@@ -945,10 +951,6 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         Deque<BuildOperation> redo = redoHistory.get(player.getUniqueId());
         if (redo == null || redo.isEmpty()) { player.sendMessage("§eKhông có Schema Build nào để Redo."); return; }
         BuildOperation operation = redo.peek();
-        if (containsTileEntity(operation)) {
-            player.sendMessage("§cKhông thể Redo an toàn: công trình có block entity mà schema không lưu dữ liệu bên trong.");
-            return;
-        }
         if (!matches(operation, false)) { player.sendMessage("§cKhông thể Redo: vị trí đã bị thay đổi sau Undo."); return; }
         redo.pop();
         restoreSnapshots(operation.blocks(), true);
@@ -967,15 +969,6 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         return true;
     }
 
-    private boolean containsTileEntity(BuildOperation operation) {
-        for (BlockSnapshot snapshot : operation.blocks()) {
-            Location location = snapshot.location();
-            if (!location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) return false;
-            if (location.getBlock().getState() instanceof org.bukkit.block.TileState) return true;
-        }
-        return false;
-    }
-
     private void restoreSnapshots(List<BlockSnapshot> snapshots, boolean useAfter) {
         for (BlockSnapshot snapshot : snapshots) {
             Block block = snapshot.location().getBlock();
@@ -984,7 +977,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private int historyLimit() {
-        return Math.max(1, Math.min(50, plugin.getConfig().getInt("schema-build.history-size", DEFAULT_HISTORY_SIZE)));
+        return Math.max(1, Math.min(10, plugin.getConfig().getInt("schema-build.history-size", DEFAULT_HISTORY_SIZE)));
     }
 
     private String locationText(Location location) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## [v2.44.0] - 2026-11-02
+
+- `//set` và `//clear` áp dụng lên mọi block entity; thay bằng air hoặc block khác sẽ xóa block entity. Snapshot undo lưu lại state block entity bị thay để khôi phục.
+- Cho phép `/vnbuild undo` và `/vnbuild redo`; undo schema không còn từ chối công trình chứa chest/sign, và lịch sử được giới hạn tối đa 10 lần đặt.
+- Build Java 25 thành công lúc `2026-11-02 13:16:10 UTC` bằng `mvn -DskipTests clean package`; test suite bỏ qua. JAR 2.44.0: 2.568.494 bytes, SHA-256 `b0db4260132171e3a295deae27175f09d53d7a339cfa66a999b63e7f5a638506`; chỉ đóng gói SQLite native Linux x86_64.
+- Backup 2.43.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.43.1-pre-2.44.0-20261102.jar`, cài 2.44.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.44.0.jar`. Chưa restart server/gameplay test.
+
 ## [v2.43.1] - 2026-11-02
 
 - `//set 1` và `//set 2` map lần lượt thành stone và grass block; numeric ID cũ khác tiếp tục dùng bảng chuyển đổi legacy của Bukkit.

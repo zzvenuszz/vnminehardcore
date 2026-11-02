@@ -25,6 +25,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -394,20 +395,12 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         BlockPattern pattern = parsePattern(args[0]);
         Random random = new Random();
         List<BlockChange> changes = new ArrayList<>();
-        int skippedBlockEntities = 0;
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
                 Block block = selection.first.getWorld().getBlockAt(x, y, z);
-                if (block.getState() instanceof org.bukkit.block.TileState) {
-                    skippedBlockEntities++;
-                    continue;
-                }
-                addChange(player, changes, block, pattern.next(random));
+                addChange(player, changes, block, pattern.next(random), true);
             }
         scheduleEdit(player, operationLabel, changes);
-        if (skippedBlockEntities > 0) {
-            player.sendMessage("§e" + operationLabel + " đã bỏ qua " + skippedBlockEntities + " block entity để giữ nguyên dữ liệu rương/bảng hiệu.");
-        }
     }
 
     private void editReplace(Player player, String[] args) {
@@ -798,12 +791,18 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private void addChange(Player player, List<BlockChange> changes, Block block, BlockData target) {
+        addChange(player, changes, block, target, false);
+    }
+
+    private void addChange(Player player, List<BlockChange> changes, Block block, BlockData target, boolean allowBlockEntities) {
         BlockData current = block.getBlockData();
         if (current.getAsString().equals(target.getAsString())) return;
-        if (block.getState() instanceof org.bukkit.block.TileState)
+        BlockState beforeState = block.getState();
+        if (beforeState instanceof org.bukkit.block.TileState && !allowBlockEntities)
             throw new IllegalArgumentException("Vùng chứa block entity (rương, bảng hiệu...) tại " + block.getX() + "," + block.getY() + "," + block.getZ()
                 + "; chỉnh sửa bị hủy để tránh mất dữ liệu.");
-        changes.add(new BlockChange(block.getLocation(), current.getAsString(), target.getAsString()));
+        changes.add(new BlockChange(block.getLocation(), current.getAsString(), target.getAsString(),
+            beforeState instanceof org.bukkit.block.TileState ? beforeState.copy() : null));
         if (changes.size() > editLimit()) throw new IllegalArgumentException("Thao tác vượt giới hạn " + limitLabel() + " block.");
     }
 
@@ -821,7 +820,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 int end = Math.min(operation.changes.size(), index[0] + editBatchSize());
                 while (index[0] < end) {
                     BlockChange change = operation.changes.get(index[0]++);
-                    change.location.getBlock().setBlockData(Bukkit.createBlockData(change.after), false);
+                    restoreBlockChange(change, true);
                 }
                 if (index[0] >= operation.changes.size()) {
                     task.cancel(); activeEdits.remove(id); releaseChunkTickets(tickets);
@@ -838,7 +837,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 task.cancel(); activeEdits.remove(id);
                 for (int rollback = index[0] - 1; rollback >= 0; rollback--) {
                     BlockChange change = operation.changes.get(rollback);
-                    change.location.getBlock().setBlockData(Bukkit.createBlockData(change.before), false);
+                    restoreBlockChange(change, false);
                 }
                 releaseChunkTickets(tickets);
                 plugin.getLogger().log(Level.SEVERE, "[WorldRegion] edit failed and rolled back player=" + player.getName() + ", operation=" + label, exception);
@@ -860,7 +859,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             if (!change.location.getBlock().getBlockData().getAsString().equals(expected)) {
                 player.sendMessage("§cKhông thể " + (redo ? "redo" : "undo") + ": block đã bị thay đổi sau thao tác."); return;
             }
-            if (change.location.getBlock().getState() instanceof org.bukkit.block.TileState) {
+            boolean entityAwareSet = operation.label.equals("//set") || operation.label.equals("//clear");
+            if (change.location.getBlock().getState() instanceof org.bukkit.block.TileState && !entityAwareSet) {
                 player.sendMessage("§cKhông thể undo/redo an toàn vì có block entity trong vùng."); return;
             }
         }
@@ -874,7 +874,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 int end = Math.min(operation.changes.size(), index[0] + editBatchSize());
                 while (index[0] < end) {
                     BlockChange change = operation.changes.get(index[0]++);
-                    change.location.getBlock().setBlockData(Bukkit.createBlockData(redo ? change.after : change.before), false);
+                    restoreBlockChange(change, redo);
                 }
                 if (index[0] >= operation.changes.size()) {
                     task.cancel(); activeEdits.remove(id); releaseChunkTickets(tickets);
@@ -887,7 +887,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 task.cancel(); activeEdits.remove(id);
                 for (int rollback = index[0] - 1; rollback >= 0; rollback--) {
                     BlockChange change = operation.changes.get(rollback);
-                    change.location.getBlock().setBlockData(Bukkit.createBlockData(redo ? change.before : change.after), false);
+                    restoreBlockChange(change, !redo);
                 }
                 source.push(operation); releaseChunkTickets(tickets);
                 plugin.getLogger().log(Level.SEVERE, "[WorldRegion] history operation failed and rolled back player=" + player.getName(), exception);
@@ -921,6 +921,16 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private String chunkLimitLabel() { return chunkLimit() <= 0 ? "không giới hạn" : Integer.toString(chunkLimit()); }
     private int historyLimit() { return Math.max(1, Math.min(50, plugin.getConfig().getInt("worldedit.history-size", DEFAULT_HISTORY_LIMIT))); }
     private int editBatchSize() { return Math.max(32, Math.min(4096, plugin.getConfig().getInt("worldedit.blocks-per-tick", EDIT_BATCH_SIZE))); }
+
+    private void restoreBlockChange(BlockChange change, boolean useAfter) {
+        if (!useAfter && change.beforeState != null) {
+            if (!change.beforeState.update(true, false)) {
+                throw new IllegalStateException("Could not restore previous block entity at " + change.location);
+            }
+            return;
+        }
+        change.location.getBlock().setBlockData(Bukkit.createBlockData(useAfter ? change.after : change.before), false);
+    }
 
     private List<ChunkTicket> acquireChunkTickets(List<BlockChange> changes) {
         Map<String, ChunkTicket> chunks = new LinkedHashMap<>();
@@ -1521,7 +1531,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private record BlockPosition(int x, int y, int z) {
         private BlockPosition offset(int dx, int dy, int dz) { return new BlockPosition(x + dx, y + dy, z + dz); }
     }
-    private record BlockChange(Location location, String before, String after) { }
+    private record BlockChange(Location location, String before, String after, BlockState beforeState) { }
     private record ChunkTicket(World world, int x, int z) { }
     private record EditOperation(String label, List<BlockChange> changes) { }
     private record ClipboardBlock(int x, int y, int z, String blockData) { }

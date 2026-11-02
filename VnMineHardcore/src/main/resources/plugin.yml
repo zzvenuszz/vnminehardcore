@@ -180,8 +180,8 @@ commands:
     usage: /vnregion [wand]
     permission: vnmine.command.worldedit
   vnbuild:
-    description: Chọn và quản lý công trình Schema Build gần nhất
-    usage: /vnbuild select
+    description: Dùng Schema Build và undo/redo công trình
+    usage: /vnbuild [select|undo|redo]
     permission: vnmine.command.schemabuild
   start:
     description: Chọn đại lục và bắt đầu hoặc tiếp tục hành trình RPG

@@ -49,7 +49,7 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vninit` | Mở wizard setup RPG: chọn đại lục khởi đầu, world, NPC tutorial và spawn; mỗi thay đổi lưu ngay, thoát rồi chạy lại để tiếp tục | `vnmine.command.init` |
 | `/vnregion [wand]` | Mở quản lý vùng bảo vệ; `wand` cấp búa chọn hai góc, đặt tên và cấu hình flags | `vnmine.command.worldedit` |
 | `//set`, `//replace`, `//copy`, `//paste`, `//undo` và lệnh vùng khác | Chỉnh cuboid bằng búa WorldEdit tích hợp; gõ `//help` để xem danh sách | `vnmine.command.worldedit` |
-| `/vnbuild select` | Chọn công trình Schema Build gần nhất trong world hiện tại; sau đó dùng `!edit`, `!copy`, `!remove` | `vnmine.command.schemabuild` |
+| `/vnbuild [select|undo|redo]` | Chọn công trình gần nhất hoặc undo/redo tối đa 10 lần đặt schema trong phiên hiện tại | `vnmine.command.schemabuild` |
 | `/vngroup ...` | Tạo/xóa nhóm, xem nhóm, cấp/thu hồi quyền nhóm | `vnmine.command.groups.manage` |
 | `/vnuser ...` | Xem/gán nhóm, cấp/thu hồi quyền cá nhân, reset người chơi | `vnmine.command.users.manage` |
 | `/vnarmy ...` | Thuê/quản lý lính, đổi chế độ AI và trang bị | `vnmine.command.army` |
@@ -1021,7 +1021,7 @@ sát thương người chơi, thông báo và tỷ lệ. Chạy `/vnreload` sau 
 
 Schema Build đọc file Sponge Schematic `.schem` đã nén gzip, phiên bản 2 hoặc 3. Đặt file vào `plugins/VnMineHardcore/schemas/`; có thể tạo thư mục con để nhóm công trình. YAML `.schema` riêng của các bản thử nghiệm cũ không còn được quét; hãy xuất lại các công trình thành định dạng Sponge `.schem` bằng WorldEdit hoặc công cụ tương thích.
 
-Mở **Menu chính → Admin → Schema Build**, chọn công trình để mở menu chỉnh. Bóng mờ ban đầu xuất hiện trước mặt admin. Dùng các nút để xoay 90° hoặc lật theo trục X/Y/Z, bật/tắt `protect: ON/OFF`, sau đó chọn **Preview ngoài world**. Menu đóng lại, bóng mờ cập nhật theo block admin đang ngắm để có thể tự do di chuyển chọn vị trí. Gõ `!put` để đặt hoặc `!back` để quay lại menu xoay/lật. Mỗi công trình được cấp ID `<world>_<schema>_<số>` và lưu cùng trạng thái block nền trong `builds.yml`.
+Mở **Menu chính → Admin → Schema Build**, chọn công trình để mở menu chỉnh. Bóng mờ ban đầu xuất hiện trước mặt admin. Dùng các nút để xoay 90° hoặc lật theo trục X/Y/Z, bật/tắt `protect: ON/OFF`, sau đó chọn **Preview ngoài world**. Menu đóng lại, bóng mờ cập nhật theo block admin đang ngắm để có thể tự do di chuyển chọn vị trí. Gõ `!put` để đặt hoặc `!back` để quay lại menu xoay/lật. Mỗi lần đặt lưu tạm trạng thái block trước `!put`; dùng `/vnbuild undo` hoặc nút Undo để khôi phục, `/vnbuild redo` để áp dụng lại. Lịch sử giữ tối đa 10 lần đặt trong phiên server hiện tại. Mỗi công trình được cấp ID `<world>_<schema>_<số>` và lưu cùng trạng thái block nền trong `builds.yml`.
 
 Chạy `/vnbuild select` để chọn công trình gần nhất trong world hiện tại. Sau đó
 gõ `!edit` để sửa và đặt lại với ID cũ, `!copy` để tạo bản mới có ID tăng dần,
@@ -1054,10 +1054,10 @@ Búa hỗ trợ cú pháp gần WorldEdit, có thể gõ lệnh `//...` trực t
 //undo / //redo      //size / //desel      //limit 32768 / //limit unlimited
 ```
 
-`//set` bỏ qua các block entity như rương và bảng hiệu để bảo toàn dữ liệu, sau
-đó tiếp tục áp dụng lên các block khác trong vùng.
-`//clear` xóa block trong vùng chọn bằng cách thay block thường bằng air; các
-block entity được bỏ qua để giữ nguyên dữ liệu.
+`//set` áp dụng lên cả block entity: đặt `air` sẽ xóa rương, bảng hiệu và dữ liệu
+của chúng; đặt material khác sẽ thay block entity bằng block mới. Với block
+entity có sẵn trước lệnh, undo lưu snapshot để có thể khôi phục dữ liệu.
+`//clear` là lệnh tắt của `//set air`.
 
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)
@@ -1072,9 +1072,8 @@ block/chunk; chỉ áp dụng trên chunk đã nạp và thao tác lớn có th�
 RAM/tài nguyên server. Viền vùng chọn dùng particle đỏ; có thể tắt/chỉnh tầm xem
 trong `worldedit.selection-particles`. Các lệnh `//` có tab completion. Plugin
 giữ các chunk được sửa trong lúc batch đang chạy. Undo/redo giữ 10 thao tác; clipboard và history
-chỉ tồn tại trong phiên đăng nhập hiện tại. `//set` và `//clear` bỏ qua block
-entity; các thao tác khác chưa hỗ trợ lưu nội dung rương, bảng hiệu và block
-entity nên sẽ từ chối vùng có chứa chúng.
+chỉ tồn tại trong phiên đăng nhập hiện tại. Các thao tác ngoài `//set`/`//clear`
+vẫn từ chối block entity vì chưa lưu dữ liệu inventory/sign.
 
 Các lệnh này hiện chỉ hỗ trợ vùng cuboid, block placement/replacement và
 clipboard block. Brush, generator, biome/entity editing và các loại selection

@@ -128,12 +128,12 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 
 ### WorldEdit, vùng bảo vệ và công trình
 
-- `/vnregion wand` cấp búa chọn vùng. `//pos1`/`//pos2` không tọa độ chọn block đang đứng; `//hpos1`/`//hpos2` chọn block đang ngắm. WorldEdit nhận `//set air`, `//set 0`, ID cũ có data như `//set 35:14`, tên material và block state; `//set` và `//clear` bỏ qua rương/bảng hiệu để giữ dữ liệu của chúng (`//clear` thay block thường bằng air). Chỉnh độ dày viền particle tại `worldedit.selection-particles.spacing-blocks`.
+- `/vnregion wand` cấp búa chọn vùng. `//pos1`/`//pos2` không tọa độ chọn block đang đứng; `//hpos1`/`//hpos2` chọn block đang ngắm. WorldEdit nhận `//set air`, `//set 0`, ID cũ có data như `//set 35:14`, tên material và block state; `//set` áp dụng lên cả rương/bảng hiệu và sẽ xóa dữ liệu entity của chúng khi thay block. Chỉnh độ dày viền particle tại `worldedit.selection-particles.spacing-blocks`.
 - Sidebar boss/quest hiển thị tên, cấp, máu, world và race/class ở phía trên; có thể bật/tắt từng dòng trong `scoreboard.yml`.
 - Đặt `schema-build.preview-blocks: -1` để preview toàn bộ block và `schema-build.max-blocks: -1` để bỏ trần block cấu hình của Schema Build; giới hạn file/NBT nhằm bảo vệ bộ đọc vẫn áp dụng.
 - Creative được miễn debuff môi trường của plugin như sợ hầm, choáng độ cao, sương mù, nhiệt độ, khát và các tác động mưa axit/nước lạnh.
 - Vùng có thể đặt tên và có rule bảo vệ do plugin hỗ trợ; đây là hệ thống tích hợp, không phải phụ thuộc WorldEdit/WorldGuard.
-- `/vnbuild select` chọn công trình Schema gần nhất. `/vnbuild` mở browser `.schem`; preview, xoay/lật, đặt, undo/redo và protect tùy workflow trong menu.
+- `/vnbuild select` chọn công trình Schema gần nhất. `/vnbuild` mở browser `.schem`; preview, xoay/lật, đặt, undo/redo và protect tùy workflow trong menu. Sau `!put`, dùng `/vnbuild undo` hoặc `/vnbuild redo`; bộ nhớ tạm giữ tối đa 10 lần dựng trong phiên server hiện tại.
 - `/vntext` tạo và chỉnh text display; hỗ trợ hướng mặt, màu, scale và góc xoay.
 
 ### Boss và thiên tai
@@ -189,7 +189,7 @@ Hãy dùng menu/command editor khi có; thao tác trực tiếp với YAML cần
 | `/vnportal <subcommand>` | Portal RPG | `vnmine.command.portal.admin` |
 | `/vntext <subcommand>` | Text display | `vnmine.command.text.manage` |
 | `/vnregion [wand]` | WorldEdit/vùng bảo vệ tích hợp | `vnmine.command.worldedit` |
-| `/vnbuild [select]` | Schema Build | `vnmine.command.schemabuild` |
+| `/vnbuild [select|undo|redo]` | Schema Build | `vnmine.command.schemabuild` |
 | `/vnevent [id ...|stop]` | Thiên tai | `vnmine.command.disasters` |
 | `/vnboss <id> ...|kill` | Boss | `vnmine.command.bosses` |
 | `/vntime set <day\|night> <phút> [world]` | Chu kỳ ngày/đêm | `vnmine.command.time.manage` |

@@ -65,8 +65,8 @@ schema-build:
   # [VI] Số BlockDisplay tối đa trong preview; mặc định -1 là không giới hạn, đặt 1-5000 để giới hạn preview.
   # [EN] Maximum BlockDisplay entities in preview; defaults to -1 for unlimited, set 1-5000 to cap the preview.
   preview-blocks: -1
-  # [VI] Số lần dựng có thể Undo mỗi admin (mặc định 10, hợp lệ 1-50; chỉ lưu trong phiên server hiện tại).
-  # [EN] Number of builds each admin can undo (default 10, valid 1-50; session-only, not persisted across restarts).
+  # [VI] Số lần dựng có thể Undo mỗi admin (mặc định/tối đa 10, hợp lệ 1-10; chỉ lưu tạm trong phiên server hiện tại).
+  # [EN] Number of builds each admin can undo (default/maximum 10, valid 1-10; temporary session history, not persisted across restarts).
   history-size: 10
 
 # [VI] Giới hạn an toàn cho lệnh chỉnh sửa vùng //set, //replace, //paste... của búa WorldEdit tích hợp.
