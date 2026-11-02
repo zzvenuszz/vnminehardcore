@@ -1298,5 +1298,5 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] `JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64 mvn -DskipTests clean package` thành công lúc `2026-11-02 14:34 UTC`; test suite bỏ qua, compile/package thành công.
 - [x] JAR `VnMineHardcore-2.50.0.jar`, 2.578.660 bytes, SHA-256 `a467aff1d8a0afafcbeb71d9fdd52657012b71dc6e4548dcd49c92d16e511cbb`; `plugin.yml` là 2.50.0 và SQLite native chỉ có Linux x86_64.
 - [x] Backup JAR 2.49.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.49.0-pre-2.50.0-20261102.jar`; cài JAR 2.50.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.50.0.jar`, thư mục plugin chỉ còn một JAR hoạt động.
-- [ ] Push thay đổi lên `origin/main`.
+- [x] Push commit triển khai `0e0f8d2` lên `origin/main`.
 - [ ] Chưa gameplay test đổi skin, permission người thường/OP, và khôi phục skin sau reconnect.
