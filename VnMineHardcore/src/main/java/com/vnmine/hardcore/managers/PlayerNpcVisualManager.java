@@ -14,7 +14,10 @@ import com.comphenix.protocol.wrappers.WrappedDataValue;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
 import com.comphenix.protocol.wrappers.WrappedGameProfile;
 import com.comphenix.protocol.wrappers.WrappedSignedProperty;
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import com.vnmine.hardcore.VnMineHardcore;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -36,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
@@ -45,6 +49,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -77,6 +82,7 @@ final class PlayerNpcVisualManager implements Listener {
     private final VnMineHardcore plugin;
     private final NpcManager npcManager;
     private final ProtocolManager protocolManager;
+    private final File playerSkinsFile;
     private final ExecutorService skinExecutor = Executors.newFixedThreadPool(2, runnable -> {
         Thread thread = new Thread(runnable, "VnMine-NpcSkin");
         thread.setDaemon(true);
@@ -93,6 +99,8 @@ final class PlayerNpcVisualManager implements Listener {
     private final Map<String, CompletableFuture<SkinProperty>> pendingSkins = new ConcurrentHashMap<>();
     private final Map<String, String> skinFailures = new ConcurrentHashMap<>();
     private final Map<String, Long> skinRetryAt = new ConcurrentHashMap<>();
+    private final Map<UUID, String> playerSkinOwners = new ConcurrentHashMap<>();
+    private final Map<UUID, String> pendingPlayerSkins = new ConcurrentHashMap<>();
     private final AtomicInteger nextEntityId = new AtomicInteger(-1);
     private final PacketAdapter interactionListener;
     private final BukkitTask updateTask;
@@ -103,6 +111,8 @@ final class PlayerNpcVisualManager implements Listener {
         this.plugin = plugin;
         this.npcManager = npcManager;
         this.protocolManager = ProtocolLibrary.getProtocolManager();
+        this.playerSkinsFile = new File(plugin.getDataFolder(), "player-skins.yml");
+        loadPlayerSkins();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         this.interactionListener = new PacketAdapter(plugin, ListenerPriority.HIGHEST,
                 PacketType.Play.Client.USE_ENTITY) {
@@ -166,6 +176,11 @@ final class PlayerNpcVisualManager implements Listener {
     public void onViewerJoin(PlayerJoinEvent event) {
         viewerReadyAtTick.put(event.getPlayer().getUniqueId(),
             (long) Bukkit.getCurrentTick() + VIEWER_LOGIN_SETTLE_TICKS);
+        UUID playerId = event.getPlayer().getUniqueId();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null && player.isOnline()) applyStoredPlayerSkin(player);
+        }, VIEWER_LOGIN_SETTLE_TICKS);
     }
 
     @EventHandler
@@ -273,11 +288,13 @@ final class PlayerNpcVisualManager implements Listener {
                         skinFailures.put(key, reason);
                         skinRetryAt.put(key, System.currentTimeMillis() + Duration.ofSeconds(30).toMillis());
                         plugin.getLogger().warning("[NPC][Skin] Could not load Minecraft account skin '" + owner + "': " + reason);
+                        failPendingPlayerSkins(key, reason);
                     } else {
                         skinsByOwner.put(key, skin);
                         skinFailures.remove(key);
                         skinRetryAt.remove(key);
                         plugin.getLogger().info("[NPC][Skin] Loaded skin profile for '" + owner + "'.");
+                        completePendingPlayerSkins(key, skin);
                     }
                     updateVisibleNpcs();
                 });
@@ -285,6 +302,117 @@ final class PlayerNpcVisualManager implements Listener {
                 pendingSkins.remove(key, request);
             }
         });
+    }
+
+    void setPlayerSkin(Player player, String owner) {
+        if (owner == null || !owner.matches("[A-Za-z0-9_]{3,16}")) {
+            player.sendMessage("§cTên skin phải dài 3-16 ký tự, chỉ gồm chữ, số hoặc gạch dưới.");
+            return;
+        }
+        String key = owner.toLowerCase(java.util.Locale.ROOT);
+        SkinProperty cached = skinsByOwner.get(key);
+        if (cached != null) {
+            if (!savePlayerSkin(player.getUniqueId(), owner)) {
+                player.sendMessage("§cKhông lưu được lựa chọn skin; skin hiện tại được giữ nguyên.");
+                return;
+            }
+            applyPlayerSkin(player, owner, cached);
+            return;
+        }
+        Long retryAt = skinRetryAt.get(key);
+        if (retryAt != null && System.currentTimeMillis() < retryAt) {
+            player.sendMessage("§cChưa thể tải skin này do yêu cầu trước thất bại. Thử lại sau ít giây.");
+            return;
+        }
+        pendingPlayerSkins.put(player.getUniqueId(), owner);
+        ensureSkin(owner);
+        player.sendMessage("§eĐang tải skin của §f" + owner + "§e từ Mojang...");
+    }
+
+    private void applyStoredPlayerSkin(Player player) {
+        String owner = playerSkinOwners.get(player.getUniqueId());
+        if (owner == null || owner.isBlank()) return;
+        String key = owner.toLowerCase(java.util.Locale.ROOT);
+        SkinProperty cached = skinsByOwner.get(key);
+        if (cached != null) {
+            applyPlayerSkin(player, owner, cached);
+            return;
+        }
+        Long retryAt = skinRetryAt.get(key);
+        if (retryAt != null && System.currentTimeMillis() < retryAt) return;
+        pendingPlayerSkins.put(player.getUniqueId(), owner);
+        ensureSkin(owner);
+    }
+
+    private void completePendingPlayerSkins(String skinKey, SkinProperty skin) {
+        for (Map.Entry<UUID, String> entry : List.copyOf(pendingPlayerSkins.entrySet())) {
+            if (!entry.getValue().equalsIgnoreCase(skinKey)
+                    || !pendingPlayerSkins.remove(entry.getKey(), entry.getValue())) continue;
+            if (!savePlayerSkin(entry.getKey(), entry.getValue())) {
+                Player player = Bukkit.getPlayer(entry.getKey());
+                if (player != null) player.sendMessage("§cKhông thể lưu skin; lựa chọn trước đó được giữ nguyên.");
+                continue;
+            }
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player != null && player.isOnline()) applyPlayerSkin(player, entry.getValue(), skin);
+        }
+    }
+
+    private void failPendingPlayerSkins(String skinKey, String reason) {
+        for (Map.Entry<UUID, String> entry : List.copyOf(pendingPlayerSkins.entrySet())) {
+            if (!entry.getValue().equalsIgnoreCase(skinKey)
+                    || !pendingPlayerSkins.remove(entry.getKey(), entry.getValue())) continue;
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player != null) player.sendMessage("§cKhông tải được skin của §f" + entry.getValue() + "§c: " + reason);
+        }
+    }
+
+    private void applyPlayerSkin(Player player, String owner, SkinProperty skin) {
+        try {
+            PlayerProfile profile = player.getPlayerProfile();
+            profile.removeProperty("textures");
+            profile.setProperty(new ProfileProperty("textures", skin.value(), skin.signature()));
+            player.setPlayerProfile(profile);
+            player.sendMessage("§aĐã đổi skin thành §f" + owner + "§a. Lựa chọn được lưu cho lần đăng nhập sau.");
+            plugin.getLogger().info("[Skin] applied player=" + player.getName() + ", owner=" + owner);
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.WARNING, "[Skin] Could not apply skin owner=" + owner
+                + " to player=" + player.getName(), exception);
+            player.sendMessage("§cKhông thể áp dụng skin này. Kiểm tra console để biết chi tiết.");
+        }
+    }
+
+    private boolean savePlayerSkin(UUID playerId, String owner) {
+        String previous = playerSkinOwners.put(playerId, owner);
+        YamlConfiguration yaml = new YamlConfiguration();
+        playerSkinOwners.forEach((uuid, skinOwner) -> yaml.set("players." + uuid, skinOwner));
+        try {
+            yaml.save(playerSkinsFile);
+            return true;
+        } catch (IOException exception) {
+            if (previous == null) playerSkinOwners.remove(playerId, owner);
+            else playerSkinOwners.put(playerId, previous);
+            plugin.getLogger().log(Level.SEVERE, "[Skin] Could not save " + playerSkinsFile.getName(), exception);
+            return false;
+        }
+    }
+
+    private void loadPlayerSkins() {
+        if (!playerSkinsFile.isFile()) return;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(playerSkinsFile);
+        var players = yaml.getConfigurationSection("players");
+        if (players == null) return;
+        for (String rawId : players.getKeys(false)) {
+            String owner = players.getString(rawId, "").trim();
+            try {
+                UUID playerId = UUID.fromString(rawId);
+                if (owner.matches("[A-Za-z0-9_]{3,16}")) playerSkinOwners.put(playerId, owner);
+                else plugin.getLogger().warning("[Skin] Ignoring invalid saved skin owner for " + rawId + ".");
+            } catch (IllegalArgumentException exception) {
+                plugin.getLogger().warning("[Skin] Ignoring invalid player UUID in " + playerSkinsFile.getName() + ": " + rawId);
+            }
+        }
+        plugin.getLogger().info("[Skin] Loaded " + playerSkinOwners.size() + " player skin selection(s).");
     }
 
     private SkinProperty lookupSkin(String owner) {

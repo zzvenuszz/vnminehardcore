@@ -21,6 +21,7 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | Lệnh | Mô tả | Quyền |
 |------|-------|-------|
 | `/vnstats` | Xem thống kê cá nhân (chỉ người chơi) | `vnmine.command.stats` |
+| `/skin <tên skin>` | Đặt skin bản thân theo username Minecraft Java; lựa chọn được lưu khi đăng nhập lại | `vnmine.command.skin` (mặc định OP) |
 | `/vnhardcore` | Xem trạng thái plugin | `vnmine.command.status` |
 | `/vn death reset <player>` | Reset số lần chết của player về 0 | `vnmine.command.death.reset` |
 | `/vnevent [<id> <warning-giây> <duration-giây>\|stop]` | Xem, gọi hoặc dừng thiên tai | `vnmine.command.disasters` |

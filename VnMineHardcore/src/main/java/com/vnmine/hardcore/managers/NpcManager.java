@@ -303,6 +303,22 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("skin")) {
+            if (!sender.hasPermission("vnmine.command.skin")) {
+                sender.sendMessage("§cBạn không có quyền đổi skin.");
+                return true;
+            }
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("§cLệnh này chỉ dành cho người chơi.");
+                return true;
+            }
+            if (args.length != 1) {
+                sender.sendMessage("§eCách dùng: /skin <tên skin>");
+                return true;
+            }
+            playerNpcVisualManager.setPlayerSkin(player, args[0]);
+            return true;
+        }
         if (!sender.hasPermission(ADMIN_PERMISSION)) {
             sender.sendMessage("§cBạn không có quyền quản lý NPC.");
             return true;
@@ -332,6 +348,12 @@ public final class NpcManager implements Listener, CommandExecutor, TabCompleter
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (command.getName().equalsIgnoreCase("skin")) {
+            if (args.length == 1) {
+                return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[0]);
+            }
+            return List.of();
+        }
         if (args.length == 1) {
             return filter(List.of("create", "edit", "rename", "move", "remove", "list", "info"), args[0]);
         }

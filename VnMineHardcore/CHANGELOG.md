@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.50.0 — 2026-11-02
+
+- Thêm `/skin <tên skin>` để người chơi đặt skin của chính mình; skin tải từ Mojang bất đồng bộ và được giữ lại khi đăng nhập lần sau.
+- Thêm quyền `vnmine.command.skin`, mặc định OP; có thể cấp riêng cho người chơi hoặc nhóm.
+
 ## 2.49.0 — 2026-11-02
 
 - Tăng WorldEdit undo history mặc định từ 10 lên 50 thao tác; cho phép cấu hình 1-100 bước và ghi chú tác động RAM theo kích thước các thao tác.

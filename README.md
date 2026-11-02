@@ -174,6 +174,7 @@ Hãy dùng menu/command editor khi có; thao tác trực tiếp với YAML cần
 | `/vnskills [list|tree]` | Kỹ năng RPG | `vnmine.command.skills` |
 | `/vncoin [balance|history]` | Ví VNCOIN | `vnmine.command.coin`; admin: `vnmine.command.vncoin.admin` |
 | `/vnstats` | Thống kê cá nhân | `vnmine.command.stats` |
+| `/skin <tên skin>` | Đặt skin bản thân theo username Minecraft Java; lựa chọn được lưu khi đăng nhập lại | `vnmine.command.skin` (mặc định OP) |
 | `/vnhelp` | Trợ giúp theo quyền | `vnmine.command.help` |
 | `/vnrespawn`, `/vnleave` | Chọn hồi sinh hoặc thoát sau khi chết | `vnmine.command.respawn`, `vnmine.command.leave` |
 | `/reward` | Nhận thưởng boss đang chờ | `vnmine.command.reward` |

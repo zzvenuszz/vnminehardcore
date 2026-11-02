@@ -276,6 +276,7 @@ public final class VnMineHardcore extends JavaPlugin {
         registerCommand("vnskills", skillManager, skillManager);
         registerCommand("vnskillbook", skillManager, skillManager);
         registerCommand("vnnpc", npcManager, npcManager);
+        registerCommand("skin", npcManager, npcManager);
         registerCommand("vntext", textDisplayManager, textDisplayManager);
         registerCommand("vnquest", questCatalogManager, questCatalogManager);
         registerCommand("alias", aliasManager, aliasManager);
