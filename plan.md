@@ -1335,6 +1335,17 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Push commit triển khai `aa0074d` lên `origin/main`.
 - [ ] Chưa gameplay test lấy tool trước copy, canh đáy preview/placement và `//undo`.
 
+## Clipboard xoay lại kết nối hàng rào và đường ray — 2.55.0 — 2026-11-02
+
+- [x] Xoay trạng thái các mặt kết nối của hàng rào và block `MultipleFacing` đồng bộ với hướng xoay trong preview.
+- [x] Sau khi paste clipboard, làm mới trạng thái kết nối hàng rào/đường ray sau khi cả vùng đã đặt; cập nhật trạng thái sau thực tế trong history để `//undo`/`//redo` kiểm tra đúng.
+- [x] Cập nhật README/changelog và tăng phiên bản lên 2.55.0.
+- [x] Build Java 25 thành công lúc `2026-11-02 15:03 UTC` bằng `mvn -DskipTests clean package`; compile/package thành công, test suite bỏ qua.
+- [x] JAR `VnMineHardcore-2.55.0.jar`, 2.589.628 bytes, SHA-256 `5739570608c16c895244054c794c58c0ae5ab3d8a513f254d4bee0c78360776a`; `plugin.yml` là 2.55.0, SQLite native Linux x86_64 có trong JAR.
+- [x] Backup JAR 2.54.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.54.0-pre-2.55.0-20261102.jar`; cài JAR 2.55.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.55.0.jar`, thư mục plugin chỉ còn một JAR hoạt động.
+- [ ] Push code lên `origin/main`.
+- [ ] Chưa gameplay test các hàng rào/đường ray nối trong clipboard, biên vùng, preview và undo/redo.
+
 ## Khắc phục server khựng khi lưu Schema Build — 2.52.0 — 2026-11-02
 
 - [x] Log `latest.log` 14:41 cho thấy Paper Watchdog dump server thread đang ở `YamlConfiguration.save()` → `SchemaBuildManager.saveBuilds()` → `place()`. `builds.yml` lúc kiểm tra có 59.495.193 bytes / 3.112.269 dòng; lần treo 10–15 giây xảy ra ngay trước build-complete của BapLuoc.

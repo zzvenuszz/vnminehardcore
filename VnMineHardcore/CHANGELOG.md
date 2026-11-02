@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.55.0 — 2026-11-02
+
+- Clipboard Paste Tool xoay lại hướng nối của hàng rào và các block nhiều mặt trong preview; sau khi đặt, làm mới kết nối hàng rào/đường ray theo block xung quanh. Lịch sử undo/redo lưu trạng thái sau khi kết nối được cập nhật.
+
 ## 2.54.0 — 2026-11-02
 
 - Cho phép lấy Clipboard Paste Tool trước `//copy`; sau khi có clipboard, preview tự xuất hiện khi cầm cuốc.

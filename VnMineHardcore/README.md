@@ -1078,6 +1078,8 @@ sau khi copy, preview bám mặt block đang ngắm và lớp Y thấp nhất c�
 được canh vào block ngay trên mặt đất. Chuột trái xoay 90° quanh gốc clipboard,
 chuột phải đặt. Công cụ đặt cả block air giống `//paste`; mỗi lần đặt có thể
 hoàn tác bằng `//undo`.
+Khi xoay clipboard, hướng nối hàng rào và block nhiều mặt cũng xoay theo; sau khi
+đặt, plugin cập nhật kết nối hàng rào và đường ray với các block lân cận.
 
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)

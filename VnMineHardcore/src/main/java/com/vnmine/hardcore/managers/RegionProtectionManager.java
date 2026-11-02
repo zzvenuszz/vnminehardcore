@@ -29,6 +29,8 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.structure.StructureRotation;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.MultipleFacing;
+import org.bukkit.block.data.Rail;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
@@ -920,11 +922,15 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private void scheduleEdit(Player player, String label, List<BlockChange> changes) {
+        scheduleEdit(player, label, changes, false);
+    }
+
+    private void scheduleEdit(Player player, String label, List<BlockChange> changes, boolean refreshConnections) {
         if (changes.isEmpty()) { player.sendMessage("§eKhông có block nào cần thay đổi."); return; }
         UUID id = player.getUniqueId();
         List<ChunkTicket> tickets = acquireChunkTickets(changes);
         activeEdits.add(id);
-        EditOperation operation = new EditOperation(label, List.copyOf(changes));
+        EditOperation operation = new EditOperation(label, new ArrayList<>(changes), refreshConnections);
         player.sendMessage("§eĐang áp dụng " + changes.size() + " block theo từng đợt. Đừng thoát world cho tới khi xong.");
         plugin.getLogger().info("[WorldRegion] edit-start player=" + player.getName() + ", operation=" + label + ", blocks=" + changes.size());
         final int[] index = {0};
@@ -936,6 +942,10 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                     restoreBlockChange(change, true);
                 }
                 if (index[0] >= operation.changes.size()) {
+                    if (operation.refreshConnections) {
+                        refreshLinkedConnections(operation.changes);
+                        captureActualAfterStates(operation);
+                    }
                     task.cancel(); activeEdits.remove(id); releaseChunkTickets(tickets);
                     Player online = Bukkit.getPlayer(id);
                     if (online != null) {
@@ -990,6 +1000,10 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                     restoreBlockChange(change, redo);
                 }
                 if (index[0] >= operation.changes.size()) {
+                    if (operation.refreshConnections) {
+                        refreshLinkedConnections(operation.changes);
+                        if (redo) captureActualAfterStates(operation);
+                    }
                     task.cancel(); activeEdits.remove(id); releaseChunkTickets(tickets);
                     if (player.isOnline()) {
                         (redo ? undoHistory : redoHistory).computeIfAbsent(id, ignored -> new ArrayDeque<>()).push(operation);
@@ -1002,6 +1016,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                     BlockChange change = operation.changes.get(rollback);
                     restoreBlockChange(change, !redo);
                 }
+                if (operation.refreshConnections) refreshLinkedConnections(operation.changes.subList(0, index[0]));
                 source.push(operation); releaseChunkTickets(tickets);
                 plugin.getLogger().log(Level.SEVERE, "[WorldRegion] history operation failed and rolled back player=" + player.getName(), exception);
                 if (player.isOnline()) player.sendMessage("§cUndo/redo gặp lỗi; phần đã làm được hoàn tác.");
@@ -1043,6 +1058,26 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             return;
         }
         change.location.getBlock().setBlockData(Bukkit.createBlockData(useAfter ? change.after : change.before), false);
+    }
+
+    private void refreshLinkedConnections(List<BlockChange> changes) {
+        Set<String> refreshed = new HashSet<>();
+        for (BlockChange change : changes) {
+            Block block = change.location.getBlock();
+            BlockData data = block.getBlockData();
+            if (!(data instanceof MultipleFacing) && !(data instanceof Rail)) continue;
+            String key = block.getWorld().getUID() + ":" + block.getX() + ":" + block.getY() + ":" + block.getZ();
+            if (refreshed.add(key)) block.setBlockData(data, true);
+        }
+    }
+
+    private void captureActualAfterStates(EditOperation operation) {
+        List<BlockChange> resolved = new ArrayList<>(operation.changes.size());
+        for (BlockChange change : operation.changes) {
+            resolved.add(new BlockChange(change.location, change.before,
+                change.location.getBlock().getBlockData().getAsString(), change.beforeState));
+        }
+        operation.changes = List.copyOf(resolved);
     }
 
     private List<ChunkTicket> acquireChunkTickets(List<BlockChange> changes) {
@@ -1252,7 +1287,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             }
             if (changes.size() > editLimit())
                 throw new IllegalArgumentException("Clipboard cần " + changes.size() + " block; giới hạn hiện tại là " + limitLabel() + ".");
-            scheduleEdit(player, "//paste-tool", changes);
+            scheduleEdit(player, "//paste-tool", changes, true);
             plugin.getLogger().info("[WorldRegion] paste-tool-place player=" + player.getName() + ", rotation="
                 + preview.rotation + ", blocks=" + changes.size() + ", anchor=" + world.getName() + ":"
                 + anchor.getX() + "," + anchor.getY() + "," + anchor.getZ());
@@ -1332,15 +1367,38 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         for (ClipboardBlock saved : clipboard.blocks()) {
             int x = saved.x(), z = saved.z();
             BlockData data = Bukkit.createBlockData(saved.blockData());
+            List<BlockFace> connectedFaces = data instanceof MultipleFacing facing
+                ? facing.getFaces().stream().toList() : List.of();
             for (int turn = 0; turn < turns; turn++) {
                 int oldX = x;
                 x = z;
                 z = -oldX;
                 data.rotate(StructureRotation.CLOCKWISE_90);
             }
+            if (turns > 0 && data instanceof MultipleFacing facing) {
+                for (BlockFace face : facing.getAllowedFaces()) facing.setFace(face, false);
+                for (BlockFace face : connectedFaces) {
+                    BlockFace rotated = rotateHorizontalFace(face, turns);
+                    if (facing.getAllowedFaces().contains(rotated)) facing.setFace(rotated, true);
+                }
+            }
             result.add(new ClipboardBlock(x, saved.y(), z, data.getAsString()));
         }
         return List.copyOf(result);
+    }
+
+    private BlockFace rotateHorizontalFace(BlockFace face, int turns) {
+        BlockFace result = face;
+        for (int turn = 0; turn < turns; turn++) {
+            result = switch (result) {
+                case NORTH -> BlockFace.WEST;
+                case WEST -> BlockFace.SOUTH;
+                case SOUTH -> BlockFace.EAST;
+                case EAST -> BlockFace.NORTH;
+                default -> result;
+            };
+        }
+        return result;
     }
 
     private int lowestClipboardY(List<ClipboardBlock> blocks) {
@@ -2016,7 +2074,16 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
     private record BlockChange(Location location, String before, String after, BlockState beforeState) { }
     private record ChunkTicket(World world, int x, int z) { }
-    private record EditOperation(String label, List<BlockChange> changes) { }
+    private static final class EditOperation {
+        private final String label;
+        private List<BlockChange> changes;
+        private final boolean refreshConnections;
+        private EditOperation(String label, List<BlockChange> changes, boolean refreshConnections) {
+            this.label = label;
+            this.changes = changes;
+            this.refreshConnections = refreshConnections;
+        }
+    }
     private record ClipboardBlock(int x, int y, int z, String blockData) { }
     private record Clipboard(List<ClipboardBlock> blocks, int sizeX, int sizeY, int sizeZ, Location origin) {
         private Clipboard(List<ClipboardBlock> blocks, int sizeX, int sizeY, int sizeZ) { this(blocks, sizeX, sizeY, sizeZ, null); }
