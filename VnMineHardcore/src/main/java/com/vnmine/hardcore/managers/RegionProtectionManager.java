@@ -1134,23 +1134,22 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
 
     private void giveClipboardPasteTool(Player player) {
         Clipboard clipboard = clipboards.get(player.getUniqueId());
-        if (clipboard == null) {
-            player.sendMessage("§cChọn vùng bằng búa rồi dùng //copy trước.");
-            return;
-        }
         ItemStack tool = new ItemStack(Material.WOODEN_PICKAXE);
         ItemMeta meta = tool.getItemMeta();
         meta.setDisplayName("§bWorldEdit • Clipboard Paste Tool");
-        meta.setLore(List.of("§7Clipboard: §f" + clipboard.blocks().size() + " block",
+        meta.setLore(List.of("§7Clipboard: §f" + (clipboard == null ? "chưa //copy" : clipboard.blocks().size() + " block"),
+            "§7Có thể lấy tool trước khi copy; preview tự hiện sau //copy.",
             "§7Cầm để xem preview bám mặt đất đang ngắm.",
             "§7Chuột trái xoay 90°; chuột phải đặt.", "§7Có thể //undo sau khi đặt."));
         meta.getPersistentDataContainer().set(clipboardPasteToolKey, PersistentDataType.BYTE, (byte) 1);
         tool.setItemMeta(meta);
         Map<Integer, ItemStack> leftovers = player.getInventory().addItem(tool);
         if (!leftovers.isEmpty()) player.getWorld().dropItemNaturally(player.getLocation(), tool);
-        player.sendMessage("§aĐã cấp cuốc chim Clipboard Paste Tool. Cầm cuốc để xem preview; chuột trái xoay, chuột phải đặt và có thể //undo.");
+        player.sendMessage(clipboard == null
+            ? "§aĐã cấp Clipboard Paste Tool. Hãy //copy một vùng; preview sẽ tự hiện khi bạn cầm cuốc."
+            : "§aĐã cấp cuốc chim Clipboard Paste Tool. Cầm cuốc để xem preview; chuột trái xoay, chuột phải đặt và có thể //undo.");
         plugin.getLogger().info("[WorldRegion] paste-tool-issued player=" + player.getName()
-            + ", blocks=" + clipboard.blocks().size());
+            + ", blocks=" + (clipboard == null ? "not-copied" : clipboard.blocks().size()));
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -1208,12 +1207,14 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         PastePreview preview = pastePreviews.get(player.getUniqueId());
         if (preview == null || preview.clipboard != clipboard) {
             removePastePreview(player.getUniqueId());
-            preview = new PastePreview(clipboard, rotateClipboard(clipboard, 0));
+            List<ClipboardBlock> transformed = rotateClipboard(clipboard, 0);
+            preview = new PastePreview(clipboard, transformed, lowestClipboardY(transformed));
             pastePreviews.put(player.getUniqueId(), preview);
         }
         if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
             preview.rotation = (preview.rotation + 90) % 360;
             preview.transformedBlocks = rotateClipboard(clipboard, preview.rotation);
+            preview.surfaceLayer = lowestClipboardY(preview.transformedBlocks);
             preview.anchor = null;
             Block anchor = pasteSurfaceAnchor(player, null, null);
             if (anchor != null) updatePastePreview(player, preview, anchor);
@@ -1234,7 +1235,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         try {
             for (ClipboardBlock saved : preview.transformedBlocks) {
                 long x = (long) anchor.getX() + saved.x();
-                long y = (long) anchor.getY() + saved.y();
+                long y = (long) anchor.getY() + saved.y() - preview.surfaceLayer;
                 long z = (long) anchor.getZ() + saved.z();
                 if (x < Integer.MIN_VALUE || x > Integer.MAX_VALUE || z < Integer.MIN_VALUE || z > Integer.MAX_VALUE
                         || y < world.getMinHeight() || y >= world.getMaxHeight()) {
@@ -1302,7 +1303,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             PastePreview preview = pastePreviews.get(playerId);
             if (preview == null || preview.clipboard != clipboard) {
                 removePastePreview(playerId);
-                preview = new PastePreview(clipboard, rotateClipboard(clipboard, 0));
+                List<ClipboardBlock> transformed = rotateClipboard(clipboard, 0);
+                preview = new PastePreview(clipboard, transformed, lowestClipboardY(transformed));
                 pastePreviews.put(playerId, preview);
             }
             active.add(playerId);
@@ -1341,6 +1343,10 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         return List.copyOf(result);
     }
 
+    private int lowestClipboardY(List<ClipboardBlock> blocks) {
+        return blocks.stream().mapToInt(ClipboardBlock::y).min().orElse(0);
+    }
+
     private void updatePastePreview(Player player, PastePreview preview, Block anchorBlock) {
         Location anchor = anchorBlock.getLocation();
         if (preview.anchor != null && preview.anchor.getWorld().equals(anchor.getWorld())
@@ -1356,7 +1362,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         while (preview.displays.size() > count) preview.displays.remove(preview.displays.size() - 1).remove();
         for (int index = 0; index < count; index++) {
             ClipboardBlock saved = visible.get(index);
-            Location location = anchor.clone().add(saved.x(), saved.y(), saved.z());
+            Location location = anchor.clone().add(saved.x(), saved.y() - preview.surfaceLayer, saved.z());
             BlockDisplay display;
             if (index >= preview.displays.size()) {
                 display = anchor.getWorld().spawn(location, BlockDisplay.class, entity -> {
@@ -2031,11 +2037,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         private final Clipboard clipboard;
         private final List<BlockDisplay> displays = new ArrayList<>();
         private List<ClipboardBlock> transformedBlocks;
+        private int surfaceLayer;
         private int rotation;
         private Location anchor;
-        private PastePreview(Clipboard clipboard, List<ClipboardBlock> transformedBlocks) {
+        private PastePreview(Clipboard clipboard, List<ClipboardBlock> transformedBlocks, int surfaceLayer) {
             this.clipboard = clipboard;
             this.transformedBlocks = transformedBlocks;
+            this.surfaceLayer = surfaceLayer;
         }
     }
     @FunctionalInterface private interface BlockMatcher { boolean matches(BlockData data); }

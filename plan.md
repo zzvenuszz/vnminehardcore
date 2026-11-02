@@ -1324,6 +1324,16 @@ Không nên triển khai cùng lúc mọi nghề trong `classes.md`: hoàn thi�
 - [x] Push commit triển khai `8dce8b6` lên `origin/main`.
 - [ ] Chưa gameplay test preview, xoay block directionals, paste block air và //undo.
 
+## Clipboard Paste Tool nhận trước khi copy và canh đáy — 2.54.0 — 2026-11-02
+
+- [x] Cho phép nhận cuốc chim Clipboard Paste Tool trước `//copy`; sau khi người chơi copy vùng, preview tự hiện khi đang cầm tool.
+- [x] Dịch preview và tọa độ paste theo lớp Y thấp nhất trong clipboard để lớp đó nằm ở block ngay trên mặt block đang ngắm.
+- [x] Cập nhật README/changelog, tăng phiên bản lên 2.54.0.
+- [x] Build Java 25 thành công lúc `2026-11-02 14:59 UTC` bằng `mvn -DskipTests clean package`; test suite bỏ qua, compile/package thành công.
+- [x] JAR `VnMineHardcore-2.54.0.jar`, 2.588.009 bytes, SHA-256 `c80d7da9cf4f9e4d315244677a97531734664b03ea8de077775d551e55d76f53`; plugin.yml là 2.54.0, SQLite native chỉ có Linux x86_64.
+- [ ] Backup/cài JAR và push lên `origin/main`.
+- [ ] Chưa gameplay test lấy tool trước copy, canh đáy preview/placement và `//undo`.
+
 ## Khắc phục server khựng khi lưu Schema Build — 2.52.0 — 2026-11-02
 
 - [x] Log `latest.log` 14:41 cho thấy Paper Watchdog dump server thread đang ở `YamlConfiguration.save()` → `SchemaBuildManager.saveBuilds()` → `place()`. `builds.yml` lúc kiểm tra có 59.495.193 bytes / 3.112.269 dòng; lần treo 10–15 giây xảy ra ngay trước build-complete của BapLuoc.

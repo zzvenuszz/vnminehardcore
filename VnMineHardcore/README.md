@@ -1073,9 +1073,11 @@ lịch sử chỉ tồn tại trong phiên server hiện tại. Preview mặc đ
 bộ mẫu; giới hạn bằng `worldedit.brush-preview-blocks` nếu cần giảm số entity.
 
 Để đặt cả clipboard như một công trình, chọn **Lấy Clipboard Paste Tool** trong
-cùng menu để nhận cuốc chim gỗ. Khi cầm cuốc, preview bám mặt block đang ngắm;
-chuột trái xoay 90° quanh gốc clipboard, chuột phải đặt. Công cụ đặt cả block air
-giống `//paste`; mỗi lần đặt có thể hoàn tác bằng `//undo`.
+cùng menu để nhận cuốc chim gỗ; có thể nhận tool trước khi `//copy`. Khi cầm cuốc
+sau khi copy, preview bám mặt block đang ngắm và lớp Y thấp nhất của clipboard
+được canh vào block ngay trên mặt đất. Chuột trái xoay 90° quanh gốc clipboard,
+chuột phải đặt. Công cụ đặt cả block air giống `//paste`; mỗi lần đặt có thể
+hoàn tác bằng `//undo`.
 
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)

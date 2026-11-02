@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.54.0 — 2026-11-02
+
+- Cho phép lấy Clipboard Paste Tool trước `//copy`; sau khi có clipboard, preview tự xuất hiện khi cầm cuốc.
+- Canh lớp Y thấp nhất của clipboard lên block ngay trên mặt đất đang ngắm, dùng chung cho preview và placement.
+
 ## 2.53.0 — 2026-11-02
 
 - Thêm Clipboard Paste Tool bằng cuốc chim gỗ: preview clipboard trên bề mặt đang ngắm, chuột trái xoay 90°, chuột phải đặt; mỗi lần đặt có thể `//undo`.
