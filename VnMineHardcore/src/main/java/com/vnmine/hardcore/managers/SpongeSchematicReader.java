@@ -39,7 +39,9 @@ final class SpongeSchematicReader {
         long volume = (long) width * height * length;
         if (width < 1 || height < 1 || length < 1)
             throw new IOException("invalid schematic dimensions " + width + "x" + height + "x" + length);
-        if (volume > maxBlocks)
+        if (volume > Integer.MAX_VALUE)
+            throw new IOException("schematic contains too many blocks for this server to load safely: " + volume);
+        if (maxBlocks > 0 && volume > maxBlocks)
             throw new IOException("dimensions " + width + "x" + height + "x" + length + " contain "
                 + volume + " blocks; configured limit is " + maxBlocks);
 
@@ -53,10 +55,12 @@ final class SpongeSchematicReader {
         int paletteSize = 0;
         for (Object value : palette.values()) {
             int paletteIndex = number(value, "palette index");
-            if (paletteIndex < 0 || paletteIndex >= maxBlocks) throw new IOException("palette index is out of bounds");
+            if (paletteIndex < 0 || maxBlocks > 0 && paletteIndex >= maxBlocks)
+                throw new IOException("palette index is out of bounds");
             paletteSize = Math.max(paletteSize, paletteIndex + 1);
         }
-        if (paletteSize < 1 || paletteSize > maxBlocks) throw new IOException("invalid palette size");
+        if (paletteSize < 1 || maxBlocks > 0 && paletteSize > maxBlocks)
+            throw new IOException("invalid palette size");
         for (int i = 0; i < paletteSize; i++) paletteStates.add(null);
         for (Map.Entry<?, ?> entry : palette.entrySet()) {
             if (!(entry.getKey() instanceof String state)) throw new IOException("palette state must be a string");

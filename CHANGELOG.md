@@ -1,5 +1,16 @@
 # Changelog
 
+## [v2.43.0] - 2026-11-02
+
+- WorldEdit tích hợp `//set` và các lệnh pattern nhận `air`, ID block cũ dạng số (`0`, `1`, `35:14`), tên material, block state và pattern trọng số theo cú pháp `//set <pattern>`.
+- Sidebar hiển thị tên, cấp, máu, world và race/class ở phần trên cùng; từng dòng có thể bật/tắt trong `scoreboard.yml`.
+- `schema-build.max-blocks: -1` bỏ giới hạn số block cấu hình cho file schema; giới hạn kích thước file và an toàn NBT vẫn được giữ.
+- `//set` bỏ qua rương, bảng hiệu và block entity khác, tiếp tục áp dụng pattern cho các block còn lại.
+- Thêm `//clear` để xóa block thường trong vùng chọn bằng air; block entity được bỏ qua để giữ dữ liệu.
+- Cho phép đặt `schema-build.preview-blocks: -1` để hiển thị toàn bộ block trong preview; cấu hình mặc định là không giới hạn.
+- Build Java 25 thành công lúc `2026-11-02 12:54:51 UTC` bằng `mvn -DskipTests clean package`; test suite bỏ qua theo yêu cầu. JAR 2.43.0: 2.567.056 bytes, SHA-256 `32cbfecfd70ed7f7e41674f6083100af8a4dd04eb6943421b70b5817ad310bda`; chỉ đóng gói SQLite native Linux x86_64.
+- Backup JAR 2.42.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.42.0-pre-2.43.0-20261102.jar`, cài 2.43.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.43.0.jar`; cấu hình preview runtime chuyển sang `-1` và đã backup. Chưa restart server để gameplay test.
+
 ## [v2.42.0] - 2026-10-30
 
 - Creative được miễn debuff môi trường của plugin (sợ hầm, choáng độ cao, sương mù, nhiệt độ, mưa axit/nước lạnh và khát); potion effect liên quan được gỡ khi chuyển mode, và plugin không chặn bay Creative.

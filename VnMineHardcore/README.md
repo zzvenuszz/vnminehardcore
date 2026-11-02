@@ -867,7 +867,8 @@ vật phẩm cho từng hạng top 1–10. Khi mùa kết thúc, mỗi hạng nh
 sát thương giữa tất cả người đóng góp. Điểm và quà
 đang chờ được lưu trong `scoreboard-data.yml`. Người chơi nhận quà bằng
 `/reward`; nếu inventory không đủ chỗ, quà vẫn chờ và có thể nhận lại sau khi
-dọn túi. Boss không nhận sát thương từ môi trường (bao gồm sát thương rơi) hoặc
+dọn túi. Thông tin người chơi ở đầu sidebar (tên, cấp, máu, world, race/class)
+có thể bật/tắt riêng trong `scoreboard.player-info`. Boss không nhận sát thương từ môi trường (bao gồm sát thương rơi) hoặc
 skill/đòn đánh do chính boss tạo ra; vật phẩm thông thường vẫn theo ngưỡng đóng
 góp, còn token triệu hồi có thể rơi khi có người chơi gây sát thương.
 Chạy `/vnreload` để nạp cấu hình.
@@ -1039,7 +1040,9 @@ Búa hỗ trợ cú pháp gần WorldEdit, có thể gõ lệnh `//...` trực t
 
 ```text
 //pos1 [x,y,z]       //pos2 [x,y,z]       //hpos1 / //hpos2 / //chunk
-//set minecraft:stone
+//set minecraft:stone       //set air              //set 0
+//clear              //clearhistory
+//set 1                    //set 35:14            //set minecraft:oak_log[axis=x]
 //set 50%stone,50%minecraft:glass
 //replace minecraft:dirt minecraft:stone
 //walls stone        //faces stone        //overlay grass_block
@@ -1051,8 +1054,14 @@ Búa hỗ trợ cú pháp gần WorldEdit, có thể gõ lệnh `//...` trực t
 //undo / //redo      //size / //desel      //limit 32768 / //limit unlimited
 ```
 
-Pattern nhận tên block/namespace, block state như
-`minecraft:oak_log[axis=x]` và các lựa chọn phân bố ngẫu nhiên có trọng số.
+`//set` bỏ qua các block entity như rương và bảng hiệu để bảo toàn dữ liệu, sau
+đó tiếp tục áp dụng lên các block khác trong vùng.
+`//clear` xóa block trong vùng chọn bằng cách thay block thường bằng air; các
+block entity được bỏ qua để giữ nguyên dữ liệu.
+
+Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
+như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)
+và các lựa chọn phân bố ngẫu nhiên có trọng số.
 Các thay đổi được áp dụng theo từng batch để giảm giật. Giới hạn mặc định là
 32,768 block mỗi thao tác, 512 block mỗi tick; chỉnh tại `worldedit.max-blocks`,
 `worldedit.blocks-per-tick`, và tối đa 256 chunk mỗi tác vụ tại
@@ -1061,8 +1070,9 @@ block/chunk; chỉ áp dụng trên chunk đã nạp và thao tác lớn có th�
 RAM/tài nguyên server. Viền vùng chọn dùng particle đỏ; có thể tắt/chỉnh tầm xem
 trong `worldedit.selection-particles`. Các lệnh `//` có tab completion. Plugin
 giữ các chunk được sửa trong lúc batch đang chạy. Undo/redo giữ 10 thao tác; clipboard và history
-chỉ tồn tại trong phiên đăng nhập hiện tại. Hệ thống từ chối thao tác lên rương,
-bảng hiệu và các block entity khác vì không lưu nội dung của chúng.
+chỉ tồn tại trong phiên đăng nhập hiện tại. `//set` và `//clear` bỏ qua block
+entity; các thao tác khác chưa hỗ trợ lưu nội dung rương, bảng hiệu và block
+entity nên sẽ từ chối vùng có chứa chúng.
 
 Các lệnh này hiện chỉ hỗ trợ vùng cuboid, block placement/replacement và
 clipboard block. Brush, generator, biome/entity editing và các loại selection
@@ -1074,7 +1084,7 @@ operations, clipboard, patterns và history dựa trên
 [pattern](https://worldedit.enginehub.org/en/latest/usage/general/patterns/) và
 [undo/redo](https://worldedit.enginehub.org/en/latest/usage/general/history/).
 
-Giới hạn kích thước schema và số block hiển thị trong preview được đặt tại `schema-build.max-blocks` và `schema-build.preview-blocks` trong `config.yml`. Plugin đặt block state vanilla; dữ liệu block entity như inventory/sign, entity và biome trong file schematic chưa được dựng.
+Giới hạn kích thước schema và số block hiển thị trong preview được đặt tại `schema-build.max-blocks` và `schema-build.preview-blocks` trong `config.yml`. Đặt `schema-build.preview-blocks: -1` để hiển thị toàn bộ block của preview; mặc định hiện là không giới hạn. Đặt `schema-build.max-blocks: -1` để bỏ trần số block cấu hình; file vẫn chịu giới hạn kích thước 64 MiB và giới hạn cấu trúc NBT nội bộ. Plugin đặt block state vanilla; dữ liệu block entity như inventory/sign, entity và biome trong file schematic chưa được dựng.
 
 ## Build từ mã nguồn
 

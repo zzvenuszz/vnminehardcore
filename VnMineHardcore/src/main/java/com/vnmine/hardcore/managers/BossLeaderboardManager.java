@@ -77,6 +77,12 @@ public final class BossLeaderboardManager implements Listener {
     private int reminderIntervalMinutes = 60;
     private boolean enabled = true;
     private boolean scoreboardEnabled = true;
+    private boolean playerInfoEnabled = true;
+    private boolean showPlayerName = true;
+    private boolean showPlayerLevel = true;
+    private boolean showPlayerHealth = true;
+    private boolean showPlayerWorld = true;
+    private boolean showPlayerCharacter = true;
     private String scoreboardTitle = "§6§lBOSS RANKING";
     private Entity activeBoss;
     private BukkitRunnable ticker;
@@ -107,6 +113,12 @@ public final class BossLeaderboardManager implements Listener {
         enabled = settings.getBoolean("enabled", true);
         scoreboardEnabled = enabled && settings.getBoolean("scoreboard.enabled", true);
         scoreboardTitle = color(settings.getString("scoreboard.title", "§6§lBOSS RANKING"));
+        playerInfoEnabled = settings.getBoolean("scoreboard.player-info.enabled", true);
+        showPlayerName = settings.getBoolean("scoreboard.player-info.show-name", true);
+        showPlayerLevel = settings.getBoolean("scoreboard.player-info.show-level", true);
+        showPlayerHealth = settings.getBoolean("scoreboard.player-info.show-health", true);
+        showPlayerWorld = settings.getBoolean("scoreboard.player-info.show-world", true);
+        showPlayerCharacter = settings.getBoolean("scoreboard.player-info.show-character", true);
         resetEveryGameDays = boundedInt("reset.every-game-days", 100, 1, 100000);
         winnerTitleSeconds = boundedInt("reset.winner-title-seconds", 10, 1, 60);
         reminderIntervalMinutes = boundedInt("rewards.reminder-interval-minutes", 60, 1, 10080);
@@ -546,11 +558,13 @@ public final class BossLeaderboardManager implements Listener {
 
         for (String entry : new ArrayList<>(board.getEntries())) board.resetScores(entry);
         List<String> lines = new ArrayList<>();
+        List<String> playerInfoLines = playerInfoLines(player);
+        lines.addAll(playerInfoLines);
         if (activeBoss != null && activeBoss.isValid() && !activeBoss.isDead()) {
             lines.add("§e§lSát thương boss");
             List<Map.Entry<UUID, Double>> ranking = bossDamage.entrySet().stream()
                 .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
-                .limit(Math.min(MAX_DAMAGE_DISPLAY, maxRankingLines(player))).toList();
+                .limit(Math.min(MAX_DAMAGE_DISPLAY, maxRankingLines(player, playerInfoLines.size()))).toList();
             if (ranking.isEmpty()) lines.add("§7Chưa có sát thương");
             else {
                 for (int index = 0; index < ranking.size(); index++) {
@@ -564,7 +578,7 @@ public final class BossLeaderboardManager implements Listener {
             List<Map.Entry<UUID, Double>> ranking = orderedScores();
             if (ranking.isEmpty()) lines.add("§7Chưa có điểm");
             else {
-                for (int index = 0; index < Math.min(maxRankingLines(player), ranking.size()); index++) {
+                for (int index = 0; index < Math.min(maxRankingLines(player, playerInfoLines.size()), ranking.size()); index++) {
                     Map.Entry<UUID, Double> entry = ranking.get(index);
                     lines.add("§f" + (index + 1) + ". " + shortName(nameOf(entry.getKey())) +
                         " §6" + format(entry.getValue()));
@@ -583,14 +597,46 @@ public final class BossLeaderboardManager implements Listener {
         player.setScoreboard(board);
     }
 
-    private int maxRankingLines(Player player) {
+    private List<String> playerInfoLines(Player player) {
+        if (!playerInfoEnabled) return List.of();
+        List<String> lines = new ArrayList<>();
+        if (showPlayerName) lines.add("§fNgười chơi: §a" + shortName(player.getName()));
+        var characterManager = plugin.getCharacterSelectionManager();
+        var profile = characterManager == null ? null
+            : characterManager.getLoadedProfile(player.getUniqueId()).orElse(null);
+        if (showPlayerLevel) lines.add("§eCấp độ: §f" + (profile == null ? player.getLevel() : profile.level()));
+        if (showPlayerHealth) {
+            var maxHealthAttribute = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
+            double maxHealth = maxHealthAttribute == null ? 20.0 : maxHealthAttribute.getValue();
+            lines.add("§cMáu: §f" + String.format(Locale.ROOT, "%.0f/%.0f", player.getHealth(), maxHealth));
+        }
+        if (showPlayerWorld) lines.add("§bThế giới: §f" + shortName(player.getWorld().getName()));
+        if (showPlayerCharacter && profile != null) {
+            String raceName = profile.selectedRace() == null ? "" : profile.selectedRace();
+            String className = profile.selectedClass() == null ? "" : profile.selectedClass();
+            if (characterManager != null) {
+                var race = characterManager.getConfiguredRaceDefinitions().stream()
+                    .filter(definition -> definition.id().equalsIgnoreCase(profile.selectedRace()))
+                    .findFirst().orElse(null);
+                if (race != null) raceName = race.name();
+                var selectedClass = characterManager.getClassDefinition(profile.selectedClass());
+                if (selectedClass != null) className = selectedClass.name();
+            }
+            if (!raceName.isBlank() || !className.isBlank()) {
+                lines.add("§dNhân vật: §f" + shortName(raceName) + "/" + shortName(className));
+            }
+        }
+        return lines;
+    }
+
+    private int maxRankingLines(Player player, int playerInfoLineCount) {
         int questLines = 0;
         TutorialQuestManager tutorial = plugin.getTutorialQuestManager();
         if (tutorial != null) questLines += tutorial.getQuestSidebarLines(player).size();
         QuestCatalogManager catalog = plugin.getQuestCatalogManager();
         if (catalog != null) questLines += catalog.getQuestSidebarLines(player).size();
-        // Reserve a header, quest lines, the date footer, and one status/ranking line.
-        return Math.max(1, 15 - 3 - questLines);
+        // Reserve player info, a ranking header, quest lines, the date footer, and one status/ranking line.
+        return Math.max(1, 15 - 3 - questLines - playerInfoLineCount);
     }
 
     private String uniqueLine(String line, int index) {

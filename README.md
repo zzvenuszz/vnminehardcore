@@ -128,7 +128,9 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 
 ### WorldEdit, vùng bảo vệ và công trình
 
-- `/vnregion wand` cấp búa chọn vùng. `//pos1`/`//pos2` không tọa độ chọn block đang đứng; `//hpos1`/`//hpos2` chọn block đang ngắm. `//set`, `//replace`, `//copy`, `//paste`, `//undo` và các thao tác tích hợp phụ thuộc quyền WorldEdit; chỉnh độ dày viền particle tại `worldedit.selection-particles.spacing-blocks`.
+- `/vnregion wand` cấp búa chọn vùng. `//pos1`/`//pos2` không tọa độ chọn block đang đứng; `//hpos1`/`//hpos2` chọn block đang ngắm. WorldEdit nhận `//set air`, `//set 0`, ID cũ có data như `//set 35:14`, tên material và block state; `//set` và `//clear` bỏ qua rương/bảng hiệu để giữ dữ liệu của chúng (`//clear` thay block thường bằng air). Chỉnh độ dày viền particle tại `worldedit.selection-particles.spacing-blocks`.
+- Sidebar boss/quest hiển thị tên, cấp, máu, world và race/class ở phía trên; có thể bật/tắt từng dòng trong `scoreboard.yml`.
+- Đặt `schema-build.preview-blocks: -1` để preview toàn bộ block và `schema-build.max-blocks: -1` để bỏ trần block cấu hình của Schema Build; giới hạn file/NBT nhằm bảo vệ bộ đọc vẫn áp dụng.
 - Creative được miễn debuff môi trường của plugin như sợ hầm, choáng độ cao, sương mù, nhiệt độ, khát và các tác động mưa axit/nước lạnh.
 - Vùng có thể đặt tên và có rule bảo vệ do plugin hỗ trợ; đây là hệ thống tích hợp, không phải phụ thuộc WorldEdit/WorldGuard.
 - `/vnbuild select` chọn công trình Schema gần nhất. `/vnbuild` mở browser `.schem`; preview, xoay/lật, đặt, undo/redo và protect tùy workflow trong menu.

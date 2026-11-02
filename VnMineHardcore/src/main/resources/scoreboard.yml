@@ -12,6 +12,25 @@ scoreboard:
   # [VI] Tiêu đề sidebar; mặc định "§6§lBOSS RANKING".
   # [EN] Sidebar title; default "§6§lBOSS RANKING".
   title: "§6§lBOSS RANKING"
+  # [VI] Bật các thông tin cơ bản của người chơi ở đầu sidebar; mặc định bật.
+  # [EN] Show basic player information at the top of the sidebar; enabled by default.
+  player-info:
+    enabled: true
+    # [VI] Hiển thị tên người chơi; mặc định bật.
+    # [EN] Show the player's name; enabled by default.
+    show-name: true
+    # [VI] Hiển thị cấp RPG (hoặc cấp vanilla khi hồ sơ đang tải); mặc định bật.
+    # [EN] Show RPG level (or vanilla level while the profile loads); enabled by default.
+    show-level: true
+    # [VI] Hiển thị máu hiện tại/tối đa; mặc định bật.
+    # [EN] Show current/maximum health; enabled by default.
+    show-health: true
+    # [VI] Hiển thị tên world hiện tại; mặc định bật.
+    # [EN] Show the current world name; enabled by default.
+    show-world: true
+    # [VI] Hiển thị race/class trong hồ sơ RPG; mặc định bật.
+    # [EN] Show the race/class from the RPG profile; enabled by default.
+    show-character: true
 
 reset:
   # [VI] Số ngày trong game giữa các lần reset; mặc định 100, hợp lệ 1-100000.

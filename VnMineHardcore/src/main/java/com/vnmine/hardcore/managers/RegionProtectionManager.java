@@ -124,7 +124,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
 
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return filter(List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
-            "desel", "set", "replace", "walls", "faces", "overlay", "center", "square", "circle", "count", "expand", "contract",
+            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "square", "circle", "count", "expand", "contract",
             "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo", "clearhistory", "limit"), args[0]);
         if (args.length == 2 && Set.of("set", "walls", "faces", "overlay", "center", "cut").contains(args[0].toLowerCase(Locale.ROOT)))
             return blockSuggestions(args[1]);
@@ -147,7 +147,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         else return;
         String[] tokens = input.split("\\s+", -1);
         List<String> commands = List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
-            "desel", "set", "replace", "walls", "faces", "overlay", "center", "square", "circle", "count",
+            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "square", "circle", "count",
             "expand", "contract", "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo",
             "clearhistory", "limit");
         if (tokens.length == 1) {
@@ -215,7 +215,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             selection != null && selection.complete() ? "§aĐã chọn đủ hai góc." : "§cCần chọn đủ hai góc cùng world.",
             "§eNhấn để đặt tên vùng bằng chat.")));
         menu.setItem(46, icon(Material.WRITABLE_BOOK, "§dLệnh WorldEdit tích hợp", List.of(
-            "§7//set <block> • //replace <from> <to>", "§7//walls <block> • //faces <block> • //overlay <block>",
+            "§7//set <pattern> • //replace <from> <to>", "§7//walls <pattern> • //faces <pattern> • //overlay <pattern>",
             "§7//copy • //cut • //paste [-a] • //undo • //redo", "§eGõ //help để xem hướng dẫn.")));
         if (page > 0) menu.setItem(45, icon(Material.ARROW, "§eTrang trước", List.of()));
         menu.setItem(47, icon(Material.SUNFLOWER, "§bCài đặt World bắt đầu/reset", List.of(
@@ -266,6 +266,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 case "size" -> reportSelectionSize(player);
                 case "desel", "deselect" -> { selections.remove(player.getUniqueId()); player.sendMessage("§eĐã bỏ vùng chọn."); }
                 case "set" -> editSet(player, args);
+                case "clear" -> editClear(player, args);
                 case "replace", "re", "rep" -> editReplace(player, args);
                 case "walls" -> editShape(player, args, Shape.WALLS);
                 case "faces", "outline" -> editShape(player, args, Shape.FACES);
@@ -298,7 +299,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
 
     private void sendWorldEditHelp(Player player) {
         player.sendMessage("§6WorldEdit tích hợp §7• chọn bằng búa hoặc //pos1 //pos2 //hpos1 //hpos2 //chunk");
-        player.sendMessage("§e//set <block> §7• §e//replace <from> <to> §7• §e//walls <block> §7• §e//faces <block>");
+        player.sendMessage("§e//set <pattern> §7• §e//clear §7• §e//replace <from> <to> §7• §e//walls <pattern> §7• §e//faces <pattern>");
+        player.sendMessage("§7Pattern: stone, air, 0, ID cũ (35:14), block state hoặc 50%stone,50%glass.");
         player.sendMessage("§e//overlay <block> §7• §e//center <block> §7• §e//square <bán_kính> [block] §7• §e//circle <bán_kính> [block]");
         player.sendMessage("§e//count <block> §7• §e//cut [block]");
         player.sendMessage("§e//copy §7• §e//paste [-a] §7• §e//undo §7• §e//redo §7• §e//size §7• §e//desel");
@@ -377,15 +379,35 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private void editSet(Player player, String[] args) {
-        if (args.length != 1) throw new IllegalArgumentException("Dùng //set <block>, ví dụ //set minecraft:stone.");
+        editSet(player, args, "//set");
+    }
+
+    private void editClear(Player player, String[] args) {
+        if (args.length != 0) throw new IllegalArgumentException("Dùng //clear để xóa block trong vùng chọn.");
+        editSet(player, new String[]{"air"}, "//clear");
+    }
+
+    private void editSet(Player player, String[] args, String operationLabel) {
+        if (args.length != 1) throw new IllegalArgumentException(
+            "Dùng //set <pattern>, ví dụ //set stone, //set air, //set 0 hoặc //set 35:14.");
         Selection selection = requireSelection(player, true);
         BlockPattern pattern = parsePattern(args[0]);
         Random random = new Random();
         List<BlockChange> changes = new ArrayList<>();
+        int skippedBlockEntities = 0;
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
-            for (int z = selection.minZ(); z <= selection.maxZ(); z++) addChange(player, changes,
-                selection.first.getWorld().getBlockAt(x, y, z), pattern.next(random));
-        scheduleEdit(player, "//set", changes);
+            for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
+                Block block = selection.first.getWorld().getBlockAt(x, y, z);
+                if (block.getState() instanceof org.bukkit.block.TileState) {
+                    skippedBlockEntities++;
+                    continue;
+                }
+                addChange(player, changes, block, pattern.next(random));
+            }
+        scheduleEdit(player, operationLabel, changes);
+        if (skippedBlockEntities > 0) {
+            player.sendMessage("§e" + operationLabel + " đã bỏ qua " + skippedBlockEntities + " block entity để giữ nguyên dữ liệu rương/bảng hiệu.");
+        }
     }
 
     private void editReplace(Player player, String[] args) {
@@ -720,9 +742,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("^(\\d+(?:\\.\\d+)?)%(.+)$").matcher(value);
             if (matcher.matches()) { weight = Double.parseDouble(matcher.group(1)); value = matcher.group(2); }
             if (!(weight > 0) || !Double.isFinite(weight)) throw new IllegalArgumentException("Trọng số pattern phải lớn hơn 0.");
-            BlockData data;
-            try { data = Bukkit.createBlockData(value); }
-            catch (IllegalArgumentException exception) { throw new IllegalArgumentException("Block ID hoặc block state không hợp lệ: " + value); }
+            BlockData data = parseBlockData(value);
             if (!data.getMaterial().isBlock()) throw new IllegalArgumentException("Đây không phải block: " + value);
             choices.add(new WeightedBlock(data.getAsString(), weight)); total += weight;
         }
@@ -731,11 +751,42 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private BlockMatcher parseMatcher(String raw) {
-        BlockData data;
-        try { data = Bukkit.createBlockData(raw); }
-        catch (IllegalArgumentException exception) { throw new IllegalArgumentException("Block ID không hợp lệ: " + raw); }
-        boolean exactState = raw.contains("[");
+        BlockData data = parseBlockData(raw);
+        boolean exactState = raw.contains("[") || raw.matches("^\\d+:\\d+$");
         return candidate -> candidate.getMaterial() == data.getMaterial() && (!exactState || candidate.matches(data));
+    }
+
+    private BlockData parseBlockData(String raw) {
+        String value = raw.trim();
+        java.util.regex.Matcher legacyId = java.util.regex.Pattern.compile("^(\\d+)(?::(\\d+))?$").matcher(value);
+        if (legacyId.matches()) {
+            int id;
+            int dataValue;
+            try {
+                id = Integer.parseInt(legacyId.group(1));
+                dataValue = legacyId.group(2) == null ? 0 : Integer.parseInt(legacyId.group(2));
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("ID block số không hợp lệ: " + value);
+            }
+            if (dataValue > 15) throw new IllegalArgumentException("Data ID block cũ phải nằm trong khoảng 0-15: " + value);
+            if (id == 0 && dataValue == 0) return Bukkit.createBlockData(Material.AIR);
+            Material legacyMaterial = java.util.Arrays.stream(Material.values())
+                .filter(Material::isLegacy)
+                .filter(material -> material.getId() == id)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy ID block cũ: " + value));
+            try {
+                BlockData data = Bukkit.getUnsafe().fromLegacy(legacyMaterial, (byte) dataValue);
+                if (data == null) throw new IllegalArgumentException("ID block cũ không hợp lệ: " + value);
+                return data;
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException("ID block cũ không hợp lệ: " + value);
+            }
+        }
+        try { return Bukkit.createBlockData(value); }
+        catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Material, ID block hoặc block state không hợp lệ: " + value);
+        }
     }
 
     private void addChange(Player player, List<BlockChange> changes, Block block, BlockData target) {

@@ -58,7 +58,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     private static final String PERMISSION = "vnmine.command.schemabuild";
     private static final int PAGE_SIZE = 45;
     private static final int DEFAULT_MAX_BLOCKS = 400_000;
-    private static final int DEFAULT_PREVIEW_BLOCKS = 1200;
+    private static final int DEFAULT_PREVIEW_BLOCKS = -1;
     private static final int DEFAULT_HISTORY_SIZE = 10;
     private final VnMineHardcore plugin;
     private final Path schemasRoot;
@@ -183,8 +183,8 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private SchemaDefinition loadSchema(Path file) throws IOException {
-        int maxBlocks = Math.max(1, Math.min(500_000,
-            plugin.getConfig().getInt("schema-build.max-blocks", DEFAULT_MAX_BLOCKS)));
+        int configuredMaxBlocks = plugin.getConfig().getInt("schema-build.max-blocks", DEFAULT_MAX_BLOCKS);
+        int maxBlocks = configuredMaxBlocks == -1 ? -1 : Math.max(1, Math.min(500_000, configuredMaxBlocks));
         SpongeSchematicReader.Schematic schematic = SpongeSchematicReader.read(file, maxBlocks);
         List<SchemaBlock> blocks = new ArrayList<>(schematic.blockStates().size());
         java.util.Set<String> normalizedLegacyStates = new java.util.HashSet<>();
@@ -617,8 +617,9 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         session.anchor = newAnchor;
         List<PlacedBlock> blocks = transform(session.schema.schema(), session.rotationX, session.rotationY, session.rotationZ,
             session.flipX, session.flipY, session.flipZ);
-        int displayLimit = Math.max(1, Math.min(5000,
-            plugin.getConfig().getInt("schema-build.preview-blocks", DEFAULT_PREVIEW_BLOCKS)));
+        int configuredDisplayLimit = plugin.getConfig().getInt("schema-build.preview-blocks", DEFAULT_PREVIEW_BLOCKS);
+        int displayLimit = configuredDisplayLimit == -1
+            ? Integer.MAX_VALUE : Math.max(1, Math.min(5000, configuredDisplayLimit));
         List<PlacedBlock> visibleBlocks = blocks.stream()
             .filter(placed -> !Bukkit.createBlockData(placed.blockData()).getMaterial().isAir()).toList();
         int count = Math.min(visibleBlocks.size(), displayLimit);

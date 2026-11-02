@@ -471,6 +471,8 @@ public final class CharacterSelectionManager implements Listener {
                 }
                 PlayerProfileDatabaseManager.PlayerProfile loadedProfile = profile.get();
                 loadedProfiles.put(playerId, loadedProfile);
+                BossLeaderboardManager leaderboard = plugin.getBossLeaderboardManager();
+                if (leaderboard != null) leaderboard.refreshPlayerBoard(player);
                 boolean replayTutorialNpcClick = pendingStartNpcInteractions.remove(playerId);
                 if ("needs-continent".equals(onboardingStage(player))) {
                     player.sendMessage("§eTiến trình quest đã được đặt lại. Dùng §f/start §eđể quay lại hành trình hướng dẫn.");
@@ -518,7 +520,11 @@ public final class CharacterSelectionManager implements Listener {
 
     public void updateLoadedProfile(PlayerProfileDatabaseManager.PlayerProfile profile) {
         if (profile != null) {
-            loadedProfiles.put(UUID.fromString(profile.uuid()), profile);
+            UUID playerId = UUID.fromString(profile.uuid());
+            loadedProfiles.put(playerId, profile);
+            Player player = plugin.getServer().getPlayer(playerId);
+            BossLeaderboardManager leaderboard = plugin.getBossLeaderboardManager();
+            if (player != null && leaderboard != null) leaderboard.refreshPlayerBoard(player);
         }
     }
 

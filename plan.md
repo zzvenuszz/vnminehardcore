@@ -1,3 +1,14 @@
+# Phát hành tính năng WorldEdit, scoreboard và Schema Build — 2.43.0 — 2026-11-02
+
+- [x] `//set` nhận `air`, ID số như `0`/`35:14`, tên material và block state; bỏ qua block entity. Thêm `//clear` để xóa vùng chọn an toàn.
+- [x] Hiển thị thông tin cơ bản người chơi ở đầu sidebar; cấu hình tùy chọn từng dòng.
+- [x] Hỗ trợ `schema-build.max-blocks: -1` và preview không giới hạn với `schema-build.preview-blocks: -1`; sửa đọc schema mở rộng.
+- [x] Tăng version nguồn lên 2.43.0 và cập nhật README/changelog.
+- [x] Build Java 25 bằng `mvn -DskipTests clean package` lúc `2026-11-02 12:54:51 UTC`; JAR 2.43.0: 2.567.056 bytes, SHA-256 `32cbfecfd70ed7f7e41674f6083100af8a4dd04eb6943421b70b5817ad310bda`; chỉ có SQLite native Linux x86_64.
+- [x] Backup 2.42.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.42.0-pre-2.43.0-20261102.jar` và cài JAR 2.43.0 vào `/home/ubuntu/DATA/VNMINE/plugins/`; backup config runtime rồi đặt `schema-build.preview-blocks: -1`.
+- [ ] Push commit lên `origin/main`.
+- [ ] Chưa restart server/gameplay test; xác nhận `//clear`, `//set` có block entity, sidebar và schema preview sau restart.
+
 # Creative và sửa chọn vùng WorldEdit — yêu cầu 2026-10-30
 
 - [x] Creative miễn các debuff môi trường/khát của plugin; xóa potion effect môi trường khi chuyển sang Creative và không chặn bay Creative.
