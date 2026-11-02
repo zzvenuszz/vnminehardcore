@@ -1063,11 +1063,13 @@ vuông đặc, `//circle <bán_kính> <block>` tạo đĩa tròn đặc, còn
 xứng 8 hướng. Cả ba lệnh lấy tâm tại `//pos1`.
 
 Để vẽ lặp một mẫu đường sá, chọn mẫu bằng búa gỗ rồi dùng `//copy`. Mở **Menu
-chính → Admin → WorldEdit**, nhấn **Lấy Clipboard Brush** để nhận stick. Chuột
-phải lên block mặt đất để đóng dấu clipboard tại vị trí đó; block air trong
-clipboard được bỏ qua để không xóa nền xung quanh. Mỗi lần dùng brush được ghi
-thành một thao tác riêng và có thể hoàn tác bằng `//undo`; clipboard và lịch sử
-chỉ tồn tại trong phiên server hiện tại.
+chính → Admin → WorldEdit**, nhấn **Lấy Clipboard Brush** để nhận stick. Khi cầm
+stick, preview BlockDisplay bám theo mặt block đang ngắm; lớp thấp nhất có block
+được canh vào bề mặt đó, các lớp còn lại giữ nguyên độ cao tương đối. Chuột phải
+để xác nhận đóng dấu; block air trong clipboard được bỏ qua. Mỗi lần dùng brush
+được ghi thành một thao tác riêng và có thể hoàn tác bằng `//undo`; clipboard và
+lịch sử chỉ tồn tại trong phiên server hiện tại. Preview mặc định hiển thị toàn
+bộ mẫu; giới hạn bằng `worldedit.brush-preview-blocks` nếu cần giảm số entity.
 
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)

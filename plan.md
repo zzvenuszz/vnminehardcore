@@ -1,3 +1,13 @@
+# Clipboard Brush surface preview — 2.48.0 — 2026-11-02
+
+- [x] Preview stick brush bám theo block player đang ngắm; cùng một anchor được dùng khi đặt để vị trí preview và kết quả không lệch nhau.
+- [x] Canh lớp thấp nhất có block vào mặt địa hình được chọn, giữ nguyên chiều cao tương đối của mẫu phía trên; air tiếp tục bị bỏ qua.
+- [x] Thêm `worldedit.brush-preview-blocks` (mặc định `-1` không giới hạn), cập nhật README/changelog và tăng version 2.48.0.
+- [x] Build Java 25 thành công lúc `2026-11-02 14:14:23 UTC` bằng `mvn -DskipTests clean package`; JAR 2.48.0: 2.575.296 bytes, SHA-256 `b74963cca107e5246c8336d6710a894146d297273008d7fc261f11e94cf262f6`; plugin.yml là 2.48.0, SQLite native Linux x86_64.
+- [x] Backup 2.47.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.47.0-pre-2.48.0-20261102.jar` và bản 2.48.0 đã cài trước đó tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.48.0-before-surface-preview-20261102.jar`; cài JAR 2.48.0 hoàn chỉnh tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.48.0.jar`.
+- [ ] Commit/push code và kế hoạch lên `origin/main`.
+- [ ] Chưa gameplay test preview bám theo ngắm trên mặt đất dốc, canh lớp pattern và từng bước `//undo`.
+
 # WorldEdit clipboard brush — 2.47.0 — 2026-11-02
 
 - [x] Thêm stick Clipboard Brush vào menu Admin → WorldEdit; dùng clipboard từ `//copy`, chuột phải lên block mặt đất để đóng dấu theo vị trí gốc clipboard.

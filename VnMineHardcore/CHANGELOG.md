@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.48.0 — 2026-11-02
+
+- Clipboard Brush hiển thị preview theo bề mặt block người chơi ngắm; lớp thấp nhất của pattern được canh vào bề mặt và các lớp còn lại giữ độ cao tương đối. Nhấp phải xác nhận; thêm cấu hình giới hạn preview.
+
 ## 2.47.0 — 2026-11-02
 
 - Thêm Clipboard Brush bằng stick trong menu Admin → WorldEdit: dùng clipboard từ `//copy`, chuột phải lên block để đóng dấu pattern, bỏ qua air; mỗi lần vẽ được lưu thành một bước `//undo` riêng.

@@ -97,6 +97,9 @@ worldedit:
   # [VI] Số thao tác có thể undo; history chỉ tồn tại trong phiên người chơi/server, mặc định 10, hợp lệ 1-50.
   # [EN] Number of undoable operations; history is session-only, defaults to 10, valid range 1-50.
   history-size: 10
+  # [VI] Số BlockDisplay tối đa trong preview Clipboard Brush; mặc định -1 là không giới hạn, đặt 1-32768 để giới hạn.
+  # [EN] Maximum BlockDisplay entities in Clipboard Brush preview; defaults to -1 for unlimited, set 1-32768 to cap it.
+  brush-preview-blocks: -1
 
 # [VI] Cài đặt tạo nhân vật RPG; mặc định được bật.
 # [EN] RPG character-creation settings; enabled by default.

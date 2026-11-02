@@ -35,6 +35,7 @@ import org.bukkit.entity.Allay;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Snowman;
 import org.bukkit.event.EventHandler;
@@ -71,6 +72,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private static final long DEFAULT_MAX_EDIT_BLOCKS = 32_768L;
     private static final int DEFAULT_HISTORY_LIMIT = 10;
     private static final int DEFAULT_MAX_EDIT_CHUNKS = 256;
+    private static final int DEFAULT_BRUSH_PREVIEW_BLOCKS = -1;
     private static final int[] CONTENT_SLOTS = {
         10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25,
         28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43
@@ -94,8 +96,10 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private final Map<UUID, Deque<EditOperation>> undoHistory = new HashMap<>();
     private final Map<UUID, Deque<EditOperation>> redoHistory = new HashMap<>();
     private final Map<UUID, Clipboard> clipboards = new HashMap<>();
+    private final Map<UUID, BrushPreview> brushPreviews = new HashMap<>();
     private final Set<UUID> activeEdits = new HashSet<>();
     private final BukkitTask selectionParticleTask;
+    private final BukkitTask brushPreviewTask;
 
     public RegionProtectionManager(VnMineHardcore plugin) {
         this.plugin = plugin;
@@ -108,6 +112,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             plugin.getConfig().getLong("worldedit.selection-particles.interval-ticks", 10L)));
         selectionParticleTask = Bukkit.getScheduler().runTaskTimer(plugin,
             this::renderSelectionParticles, interval, interval);
+        brushPreviewTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickBrushPreviews, 1L, 1L);
     }
 
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -189,9 +194,16 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     public void onQuit(PlayerQuitEvent event) {
         UUID id = event.getPlayer().getUniqueId();
         undoHistory.remove(id); redoHistory.remove(id); clipboards.remove(id); selections.remove(id); pendingNames.remove(id);
+        removeBrushPreview(id);
     }
 
     public void openAdminMenu(Player player) { openAdminMenu(player, 0); }
+
+    public void shutdown() {
+        selectionParticleTask.cancel();
+        brushPreviewTask.cancel();
+        for (UUID playerId : new HashSet<>(brushPreviews.keySet())) removeBrushPreview(playerId);
+    }
 
     private void openAdminMenu(Player player, int requestedPage) {
         List<ProtectedRegion> ordered = regions.values().stream()
@@ -226,7 +238,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         menu.setItem(47, icon(Material.SUNFLOWER, "§bCài đặt World bắt đầu/reset", List.of(
             "§7Bảo vệ block, tương tác, PvP, quái, thời gian, đói và khát.")));
         menu.setItem(50, icon(Material.STICK, "§aLấy Clipboard Brush", List.of(
-            "§7Dùng pattern đã //copy để vẽ lên mặt đất.", "§7Chuột phải block để đóng dấu; air trong clipboard được bỏ qua.",
+            "§7Dùng pattern đã //copy; preview bám mặt block đang ngắm.", "§7Chuột phải để xác nhận đóng dấu; air được bỏ qua.",
             "§7Mỗi lần vẽ là một bước //undo.", "§eCần //copy một vùng trước.")));
         menu.setItem(49, icon(Material.ARROW, "§7Quay lại menu Admin", List.of()));
         if ((page + 1) * CONTENT_SLOTS.length < ordered.size()) menu.setItem(53, icon(Material.ARROW, "§eTrang sau", List.of()));
@@ -785,13 +797,15 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         }
         World world = player.getWorld();
         Location anchor = target.getLocation();
+        List<ClipboardBlock> pattern = clipboard.blocks().stream()
+            .filter(block -> !Bukkit.createBlockData(block.blockData()).getMaterial().isAir()).toList();
+        int surfaceLayer = pattern.stream().mapToInt(ClipboardBlock::y).min().orElse(0);
         List<BlockChange> changes = new ArrayList<>();
         try {
-            for (ClipboardBlock saved : clipboard.blocks) {
+            for (ClipboardBlock saved : pattern) {
                 BlockData data = Bukkit.createBlockData(saved.blockData());
-                if (data.getMaterial().isAir()) continue;
                 long x = (long) anchor.getBlockX() + saved.x();
-                long y = (long) anchor.getBlockY() + saved.y();
+                long y = (long) anchor.getBlockY() + saved.y() - surfaceLayer;
                 long z = (long) anchor.getBlockZ() + saved.z();
                 if (x < Integer.MIN_VALUE || x > Integer.MAX_VALUE || z < Integer.MIN_VALUE || z > Integer.MAX_VALUE
                         || y < world.getMinHeight() || y >= world.getMaxHeight())
@@ -1093,13 +1107,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         ItemMeta meta = brush.getItemMeta();
         meta.setDisplayName("§aWorldEdit • Clipboard Brush");
         meta.setLore(List.of("§7Pattern: §f" + clipboard.blocks().size() + " block",
-            "§7Chuột phải block để đóng dấu pattern lên mặt đất.",
+            "§7Preview bám bề mặt đang ngắm; chuột phải để xác nhận.",
             "§7Block air trong clipboard sẽ bị bỏ qua.", "§eMỗi lần dùng brush lưu riêng vào //undo."));
         meta.getPersistentDataContainer().set(brushKey, PersistentDataType.BYTE, (byte) 1);
         brush.setItemMeta(meta);
         Map<Integer, ItemStack> leftovers = player.getInventory().addItem(brush);
         if (!leftovers.isEmpty()) player.getWorld().dropItemNaturally(player.getLocation(), brush);
-        player.sendMessage("§aĐã cấp stick Clipboard Brush. §eChuột phải lên block để vẽ pattern; mỗi lần có một bước //undo.");
+        player.sendMessage("§aĐã cấp stick Clipboard Brush. §eCầm stick để xem preview bám mặt block; chuột phải xác nhận, mỗi lần có một bước //undo.");
         plugin.getLogger().info("[WorldRegion] brush-issued player=" + player.getName() + ", blocks=" + clipboard.blocks().size());
     }
 
@@ -1125,16 +1139,104 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             player.sendMessage("§cClipboard trống. Chọn vùng bằng búa rồi dùng //copy trước.");
             return;
         }
-        Block target = event.getClickedBlock();
-        if (target == null) {
-            org.bukkit.util.RayTraceResult hit = player.rayTraceBlocks(64.0);
-            target = hit == null ? null : hit.getHitBlock();
-        }
+        Block target = brushSurfaceAnchor(player, event.getClickedBlock());
         if (target == null) {
             player.sendMessage("§eHãy nhắm vào một block để vẽ pattern.");
             return;
         }
         applyClipboardBrush(player, clipboard, target);
+    }
+
+    private void tickBrushPreviews() {
+        Set<UUID> active = new HashSet<>();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            UUID playerId = player.getUniqueId();
+            ItemStack held = player.getInventory().getItemInMainHand();
+            Clipboard clipboard = clipboards.get(playerId);
+            if (!canManage(player) || !isBrush(held) || clipboard == null) {
+                removeBrushPreview(playerId);
+                continue;
+            }
+            Block anchor = brushSurfaceAnchor(player, null);
+            if (anchor == null) {
+                removeBrushPreview(playerId);
+                continue;
+            }
+            active.add(playerId);
+            updateBrushPreview(player, clipboard, anchor);
+        }
+        for (UUID playerId : new HashSet<>(brushPreviews.keySet())) {
+            if (!active.contains(playerId)) removeBrushPreview(playerId);
+        }
+    }
+
+    private Block brushSurfaceAnchor(Player player, Block clicked) {
+        if (clicked != null) return clicked;
+        org.bukkit.util.RayTraceResult hit = player.rayTraceBlocks(64.0);
+        if (hit == null || hit.getHitBlock() == null) return null;
+        return hit.getHitBlock();
+    }
+
+    private void updateBrushPreview(Player player, Clipboard clipboard, Block anchorBlock) {
+        UUID playerId = player.getUniqueId();
+        BrushPreview preview = brushPreviews.get(playerId);
+        if (preview == null || preview.clipboard != clipboard) {
+            removeBrushPreview(playerId);
+            List<ClipboardBlock> pattern = clipboard.blocks().stream()
+                .filter(block -> !Bukkit.createBlockData(block.blockData()).getMaterial().isAir()).toList();
+            int surfaceLayer = pattern.stream().mapToInt(ClipboardBlock::y).min().orElse(0);
+            preview = new BrushPreview(clipboard, pattern, surfaceLayer);
+            brushPreviews.put(playerId, preview);
+        }
+        Location anchor = anchorBlock.getLocation();
+        if (preview.anchor != null && preview.anchor.getWorld().equals(anchor.getWorld())
+                && preview.anchor.getBlockX() == anchor.getBlockX()
+                && preview.anchor.getBlockY() == anchor.getBlockY()
+                && preview.anchor.getBlockZ() == anchor.getBlockZ()) return;
+        preview.anchor = anchor;
+        int configuredLimit = plugin.getConfig().getInt("worldedit.brush-preview-blocks", DEFAULT_BRUSH_PREVIEW_BLOCKS);
+        int displayLimit = configuredLimit == -1 ? Integer.MAX_VALUE : Math.max(1, Math.min(32_768, configuredLimit));
+        int count = Math.min(preview.pattern.size(), displayLimit);
+        while (preview.displays.size() > count) preview.displays.remove(preview.displays.size() - 1).remove();
+        for (int index = 0; index < count; index++) {
+            ClipboardBlock saved = preview.pattern.get(index);
+            Location location = anchor.clone().add(saved.x(), saved.y() - preview.surfaceLayer, saved.z());
+            BlockDisplay display;
+            if (index >= preview.displays.size()) {
+                display = anchor.getWorld().spawn(location, BlockDisplay.class, entity -> {
+                    entity.setBlock(Bukkit.createBlockData(saved.blockData()));
+                    entity.setGlowing(true);
+                    entity.setVisibleByDefault(false);
+                    entity.setPersistent(false);
+                });
+                player.showEntity(plugin, display);
+                preview.displays.add(display);
+            } else {
+                display = preview.displays.get(index);
+                if (!display.getWorld().equals(location.getWorld())) {
+                    display.remove();
+                    display = anchor.getWorld().spawn(location, BlockDisplay.class, entity -> {
+                        entity.setBlock(Bukkit.createBlockData(saved.blockData()));
+                        entity.setGlowing(true);
+                        entity.setVisibleByDefault(false);
+                        entity.setPersistent(false);
+                    });
+                    preview.displays.set(index, display);
+                } else {
+                    display.teleport(location);
+                    display.setBlock(Bukkit.createBlockData(saved.blockData()));
+                }
+                player.showEntity(plugin, display);
+            }
+        }
+        String truncated = preview.pattern.size() > displayLimit ? " §e(preview giới hạn)" : "";
+        player.sendActionBar("§aBrush preview tại §f" + anchorBlock.getX() + " " + anchorBlock.getY() + " "
+            + anchorBlock.getZ() + " §7• chuột phải xác nhận • air bỏ qua" + truncated);
+    }
+
+    private void removeBrushPreview(UUID playerId) {
+        BrushPreview preview = brushPreviews.remove(playerId);
+        if (preview != null) for (BlockDisplay display : preview.displays) display.remove();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -1687,6 +1789,18 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private record ClipboardBlock(int x, int y, int z, String blockData) { }
     private record Clipboard(List<ClipboardBlock> blocks, int sizeX, int sizeY, int sizeZ, Location origin) {
         private Clipboard(List<ClipboardBlock> blocks, int sizeX, int sizeY, int sizeZ) { this(blocks, sizeX, sizeY, sizeZ, null); }
+    }
+    private static final class BrushPreview {
+        private final Clipboard clipboard;
+        private final List<ClipboardBlock> pattern;
+        private final int surfaceLayer;
+        private final List<BlockDisplay> displays = new ArrayList<>();
+        private Location anchor;
+        private BrushPreview(Clipboard clipboard, List<ClipboardBlock> pattern, int surfaceLayer) {
+            this.clipboard = clipboard;
+            this.pattern = pattern;
+            this.surfaceLayer = surfaceLayer;
+        }
     }
     @FunctionalInterface private interface BlockMatcher { boolean matches(BlockData data); }
     private record BlockPattern(List<WeightedBlock> choices, double totalWeight) {
