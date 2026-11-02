@@ -4,7 +4,7 @@
 - [x] Bỏ chặn undo/redo schema có block entity được tạo bởi schema; bổ sung `/vnbuild undo`/`redo` và giới hạn lịch sử tối đa 10 lần đặt.
 - [x] Build Java 25 thành công lúc `2026-11-02 13:16:10 UTC` bằng `mvn -DskipTests clean package`; JAR 2.44.0: 2.568.494 bytes, SHA-256 `b0db4260132171e3a295deae27175f09d53d7a339cfa66a999b63e7f5a638506`; chỉ có SQLite native Linux x86_64.
 - [x] Backup 2.43.1 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.43.1-pre-2.44.0-20261102.jar` và cài 2.44.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.44.0.jar`.
-- [ ] Push code và cập nhật trạng thái plan lên `origin/main`.
+- [x] Push code 2.44.0 (`9094e08`) lên `origin/main`.
 - [ ] Chưa restart server/gameplay test `//set air`, phục hồi rương/sign bằng `//undo`, đặt schema có tile block và undo/redo 10 lần.
 
 # Phát hành tính năng WorldEdit, scoreboard và Schema Build — 2.43.0 — 2026-11-02
