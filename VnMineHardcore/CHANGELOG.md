@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.46.0 — 2026-11-02
+
+- Schema Build placement preview xoay trái/phải 90° bằng chuột trái/phải; thêm `!cancel` và `/vnbuild cancel` để thoát. Esc đóng menu chỉnh và dọn preview; client không gửi phím Esc khi menu đã đóng ở preview ngoài world.
+
 ## 2.45.0 — 2026-11-02
 
 - Các lệnh `//square`, `//circle` yêu cầu block đích; thêm `//round <bán_kính> <block>` để dựng vòng tròn rỗng bằng thuật toán midpoint đối xứng 8 hướng. Đĩa `//circle` dùng khoảng cách Euclid trên lưới block.

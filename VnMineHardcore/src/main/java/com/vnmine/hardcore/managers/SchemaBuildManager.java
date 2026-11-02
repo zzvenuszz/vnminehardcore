@@ -36,7 +36,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -102,6 +104,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) { sender.sendMessage("Lệnh này chỉ dùng trong game."); return true; }
         if (!player.hasPermission(PERMISSION)) { player.sendMessage("§cBạn không có quyền Schema Build."); return true; }
+        if (args.length == 1 && "cancel".equalsIgnoreCase(args[0])) { cancelPreview(player); return true; }
         if (args.length == 1 && "undo".equalsIgnoreCase(args[0])) { undo(player); return true; }
         if (args.length == 1 && "redo".equalsIgnoreCase(args[0])) { redo(player); return true; }
         if (args.length == 1 && "select".equalsIgnoreCase(args[0])) {
@@ -117,13 +120,13 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             plugin.getLogger().info("[SchemaBuild] selected-build player=" + player.getName() + ", id=" + nearest.id);
             return true;
         }
-        player.sendMessage("§eDùng /vnbuild select để chọn công trình gần nhất trong world hiện tại.");
+        player.sendMessage("§eDùng /vnbuild select, /vnbuild undo, /vnbuild redo hoặc /vnbuild cancel.");
         return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        return args.length == 1 ? filter(List.of("select", "undo", "redo"), args[0]) : List.of();
+        return args.length == 1 ? filter(List.of("select", "undo", "redo", "cancel"), args[0]) : List.of();
     }
 
     private List<String> filter(List<String> values, String prefix) {
@@ -330,14 +333,15 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         menu.setItem(40, icon(Material.LIME_CONCRETE, "§aPreview ngoài world", List.of(
             "§7Đóng menu và giữ bóng mờ trong world.",
             "§7Di chuyển tự do để chọn vị trí đặt.",
-            "§eGõ !put để đặt hoặc !back để chỉnh lại.")));
+            "§eChuột trái/phải xoay trái/phải.", "§eGõ !put để đặt, !back để chỉnh hoặc !cancel để thoát.")));
         menu.setItem(43, icon(Material.TIPPED_ARROW, "§dRedo build vừa Undo", List.of()));
         menu.setItem(45, icon(Material.ARROW, "§eChọn schema khác", List.of()));
         menu.setItem(49, icon(Material.BARRIER, "§cHủy xem trước", List.of("§7Bóng mờ sẽ bị xóa.")));
         menu.setItem(53, icon(Material.COMPASS, "§bCách đặt", List.of(
             "§7Xoay và lật từng trục, rồi bật preview ngoài world.",
-            "§7Trong preview, di chuyển/ngắm mặt block để chọn vị trí.",
-            "§e!put đặt công trình; !back mở lại menu xoay/lật.", "§e/vnbuild undo khôi phục trước khi đặt.")));
+            "§7Trong preview, di chuyển/ngắm mặt block để chọn vị trí; chuột trái/phải xoay.",
+            "§e!put đặt; !back chỉnh; !cancel hoặc /vnbuild cancel thoát preview.",
+            "§eEsc đóng menu chỉnh và dọn preview; /vnbuild undo khôi phục đặt trước.")));
         player.openInventory(menu);
     }
 
@@ -434,15 +438,37 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         session.placementPreview = true;
         updatePreview(player, session, true);
         player.closeInventory();
-        player.sendMessage("§bPreview schema đang bật. Di chuyển và ngắm để chọn vị trí; gõ §f!put §bđể đặt hoặc §f!back §bđể chỉnh xoay/lật.");
+        player.sendMessage("§bPreview schema: chuột trái/phải xoay trái/phải; di chuyển và ngắm để chọn vị trí. Gõ §f!put §bđể đặt, §f!back §bđể chỉnh hoặc §f!cancel §bđể thoát.");
         plugin.getLogger().info("[SchemaBuild] placement-preview player=" + player.getName() + ", schema="
             + session.schema.relativePath() + ", anchor=" + locationText(session.anchor));
     }
 
     @EventHandler
+    public void onPlacementPreviewInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        Action action = event.getAction();
+        if (action != Action.LEFT_CLICK_AIR && action != Action.LEFT_CLICK_BLOCK
+                && action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+        Player player = event.getPlayer();
+        BuildSession session = sessions.get(player.getUniqueId());
+        if (session == null || !session.placementPreview) return;
+        event.setCancelled(true);
+        if (!player.hasPermission(PERMISSION)) {
+            cancelPreview(player);
+            player.sendMessage("§cBạn không còn quyền Schema Build; preview đã bị hủy.");
+            return;
+        }
+        int direction = action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK ? -1 : 1;
+        session.rotationY = wrap(session.rotationY + direction * 90);
+        updatePreview(player, session, true);
+        player.sendActionBar("§bXoay preview: §f" + session.rotationY + "° §7(Trái: −90° • Phải: +90°)");
+    }
+
+    @EventHandler
     public void onPlacementPreviewChat(AsyncPlayerChatEvent event) {
         String input = event.getMessage().trim();
-        if (!"!put".equalsIgnoreCase(input) && !"!back".equalsIgnoreCase(input)) return;
+        if (!"!put".equalsIgnoreCase(input) && !"!back".equalsIgnoreCase(input)
+                && !"!cancel".equalsIgnoreCase(input)) return;
         UUID playerId = event.getPlayer().getUniqueId();
         BuildSession session = sessions.get(playerId);
         if (session == null || !session.placementPreview) return;
@@ -458,13 +484,27 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             }
             if ("!put".equalsIgnoreCase(input)) {
                 place(player, session);
-            } else {
+            } else if ("!back".equalsIgnoreCase(input)) {
                 session.placementPreview = false;
                 updatePreview(player, session, true);
                 openBuilderMenu(player, session);
                 player.sendMessage("§eĐã quay lại menu xoay/lật schema.");
+            } else {
+                cancelPreview(player);
             }
         });
+    }
+
+    private void cancelPreview(Player player) {
+        BuildSession session = sessions.remove(player.getUniqueId());
+        if (session == null) {
+            player.sendMessage("§eBạn hiện không có Schema Build preview nào.");
+            return;
+        }
+        removePreview(session);
+        player.sendMessage("§eĐã thoát Schema Build preview.");
+        plugin.getLogger().info("[SchemaBuild] preview-cancel player=" + player.getName()
+            + ", schema=" + session.schema.relativePath());
     }
 
     @EventHandler
@@ -687,7 +727,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             player.sendActionBar(net.kyori.adventure.text.Component.text(
                 "Schema: " + session.schema.relativePath() + " | " + locationText(session.anchor)
                     + " | X/Y/Z " + session.rotationX + "/" + session.rotationY + "/" + session.rotationZ
-                    + " | !put đặt / !back chỉnh"));
+                    + " | chuột trái/phải xoay | !put đặt / !back chỉnh / !cancel thoát"));
         }
     }
 

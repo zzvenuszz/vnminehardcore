@@ -133,7 +133,7 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 - Đặt `schema-build.preview-blocks: -1` để preview toàn bộ block và `schema-build.max-blocks: -1` để bỏ trần block cấu hình của Schema Build; giới hạn file/NBT nhằm bảo vệ bộ đọc vẫn áp dụng.
 - Creative được miễn debuff môi trường của plugin như sợ hầm, choáng độ cao, sương mù, nhiệt độ, khát và các tác động mưa axit/nước lạnh.
 - Vùng có thể đặt tên và có rule bảo vệ do plugin hỗ trợ; đây là hệ thống tích hợp, không phải phụ thuộc WorldEdit/WorldGuard.
-- `/vnbuild select` chọn công trình Schema gần nhất. `/vnbuild` mở browser `.schem`; preview, xoay/lật, đặt, undo/redo và protect tùy workflow trong menu. Sau `!put`, dùng `/vnbuild undo` hoặc `/vnbuild redo`; bộ nhớ tạm giữ tối đa 10 lần dựng trong phiên server hiện tại.
+- `/vnbuild select` chọn công trình Schema gần nhất. `/vnbuild` mở browser `.schem`; trong preview ngoài world, chuột trái/phải xoay công trình −90°/+90° quanh Y, `!cancel` hoặc `/vnbuild cancel` thoát preview. Esc đóng menu chỉnh và dọn preview; lúc preview ngoài world dùng `!cancel` vì client không gửi phím Esc lên server. Sau `!put`, dùng `/vnbuild undo` hoặc `/vnbuild redo`; bộ nhớ tạm giữ tối đa 10 lần dựng trong phiên server hiện tại.
 - `/vntext` tạo và chỉnh text display; hỗ trợ hướng mặt, màu, scale và góc xoay.
 
 ### Boss và thiên tai

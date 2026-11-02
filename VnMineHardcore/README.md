@@ -49,7 +49,7 @@ Yêu cầu runtime: Java 25+ và ProtocolLib `5.5.0-SNAPSHOT` dev-build có hỗ
 | `/vninit` | Mở wizard setup RPG: chọn đại lục khởi đầu, world, NPC tutorial và spawn; mỗi thay đổi lưu ngay, thoát rồi chạy lại để tiếp tục | `vnmine.command.init` |
 | `/vnregion [wand]` | Mở quản lý vùng bảo vệ; `wand` cấp búa chọn hai góc, đặt tên và cấu hình flags | `vnmine.command.worldedit` |
 | `//set`, `//replace`, `//copy`, `//paste`, `//undo` và lệnh vùng khác | Chỉnh cuboid bằng búa WorldEdit tích hợp; gõ `//help` để xem danh sách | `vnmine.command.worldedit` |
-| `/vnbuild [select|undo|redo]` | Chọn công trình gần nhất hoặc undo/redo tối đa 10 lần đặt schema trong phiên hiện tại | `vnmine.command.schemabuild` |
+| `/vnbuild [select|undo|redo|cancel]` | Chọn công trình, undo/redo tối đa 10 lần đặt schema hoặc thoát preview | `vnmine.command.schemabuild` |
 | `/vngroup ...` | Tạo/xóa nhóm, xem nhóm, cấp/thu hồi quyền nhóm | `vnmine.command.groups.manage` |
 | `/vnuser ...` | Xem/gán nhóm, cấp/thu hồi quyền cá nhân, reset người chơi | `vnmine.command.users.manage` |
 | `/vnarmy ...` | Thuê/quản lý lính, đổi chế độ AI và trang bị | `vnmine.command.army` |
@@ -1021,7 +1021,7 @@ sát thương người chơi, thông báo và tỷ lệ. Chạy `/vnreload` sau 
 
 Schema Build đọc file Sponge Schematic `.schem` đã nén gzip, phiên bản 2 hoặc 3. Đặt file vào `plugins/VnMineHardcore/schemas/`; có thể tạo thư mục con để nhóm công trình. YAML `.schema` riêng của các bản thử nghiệm cũ không còn được quét; hãy xuất lại các công trình thành định dạng Sponge `.schem` bằng WorldEdit hoặc công cụ tương thích.
 
-Mở **Menu chính → Admin → Schema Build**, chọn công trình để mở menu chỉnh. Bóng mờ ban đầu xuất hiện trước mặt admin. Dùng các nút để xoay 90° hoặc lật theo trục X/Y/Z, bật/tắt `protect: ON/OFF`, sau đó chọn **Preview ngoài world**. Menu đóng lại, bóng mờ cập nhật theo block admin đang ngắm để có thể tự do di chuyển chọn vị trí. Gõ `!put` để đặt hoặc `!back` để quay lại menu xoay/lật. Mỗi lần đặt lưu tạm trạng thái block trước `!put`; dùng `/vnbuild undo` hoặc nút Undo để khôi phục, `/vnbuild redo` để áp dụng lại. Lịch sử giữ tối đa 10 lần đặt trong phiên server hiện tại. Mỗi công trình được cấp ID `<world>_<schema>_<số>` và lưu cùng trạng thái block nền trong `builds.yml`.
+Mở **Menu chính → Admin → Schema Build**, chọn công trình để mở menu chỉnh. Bóng mờ ban đầu xuất hiện trước mặt admin. Dùng các nút để xoay 90° hoặc lật theo trục X/Y/Z, bật/tắt `protect: ON/OFF`, sau đó chọn **Preview ngoài world**. Menu đóng lại, bóng mờ cập nhật theo block admin đang ngắm để có thể tự do di chuyển chọn vị trí. Trong preview, chuột trái/phải xoay công trình −90°/+90° quanh trục Y. Gõ `!put` để đặt, `!back` để quay lại menu xoay/lật hoặc `!cancel`/`/vnbuild cancel` để thoát hẳn preview. Esc đóng menu chỉnh và dọn preview; Minecraft không gửi phím Esc lên server khi menu đã đóng trong preview ngoài world. Mỗi lần đặt lưu tạm trạng thái block trước `!put`; dùng `/vnbuild undo` hoặc nút Undo để khôi phục, `/vnbuild redo` để áp dụng lại. Lịch sử giữ tối đa 10 lần đặt trong phiên server hiện tại. Mỗi công trình được cấp ID `<world>_<schema>_<số>` và lưu cùng trạng thái block nền trong `builds.yml`.
 
 Chạy `/vnbuild select` để chọn công trình gần nhất trong world hiện tại. Sau đó
 gõ `!edit` để sửa và đặt lại với ID cũ, `!copy` để tạo bản mới có ID tăng dần,
