@@ -5,7 +5,7 @@
 - [x] Cập nhật hướng dẫn `//help`, README và changelog; tăng version tính năng lên 2.47.0.
 - [x] Build Java 25 thành công lúc `2026-11-02 14:00:10 UTC` bằng `mvn -DskipTests clean package`; JAR 2.47.0: 2.571.972 bytes, SHA-256 `4a1cd87b7fe792b1a2a622558348180488a3843ae3cd42ef8d09bc2dae6db4f8`; plugin.yml là 2.47.0, SQLite native Linux x86_64.
 - [x] Backup 2.46.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.46.0-pre-2.47.0-20261102.jar`; cài JAR 2.47.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.47.0.jar`.
-- [ ] Commit/push code và kế hoạch lên `origin/main`.
+- [x] Push commit phát hành `9c2b62a` lên `origin/main`.
 - [ ] Chưa gameplay test copy pattern có air, vẽ nhiều đoạn, từng bước `//undo`/`//redo` và giới hạn/chunk.
 
 # Điều khiển Schema Build placement preview — 2.46.0 — 2026-11-02
