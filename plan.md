@@ -7,7 +7,7 @@
 - [x] Biên dịch Java 25 bằng `mvn -DskipTests compile`; chưa chạy test suite hoặc gameplay test.
 - [x] Đóng gói `mvn -DskipTests package`; JAR 2.57.0 kích thước 2.638.890 bytes, SHA-256 `4aad784a67d3a47c84f0b281f31acbfbeff7efd6979e8adc370540c3a63176a3`; `plugin.yml` khai báo 2.57.0.
 - [x] Backup JAR 2.56.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.56.0-pre-2.57.0-20261103.jar`; cài 2.57.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.57.0.jar`.
-- [ ] Push code sau khi xác minh build.
+- [x] Push code lên `origin/main`, commit `e78b966`.
 - [ ] Gameplay test các chain, file Bedrock có `frame`, schema vượt `max-blocks`, đổi trang menu và lượng log sau restart.
 
 # WorldEdit mở rộng và schematic NBT — 2.56.0 — 2026-11-03
