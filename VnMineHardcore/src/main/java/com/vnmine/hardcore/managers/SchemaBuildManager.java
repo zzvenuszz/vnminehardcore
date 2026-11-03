@@ -152,7 +152,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private void openFolderMenu(Player player, int requestedPage) {
-        List<SchemaFolder> folders = findSchemaFolders(findSchemaFiles(player));
+        List<SchemaFolder> folders = findSchemaFolders(findSchemaFiles());
         int pages = Math.max(1, (folders.size() + PAGE_SIZE - 1) / PAGE_SIZE);
         int page = Math.max(0, Math.min(requestedPage, pages - 1));
         SchemaHolder holder = new SchemaHolder(player.getUniqueId(), View.FOLDERS, page);
@@ -168,7 +168,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
                 "§7Số schema: §f" + folder.schemaCount(),
                 "§eNhấn để xem schema trong thư mục này.")));
         }
-        if (folders.isEmpty()) menu.setItem(22, icon(Material.BARRIER, "§cChưa có schema hợp lệ", List.of(
+        if (folders.isEmpty()) menu.setItem(22, icon(Material.BARRIER, "§cChưa có file schema", List.of(
             "§7Đặt file Sponge Schematic .schem vào:", "§fplugins/VnMineHardcore/schemas/",
             "§7Các thư mục con sẽ được hiển thị riêng.")));
         if (page > 0) menu.setItem(45, icon(Material.ARROW, "§eTrang trước", List.of()));
@@ -187,7 +187,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private void openList(Player player, String folderPath, int folderPage, int requestedPage) {
-        List<SchemaFile> files = findSchemaFiles(player).stream()
+        List<SchemaFile> files = findSchemaFiles().stream()
             .filter(file -> folderOf(file.relativePath()).equals(folderPath)).toList();
         int pages = Math.max(1, (files.size() + PAGE_SIZE - 1) / PAGE_SIZE);
         int page = Math.max(0, Math.min(requestedPage, pages - 1));
@@ -202,12 +202,10 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             holder.choices.put(slot, file);
             menu.setItem(slot, icon(Material.STRUCTURE_BLOCK, "§b" + fileName(file.relativePath()), List.of(
                 "§7Thư mục: §f" + displayFolder,
-                "§7Tên: §f" + file.schema().name(),
-                "§7Số block: §f" + file.schema().blocks().size(),
-                "§7Kích thước: §f" + file.schema().sizeX() + "×" + file.schema().sizeY() + "×" + file.schema().sizeZ(),
-                "§eNhấn để xoay/chỉnh preview.")));
+                "§7File chỉ được phân tích khi mở.",
+                "§eNhấn để đọc và mở preview.")));
         }
-        if (files.isEmpty()) menu.setItem(22, icon(Material.BARRIER, "§cThư mục không có schema hợp lệ", List.of(
+        if (files.isEmpty()) menu.setItem(22, icon(Material.BARRIER, "§cThư mục không có file schema", List.of(
             "§7Đặt file Sponge Schematic .schem vào:", "§fplugins/VnMineHardcore/schemas/" + displayFolder)));
         menu.setItem(45, icon(Material.ARROW, "§eQuay lại chọn thư mục", List.of("§7Trở về danh sách thư mục.")));
         menu.setItem(46, icon(Material.SPECTRAL_ARROW, "§bUndo build gần nhất", List.of(
@@ -230,7 +228,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         return separator < 0 ? relativePath : relativePath.substring(separator + 1);
     }
 
-    private List<SchemaFile> findSchemaFiles(Player player) {
+    private List<SchemaFile> findSchemaFiles() {
         List<SchemaFile> files = new ArrayList<>();
         try (var paths = Files.walk(schemasRoot)) {
             Path rootReal = schemasRoot.toRealPath();
@@ -239,20 +237,10 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
                     .toList()) {
                 if (!path.toRealPath().startsWith(rootReal)) continue;
                 String relative = schemasRoot.relativize(path).toString().replace(File.separatorChar, '/');
-                try {
-                    files.add(new SchemaFile(relative, loadSchema(path)));
-                    invalidSchemaWarnings.remove(relative);
-                } catch (IllegalArgumentException | IOException exception) {
-                    String fingerprint = invalidSchemaFingerprint(path);
-                    if (!fingerprint.equals(invalidSchemaWarnings.put(relative, fingerprint))) {
-                        plugin.getLogger().warning("[SchemaBuild] Ignoring schema " + relative + ": " + exception.getMessage());
-                        player.sendMessage("§cBỏ qua schema §f" + relative + "§c: §7" + exception.getMessage());
-                    }
-                }
+                files.add(new SchemaFile(relative, path, null));
             }
         } catch (IOException exception) {
             plugin.getLogger().log(Level.SEVERE, "[SchemaBuild] Could not scan schema directory.", exception);
-            player.sendMessage("§cKhông thể đọc thư mục schemas. Hãy xem console.");
         }
         files.sort(Comparator.comparing(SchemaFile::relativePath, String.CASE_INSENSITIVE_ORDER));
         return files;
@@ -268,12 +256,18 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             for (LitematicReader.BlockEntity entity : schematic.blockEntities())
                 blockEntities.put(new BlockPosition(entity.x(), entity.y(), entity.z()), entity.data());
             java.util.Set<String> normalizedStates = new java.util.HashSet<>();
+            Map<String, BlockData> parsedStates = new HashMap<>();
             for (LitematicReader.SchematicBlock block : schematic.blocks()) {
-                BlockData data = parseSchematicBlockData(block.blockData(), file, normalizedStates);
+                BlockData data = parsedStates.get(block.blockData());
+                if (data == null) {
+                    data = parseSchematicBlockData(block.blockData(), normalizedStates);
+                    parsedStates.put(block.blockData(), data);
+                }
                 if (!data.getMaterial().isBlock()) throw new IOException("non-block palette entry: " + block.blockData());
                 blocks.add(new SchemaBlock(block.x(), block.y(), block.z(), data.getAsString(),
                     blockEntities.get(new BlockPosition(block.x(), block.y(), block.z()))));
             }
+            logSchemaNormalizationSummary(file, normalizedStates);
             return new SchemaDefinition(schematic.name(), List.copyOf(blocks), schematic.width(),
                 schematic.height(), schematic.length());
         }
@@ -283,17 +277,23 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         for (SpongeSchematicReader.BlockEntity entity : schematic.blockEntities())
             blockEntities.put(new BlockPosition(entity.x(), entity.y(), entity.z()), entity.data());
         java.util.Set<String> normalizedStates = new java.util.HashSet<>();
+        Map<String, BlockData> parsedStates = new HashMap<>();
         int index = 0;
         for (int y = 0; y < schematic.height(); y++) {
             for (int z = 0; z < schematic.length(); z++) {
                 for (int x = 0; x < schematic.width(); x++) {
                     String state = schematic.blockStates().get(index++);
-                    BlockData data = parseSchematicBlockData(state, file, normalizedStates);
+                    BlockData data = parsedStates.get(state);
+                    if (data == null) {
+                        data = parseSchematicBlockData(state, normalizedStates);
+                        parsedStates.put(state, data);
+                    }
                     if (!data.getMaterial().isBlock()) throw new IOException("non-block palette entry: " + state);
                     blocks.add(new SchemaBlock(x, y, z, data.getAsString(), blockEntities.get(new BlockPosition(x, y, z))));
                 }
             }
         }
+        logSchemaNormalizationSummary(file, normalizedStates);
         return new SchemaDefinition(schematic.name(), List.copyOf(blocks), schematic.width(),
             schematic.height(), schematic.length());
     }
@@ -303,7 +303,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         return normalized.endsWith(".schem") || normalized.endsWith(".litematic");
     }
 
-    private BlockData parseSchematicBlockData(String state, Path file, java.util.Set<String> normalizedStates) throws IOException {
+    private BlockData parseSchematicBlockData(String state, java.util.Set<String> normalizedStates) throws IOException {
         int stateOpen = state.indexOf('[');
         String originalMaterialName = stateOpen < 0 ? state : state.substring(0, stateOpen);
         String canonicalMaterialName = switch (originalMaterialName.toLowerCase(Locale.ROOT)) {
@@ -314,7 +314,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         String canonical = canonicalMaterialName + (stateOpen < 0 ? "" : state.substring(stateOpen));
         try {
             BlockData data = Bukkit.createBlockData(canonical);
-            logSchemaNormalization(state, data, file, normalizedStates);
+            logSchemaNormalization(state, data, normalizedStates);
             return data;
         } catch (IllegalArgumentException originalFailure) {
             int open = canonical.indexOf('[');
@@ -323,8 +323,13 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             String unqualifiedName = materialName.startsWith("minecraft:")
                 ? materialName.substring("minecraft:".length()) : materialName;
             Material material = Material.matchMaterial(unqualifiedName);
+            if (material == null) {
+                try { material = Material.valueOf(unqualifiedName.toUpperCase(Locale.ROOT)); }
+                catch (IllegalArgumentException ignored) { }
+            }
             if (material == null || !material.isBlock()) {
-                throw new IOException("unsupported block state in schematic: " + state, originalFailure);
+                normalizedStates.add("[unsupported] " + state);
+                return Bukkit.createBlockData(Material.AIR);
             }
 
             BlockData resolved = Bukkit.createBlockData(material);
@@ -345,17 +350,43 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
                     }
                 }
             }
-            logSchemaNormalization(state, resolved, file, normalizedStates);
+            logSchemaNormalization(state, resolved, normalizedStates);
             return resolved;
         }
     }
 
-    private void logSchemaNormalization(String original, BlockData resolved, Path file,
-                                        java.util.Set<String> normalizedStates) {
-        if (!original.equals(resolved.getAsString()) && normalizedStates.add(original)) {
-            plugin.getLogger().info("[SchemaBuild] Normalized unsupported block state while loading "
-                + file.getFileName() + ": " + original + " -> " + resolved.getAsString());
-        }
+    private void logSchemaNormalization(String original, BlockData resolved, java.util.Set<String> normalizedStates) {
+        if (!sameBlockState(original, resolved.getAsString())) normalizedStates.add(original + " -> " + resolved.getAsString());
+    }
+
+    private boolean sameBlockState(String left, String right) {
+        return normalizedBlockStateKey(left).equals(normalizedBlockStateKey(right));
+    }
+
+    private String normalizedBlockStateKey(String state) {
+        int open = state.indexOf('[');
+        String material = (open < 0 ? state : state.substring(0, open)).toLowerCase(Locale.ROOT);
+        if (material.equals("grass") || material.equals("minecraft:grass")) material = "minecraft:short_grass";
+        if (material.equals("grass_path") || material.equals("minecraft:grass_path")) material = "minecraft:dirt_path";
+        if (!material.contains(":")) material = "minecraft:" + material;
+        if (open < 0 || !state.endsWith("]")) return material;
+        List<String> properties = new ArrayList<>(List.of(state.substring(open + 1, state.length() - 1).split(",")));
+        properties.replaceAll(String::trim);
+        properties.sort(String.CASE_INSENSITIVE_ORDER);
+        return material + "[" + String.join(",", properties) + "]";
+    }
+
+    private void logSchemaNormalizationSummary(Path file, java.util.Set<String> normalizedStates) {
+        if (normalizedStates.isEmpty()) return;
+        List<String> examples = normalizedStates.stream().limit(3).toList();
+        long unsupported = normalizedStates.stream().filter(state -> state.startsWith("[unsupported] ")).count();
+        long normalized = normalizedStates.size() - unsupported;
+        StringBuilder message = new StringBuilder("[SchemaBuild] Loaded ").append(file.getFileName())
+            .append(" with ").append(normalizedStates.size()).append(" unique palette state adjustment(s)");
+        if (normalized > 0) message.append("; normalized=").append(normalized);
+        if (unsupported > 0) message.append("; replaced unsupported palette states with air=").append(unsupported);
+        message.append("; examples=").append(String.join(" | ", examples));
+        plugin.getLogger().warning(message.toString());
     }
 
     private String invalidSchemaFingerprint(Path path) {
@@ -375,6 +406,19 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     }
 
     private void openBuilder(Player player, SchemaFile schema, BuildRecord existing, int folderPage, int schemaPage) {
+        if (schema.schema() == null) {
+            try {
+                schema = new SchemaFile(schema.relativePath(), schema.path(), loadSchema(schema.path()));
+                invalidSchemaWarnings.remove(schema.relativePath());
+            } catch (IllegalArgumentException | IOException exception) {
+                String fingerprint = invalidSchemaFingerprint(schema.path());
+                if (!fingerprint.equals(invalidSchemaWarnings.put(schema.relativePath(), fingerprint))) {
+                    plugin.getLogger().warning("[SchemaBuild] Cannot load schema " + schema.relativePath() + ": " + exception.getMessage());
+                }
+                player.sendMessage("§cKhông thể mở schema §f" + schema.relativePath() + "§c: §7" + exception.getMessage());
+                return;
+            }
+        }
         BuildSession previous = sessions.remove(player.getUniqueId());
         if (previous != null) removePreview(previous);
         BuildSession session = new BuildSession(schema, folderPage, schemaPage);
@@ -734,7 +778,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         try {
             Path path = schemasRoot.resolve(record.schemaPath).normalize();
             if (!path.startsWith(schemasRoot) || !Files.isRegularFile(path)) throw new IOException("schema file is missing");
-            return new SchemaFile(record.schemaPath, loadSchema(path));
+            return new SchemaFile(record.schemaPath, path, loadSchema(path));
         } catch (IOException | IllegalArgumentException exception) {
             player.sendMessage("§cKhông thể mở schema của công trình. Kiểm tra file và console.");
             plugin.getLogger().log(Level.WARNING, "[SchemaBuild] Could not load stored build id=" + record.id, exception);
@@ -1390,7 +1434,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         }
     }
 
-    private record SchemaFile(String relativePath, SchemaDefinition schema) { }
+    private record SchemaFile(String relativePath, Path path, SchemaDefinition schema) { }
     private record SchemaFolder(String relativePath, int schemaCount) { }
     private record SchemaDefinition(String name, List<SchemaBlock> blocks, int sizeX, int sizeY, int sizeZ) { }
     private record SchemaBlock(int x, int y, int z, String blockData, Map<String, Object> blockEntityData) { }

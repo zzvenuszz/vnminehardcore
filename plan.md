@@ -1,3 +1,15 @@
+# Tối ưu quét và đọc Schema Build — 2.57.0 — 2026-11-03
+
+- [x] Bỏ parse toàn bộ thư mục khi mở/chuyển trang menu; chỉ nạp block data của schematic người chơi chọn.
+- [x] Parse mỗi block state palette một lần/file; bỏ log INFO giả “unsupported” do property order và tổng hợp một cảnh báo cho state cần thay/chuẩn hóa.
+- [x] Thay block state không nhận diện bằng air để không loại toàn bộ schema; thêm material enum fallback để nhận block chuẩn như `chain`.
+- [x] Preflight dimensions trước khi đọc primitive arrays; giới hạn NBT list/compound riêng với arrays để lỗi oversized schema báo đúng giới hạn block.
+- [x] Biên dịch Java 25 bằng `mvn -DskipTests compile`; chưa chạy test suite hoặc gameplay test.
+- [x] Đóng gói `mvn -DskipTests package`; JAR 2.57.0 kích thước 2.638.890 bytes, SHA-256 `4aad784a67d3a47c84f0b281f31acbfbeff7efd6979e8adc370540c3a63176a3`; `plugin.yml` khai báo 2.57.0.
+- [x] Backup JAR 2.56.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.56.0-pre-2.57.0-20261103.jar`; cài 2.57.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.57.0.jar`.
+- [ ] Push code sau khi xác minh build.
+- [ ] Gameplay test các chain, file Bedrock có `frame`, schema vượt `max-blocks`, đổi trang menu và lượng log sau restart.
+
 # WorldEdit mở rộng và schematic NBT — 2.56.0 — 2026-11-03
 
 - [x] Thêm các selection cuboid/sphere/ellipsoid; giữ `cuboid` làm mặc định. Polygon selection được hoãn do cần lưu nhiều điểm và thuật toán polygon 3D riêng.

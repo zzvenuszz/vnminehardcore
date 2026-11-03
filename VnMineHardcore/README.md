@@ -1104,6 +1104,9 @@ Build. Import chuyển block palette, nhiều region và block entity NBT; khôn
 `.litematic`. Litematica là mod phía client, và khi lưu schematic trên server
 multiplayer, mod có thể không nhận đủ NBT inventory của block entity từ server;
 hãy kiểm tra file trước khi dùng nếu cần giữ chính xác inventory.
+Danh sách Schema Build chỉ quét tên file và thư mục; nội dung schematic được đọc
+khi chọn file để menu không giải mã toàn bộ thư mục mỗi lần chuyển trang. State
+block không tương thích được thay bằng air và ghi tối đa một cảnh báo tóm tắt.
 
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)

@@ -1,6 +1,7 @@
 package com.vnmine.hardcore.managers;
 
 import java.io.DataInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,10 +15,12 @@ import java.util.zip.GZIPInputStream;
 final class SpongeSchematicReader {
     private static final long MAX_FILE_BYTES = 64L * 1024 * 1024;
     private static final int MAX_NBT_ENTRIES = 2_000_000;
+    private static final int MAX_NBT_ARRAY_LENGTH = 16_000_000;
 
     private SpongeSchematicReader() { }
 
     static Schematic read(Path path, int maxBlocks) throws IOException {
+        validateDimensionsBeforePayload(path, maxBlocks);
         Map<String, Object> root = readRoot(path);
         Object schematicValue = root.getOrDefault("Schematic", root);
         if (!(schematicValue instanceof Map<?, ?> schematic)) throw new IOException("missing Schematic compound");
@@ -116,6 +119,82 @@ final class SpongeSchematicReader {
         }
     }
 
+    private static void validateDimensionsBeforePayload(Path path, int maxBlocks) throws IOException {
+        if (maxBlocks <= 0) return;
+        long fileSize = Files.size(path);
+        if (fileSize <= 0 || fileSize > MAX_FILE_BYTES) throw new IOException("schematic file size must be 1..64 MiB");
+        try (DataInputStream input = new DataInputStream(new GZIPInputStream(Files.newInputStream(path)))) {
+            if (input.readUnsignedByte() != 10) return;
+            input.readUTF();
+            int[] dimensions = new int[3];
+            scanDimensionCompound(input, dimensions, maxBlocks, true, 0);
+        } catch (EOFException ignored) {
+            // The regular reader reports the exact malformed-NBT error.
+        }
+    }
+
+    private static void scanDimensionCompound(DataInputStream input, int[] dimensions, int maxBlocks,
+                                               boolean isSchematicRoot, int depth) throws IOException {
+        if (depth > 32) throw new IOException("NBT nesting exceeds limit");
+        while (true) {
+            int type = input.readUnsignedByte();
+            if (type == 0) return;
+            String name = input.readUTF();
+            int dimension = dimensionIndex(name);
+            if (isSchematicRoot && dimension >= 0 && (type == 2 || type == 3)) {
+                dimensions[dimension] = type == 2 ? input.readShort() & 0xffff : input.readInt();
+                if (dimensions[0] > 0 && dimensions[1] > 0 && dimensions[2] > 0) {
+                    long volume = (long) dimensions[0] * dimensions[1] * dimensions[2];
+                    if (volume > maxBlocks) throw new IOException("dimensions " + dimensions[0] + "x" + dimensions[1]
+                        + "x" + dimensions[2] + " contain " + volume + " blocks; configured limit is " + maxBlocks);
+                    return;
+                }
+            } else if (type == 10 && "Schematic".equalsIgnoreCase(name)) {
+                scanDimensionCompound(input, dimensions, maxBlocks, true, depth + 1);
+                if (dimensions[0] > 0 && dimensions[1] > 0 && dimensions[2] > 0) return;
+            } else {
+                skipPayload(input, type, depth + 1);
+            }
+        }
+    }
+
+    private static int dimensionIndex(String name) {
+        return switch (name) {
+            case "Width" -> 0;
+            case "Height" -> 1;
+            case "Length" -> 2;
+            default -> -1;
+        };
+    }
+
+    private static void skipPayload(DataInputStream input, int type, int depth) throws IOException {
+        if (depth > 32) throw new IOException("NBT nesting exceeds limit");
+        switch (type) {
+            case 1 -> input.skipNBytes(1);
+            case 2 -> input.skipNBytes(2);
+            case 3, 5 -> input.skipNBytes(4);
+            case 4, 6 -> input.skipNBytes(8);
+            case 7 -> input.skipNBytes(arrayLength(input, MAX_NBT_ARRAY_LENGTH));
+            case 8 -> input.readUTF();
+            case 9 -> {
+                int elementType = input.readUnsignedByte();
+                int length = collectionLength(input);
+                for (int i = 0; i < length; i++) skipPayload(input, elementType, depth + 1);
+            }
+            case 10 -> {
+                while (true) {
+                    int childType = input.readUnsignedByte();
+                    if (childType == 0) break;
+                    input.readUTF();
+                    skipPayload(input, childType, depth + 1);
+                }
+            }
+            case 11 -> input.skipNBytes(Math.multiplyExact((long) arrayLength(input, MAX_NBT_ARRAY_LENGTH), 4L));
+            case 12 -> input.skipNBytes(Math.multiplyExact((long) arrayLength(input, MAX_NBT_ARRAY_LENGTH), 8L));
+            default -> throw new IOException("unsupported NBT tag type " + type);
+        }
+    }
+
     private static int readVarInt(byte[] bytes, int[] cursor) throws IOException {
         int value = 0;
         for (int shift = 0; shift < 35; shift += 7) {
@@ -171,34 +250,41 @@ final class SpongeSchematicReader {
 
     private static List<Object> list(DataInputStream input, int depth) throws IOException {
         int elementType = input.readUnsignedByte();
-        int length = arrayLength(input);
+        int length = collectionLength(input);
         List<Object> values = new ArrayList<>(length);
         for (int i = 0; i < length; i++) values.add(payload(input, elementType, depth + 1));
         return values;
     }
 
     private static int[] intArray(DataInputStream input) throws IOException {
-        int[] values = new int[arrayLength(input)];
+        int[] values = new int[arrayLength(input, MAX_NBT_ARRAY_LENGTH)];
         for (int i = 0; i < values.length; i++) values[i] = input.readInt();
         return values;
     }
 
     private static byte[] byteArray(DataInputStream input) throws IOException {
-        int length = arrayLength(input);
+        int length = arrayLength(input, MAX_NBT_ARRAY_LENGTH);
         byte[] values = input.readNBytes(length);
         if (values.length != length) throw new IOException("truncated NBT byte array");
         return values;
     }
 
     private static long[] longArray(DataInputStream input) throws IOException {
-        long[] values = new long[arrayLength(input)];
+        long[] values = new long[arrayLength(input, MAX_NBT_ARRAY_LENGTH)];
         for (int i = 0; i < values.length; i++) values[i] = input.readLong();
         return values;
     }
 
-    private static int arrayLength(DataInputStream input) throws IOException {
+    private static int collectionLength(DataInputStream input) throws IOException {
         int length = input.readInt();
         if (length < 0 || length > MAX_NBT_ENTRIES) throw new IOException("NBT array/list length is out of bounds");
+        return length;
+    }
+
+    private static int arrayLength(DataInputStream input, int maximum) throws IOException {
+        int length = input.readInt();
+        if (length < 0 || length > maximum)
+            throw new IOException("NBT primitive array length " + length + " exceeds safety limit " + maximum);
         return length;
     }
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.57.0 — 2026-11-03
+
+- Schema Build chỉ liệt kê file khi mở menu và chỉ giải mã file được chọn; cache block state theo palette để giảm CPU/GC, không nạp lặp toàn bộ thư mục khi đổi trang.
+- Bỏ log INFO theo từng block state do khác thứ tự thuộc tính; chỉ ghi tối đa một cảnh báo tóm tắt cho mỗi schematic có state phải chuẩn hóa.
+- State không nhận diện như block Bedrock được đổi thành air và schema còn lại vẫn sử dụng được; preflight kích thước trước khi đọc mảng dữ liệu lớn để báo đúng `schema-build.max-blocks`.
+- Tách giới hạn NBT list/compound khỏi primitive arrays; nâng giới hạn array có kiểm soát để các schematic bị từ chối sớm vì kích thước không còn báo lỗi NBT chung.
+
 ## 2.56.0 — 2026-11-03
 
 - Mở rộng WorldEdit tích hợp: selection cuboid/sphere/ellipsoid, primitive sphere/cylinder/pyramid, `//smooth`, `//forest`, `//mask`/`//gmask`, brush sphere/smooth, `//rotate`/`//flip`, `//deltree` và lệnh di chuyển admin.
