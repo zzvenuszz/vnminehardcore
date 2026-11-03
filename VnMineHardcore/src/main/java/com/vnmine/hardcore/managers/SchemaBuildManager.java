@@ -68,7 +68,7 @@ import org.bukkit.command.TabCompleter;
 public final class SchemaBuildManager implements Listener, CommandExecutor, TabCompleter {
     private static final String PERMISSION = "vnmine.command.schemabuild";
     private static final int PAGE_SIZE = 45;
-    private static final int DEFAULT_MAX_BLOCKS = 400_000;
+    private static final int DEFAULT_MAX_BLOCKS = 1_000_000;
     private static final int DEFAULT_PREVIEW_BLOCKS = -1;
     private static final int DEFAULT_HISTORY_SIZE = 10;
     private final VnMineHardcore plugin;
@@ -77,6 +77,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     private final Map<String, BuildRecord> builds = new LinkedHashMap<>();
     private final Map<String, String> invalidSchemaWarnings = new HashMap<>();
     private final Map<UUID, String> selectedBuilds = new HashMap<>();
+    private final java.util.Set<UUID> unlimitedSchemaLoaders = new java.util.HashSet<>();
     private final Map<UUID, BuildSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Path> pendingSchemaRenames = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Deque<BuildOperation>> undoHistory = new HashMap<>();
@@ -121,6 +122,17 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) { sender.sendMessage("Lệnh này chỉ dùng trong game."); return true; }
         if (!player.hasPermission(PERMISSION)) { player.sendMessage("§cBạn không có quyền Schema Build."); return true; }
+        if (args.length == 1 && "unlock".equalsIgnoreCase(args[0])) {
+            unlimitedSchemaLoaders.add(player.getUniqueId());
+            player.sendMessage("§cĐã mở giới hạn kích thước schema không giới hạn trong phiên này. Thoát game sẽ tự khóa lại.");
+            plugin.getLogger().info("[SchemaBuild] unlimited-schema-load-unlocked player=" + player.getName());
+            return true;
+        }
+        if (args.length == 1 && "lock".equalsIgnoreCase(args[0])) {
+            boolean wasUnlocked = unlimitedSchemaLoaders.remove(player.getUniqueId());
+            player.sendMessage(wasUnlocked ? "§aĐã khóa lại giới hạn schema." : "§eGiới hạn schema của bạn đang được khóa.");
+            return true;
+        }
         if (args.length == 1 && "cancel".equalsIgnoreCase(args[0])) { cancelPreview(player); return true; }
         if (args.length == 1 && "undo".equalsIgnoreCase(args[0])) { undo(player); return true; }
         if (args.length == 1 && "redo".equalsIgnoreCase(args[0])) { redo(player); return true; }
@@ -137,13 +149,13 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
             plugin.getLogger().info("[SchemaBuild] selected-build player=" + player.getName() + ", id=" + nearest.id);
             return true;
         }
-        player.sendMessage("§eDùng /vnbuild select, /vnbuild undo, /vnbuild redo hoặc /vnbuild cancel.");
+        player.sendMessage("§eDùng /vnbuild select, undo, redo, cancel, unlock hoặc lock.");
         return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        return args.length == 1 ? filter(List.of("select", "undo", "redo", "cancel"), args[0]) : List.of();
+        return args.length == 1 ? filter(List.of("select", "undo", "redo", "cancel", "unlock", "lock"), args[0]) : List.of();
     }
 
     private List<String> filter(List<String> values, String prefix) {
@@ -246,9 +258,10 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         return files;
     }
 
-    private SchemaDefinition loadSchema(Path file) throws IOException {
+    private SchemaDefinition loadSchema(Path file, Player player) throws IOException {
         int configuredMaxBlocks = plugin.getConfig().getInt("schema-build.max-blocks", DEFAULT_MAX_BLOCKS);
-        int maxBlocks = configuredMaxBlocks == -1 ? -1 : Math.max(1, Math.min(500_000, configuredMaxBlocks));
+        int maxBlocks = configuredMaxBlocks == -1 || unlimitedSchemaLoaders.contains(player.getUniqueId())
+            ? -1 : Math.max(1, configuredMaxBlocks);
         if (file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".litematic")) {
             LitematicReader.Schematic schematic = LitematicReader.read(file, maxBlocks);
             List<SchemaBlock> blocks = new ArrayList<>(schematic.blocks().size());
@@ -408,7 +421,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     private void openBuilder(Player player, SchemaFile schema, BuildRecord existing, int folderPage, int schemaPage) {
         if (schema.schema() == null) {
             try {
-                schema = new SchemaFile(schema.relativePath(), schema.path(), loadSchema(schema.path()));
+                schema = new SchemaFile(schema.relativePath(), schema.path(), loadSchema(schema.path(), player));
                 invalidSchemaWarnings.remove(schema.relativePath());
             } catch (IllegalArgumentException | IOException exception) {
                 String fingerprint = invalidSchemaFingerprint(schema.path());
@@ -778,7 +791,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
         try {
             Path path = schemasRoot.resolve(record.schemaPath).normalize();
             if (!path.startsWith(schemasRoot) || !Files.isRegularFile(path)) throw new IOException("schema file is missing");
-            return new SchemaFile(record.schemaPath, path, loadSchema(path));
+            return new SchemaFile(record.schemaPath, path, loadSchema(path, player));
         } catch (IOException | IllegalArgumentException exception) {
             player.sendMessage("§cKhông thể mở schema của công trình. Kiểm tra file và console.");
             plugin.getLogger().log(Level.WARNING, "[SchemaBuild] Could not load stored build id=" + record.id, exception);
@@ -1412,6 +1425,7 @@ public final class SchemaBuildManager implements Listener, CommandExecutor, TabC
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
+        unlimitedSchemaLoaders.remove(playerId);
         pendingSchemaRenames.remove(playerId);
         BuildSession session = sessions.remove(playerId);
         if (session != null) removePreview(session);

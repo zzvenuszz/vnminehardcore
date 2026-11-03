@@ -189,7 +189,7 @@ commands:
     permission: vnmine.command.worldedit
   vnbuild:
     description: Dùng Schema Build và undo/redo công trình
-    usage: /vnbuild [select|undo|redo]
+    usage: /vnbuild [select|undo|redo|cancel|unlock|lock]
     permission: vnmine.command.schemabuild
   start:
     description: Chọn đại lục và bắt đầu hoặc tiếp tục hành trình RPG

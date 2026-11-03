@@ -59,9 +59,9 @@ menus:
 # [VI] Giới hạn và hiệu năng cho Schema Build; các giá trị áp dụng khi dựng/hiển thị preview.
 # [EN] Schema Build safety and performance limits; values apply while placing/rendering previews.
 schema-build:
-  # [VI] Giới hạn block của file Sponge .schem (mặc định 400000, hợp lệ 1-500000; đặt -1 để không giới hạn theo số block).
-  # [EN] Block-count limit for Sponge .schem files (default 400000, valid 1-500000; set -1 for no configured block-count limit).
-  max-blocks: 400000
+  # [VI] Giới hạn block của file schema (mặc định 1000000; đặt -1 để không giới hạn theo số block).
+  # [EN] Block-count limit for schema files (default 1000000; set -1 for no configured block-count limit).
+  max-blocks: 1000000
   # [VI] Số BlockDisplay tối đa trong preview; mặc định -1 là không giới hạn, đặt 1-5000 để giới hạn preview.
   # [EN] Maximum BlockDisplay entities in preview; defaults to -1 for unlimited, set 1-5000 to cap the preview.
   preview-blocks: -1

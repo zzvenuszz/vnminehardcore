@@ -1,3 +1,13 @@
+# Schema limit 1 triệu và mở khóa theo phiên — 2.59.0 — 2026-11-03
+
+- [x] Log 2026-11-03 xác nhận config runtime giới hạn `400000`: schema 638.880, 1.253.070 và nhiều file khác bị bỏ qua; file lớn nhất thấy trong log là 12.626.944 block.
+- [x] Tăng mặc định và config phát hành lên 1.000.000 block; bỏ trần code cứng 500.000 để cấu hình lớn hơn có hiệu lực.
+- [x] Thêm `/vnbuild unlock` và `/vnbuild lock`, chỉ người có `vnmine.command.schemabuild` dùng được (mặc định OP). Mở khóa theo UUID trong bộ nhớ, tự xóa khi quit và tự mất khi server restart.
+- [x] Giữ giới hạn nội bộ bảo vệ kích thước file/NBT và thể tích tối đa có thể chứa trong bộ nhớ Java.
+- [x] Backup config runtime tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-config-before-schema-limit-1000000-20261103.yml`; đặt `schema-build.max-blocks: 1000000`.
+- [x] Build Java 25 bằng `mvn -DskipTests package`; JAR 2.59.0 kích thước 2.643.463 bytes, SHA-256 `367dd9779570b8ebe7ffbdaae6eefc7c22e9353db082946d73e72ab46d190ad8`; backup 2.58.0 và cài 2.59.0.
+- [ ] Gameplay test load schema trong/ngoài giới hạn và relog để xác nhận tự khóa; server cần restart để nạp JAR mới.
+
 # Fix schema `!put` trên Paper 26.3 — 2.58.0 — 2026-11-03
 
 - [x] Đọc log: `!put` bắt đầu đặt Viking Mead Hall nhưng rollback ở block 647; `TagParser.parseTag(String)` không còn tồn tại trên Paper 26.3. Sau đó snapshot NBT tiếp tục lỗi vì `CompoundTag.getAllKeys()` đã đổi thành `keySet()`.

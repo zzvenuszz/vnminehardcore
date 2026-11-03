@@ -134,7 +134,8 @@ Tắt server, sao lưu dữ liệu, thay JAR rồi khởi động lại. Không 
 - Khi xoay clipboard, hướng nối của hàng rào và các block nhiều mặt cũng xoay theo; sau khi đặt, plugin làm mới kết nối hàng rào và đường ray theo các block lân cận.
 - `worldedit.history-size` mặc định giữ 50 thao tác `//undo`/`//redo`, cấu hình được 1-100. History lưu snapshot block trong RAM đến khi người chơi thoát; vùng sửa càng lớn và giữ càng nhiều bước thì càng tốn RAM.
 - Sidebar boss/quest hiển thị tên, cấp, máu, world và race/class ở phía trên; có thể bật/tắt từng dòng trong `scoreboard.yml`.
-- Đặt `schema-build.preview-blocks: -1` để preview toàn bộ block và `schema-build.max-blocks: -1` để bỏ trần block cấu hình của Schema Build; giới hạn file/NBT nhằm bảo vệ bộ đọc vẫn áp dụng.
+- `schema-build.max-blocks` mặc định là 1.000.000; đặt `-1` để bỏ giới hạn block cấu hình. Admin có quyền `vnmine.command.schemabuild` cũng có thể dùng `/vnbuild unlock` để bỏ giới hạn trong phiên đăng nhập hiện tại, `/vnbuild lock` để khóa lại; thoát game sẽ tự khóa. Bộ đọc vẫn giữ các giới hạn an toàn cho kích thước file/NBT và thể tích tối đa có thể biểu diễn trong bộ nhớ.
+- Đặt `schema-build.preview-blocks: -1` để preview toàn bộ block.
 - Creative được miễn debuff môi trường của plugin như sợ hầm, choáng độ cao, sương mù, nhiệt độ, khát và các tác động mưa axit/nước lạnh.
 - Vùng có thể đặt tên và có rule bảo vệ do plugin hỗ trợ; đây là hệ thống tích hợp, không phải phụ thuộc WorldEdit/WorldGuard.
 - `/vnbuild select` chọn công trình Schema gần nhất. `/vnbuild` mở browser `.schem`; trong preview ngoài world, chuột trái/phải xoay công trình −90°/+90° quanh Y, `!cancel` hoặc `/vnbuild cancel` thoát preview. Esc đóng menu chỉnh và dọn preview; lúc preview ngoài world dùng `!cancel` vì client không gửi phím Esc lên server. Sau `!put`, dùng `/vnbuild undo` hoặc `/vnbuild redo`; bộ nhớ tạm giữ tối đa 10 lần dựng trong phiên server hiện tại.
@@ -194,7 +195,7 @@ Hãy dùng menu/command editor khi có; thao tác trực tiếp với YAML cần
 | `/vnportal <subcommand>` | Portal RPG | `vnmine.command.portal.admin` |
 | `/vntext <subcommand>` | Text display | `vnmine.command.text.manage` |
 | `/vnregion [wand]` | WorldEdit/vùng bảo vệ tích hợp | `vnmine.command.worldedit` |
-| `/vnbuild [select|undo|redo]` | Schema Build; menu chọn thư mục rồi chọn schema trong thư mục đó | `vnmine.command.schemabuild` |
+| `/vnbuild [select|undo|redo|cancel|unlock|lock]` | Schema Build; `unlock`/`lock` bỏ hoặc bật lại giới hạn block trong phiên | `vnmine.command.schemabuild` |
 | `/vnevent [id ...|stop]` | Thiên tai | `vnmine.command.disasters` |
 | `/vnboss <id> ...|kill` | Boss | `vnmine.command.bosses` |
 | `/vntime set <day\|night> <phút> [world]` | Chu kỳ ngày/đêm | `vnmine.command.time.manage` |
