@@ -35,7 +35,7 @@ final class NativeBlockEntityNbt {
         try {
             Class<?> compoundType = Class.forName("net.minecraft.nbt.CompoundTag");
             Class<?> parserType = Class.forName("net.minecraft.nbt.TagParser");
-            Object compound = parserType.getMethod("parseTag", String.class).invoke(null, toSnbt(relocated));
+            Object compound = invokeStaticFirst(parserType, new String[] {"parseCompoundFully", "parseTag"}, toSnbt(relocated));
             Method loadData = state.getClass().getMethod("loadData", compoundType);
             loadData.invoke(state, compound);
         } catch (ReflectiveOperationException exception) {
@@ -48,14 +48,14 @@ final class NativeBlockEntityNbt {
     private static Object toJava(Object tag) throws ReflectiveOperationException {
         int id = ((Number) tag.getClass().getMethod("getId").invoke(tag)).intValue();
         return switch (id) {
-            case 1 -> number(tag, "getAsByte");
-            case 2 -> number(tag, "getAsShort");
-            case 3 -> number(tag, "getAsInt");
-            case 4 -> number(tag, "getAsLong");
-            case 5 -> number(tag, "getAsFloat");
-            case 6 -> number(tag, "getAsDouble");
-            case 7 -> tag.getClass().getMethod("getAsByteArray").invoke(tag);
-            case 8 -> tag.getClass().getMethod("getAsString").invoke(tag);
+            case 1 -> numeric(tag, "getAsByte", "byteValue");
+            case 2 -> numeric(tag, "getAsShort", "shortValue");
+            case 3 -> numeric(tag, "getAsInt", "intValue");
+            case 4 -> numeric(tag, "getAsLong", "longValue");
+            case 5 -> numeric(tag, "getAsFloat", "floatValue");
+            case 6 -> numeric(tag, "getAsDouble", "doubleValue");
+            case 7 -> invokeFirst(tag, new String[] {"getAsByteArray", "asByteArray"});
+            case 8 -> invokeFirst(tag, new String[] {"getAsString", "asString"});
             case 9 -> {
                 int size = ((Number) tag.getClass().getMethod("size").invoke(tag)).intValue();
                 List<Object> list = new ArrayList<>(size);
@@ -64,20 +64,58 @@ final class NativeBlockEntityNbt {
                 yield List.copyOf(list);
             }
             case 10 -> {
-                @SuppressWarnings("unchecked") Set<String> keys = (Set<String>) tag.getClass().getMethod("getAllKeys").invoke(tag);
+                @SuppressWarnings("unchecked") Set<String> keys = (Set<String>) invokeFirst(tag, new String[] {"getAllKeys", "keySet"});
                 Method get = tag.getClass().getMethod("get", String.class);
                 Map<String, Object> compound = new LinkedHashMap<>();
                 for (String key : keys) compound.put(key, toJava(get.invoke(tag, key)));
                 yield Map.copyOf(compound);
             }
-            case 11 -> tag.getClass().getMethod("getAsIntArray").invoke(tag);
-            case 12 -> tag.getClass().getMethod("getAsLongArray").invoke(tag);
+            case 11 -> invokeFirst(tag, new String[] {"getAsIntArray", "asIntArray"});
+            case 12 -> invokeFirst(tag, new String[] {"getAsLongArray", "asLongArray"});
             default -> throw new IllegalArgumentException("Unsupported NBT tag type " + id);
         };
     }
 
-    private static Object number(Object tag, String method) throws ReflectiveOperationException {
-        return tag.getClass().getMethod(method).invoke(tag);
+    private static Object numeric(Object tag, String legacyMethod, String modernMethod) throws ReflectiveOperationException {
+        try {
+            return invokeAndUnwrap(tag.getClass().getMethod(legacyMethod), tag);
+        } catch (NoSuchMethodException ignored) {
+            Object value = invokeAndUnwrap(tag.getClass().getMethod(modernMethod), tag);
+            return value instanceof Number number ? number : value;
+        }
+    }
+
+    private static Object invokeStaticFirst(Class<?> type, String[] names, Object... arguments) throws ReflectiveOperationException {
+        for (String name : names) {
+            for (Method method : type.getMethods()) {
+                if (!method.getName().equals(name) || method.getParameterCount() != arguments.length) continue;
+                try {
+                    return unwrapOptional(method.invoke(null, arguments));
+                } catch (IllegalArgumentException ignored) {
+                    // Try another overload with a compatible signature.
+                }
+            }
+        }
+        throw new NoSuchMethodException(type.getName() + "." + String.join("/", names));
+    }
+
+    private static Object invokeFirst(Object target, String[] names) throws ReflectiveOperationException {
+        for (String name : names) {
+            try {
+                return invokeAndUnwrap(target.getClass().getMethod(name), target);
+            } catch (NoSuchMethodException ignored) {
+                // Try the next API name used by supported server versions.
+            }
+        }
+        throw new NoSuchMethodException(target.getClass().getName() + "." + String.join("/", names));
+    }
+
+    private static Object invokeAndUnwrap(Method method, Object target, Object... arguments) throws ReflectiveOperationException {
+        return unwrapOptional(method.invoke(target, arguments));
+    }
+
+    private static Object unwrapOptional(Object value) {
+        return value instanceof java.util.Optional<?> optional ? optional.orElseThrow() : value;
     }
 
     private static String toSnbt(Object value) {

@@ -1,3 +1,11 @@
+# Fix schema `!put` trên Paper 26.3 — 2.58.0 — 2026-11-03
+
+- [x] Đọc log: `!put` bắt đầu đặt Viking Mead Hall nhưng rollback ở block 647; `TagParser.parseTag(String)` không còn tồn tại trên Paper 26.3. Sau đó snapshot NBT tiếp tục lỗi vì `CompoundTag.getAllKeys()` đã đổi thành `keySet()`.
+- [x] Cập nhật cầu nối NBT để nhận các API cũ và mới: parser `parseCompoundFully`/`parseTag`, compound `keySet`/`getAllKeys`, và accessor mới cho số, chuỗi, mảng.
+- [x] Build Java 25 thành công với `mvn -DskipTests package`; chưa chạy gameplay test. Kiểm tra lỗi NBT reflection bằng API classfile Paper 26.3.
+- [x] Đóng gói 2.58.0, SHA-256 `32683b30e1b222dd5a509dbd67f0cf47a99659c975477a66c6c48b3b62a1690a`; backup JAR 2.57.0 và cài JAR 2.58.0.
+- [ ] Xác nhận `!put` trên server sau khi khởi động lại, đặc biệt schema có rương/bảng và dữ liệu block entity.
+
 # Tối ưu quét và đọc Schema Build — 2.57.0 — 2026-11-03
 
 - [x] Bỏ parse toàn bộ thư mục khi mở/chuyển trang menu; chỉ nạp block data của schematic người chơi chọn.
