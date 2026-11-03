@@ -1052,6 +1052,10 @@ Búa hỗ trợ cú pháp gần WorldEdit, có thể gõ lệnh `//...` trực t
 //expand 5 up        //contract 3         //shift 10 north
 //move 5 east air    //stack 3 east
 //copy               //cut [air]           //paste [-a] [-o]
+//rotate 90          //flip x              //schem save / //schem load <tên>
+//sel cuboid|sphere|ellipsoid   //smooth   //mask <block>   //gmask <block>
+//sphere stone 8     //hcyl stone 5 10    //forest oak 20
+//br sphere stone 4  /deltree             //unstuck / //thru / //jumpto
 //undo / //redo      //size / //desel      //limit 32768 / //limit unlimited
 ```
 
@@ -1081,6 +1085,26 @@ hoàn tác bằng `//undo`.
 Khi xoay clipboard, hướng nối hàng rào và block nhiều mặt cũng xoay theo; sau khi
 đặt, plugin cập nhật kết nối hàng rào và đường ray với các block lân cận.
 
+Chọn vùng bằng `//sel cuboid`, `//sel sphere` hoặc `//sel ellipsoid`; các lệnh
+region áp dụng theo hình dạng đang chọn. `//smooth` làm mịn vật liệu trong vùng.
+`//mask <block>` lọc thao tác hiện tại của người chơi, `//gmask <block>` lọc
+chung; dùng `//mask` hoặc `//gmask` không tham số để xóa lọc tương ứng.
+Brush hình cầu/làm mịn đặt bằng `//br sphere <block> <bán_kính>` hoặc
+`//br smooth <bán_kính>`, rồi dùng stick đã cấp bằng `//br` lên bề mặt. Các hình
+`//sphere`, `//hsphere`, `//cyl`, `//hcyl`, `//pyramid`, `//hpyramid` và
+`//forest` tạo hình tại vị trí người chơi/trong vùng chọn. `//deltree` cấp kéo
+xóa cây; `//thru`, `//unstuck`, `//jumpto` là lệnh di chuyển cho admin.
+WorldEdit history và Schema Build undo được lưu riêng theo UUID người chơi; mỗi
+history Schema Build giữ tối đa 10 thao tác. Snapshot block entity được lưu cùng
+clipboard, schematic Sponge `.schem` và undo/redo để giữ inventory, sign text và
+NBT khác khi copy, paste, xoay hoặc ghi schematic.
+
+Plugin có thể đọc file `.litematic` do Litematica tạo để nạp vào clipboard/Schema
+Build. Import chuyển block palette, nhiều region và block entity NBT; không xuất
+`.litematic`. Litematica là mod phía client, và khi lưu schematic trên server
+multiplayer, mod có thể không nhận đủ NBT inventory của block entity từ server;
+hãy kiểm tra file trước khi dùng nếu cần giữ chính xác inventory.
+
 Pattern theo cấu trúc `//set <pattern>` nhận tên block/namespace, block state
 như `minecraft:oak_log[axis=x]`, ID block cũ dạng số (`1`, `35:14`; `0` là air)
 và các lựa chọn phân bố ngẫu nhiên có trọng số. ID `1` map thành stone, `2`
@@ -1098,12 +1122,12 @@ giữ 50 thao tác; cấu hình `worldedit.history-size` nhận 1-100. Clipboard
 history chỉ tồn tại trong phiên đăng nhập hiện tại. History giữ snapshot trước/sau
 của block đã đổi nên RAM tăng theo tổng số block trong các thao tác được giữ;
 50 bước phù hợp với brush nhỏ và thao tác vừa, còn server thường `//set` vùng rất
-lớn nên cấu hình ít bước hơn. Các thao tác ngoài `//set`/`//clear` vẫn từ chối
-block entity vì chưa lưu dữ liệu inventory/sign.
+lớn nên cấu hình ít bước hơn. Undo lưu inventory/sign trước khi chỉnh sửa; mask,
+clipboard brush, primitive và `//forest` cũng ghi lịch sử.
 
-Các lệnh này hiện chỉ hỗ trợ vùng cuboid, block placement/replacement và
-clipboard block và Clipboard Brush. Generator, biome/entity editing và các loại selection
-phi cuboid chưa được đưa vào. Cách chia nhóm tính năng theo selection, region
+Các lệnh hiện hỗ trợ cuboid/sphere/ellipsoid, block placement/replacement,
+clipboard và primitive cơ bản. Polygon selection, biome/entity editing chưa được
+đưa vào. Cách chia nhóm tính năng theo selection, region
 operations, clipboard, patterns và history dựa trên
 [tài liệu lệnh WorldEdit](https://worldedit.enginehub.org/en/latest/commands/),
 [chọn vùng](https://worldedit.enginehub.org/en/latest/usage/regions/selections/),
@@ -1111,7 +1135,7 @@ operations, clipboard, patterns và history dựa trên
 [pattern](https://worldedit.enginehub.org/en/latest/usage/general/patterns/) và
 [undo/redo](https://worldedit.enginehub.org/en/latest/usage/general/history/).
 
-Giới hạn kích thước schema và số block hiển thị trong preview được đặt tại `schema-build.max-blocks` và `schema-build.preview-blocks` trong `config.yml`. Đặt `schema-build.preview-blocks: -1` để hiển thị toàn bộ block của preview; mặc định hiện là không giới hạn. Đặt `schema-build.max-blocks: -1` để bỏ trần số block cấu hình; file vẫn chịu giới hạn kích thước 64 MiB và giới hạn cấu trúc NBT nội bộ. Plugin đặt block state vanilla; dữ liệu block entity như inventory/sign, entity và biome trong file schematic chưa được dựng.
+Giới hạn kích thước schema và số block hiển thị trong preview được đặt tại `schema-build.max-blocks` và `schema-build.preview-blocks` trong `config.yml`. Đặt `schema-build.preview-blocks: -1` để hiển thị toàn bộ block của preview; mặc định hiện là không giới hạn. Đặt `schema-build.max-blocks: -1` để bỏ trần số block cấu hình; file vẫn chịu giới hạn kích thước 64 MiB và giới hạn cấu trúc NBT nội bộ. Sponge `.schem` và `.litematic` có block entity NBT được dựng khi file có dữ liệu tương ứng; entity và biome không được dựng.
 
 ## Build từ mã nguồn
 

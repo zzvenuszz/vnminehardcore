@@ -183,6 +183,10 @@ commands:
     description: Quản lý vùng WorldEdit/WorldGuard bằng GUI
     usage: /vnregion [wand]
     permission: vnmine.command.worldedit
+  deltree:
+    description: Cấp công cụ WorldEdit để xóa cây
+    usage: /deltree
+    permission: vnmine.command.worldedit
   vnbuild:
     description: Dùng Schema Build và undo/redo công trình
     usage: /vnbuild [select|undo|redo]

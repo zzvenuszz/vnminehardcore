@@ -1,3 +1,17 @@
+# WorldEdit mở rộng và schematic NBT — 2.56.0 — 2026-11-03
+
+- [x] Thêm các selection cuboid/sphere/ellipsoid; giữ `cuboid` làm mặc định. Polygon selection được hoãn do cần lưu nhiều điểm và thuật toán polygon 3D riêng.
+- [x] Clipboard và Sponge `.schem` đọc/ghi block entity NBT; xoay block data và refresh liên kết hàng rào, rail; undo giữ snapshot block entity.
+- [x] Thêm `//smooth`, primitive sphere/cylinder/pyramid, `//forest`, brush sphere/smooth, `//mask`/`//gmask`, `//rotate`/`//flip`, `/deltree`, `//unstuck`, `//thru`, `//jumpto`.
+- [x] Thêm `.litematic` reader cho palette, region và block entity; custom schematic lưu tại `schemas/custom-schemas/`, nhận đường dẫn con trong chat và `!cancel`.
+- [x] Canh Schema Build preview theo tâm cấu trúc; thêm rename trong menu, chỉ đổi tên và giữ extension.
+- [x] Xác nhận WorldEdit và Schema Build giữ history riêng theo UUID; Schema Build giới hạn 10 bước và lưu NBT cùng snapshot.
+- [x] Biên dịch Java 25 bằng `mvn -DskipTests compile`; chưa chạy test suite hoặc gameplay test.
+- [x] Đóng gói `mvn -DskipTests package`; JAR 2.56.0 kích thước 2.636.529 bytes, SHA-256 `16c151fac34baa860d0372a3306dd1e8228ca8fd88b2f2a75cd52b51b7b69bb8`; `plugin.yml` khai báo 2.56.0.
+- [x] Backup JAR 2.55.0 tại `/home/ubuntu/DATA/VNMINE/plugins/.old-builds/VnMineHardcore-2.55.0-pre-2.56.0-20261103.jar`; cài 2.56.0 tại `/home/ubuntu/DATA/VNMINE/plugins/VnMineHardcore-2.56.0.jar` (thư mục chỉ còn một JAR hoạt động).
+- [ ] Rà gameplay với chest/sign inventory, xoay rail/fence, schematic đa-region `.litematic`, primitive/brush/mask và undo/redo nhiều người chơi.
+- [ ] Poly selection chưa được triển khai; `.litematic` chỉ import, không export. Khi client Litematica lưu file trên multiplayer, có thể thiếu block entity NBT mà client không nhận từ server.
+
 # Tăng dung lượng WorldEdit undo history — 2.49.0 — 2026-11-02
 
 - [x] Tăng `worldedit.history-size` mặc định từ 10 lên 50 và trần cấu hình từ 50 lên 100.

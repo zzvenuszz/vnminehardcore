@@ -297,6 +297,7 @@ public final class VnMineHardcore extends JavaPlugin {
         }, (sender, command, alias, args) -> List.of());
         registerCommand("vninit", serverSetupWizardManager, serverSetupWizardManager);
         registerCommand("vnregion", regionProtectionManager, regionProtectionManager);
+        registerCommand("deltree", regionProtectionManager, regionProtectionManager);
         registerCommand("vnbuild", schemaBuildManager, schemaBuildManager);
         registerCommand("start", (sender, command, label, args) -> {
             if (!(sender instanceof Player player)) {

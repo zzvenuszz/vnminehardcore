@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.56.0 — 2026-11-03
+
+- Mở rộng WorldEdit tích hợp: selection cuboid/sphere/ellipsoid, primitive sphere/cylinder/pyramid, `//smooth`, `//forest`, `//mask`/`//gmask`, brush sphere/smooth, `//rotate`/`//flip`, `//deltree` và lệnh di chuyển admin.
+- Clipboard, schematic Sponge `.schem` và Schema Build giữ tile entity NBT; sửa/xóa chest/sign có thể undo. Xoay block states và các liên kết hàng rào/đường ray được làm mới sau khi đặt.
+- Thêm nhập schematic `.litematic`; custom schematic save dùng `schemas/custom-schemas/` với đường dẫn thư mục lồng nhau. Preview Schema Build canh tâm cấu trúc; menu hỗ trợ rename tên file, giữ phần mở rộng.
+- History WorldEdit và Schema Build được tách theo UUID người chơi; Schema Build lưu snapshot block entity cùng undo/redo.
+
 ## 2.55.0 — 2026-11-02
 
 - Clipboard Paste Tool xoay lại hướng nối của hàng rào và các block nhiều mặt trong preview; sau khi đặt, làm mới kết nối hàng rào/đường ray theo block xung quanh. Lịch sử undo/redo lưu trạng thái sau khi kết nối được cập nhật.

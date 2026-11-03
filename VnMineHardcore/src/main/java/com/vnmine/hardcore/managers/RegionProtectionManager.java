@@ -3,10 +3,13 @@ package com.vnmine.hardcore.managers;
 import com.vnmine.hardcore.VnMineHardcore;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -94,13 +97,18 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private final NamespacedKey wandKey;
     private final NamespacedKey brushKey;
     private final NamespacedKey clipboardPasteToolKey;
+    private final NamespacedKey deltreeToolKey;
     private final File dataFile;
     private final Map<String, ProtectedRegion> regions = new LinkedHashMap<>();
     private final Map<UUID, Selection> selections = new HashMap<>();
     private final Map<UUID, String> pendingNames = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Clipboard> pendingSchemaSaves = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Deque<EditOperation>> undoHistory = new HashMap<>();
     private final Map<UUID, Deque<EditOperation>> redoHistory = new HashMap<>();
     private final Map<UUID, Clipboard> clipboards = new HashMap<>();
+    private final Map<UUID, BlockMatcher> playerMasks = new HashMap<>();
+    private BlockMatcher globalMask;
+    private final Map<UUID, BrushConfig> brushConfigs = new HashMap<>();
     private final Map<UUID, BrushPreview> brushPreviews = new HashMap<>();
     private final Map<UUID, PastePreview> pastePreviews = new HashMap<>();
     private final Set<UUID> activeEdits = new HashSet<>();
@@ -112,6 +120,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         this.wandKey = new NamespacedKey(plugin, "worldedit_region_wand");
         this.brushKey = new NamespacedKey(plugin, "worldedit_clipboard_brush");
         this.clipboardPasteToolKey = new NamespacedKey(plugin, "worldedit_clipboard_paste_tool");
+        this.deltreeToolKey = new NamespacedKey(plugin, "worldedit_deltree_tool");
         this.dataFile = new File(plugin.getDataFolder(), "protected-regions.yml");
         load();
         for (World world : Bukkit.getWorlds()) applyStartWorldSettings(world);
@@ -131,6 +140,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             player.sendMessage("§cBạn không có quyền quản lý vùng.");
             return true;
         }
+        if ("deltree".equalsIgnoreCase(command.getName())) { giveDeltreeTool(player); return true; }
         if (args.length == 0) { openAdminMenu(player, 0); return true; }
         String operation = args[0].replaceFirst("^/+", "").toLowerCase(Locale.ROOT);
         if ("wand".equals(operation)) { giveWand(player); return true; }
@@ -139,11 +149,20 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return filter(List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
-            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "square", "circle", "round", "count", "expand", "contract",
-            "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo", "clearhistory", "limit"), args[0]);
+        if (args.length == 1) return filter(List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "sel", "chunk", "size",
+            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "smooth", "mask", "gmask", "br", "square", "circle", "round", "count", "expand", "contract",
+            "shift", "move", "stack", "copy", "cut", "paste", "schem", "undo", "redo", "clearhistory", "limit",
+            "sphere", "hsphere", "cyl", "hcyl", "pyramid", "hpyramid", "forest", "br", "mask", "gmask", "smooth", "deltree", "thru", "unstuck", "jumpto", "rotate", "flip"), args[0]);
         if (args.length == 2 && Set.of("set", "walls", "faces", "overlay", "center", "cut").contains(args[0].toLowerCase(Locale.ROOT)))
             return blockSuggestions(args[1]);
+        if (args.length == 2 && "sel".equalsIgnoreCase(args[0]))
+            return filter(List.of("cuboid", "sphere", "ellipsoid"), args[1]);
+        if (args.length == 2 && "br".equalsIgnoreCase(args[0]))
+            return filter(List.of("sphere", "smooth", "none"), args[1]);
+        if (args.length == 2 && "rotate".equalsIgnoreCase(args[0])) return filter(List.of("90", "180", "270"), args[1]);
+        if (args.length == 2 && "flip".equalsIgnoreCase(args[0])) return filter(List.of("x", "z", "north", "south", "east", "west"), args[1]);
+        if (args.length == 2 && "schem".equalsIgnoreCase(args[0]))
+            return filter(List.of("save", "load"), args[1]);
         if (args.length == 3 && Set.of("replace", "cut").contains(args[0].toLowerCase(Locale.ROOT)))
             return blockSuggestions(args[2]);
         if (args.length == 3 && Set.of("square", "circle", "round").contains(args[0].toLowerCase(Locale.ROOT)))
@@ -162,10 +181,10 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         else if (event.isCommand()) input = buffer;
         else return;
         String[] tokens = input.split("\\s+", -1);
-        List<String> commands = List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "chunk", "size",
-            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "square", "circle", "round", "count",
-            "expand", "contract", "shift", "move", "stack", "copy", "cut", "paste", "undo", "redo",
-            "clearhistory", "limit");
+        List<String> commands = List.of("wand", "help", "pos1", "pos2", "hpos1", "hpos2", "sel", "chunk", "size",
+            "desel", "set", "clear", "replace", "walls", "faces", "overlay", "center", "smooth", "mask", "gmask", "br", "square", "circle", "round", "count",
+            "expand", "contract", "shift", "move", "stack", "copy", "cut", "paste", "schem", "undo", "redo",
+            "clearhistory", "limit", "sphere", "hsphere", "cyl", "hcyl", "pyramid", "hpyramid", "forest", "br", "mask", "gmask", "smooth", "deltree", "thru", "unstuck", "jumpto", "rotate", "flip");
         if (tokens.length == 1) {
             if (!tokens[0].isEmpty() && commands.stream().noneMatch(value -> value.startsWith(tokens[0]))) return;
             event.setCompletions(filter(commands, tokens[0]));
@@ -175,6 +194,16 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         if (tokens.length == 2 && Set.of("set", "walls", "faces", "overlay", "center", "cut", "replace")
                 .contains(command)) {
             event.setCompletions(blockSuggestions(tokens[1]));
+        } else if (tokens.length == 2 && "sel".equals(command)) {
+            event.setCompletions(filter(List.of("cuboid", "sphere", "ellipsoid"), tokens[1]));
+        } else if (tokens.length == 2 && "br".equals(command)) {
+            event.setCompletions(filter(List.of("sphere", "smooth", "none"), tokens[1]));
+        } else if (tokens.length == 2 && "rotate".equals(command)) {
+            event.setCompletions(filter(List.of("90", "180", "270"), tokens[1]));
+        } else if (tokens.length == 2 && "flip".equals(command)) {
+            event.setCompletions(filter(List.of("x", "z", "north", "south", "east", "west"), tokens[1]));
+        } else if (tokens.length == 2 && "schem".equals(command)) {
+            event.setCompletions(filter(List.of("save", "load"), tokens[1]));
         } else if (tokens.length == 3 && Set.of("replace", "cut").contains(command)) {
             event.setCompletions(blockSuggestions(tokens[2]));
         } else if (tokens.length == 3 && Set.of("square", "circle", "round").contains(command)) {
@@ -200,7 +229,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         UUID id = event.getPlayer().getUniqueId();
-        undoHistory.remove(id); redoHistory.remove(id); clipboards.remove(id); selections.remove(id); pendingNames.remove(id);
+        undoHistory.remove(id); redoHistory.remove(id); clipboards.remove(id); selections.remove(id); pendingNames.remove(id); pendingSchemaSaves.remove(id);
+        playerMasks.remove(id); brushConfigs.remove(id);
         removeBrushPreview(id);
         removePastePreview(id);
     }
@@ -294,6 +324,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             switch (command) {
                 case "wand" -> giveWand(player);
                 case "pos1", "pos2", "hpos1", "hpos2" -> selectPosition(player, command, args);
+                case "sel" -> setSelectionShape(player, args);
                 case "chunk" -> selectChunk(player);
                 case "size" -> reportSelectionSize(player);
                 case "desel", "deselect" -> { selections.remove(player.getUniqueId()); player.sendMessage("§eĐã bỏ vùng chọn."); }
@@ -304,7 +335,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 case "faces", "outline" -> editShape(player, args, Shape.FACES);
                 case "overlay" -> editOverlay(player, args);
                 case "center", "middle" -> editCenter(player, args);
+                case "smooth" -> editSmooth(player, args);
+                case "mask" -> setMask(player, args, false);
+                case "gmask" -> setMask(player, args, true);
+                case "br" -> setBrush(player, args);
                 case "square", "circle", "round" -> editPlane(player, command, args);
+                case "sphere", "hsphere", "cyl", "hcyl", "pyramid", "hpyramid" -> generateShape(player, command, args);
+                case "forest" -> generateForest(player, args);
                 case "count" -> countBlocks(player, args);
                 case "expand" -> adjustSelection(player, args, true);
                 case "contract" -> adjustSelection(player, args, false);
@@ -314,10 +351,17 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 case "copy" -> copySelection(player);
                 case "cut" -> cutSelection(player, args);
                 case "paste" -> pasteClipboard(player, args);
+                case "rotate" -> rotateClipboardCommand(player, args);
+                case "flip" -> flipClipboardCommand(player, args);
+                case "schem" -> schematicCommand(player, args);
                 case "undo" -> applyHistory(player, false);
                 case "redo" -> applyHistory(player, true);
                 case "clearhistory" -> { undoHistory.remove(player.getUniqueId()); redoHistory.remove(player.getUniqueId()); player.sendMessage("§eĐã xóa lịch sử undo/redo."); }
                 case "limit" -> setEditLimit(player, args);
+                case "thru" -> teleportThrough(player);
+                case "unstuck" -> teleportUnstuck(player);
+                case "jumpto" -> jumpToTarget(player);
+                case "deltree" -> giveDeltreeTool(player);
                 default -> player.sendMessage("§cLệnh chưa hỗ trợ: §f//" + command + "§c. Gõ §f//help§c.");
             }
         } catch (IllegalArgumentException exception) {
@@ -330,13 +374,17 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private void sendWorldEditHelp(Player player) {
-        player.sendMessage("§6WorldEdit tích hợp §7• chọn bằng búa hoặc //pos1 //pos2 //hpos1 //hpos2 //chunk");
+        player.sendMessage("§6WorldEdit tích hợp §7• chọn bằng búa hoặc //pos1 //pos2 //hpos1 //hpos2 //chunk; //sel cuboid|sphere|ellipsoid");
         player.sendMessage("§e//set <pattern> §7• §e//clear §7• §e//replace <from> <to> §7• §e//walls <pattern> §7• §e//faces <pattern>");
         player.sendMessage("§7Pattern: stone, air, 0, ID cũ (35:14), block state hoặc 50%stone,50%glass.");
         player.sendMessage("§e//overlay <block> §7• §e//center <block> §7• §e//square <bán_kính> <block>");
+        player.sendMessage("§e//smooth §7• §e//mask [block] §7• §e//gmask [block] §7• §e//br sphere <block> <bán_kính> | //br smooth <bán_kính>");
         player.sendMessage("§e//circle <bán_kính> <block> (đĩa đặc) §7• §e//round <bán_kính> <block> (vòng rỗng)");
+        player.sendMessage("§e//sphere|hsphere <block> <bán_kính> §7• §e//cyl|hcyl <block> <bán_kính> <chiều_cao> §7• §e//pyramid|hpyramid <block> <kích_thước>");
+        player.sendMessage("§7Di chuyển: //unstuck • //thru • //jumpto. Poly selection chưa được hỗ trợ.");
         player.sendMessage("§e//count <block> §7• §e//cut [block]");
         player.sendMessage("§e//copy §7• §e//paste [-a] §7• §e//undo §7• §e//redo §7• §e//size §7• §e//desel");
+        player.sendMessage("§7Clipboard: //rotate <90|180|270> • //flip <x|z>");
         player.sendMessage("§7Dùng //clearhistory để xóa lịch sử undo/redo hiện tại.");
         player.sendMessage("§7Điều chỉnh vùng: //expand <n> [up|down|north|south|east|west|vert], //contract <n> [hướng], //shift <n> [hướng].");
         player.sendMessage("§7//move <n> [hướng] [block_để_lại] • //stack <số_bản> [hướng]. Clipboard/undo chỉ lưu trong phiên.");
@@ -372,6 +420,19 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         player.sendMessage("§aĐiểm " + (command.endsWith("1") ? "1" : "2") + ": §f" + point.getWorld().getName()
             + " " + point.getBlockX() + " " + point.getBlockY() + " " + point.getBlockZ()
             + " §7(" + selectionText(selection) + ")");
+    }
+
+    private void setSelectionShape(Player player, String[] args) {
+        if (args.length != 1) throw new IllegalArgumentException("Dùng //sel <cuboid|sphere|ellipsoid>.");
+        RegionShape shape = switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "cuboid" -> RegionShape.CUBOID;
+            case "sphere" -> RegionShape.SPHERE;
+            case "ellipsoid" -> RegionShape.ELLIPSOID;
+            default -> throw new IllegalArgumentException("Kiểu chọn hiện hỗ trợ cuboid, sphere và ellipsoid.");
+        };
+        Selection selection = selections.computeIfAbsent(player.getUniqueId(), ignored -> new Selection());
+        selection.shape = shape;
+        player.sendMessage("§aKiểu vùng chọn: §f" + shape.name().toLowerCase(Locale.ROOT) + "§a. Hai điểm đã chọn được giữ nguyên.");
     }
 
     private int[] parseCoordinates(String[] args) {
@@ -430,6 +491,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         List<BlockChange> changes = new ArrayList<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
+                if (!selection.contains(x, y, z)) continue;
                 Block block = selection.first.getWorld().getBlockAt(x, y, z);
                 addChange(player, changes, block, pattern.next(random), true);
             }
@@ -444,6 +506,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         Random random = new Random(); List<BlockChange> changes = new ArrayList<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
+                if (!selection.contains(x, y, z)) continue;
                 Block block = selection.first.getWorld().getBlockAt(x, y, z);
                 if (matcher.matches(block.getBlockData())) addChange(player, changes, block, replacement.next(random));
             }
@@ -456,9 +519,10 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         List<BlockChange> changes = new ArrayList<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
-                boolean edge = x == selection.minX() || x == selection.maxX() || y == selection.minY() || y == selection.maxY()
-                    || z == selection.minZ() || z == selection.maxZ();
-                boolean wall = x == selection.minX() || x == selection.maxX() || z == selection.minZ() || z == selection.maxZ();
+                if (!selection.contains(x, y, z)) continue;
+                boolean wall = !selection.contains(x - 1, y, z) || !selection.contains(x + 1, y, z)
+                    || !selection.contains(x, y, z - 1) || !selection.contains(x, y, z + 1);
+                boolean edge = wall || !selection.contains(x, y - 1, z) || !selection.contains(x, y + 1, z);
                 if (shape == Shape.FACES ? edge : wall) addChange(player, changes,
                     selection.first.getWorld().getBlockAt(x, y, z), pattern.next(random));
             }
@@ -471,6 +535,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         List<BlockChange> changes = new ArrayList<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int z = selection.minZ(); z <= selection.maxZ(); z++)
             for (int y = selection.maxY() - 1; y >= selection.minY(); y--) {
+                if (!selection.contains(x, y, z)) continue;
                 Block floor = selection.first.getWorld().getBlockAt(x, y, z);
                 Block above = floor.getRelative(0, 1, 0);
                 if (!floor.getType().isAir() && above.getType().isAir()) { addChange(player, changes, above, pattern.next(random)); break; }
@@ -483,9 +548,222 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         Selection selection = requireSelection(player, true); BlockPattern pattern = parsePattern(args[0]); Random random = new Random();
         int[] xs = centerCoordinates(selection.minX(), selection.maxX()), ys = centerCoordinates(selection.minY(), selection.maxY()), zs = centerCoordinates(selection.minZ(), selection.maxZ());
         List<BlockChange> changes = new ArrayList<>();
-        for (int x : xs) for (int y : ys) for (int z : zs) addChange(player, changes,
-            selection.first.getWorld().getBlockAt(x, y, z), pattern.next(random));
+        for (int x : xs) for (int y : ys) for (int z : zs) if (selection.contains(x, y, z))
+            addChange(player, changes, selection.first.getWorld().getBlockAt(x, y, z), pattern.next(random));
         scheduleEdit(player, "//center", changes);
+    }
+
+    private void editSmooth(Player player, String[] args) {
+        if (args.length > 1) throw new IllegalArgumentException("Dùng //smooth [số_lần_làm_mịn].");
+        Selection selection = requireSelection(player, true);
+        int passes = args.length == 0 ? 1 : Math.max(1, Math.min(5, positiveInt(args[0])));
+        World world = selection.first.getWorld();
+        Map<BlockPosition, BlockData> current = new HashMap<>();
+        for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
+            for (int z = selection.minZ(); z <= selection.maxZ(); z++) if (selection.contains(x, y, z)) {
+                Block block = world.getBlockAt(x, y, z);
+                if (!(block.getState() instanceof org.bukkit.block.TileState)) current.put(new BlockPosition(x, y, z), block.getBlockData().clone());
+            }
+        for (int pass = 0; pass < passes; pass++) {
+            Map<BlockPosition, BlockData> next = new HashMap<>(current);
+            for (Map.Entry<BlockPosition, BlockData> entry : current.entrySet()) {
+                BlockPosition point = entry.getKey();
+                Map<Material, Integer> counts = new HashMap<>();
+                for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++) {
+                    BlockPosition neighbor = new BlockPosition(point.x() + dx, point.y() + dy, point.z() + dz);
+                    BlockData data = current.get(neighbor);
+                    if (data == null && world.isChunkLoaded(neighbor.x() >> 4, neighbor.z() >> 4))
+                        data = world.getBlockAt(neighbor.x(), neighbor.y(), neighbor.z()).getBlockData();
+                    if (data != null) counts.merge(data.getMaterial(), 1, Integer::sum);
+                }
+                Material dominant = counts.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(entry.getValue().getMaterial());
+                if (dominant != entry.getValue().getMaterial()) next.put(point, Bukkit.createBlockData(dominant));
+            }
+            current = next;
+        }
+        List<BlockChange> changes = new ArrayList<>();
+        for (Map.Entry<BlockPosition, BlockData> entry : current.entrySet()) addChange(player, changes,
+            world.getBlockAt(entry.getKey().x(), entry.getKey().y(), entry.getKey().z()), entry.getValue());
+        scheduleEdit(player, "//smooth", changes, true);
+    }
+
+    private void setMask(Player player, String[] args, boolean global) {
+        if (args.length > 1) throw new IllegalArgumentException("Dùng //" + (global ? "gmask" : "mask") + " [block].");
+        BlockMatcher mask = args.length == 0 || "none".equalsIgnoreCase(args[0]) ? null : parseMatcher(args[0]);
+        if (global) globalMask = mask;
+        else if (mask == null) playerMasks.remove(player.getUniqueId());
+        else playerMasks.put(player.getUniqueId(), mask);
+        player.sendMessage(mask == null ? "§eĐã xóa " + (global ? "gmask" : "mask") + "."
+            : "§aĐã đặt " + (global ? "gmask" : "mask") + " thành §f" + args[0] + "§a.");
+    }
+
+    private void setBrush(Player player, String[] args) {
+        if (args.length == 0 || "none".equalsIgnoreCase(args[0])) {
+            brushConfigs.remove(player.getUniqueId());
+            player.sendMessage("§eĐã tắt brush kiểu hình cầu/làm mịn.");
+            return;
+        }
+        String kind = args[0].toLowerCase(Locale.ROOT);
+        if ("sphere".equals(kind)) {
+            if (args.length != 3) throw new IllegalArgumentException("Dùng //br sphere <block> <bán_kính>.");
+            BlockData data = parseBlockData(args[1]);
+            if (!data.getMaterial().isBlock()) throw new IllegalArgumentException("Đây không phải block: " + args[1]);
+            int radius = positiveInt(args[2]);
+            if (radius > 32) throw new IllegalArgumentException("Bán kính brush tối đa là 32.");
+            brushConfigs.put(player.getUniqueId(), new BrushConfig(kind, radius, data.getAsString()));
+        } else if ("smooth".equals(kind)) {
+            if (args.length != 2) throw new IllegalArgumentException("Dùng //br smooth <bán_kính>.");
+            int radius = positiveInt(args[1]);
+            if (radius > 16) throw new IllegalArgumentException("Bán kính brush làm mịn tối đa là 16.");
+            brushConfigs.put(player.getUniqueId(), new BrushConfig(kind, radius, null));
+        } else throw new IllegalArgumentException("Brush hỗ trợ sphere, smooth hoặc none.");
+        player.sendMessage("§aĐã đặt brush " + kind + ". Cầm stick và chuột phải lên bề mặt để áp dụng; //undo hoàn tác mỗi lần.");
+        giveBrush(player);
+    }
+
+    private void generateShape(Player player, String command, String[] args) {
+        boolean pyramid = command.contains("pyramid"), cylinder = command.endsWith("cyl");
+        if (args.length != (cylinder ? 3 : 2)) throw new IllegalArgumentException(cylinder
+            ? "Dùng //" + command + " <block> <bán_kính> <chiều_cao>."
+            : "Dùng //" + command + " <block> <bán_kính|kích_thước>.");
+        BlockPattern pattern = parsePattern(args[0]); Random random = new Random();
+        int radius = positiveInt(args[1]), height = cylinder ? positiveInt(args[2]) : pyramid ? radius : radius * 2 + 1;
+        if (radius > 64 || height > 128) throw new IllegalArgumentException("Kích thước hình tối đa là bán kính 64 và chiều cao 128.");
+        boolean hollow = command.startsWith("h");
+        Location base = player.getLocation().getBlock().getLocation(); World world = player.getWorld();
+        int cx = base.getBlockX(), cy = base.getBlockY(), cz = base.getBlockZ();
+        Map<BlockPosition, BlockData> desired = new LinkedHashMap<>();
+        for (int dy = 0; dy < height; dy++) {
+            int layerRadius = pyramid ? Math.max(0, radius - 1 - dy) : radius;
+            for (int dx = -layerRadius; dx <= layerRadius; dx++) for (int dz = -layerRadius; dz <= layerRadius; dz++) {
+                boolean inside = pyramid ? Math.abs(dx) <= layerRadius && Math.abs(dz) <= layerRadius
+                    : cylinder ? dx * dx + dz * dz <= radius * radius
+                    : dx * dx + dy * dy + dz * dz <= radius * radius;
+                if (!inside) continue;
+                boolean edge = pyramid ? Math.abs(dx) == layerRadius || Math.abs(dz) == layerRadius
+                    : cylinder ? dx * dx + dz * dz >= (radius - 0.5) * (radius - 0.5)
+                        || dy == 0 || dy == height - 1
+                    : dx * dx + dy * dy + dz * dz >= (radius - 0.5) * (radius - 0.5);
+                if (hollow && !edge) continue;
+                int x = cx + dx, y = cy + dy, z = cz + dz;
+                if (y < world.getMinHeight() || y >= world.getMaxHeight() || !world.isChunkLoaded(x >> 4, z >> 4))
+                    throw new IllegalArgumentException("Hình đi qua chunk chưa nạp hoặc vượt chiều cao world.");
+                if (!world.getWorldBorder().isInside(new Location(world, x, y, z))) throw new IllegalArgumentException("Hình vượt world border.");
+                desired.put(new BlockPosition(x, y, z), pattern.next(random));
+                if (desired.size() > editLimit()) throw new IllegalArgumentException("Hình vượt giới hạn " + limitLabel() + " block.");
+            }
+        }
+        List<BlockChange> changes = new ArrayList<>();
+        for (Map.Entry<BlockPosition, BlockData> entry : desired.entrySet()) {
+            BlockPosition point = entry.getKey(); addChange(player, changes, world.getBlockAt(point.x(), point.y(), point.z()), entry.getValue());
+        }
+        scheduleEdit(player, "//" + command, changes, true);
+    }
+
+    private void teleportUnstuck(Player player) {
+        Location origin = player.getLocation();
+        for (int y = origin.getBlockY(); y < player.getWorld().getMaxHeight() - 1; y++) {
+            Block feet = player.getWorld().getBlockAt(origin.getBlockX(), y, origin.getBlockZ());
+            if (feet.isPassable() && feet.getRelative(BlockFace.UP).isPassable()) {
+                player.teleport(new Location(player.getWorld(), origin.getX(), y, origin.getZ(), origin.getYaw(), origin.getPitch()));
+                return;
+            }
+        }
+        player.sendMessage("§cKhông tìm được vị trí trống phía trên.");
+    }
+
+    private void jumpToTarget(Player player) {
+        Block target = player.getTargetBlockExact(256);
+        if (target == null) { player.sendMessage("§cKhông thấy block để nhảy tới trong 256 block."); return; }
+        Location destination = target.getLocation().add(0.5, 1, 0.5);
+        while (destination.getBlockY() < player.getWorld().getMaxHeight() - 1
+                && (!destination.getBlock().isPassable() || !destination.clone().add(0, 1, 0).getBlock().isPassable())) destination.add(0, 1, 0);
+        if (destination.getBlockY() >= player.getWorld().getMaxHeight() - 1) { player.sendMessage("§cKhông tìm được chỗ đứng trên mục tiêu."); return; }
+        destination.setYaw(player.getLocation().getYaw()); destination.setPitch(player.getLocation().getPitch());
+        player.teleport(destination);
+    }
+
+    private void teleportThrough(Player player) {
+        World world = player.getWorld(); Location origin = player.getEyeLocation();
+        org.bukkit.util.Vector direction = origin.getDirection().normalize();
+        for (double distance = 0.5; distance <= 6.0; distance += 0.25) {
+            Location candidate = origin.clone().add(direction.clone().multiply(distance));
+            Block feet = world.getBlockAt(candidate.getBlockX(), candidate.getBlockY(), candidate.getBlockZ());
+            Block head = feet.getRelative(BlockFace.UP);
+            if (!feet.isPassable() || !head.isPassable()) continue;
+            if (!world.isChunkLoaded(feet.getX() >> 4, feet.getZ() >> 4)) break;
+            candidate.setY(feet.getY()); candidate.setX(feet.getX() + 0.5); candidate.setZ(feet.getZ() + 0.5);
+            player.teleport(candidate); return;
+        }
+        player.sendMessage("§cKhông tìm được lối xuyên tường trong 6 block phía trước.");
+    }
+
+    private void generateForest(Player player, String[] args) {
+        if (args.length != 2) throw new IllegalArgumentException("Dùng //forest <oak|spruce|birch|jungle|acacia|dark_oak|swamp> <mật_độ 1-100>.");
+        Selection selection = requireSelection(player, true);
+        String treeName = args[0].toLowerCase(Locale.ROOT);
+        org.bukkit.TreeType type = switch (treeName) {
+            case "oak" -> org.bukkit.TreeType.TREE;
+            case "spruce" -> org.bukkit.TreeType.REDWOOD;
+            case "birch" -> org.bukkit.TreeType.BIRCH;
+            case "jungle" -> org.bukkit.TreeType.SMALL_JUNGLE;
+            case "acacia" -> org.bukkit.TreeType.ACACIA;
+            case "dark_oak" -> org.bukkit.TreeType.DARK_OAK;
+            case "swamp" -> org.bukkit.TreeType.SWAMP;
+            default -> throw new IllegalArgumentException("Loại cây hỗ trợ: oak, spruce, birch, jungle, acacia, dark_oak, swamp.");
+        };
+        int density = positiveInt(args[1]);
+        if (density > 100) throw new IllegalArgumentException("Mật độ phải nằm trong khoảng 1-100.");
+        World world = selection.first.getWorld(); Random random = new Random(); List<BlockPosition> roots = new ArrayList<>();
+        for (int x = selection.minX(); x <= selection.maxX(); x++) for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
+            if (random.nextInt(100) >= density) continue;
+            for (int y = selection.maxY(); y >= selection.minY(); y--) {
+                Block ground = world.getBlockAt(x, y, z);
+                if (ground.getType().isAir() || !ground.getType().isSolid()) continue;
+                if (y + 1 < world.getMaxHeight() && world.getBlockAt(x, y + 1, z).isPassable()) roots.add(new BlockPosition(x, y + 1, z));
+                break;
+            }
+            if (roots.size() >= 128) break;
+        }
+        if (roots.isEmpty()) throw new IllegalArgumentException("Không tìm thấy mặt đất phù hợp trong vùng chọn.");
+        Map<BlockPosition, BeforeTreeBlock> before = new LinkedHashMap<>();
+        for (BlockPosition root : roots) for (int x = root.x() - 4; x <= root.x() + 4; x++)
+            for (int y = root.y(); y < Math.min(world.getMaxHeight(), root.y() + 20); y++)
+                for (int z = root.z() - 4; z <= root.z() + 4; z++) {
+                    validateEditTarget(world, x, y, z);
+                    Block block = world.getBlockAt(x, y, z); BlockState state = block.getState();
+                    before.putIfAbsent(new BlockPosition(x, y, z), new BeforeTreeBlock(block.getBlockData().getAsString(),
+                        state instanceof org.bukkit.block.TileState ? state.copy() : null));
+                    if (before.size() > editLimit()) throw new IllegalArgumentException("Vùng đệm cây vượt giới hạn " + limitLabel() + " block.");
+                }
+        try {
+            for (BlockPosition root : roots) world.generateTree(new Location(world, root.x(), root.y(), root.z()), type);
+            List<BlockChange> changes = new ArrayList<>();
+            for (Map.Entry<BlockPosition, BeforeTreeBlock> entry : before.entrySet()) {
+                BlockPosition p = entry.getKey(); Block block = world.getBlockAt(p.x(), p.y(), p.z());
+                String after = block.getBlockData().getAsString();
+                if (after.equals(entry.getValue().data())) continue;
+                BlockState afterState = block.getState() instanceof org.bukkit.block.TileState ? block.getState().copy() : null;
+                Map<String, Object> beforeNbt = entry.getValue().state() == null ? Map.of() : NativeBlockEntityNbt.capture(entry.getValue().state());
+                Map<String, Object> afterNbt = afterState == null ? Map.of() : NativeBlockEntityNbt.capture(afterState);
+                changes.add(new BlockChange(block.getLocation(), entry.getValue().data(), after,
+                    entry.getValue().state(), afterState, afterNbt));
+            }
+            if (changes.size() > editLimit()) throw new IllegalArgumentException("Rừng tạo quá nhiều block; dùng mật độ thấp hơn.");
+            if (changes.isEmpty()) { player.sendMessage("§eKhông cây nào mọc được tại vùng này."); return; }
+            EditOperation operation = new EditOperation("//forest", changes, true);
+            refreshLinkedConnections(changes); captureActualAfterStates(operation);
+            Deque<EditOperation> history = undoHistory.computeIfAbsent(player.getUniqueId(), ignored -> new ArrayDeque<>());
+            history.push(operation); while (history.size() > historyLimit()) history.removeLast(); redoHistory.remove(player.getUniqueId());
+            player.sendMessage("§aĐã tạo " + roots.size() + " cây; có thể hoàn tác bằng //undo.");
+        } catch (RuntimeException exception) {
+            for (Map.Entry<BlockPosition, BeforeTreeBlock> entry : before.entrySet()) {
+                BlockPosition p = entry.getKey(); Block block = world.getBlockAt(p.x(), p.y(), p.z());
+                block.setBlockData(Bukkit.createBlockData(entry.getValue().data()), false);
+                if (entry.getValue().state() != null) entry.getValue().state().update(true, false);
+            }
+            throw new IllegalArgumentException("Không thể tạo rừng an toàn; các block trong vùng đệm đã được phục hồi: " + exception.getMessage());
+        }
     }
 
     private void editPlane(Player player, String command, String[] args) {
@@ -598,7 +876,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         if (args.length != 1) throw new IllegalArgumentException("Dùng //count <block>.");
         Selection selection = requireSelection(player, true); BlockMatcher matcher = parseMatcher(args[0]); long count = 0;
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
-            for (int z = selection.minZ(); z <= selection.maxZ(); z++) if (matcher.matches(selection.first.getWorld().getBlockAt(x, y, z).getBlockData())) count++;
+            for (int z = selection.minZ(); z <= selection.maxZ(); z++) if (selection.contains(x, y, z)
+                    && matcher.matches(selection.first.getWorld().getBlockAt(x, y, z).getBlockData())) count++;
         player.sendMessage("§aTìm thấy §f" + count + "§a block khớp §f" + args[0] + "§a.");
     }
 
@@ -669,6 +948,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         Map<BlockPosition, String> source = new LinkedHashMap<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
+                if (!selection.contains(x, y, z)) continue;
                 Block block = world.getBlockAt(x, y, z);
                 if (block.getState() instanceof org.bukkit.block.TileState) throw new IllegalArgumentException("Move vùng có rương/bảng hiệu bị từ chối để tránh mất dữ liệu.");
                 source.put(new BlockPosition(x, y, z), block.getBlockData().getAsString());
@@ -698,6 +978,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         List<Map.Entry<BlockPosition, String>> source = new ArrayList<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
+                if (!selection.contains(x, y, z)) continue;
                 Block block = world.getBlockAt(x, y, z);
                 if (block.getState() instanceof org.bukkit.block.TileState) throw new IllegalArgumentException("Stack vùng có rương/bảng hiệu bị từ chối để tránh mất dữ liệu.");
                 source.add(Map.entry(new BlockPosition(x, y, z), block.getBlockData().getAsString()));
@@ -760,15 +1041,133 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         List<ClipboardBlock> blocks = new ArrayList<>();
         for (int x = selection.minX(); x <= selection.maxX(); x++) for (int y = selection.minY(); y <= selection.maxY(); y++)
             for (int z = selection.minZ(); z <= selection.maxZ(); z++) {
+                if (!selection.contains(x, y, z)) continue;
                 Block block = selection.first.getWorld().getBlockAt(x, y, z);
-                if (block.getState() instanceof org.bukkit.block.TileState) throw new IllegalArgumentException("Clipboard hiện không lưu nội dung rương/sign; đã hủy copy an toàn.");
-                blocks.add(new ClipboardBlock(x - origin.getBlockX(), y - origin.getBlockY(), z - origin.getBlockZ(), block.getBlockData().getAsString()));
+                BlockState tileSnapshot = block.getState() instanceof org.bukkit.block.TileState ? block.getState().copy() : null;
+                Map<String, Object> tileData = tileSnapshot == null ? Map.of() : NativeBlockEntityNbt.capture(tileSnapshot);
+                blocks.add(new ClipboardBlock(x - origin.getBlockX(), y - origin.getBlockY(), z - origin.getBlockZ(),
+                    block.getBlockData().getAsString(), tileSnapshot, tileData));
             }
         clipboards.put(player.getUniqueId(), new Clipboard(List.copyOf(blocks), selection.maxX() - selection.minX() + 1,
-            selection.maxY() - selection.minY() + 1, selection.maxZ() - selection.minZ() + 1, origin));
+            selection.maxY() - selection.minY() + 1, selection.maxZ() - selection.minZ() + 1, origin,
+            selection.minX() - origin.getBlockX(), selection.minY() - origin.getBlockY(), selection.minZ() - origin.getBlockZ()));
         player.sendMessage("§aĐã copy §f" + blocks.size() + "§a block theo vị trí đứng làm gốc.");
         plugin.getLogger().info("[WorldRegion] clipboard-copy player=" + player.getName() + ", blocks=" + blocks.size()
             + ", origin=" + origin.getWorld().getName() + ":" + origin.getBlockX() + "," + origin.getBlockY() + "," + origin.getBlockZ());
+    }
+
+    private void schematicCommand(Player player, String[] args) {
+        if (args.length < 1) throw new IllegalArgumentException("Dùng //schem save hoặc //schem load <tên>.");
+        if ("save".equalsIgnoreCase(args[0])) {
+            if (args.length != 1) throw new IllegalArgumentException("Dùng //schem save rồi nhập tên/đường dẫn trong chat.");
+            copySelection(player);
+            pendingSchemaSaves.put(player.getUniqueId(), clipboards.get(player.getUniqueId()));
+            player.sendMessage("§eNhập tên file hoặc đường dẫn trong thư mục custom-schemas, ví dụ §fhouse/medieval.schem§e. §7Gõ !cancel để hủy.");
+            return;
+        }
+        if ("load".equalsIgnoreCase(args[0])) {
+            if (args.length != 2) throw new IllegalArgumentException("Dùng //schem load <tên/đường_dẫn>.");
+            loadCustomSchematic(player, args[1]);
+            return;
+        }
+        throw new IllegalArgumentException("Dùng //schem save hoặc //schem load <tên>.");
+    }
+
+    private Path customSchemaRoot() {
+        return new File(plugin.getDataFolder(), "schemas/custom-schemas").toPath().toAbsolutePath().normalize();
+    }
+
+    private Path customSchemaPath(String rawName) {
+        String name = rawName.trim().replace('\\', '/');
+        if (name.isBlank() || name.startsWith("/") || name.matches("^[A-Za-z]:.*"))
+            throw new IllegalArgumentException("Tên schematic không được là đường dẫn tuyệt đối.");
+        String extension = name.toLowerCase(Locale.ROOT);
+        if (!extension.endsWith(".schem") && !extension.endsWith(".litematic")) name += ".schem";
+        String[] segments = name.split("/", -1);
+        for (String segment : segments) {
+            if (segment.isBlank() || segment.equals(".") || segment.equals("..")
+                    || !segment.matches("[\\p{L}\\p{N} _.-]{1,80}"))
+                throw new IllegalArgumentException("Đường dẫn chỉ nhận thư mục/tên file hợp lệ; không dùng .. hoặc ký tự đặc biệt.");
+        }
+        Path root = customSchemaRoot();
+        Path target = root.resolve(name).normalize();
+        if (!target.startsWith(root)) throw new IllegalArgumentException("Đường dẫn schematic nằm ngoài custom-schemas.");
+        return target;
+    }
+
+    private void saveClipboardSchema(Player player, Clipboard clipboard, String rawName) {
+        Path target = customSchemaPath(rawName);
+        if (!target.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".schem"))
+            throw new IllegalArgumentException("Chỉ lưu schema mới với phần mở rộng .schem.");
+        if (Files.exists(target)) {
+            throw new IllegalArgumentException("File đã tồn tại; chọn tên khác để tránh ghi đè.");
+        }
+        int minX = clipboard.minOffsetX(), minY = clipboard.minOffsetY(), minZ = clipboard.minOffsetZ();
+        Map<BlockPosition, ClipboardBlock> selected = new HashMap<>();
+        for (ClipboardBlock block : clipboard.blocks()) selected.put(new BlockPosition(block.x(), block.y(), block.z()), block);
+        List<SpongeSchematicWriter.Block> blocks = new ArrayList<>(clipboard.sizeX() * clipboard.sizeY() * clipboard.sizeZ());
+        for (int y = 0; y < clipboard.sizeY(); y++) for (int z = 0; z < clipboard.sizeZ(); z++)
+            for (int x = 0; x < clipboard.sizeX(); x++) {
+                ClipboardBlock source = selected.get(new BlockPosition(minX + x, minY + y, minZ + z));
+                blocks.add(new SpongeSchematicWriter.Block(x, y, z,
+                    source == null ? "minecraft:air" : source.blockData(), source == null ? Map.of() : source.blockEntityData()));
+            }
+        try {
+            Files.createDirectories(target.getParent());
+            SpongeSchematicWriter.write(target, target.getFileName().toString(), clipboard.sizeX(), clipboard.sizeY(),
+                clipboard.sizeZ(), blocks);
+            player.sendMessage("§aĐã lưu schematic vào §f" + customSchemaRoot().relativize(target).toString().replace(File.separatorChar, '/') + "§a.");
+            plugin.getLogger().info("[WorldRegion] schematic-save player=" + player.getName() + ", file=" + target);
+        } catch (IOException | RuntimeException exception) {
+            player.sendMessage("§cKhông thể lưu schematic: " + exception.getMessage());
+            plugin.getLogger().log(Level.WARNING, "[WorldRegion] Could not save schematic " + target, exception);
+        }
+    }
+
+    private void loadCustomSchematic(Player player, String rawName) {
+        Path path = customSchemaPath(rawName);
+        Path root = customSchemaRoot();
+        if (!path.startsWith(root) || !Files.isRegularFile(path)) throw new IllegalArgumentException("Không tìm thấy schematic trong schemas/custom-schemas.");
+        try {
+            List<ClipboardBlock> blocks = new ArrayList<>();
+            int width, height, length;
+            String fileName = path.getFileName().toString().toLowerCase(Locale.ROOT);
+            int maximum = (int) Math.min(Integer.MAX_VALUE, editLimit());
+            if (fileName.endsWith(".litematic")) {
+                LitematicReader.Schematic schematic = LitematicReader.read(path, maximum);
+                width = schematic.width(); height = schematic.height(); length = schematic.length();
+                Map<BlockPosition, String> nonAir = new HashMap<>();
+                Map<BlockPosition, Map<String, Object>> entities = new HashMap<>();
+                for (LitematicReader.SchematicBlock block : schematic.blocks())
+                    nonAir.put(new BlockPosition(block.x(), block.y(), block.z()), block.blockData());
+                for (LitematicReader.BlockEntity entity : schematic.blockEntities())
+                    entities.put(new BlockPosition(entity.x(), entity.y(), entity.z()), entity.data());
+                for (int y = 0; y < height; y++) for (int z = 0; z < length; z++) for (int x = 0; x < width; x++)
+                    blocks.add(new ClipboardBlock(x, y, z, nonAir.getOrDefault(new BlockPosition(x, y, z), "minecraft:air"), null,
+                        entities.getOrDefault(new BlockPosition(x, y, z), Map.of())));
+            } else {
+                SpongeSchematicReader.Schematic schematic = SpongeSchematicReader.read(path, maximum);
+                width = schematic.width(); height = schematic.height(); length = schematic.length();
+                Map<BlockPosition, Map<String, Object>> entities = new HashMap<>();
+                for (SpongeSchematicReader.BlockEntity entity : schematic.blockEntities())
+                    entities.put(new BlockPosition(entity.x(), entity.y(), entity.z()), entity.data());
+                int stateIndex = 0;
+                for (int y = 0; y < height; y++) for (int z = 0; z < length; z++) for (int x = 0; x < width; x++) {
+                    String data = Bukkit.createBlockData(schematic.blockStates().get(stateIndex++)).getAsString();
+                    Map<String, Object> nbt = entities.getOrDefault(new BlockPosition(x, y, z), Map.of());
+                    blocks.add(new ClipboardBlock(x, y, z, data, null, nbt));
+                }
+            }
+            if ((long) width * height * length > editLimit()) throw new IllegalArgumentException("Schematic vượt giới hạn " + limitLabel() + " block.");
+            Location origin = player.getLocation().getBlock().getLocation();
+            clipboards.put(player.getUniqueId(), new Clipboard(List.copyOf(blocks), width, height, length, origin, 0, 0, 0));
+            pastePreviews.remove(player.getUniqueId());
+            player.sendMessage("§aĐã tải schematic §f" + root.relativize(path).toString().replace(File.separatorChar, '/')
+                + "§a vào clipboard (" + blocks.size() + " block, tính cả air).");
+            plugin.getLogger().info("[WorldRegion] schematic-load player=" + player.getName() + ", file=" + path + ", blocks=" + blocks.size());
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Không thể đọc schematic: " + exception.getMessage());
+        }
     }
 
     private void cutSelection(Player player, String[] args) {
@@ -796,7 +1195,9 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             World world = player.getWorld();
             if (y < world.getMinHeight() || y >= world.getMaxHeight() || !world.getWorldBorder().isInside(new Location(world, x, y, z))
                     || !world.isChunkLoaded(x >> 4, z >> 4)) throw new IllegalArgumentException("Paste vượt chiều cao/world border hoặc vào chunk chưa nạp; không đổi block nào.");
-            addChange(player, changes, world.getBlockAt(x, y, z), data);
+            Block target = world.getBlockAt(x, y, z);
+            BlockChange change = createClipboardChange(player, target, data, saved.blockState(), saved.blockEntityData());
+            if (change != null) changes.add(change);
         }
         if (changes.size() > editLimit()) throw new IllegalArgumentException("Paste vượt giới hạn " + limitLabel() + " block.");
         scheduleEdit(player, "//paste", changes);
@@ -828,7 +1229,9 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                     throw new IllegalArgumentException("Brush vượt world border; không đổi block nào.");
                 if (!world.isChunkLoaded(blockX >> 4, blockZ >> 4))
                     throw new IllegalArgumentException("Brush đi vào chunk chưa nạp; không đổi block nào.");
-                addChange(player, changes, world.getBlockAt(blockX, blockY, blockZ), data);
+                Block targetBlock = world.getBlockAt(blockX, blockY, blockZ);
+                BlockChange change = createClipboardChange(player, targetBlock, data, saved.blockState(), saved.blockEntityData());
+                if (change != null) changes.add(change);
             }
             if (changes.isEmpty()) {
                 player.sendMessage("§eBrush không có block nào cần thay đổi (air được bỏ qua).");
@@ -910,15 +1313,44 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private void addChange(Player player, List<BlockChange> changes, Block block, BlockData target, boolean allowBlockEntities) {
-        BlockData current = block.getBlockData();
-        if (current.getAsString().equals(target.getAsString())) return;
-        BlockState beforeState = block.getState();
-        if (beforeState instanceof org.bukkit.block.TileState && !allowBlockEntities)
-            throw new IllegalArgumentException("Vùng chứa block entity (rương, bảng hiệu...) tại " + block.getX() + "," + block.getY() + "," + block.getZ()
-                + "; chỉnh sửa bị hủy để tránh mất dữ liệu.");
-        changes.add(new BlockChange(block.getLocation(), current.getAsString(), target.getAsString(),
-            beforeState instanceof org.bukkit.block.TileState ? beforeState.copy() : null));
+        if (!matchesMasks(player, block)) return;
+        BlockChange change = createChange(player, block, target, allowBlockEntities);
+        if (change != null) changes.add(change);
         if (changes.size() > editLimit()) throw new IllegalArgumentException("Thao tác vượt giới hạn " + limitLabel() + " block.");
+    }
+
+    private BlockChange createChange(Player player, Block block, BlockData target, boolean allowBlockEntities) {
+        BlockData current = block.getBlockData();
+        if (current.getAsString().equals(target.getAsString())) return null;
+        BlockState beforeState = block.getState();
+        return new BlockChange(block.getLocation(), current.getAsString(), target.getAsString(),
+            beforeState instanceof org.bukkit.block.TileState ? beforeState.copy() : null, null, Map.of());
+    }
+
+    private BlockChange createClipboardChange(Player player, Block target, BlockData data, BlockState copiedState,
+            Map<String, Object> copiedNbt) {
+        if (!matchesMasks(player, target)) return null;
+        BlockChange change = createChange(player, target, data, true);
+        if (change == null && copiedState == null && (copiedNbt == null || copiedNbt.isEmpty())) return null;
+        if (change == null) {
+            BlockState oldState = target.getState();
+            change = new BlockChange(target.getLocation(), target.getBlockData().getAsString(), data.getAsString(),
+                oldState instanceof org.bukkit.block.TileState ? oldState.copy() : null, null, Map.of());
+        }
+        BlockState relocated = copiedState == null ? target.getState() : copiedState.copy(target.getLocation());
+        relocated.setBlockData(data);
+        if (copiedNbt != null && !copiedNbt.isEmpty() && relocated instanceof org.bukkit.block.TileState)
+            NativeBlockEntityNbt.apply(relocated, copiedNbt, target.getX(), target.getY(), target.getZ());
+        BlockState afterState = copiedState != null || copiedNbt != null && !copiedNbt.isEmpty()
+                && relocated instanceof org.bukkit.block.TileState ? relocated : null;
+        return new BlockChange(change.location(), change.before(), change.after(), change.beforeState(),
+            afterState, copiedNbt == null ? Map.of() : copiedNbt);
+    }
+
+    private boolean matchesMasks(Player player, Block block) {
+        BlockMatcher mask = playerMasks.get(player.getUniqueId());
+        return (mask == null || mask.matches(block.getBlockData()))
+            && (globalMask == null || globalMask.matches(block.getBlockData()));
     }
 
     private void scheduleEdit(Player player, String label, List<BlockChange> changes) {
@@ -983,7 +1415,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                 player.sendMessage("§cKhông thể " + (redo ? "redo" : "undo") + ": block đã bị thay đổi sau thao tác."); return;
             }
             boolean entityAwareSet = operation.label.equals("//set") || operation.label.equals("//clear");
-            if (change.location.getBlock().getState() instanceof org.bukkit.block.TileState && !entityAwareSet) {
+            if (change.location.getBlock().getState() instanceof org.bukkit.block.TileState && !entityAwareSet
+                    && change.beforeState == null && change.afterState == null && change.afterNbt.isEmpty()) {
                 player.sendMessage("§cKhông thể undo/redo an toàn vì có block entity trong vùng."); return;
             }
         }
@@ -1051,13 +1484,20 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     private int editBatchSize() { return Math.max(32, Math.min(4096, plugin.getConfig().getInt("worldedit.blocks-per-tick", EDIT_BATCH_SIZE))); }
 
     private void restoreBlockChange(BlockChange change, boolean useAfter) {
-        if (!useAfter && change.beforeState != null) {
-            if (!change.beforeState.update(true, false)) {
+        BlockState snapshot = useAfter ? change.afterState : change.beforeState;
+        if (snapshot != null) {
+            if (!snapshot.update(true, false)) {
                 throw new IllegalStateException("Could not restore previous block entity at " + change.location);
             }
             return;
         }
-        change.location.getBlock().setBlockData(Bukkit.createBlockData(useAfter ? change.after : change.before), false);
+        Block block = change.location.getBlock();
+        block.setBlockData(Bukkit.createBlockData(useAfter ? change.after : change.before), false);
+        if (useAfter && !change.afterNbt.isEmpty()) {
+            BlockState state = block.getState();
+            NativeBlockEntityNbt.apply(state, change.afterNbt, block.getX(), block.getY(), block.getZ());
+            if (!state.update(true, false)) throw new IllegalStateException("Could not apply block entity at " + change.location);
+        }
     }
 
     private void refreshLinkedConnections(List<BlockChange> changes) {
@@ -1075,7 +1515,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         List<BlockChange> resolved = new ArrayList<>(operation.changes.size());
         for (BlockChange change : operation.changes) {
             resolved.add(new BlockChange(change.location, change.before,
-                change.location.getBlock().getBlockData().getAsString(), change.beforeState));
+                change.location.getBlock().getBlockData().getAsString(), change.beforeState, change.afterState, change.afterNbt));
         }
         operation.changes = List.copyOf(resolved);
     }
@@ -1147,24 +1587,84 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             && item.getItemMeta().getPersistentDataContainer().has(clipboardPasteToolKey, PersistentDataType.BYTE);
     }
 
+    private void giveDeltreeTool(Player player) {
+        ItemStack tool = new ItemStack(Material.SHEARS); ItemMeta meta = tool.getItemMeta();
+        meta.setDisplayName("§aWorldEdit • Tree Remover"); meta.setLore(List.of("§7Chuột trái vào thân cây để xóa thân và lá.", "§7Mỗi lần dùng có thể //undo."));
+        meta.getPersistentDataContainer().set(deltreeToolKey, PersistentDataType.BYTE, (byte) 1); tool.setItemMeta(meta);
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(tool);
+        if (!leftovers.isEmpty()) player.getWorld().dropItemNaturally(player.getLocation(), tool);
+        player.sendMessage("§aĐã cấp Tree Remover. Chuột trái vào thân cây; //undo để phục hồi.");
+    }
+
+    private boolean isDeltreeTool(ItemStack item) {
+        return item != null && item.getType() == Material.SHEARS && item.hasItemMeta()
+            && item.getItemMeta().getPersistentDataContainer().has(deltreeToolKey, PersistentDataType.BYTE);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onDeltreeToolUse(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || !isDeltreeTool(event.getItem())
+                || event.getAction() != Action.LEFT_CLICK_BLOCK) return;
+        event.setCancelled(true); Player player = event.getPlayer();
+        if (!canManage(player)) { player.sendMessage("§cBạn không có quyền dùng công cụ xóa cây."); return; }
+        Block clicked = event.getClickedBlock(); if (clicked == null || !isLog(clicked.getType())) {
+            player.sendMessage("§eHãy đánh dấu một block thân cây."); return;
+        }
+        World world = clicked.getWorld(); Set<BlockPosition> logs = new LinkedHashSet<>(); Deque<BlockPosition> queue = new ArrayDeque<>();
+        BlockPosition start = new BlockPosition(clicked.getX(), clicked.getY(), clicked.getZ()); queue.add(start); logs.add(start);
+        while (!queue.isEmpty() && logs.size() <= 4096) {
+            BlockPosition point = queue.removeFirst();
+            for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dy == 0 && dz == 0) continue;
+                int x = point.x() + dx, y = point.y() + dy, z = point.z() + dz;
+                if (y < world.getMinHeight() || y >= world.getMaxHeight() || !world.isChunkLoaded(x >> 4, z >> 4)) continue;
+                BlockPosition adjacent = new BlockPosition(x, y, z);
+                if (logs.contains(adjacent)) continue;
+                if (isLog(world.getBlockAt(x, y, z).getType())) { logs.add(adjacent); queue.addLast(adjacent); }
+            }
+        }
+        if (logs.size() > 4096) { player.sendMessage("§cCây vượt giới hạn 4096 block thân; không thay đổi gì."); return; }
+        Set<BlockPosition> tree = new LinkedHashSet<>(logs);
+        for (BlockPosition log : logs) for (int dx = -6; dx <= 6; dx++) for (int dy = -6; dy <= 6; dy++) for (int dz = -6; dz <= 6; dz++) {
+            int x = log.x() + dx, y = log.y() + dy, z = log.z() + dz;
+            if (y < world.getMinHeight() || y >= world.getMaxHeight() || !world.isChunkLoaded(x >> 4, z >> 4)) continue;
+            if (isLeaves(world.getBlockAt(x, y, z).getType())) tree.add(new BlockPosition(x, y, z));
+        }
+        if (tree.size() > editLimit()) { player.sendMessage("§cCây vượt giới hạn thao tác " + limitLabel() + " block."); return; }
+        List<BlockChange> changes = new ArrayList<>();
+        for (BlockPosition point : tree) addChange(player, changes, world.getBlockAt(point.x(), point.y(), point.z()), Bukkit.createBlockData(Material.AIR));
+        scheduleEdit(player, "//deltree", changes, true);
+    }
+
+    private boolean isLog(Material material) {
+        String name = material.name();
+        return name.endsWith("_LOG") || name.endsWith("_WOOD") || name.endsWith("_STEM") || "MUSHROOM_STEM".equals(name);
+    }
+
+    private boolean isLeaves(Material material) { return material.name().endsWith("_LEAVES"); }
+
     private void giveBrush(Player player) {
         Clipboard clipboard = clipboards.get(player.getUniqueId());
-        if (clipboard == null) {
+        BrushConfig config = brushConfigs.get(player.getUniqueId());
+        if (clipboard == null && config == null) {
             player.sendMessage("§cChọn vùng bằng búa rồi dùng //copy trước khi lấy brush.");
             return;
         }
         ItemStack brush = new ItemStack(Material.STICK);
         ItemMeta meta = brush.getItemMeta();
-        meta.setDisplayName("§aWorldEdit • Clipboard Brush");
-        meta.setLore(List.of("§7Pattern: §f" + clipboard.blocks().size() + " block",
+        meta.setDisplayName("§aWorldEdit • Brush");
+        meta.setLore(config == null ? List.of("§7Clipboard pattern: §f" + clipboard.blocks().size() + " block",
             "§7Preview bám bề mặt đang ngắm; chuột phải để xác nhận.",
-            "§7Block air trong clipboard sẽ bị bỏ qua.", "§eMỗi lần dùng brush lưu riêng vào //undo."));
+            "§7Block air trong clipboard sẽ bị bỏ qua.", "§eMỗi lần dùng brush lưu riêng vào //undo.")
+            : List.of("§7Brush: §f" + config.kind() + " §7• bán kính §f" + config.radius(),
+                "§7Nhắm bề mặt và chuột phải để áp dụng.", "§eMỗi lần dùng brush lưu riêng vào //undo."));
         meta.getPersistentDataContainer().set(brushKey, PersistentDataType.BYTE, (byte) 1);
         brush.setItemMeta(meta);
         Map<Integer, ItemStack> leftovers = player.getInventory().addItem(brush);
         if (!leftovers.isEmpty()) player.getWorld().dropItemNaturally(player.getLocation(), brush);
-        player.sendMessage("§aĐã cấp stick Clipboard Brush. §eCầm stick để xem preview bám mặt block; chuột phải xác nhận, mỗi lần có một bước //undo.");
-        plugin.getLogger().info("[WorldRegion] brush-issued player=" + player.getName() + ", blocks=" + clipboard.blocks().size());
+        player.sendMessage("§aĐã cấp stick brush. §eCầm stick và chuột phải lên bề mặt để áp dụng; //undo hoàn tác từng lần.");
+        plugin.getLogger().info("[WorldRegion] brush-issued player=" + player.getName()
+            + ", mode=" + (config == null ? "clipboard" : config.kind()));
     }
 
     private void giveClipboardPasteTool(Player player) {
@@ -1205,6 +1705,14 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             return;
         }
         Clipboard clipboard = clipboards.get(player.getUniqueId());
+        BrushConfig config = brushConfigs.get(player.getUniqueId());
+        if (config != null) {
+            Block target = brushSurfaceAnchor(player, event.getClickedBlock());
+            if (target == null) { player.sendMessage("§eHãy nhắm vào một block để dùng brush."); return; }
+            try { applyGenericBrush(player, config, target); }
+            catch (IllegalArgumentException exception) { player.sendMessage("§c" + exception.getMessage()); }
+            return;
+        }
         if (clipboard == null) {
             player.sendMessage("§cClipboard trống. Chọn vùng bằng búa rồi dùng //copy trước.");
             return;
@@ -1216,6 +1724,46 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         }
         applyClipboardBrush(player, clipboard, target);
     }
+
+    private void applyGenericBrush(Player player, BrushConfig config, Block clicked) {
+        World world = clicked.getWorld();
+        int radius = config.radius();
+        int centerX = clicked.getX(), centerY = clicked.getY() + 1, centerZ = clicked.getZ();
+        List<BlockChange> changes = new ArrayList<>();
+        if ("sphere".equals(config.kind())) {
+            BlockData pattern = Bukkit.createBlockData(config.blockData());
+            long bound = (2L * radius + 1) * (2L * radius + 1) * (2L * radius + 1);
+            if (bound > editLimit()) throw new IllegalArgumentException("Brush vượt giới hạn " + limitLabel() + " block.");
+            for (int x = centerX - radius; x <= centerX + radius; x++) for (int y = centerY - radius; y <= centerY + radius; y++)
+                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                    if (distanceSquared(x - centerX, y - centerY, z - centerZ) > radius * radius) continue;
+                    if (y < world.getMinHeight() || y >= world.getMaxHeight() || !world.isChunkLoaded(x >> 4, z >> 4))
+                        throw new IllegalArgumentException("Brush đi qua chunk chưa nạp hoặc vượt chiều cao.");
+                    addChange(player, changes, world.getBlockAt(x, y, z), pattern);
+                }
+        } else {
+            Map<BlockPosition, Material> original = new HashMap<>();
+            for (int x = centerX - radius; x <= centerX + radius; x++) for (int y = centerY - radius; y <= centerY + radius; y++)
+                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                    if (distanceSquared(x - centerX, y - centerY, z - centerZ) > radius * radius) continue;
+                    if (y < world.getMinHeight() || y >= world.getMaxHeight() || !world.isChunkLoaded(x >> 4, z >> 4))
+                        throw new IllegalArgumentException("Brush đi qua chunk chưa nạp hoặc vượt chiều cao.");
+                    original.put(new BlockPosition(x, y, z), world.getBlockAt(x, y, z).getType());
+                }
+            for (Map.Entry<BlockPosition, Material> entry : original.entrySet()) {
+                BlockPosition point = entry.getKey(); Map<Material, Integer> counts = new HashMap<>();
+                for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++) {
+                    Material material = original.get(new BlockPosition(point.x() + dx, point.y() + dy, point.z() + dz));
+                    if (material != null) counts.merge(material, 1, Integer::sum);
+                }
+                Material smooth = counts.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(entry.getValue());
+                if (smooth.isBlock() && !smooth.isAir()) addChange(player, changes, world.getBlockAt(point.x(), point.y(), point.z()), Bukkit.createBlockData(smooth));
+            }
+        }
+        scheduleEdit(player, "//br " + config.kind(), changes, true);
+    }
+
+    private int distanceSquared(int x, int y, int z) { return x * x + y * y + z * z; }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onClipboardPasteToolUse(PlayerInteractEvent event) {
@@ -1382,9 +1930,57 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
                     if (facing.getAllowedFaces().contains(rotated)) facing.setFace(rotated, true);
                 }
             }
-            result.add(new ClipboardBlock(x, saved.y(), z, data.getAsString()));
+            BlockState transformedState = saved.blockState() == null ? null : saved.blockState().copy();
+            if (transformedState != null) transformedState.setBlockData(data);
+            result.add(new ClipboardBlock(x, saved.y(), z, data.getAsString(), transformedState, saved.blockEntityData()));
         }
         return List.copyOf(result);
+    }
+
+    private void rotateClipboardCommand(Player player, String[] args) {
+        if (args.length != 1 || !Set.of(90, 180, 270).contains(parseInt(args[0])))
+            throw new IllegalArgumentException("Dùng //rotate <90|180|270>.");
+        Clipboard clipboard = requireClipboard(player);
+        int degrees = Integer.parseInt(args[0]);
+        List<ClipboardBlock> blocks = rotateClipboard(clipboard, degrees);
+        boolean swap = degrees == 90 || degrees == 270;
+        clipboards.put(player.getUniqueId(), new Clipboard(blocks, swap ? clipboard.sizeZ() : clipboard.sizeX(),
+            clipboard.sizeY(), swap ? clipboard.sizeX() : clipboard.sizeZ(), clipboard.origin(),
+            clipboard.minOffsetX(), clipboard.minOffsetY(), clipboard.minOffsetZ()));
+        removePastePreview(player.getUniqueId()); removeBrushPreview(player.getUniqueId());
+        player.sendMessage("§aClipboard đã xoay " + degrees + "°. Dùng //paste để đặt.");
+    }
+
+    private void flipClipboardCommand(Player player, String[] args) {
+        if (args.length != 1) throw new IllegalArgumentException("Dùng //flip <x|z|north|south|east|west>.");
+        String direction = args[0].toLowerCase(Locale.ROOT);
+        boolean flipX = Set.of("x", "east", "west").contains(direction);
+        boolean flipZ = Set.of("z", "north", "south").contains(direction);
+        if (!flipX && !flipZ) throw new IllegalArgumentException("Hướng lật phải là x/z hoặc east/west/north/south.");
+        Clipboard clipboard = requireClipboard(player); List<ClipboardBlock> blocks = new ArrayList<>(clipboard.blocks().size());
+        for (ClipboardBlock saved : clipboard.blocks()) {
+            BlockData data = Bukkit.createBlockData(saved.blockData());
+            data.mirror(flipX ? org.bukkit.block.structure.Mirror.FRONT_BACK : org.bukkit.block.structure.Mirror.LEFT_RIGHT);
+            BlockState state = saved.blockState() == null ? null : saved.blockState().copy();
+            if (state != null) state.setBlockData(data);
+            blocks.add(new ClipboardBlock(flipX ? -saved.x() : saved.x(), saved.y(), flipZ ? -saved.z() : saved.z(),
+                data.getAsString(), state, saved.blockEntityData()));
+        }
+        clipboards.put(player.getUniqueId(), new Clipboard(List.copyOf(blocks), clipboard.sizeX(), clipboard.sizeY(), clipboard.sizeZ(),
+            clipboard.origin(), clipboard.minOffsetX(), clipboard.minOffsetY(), clipboard.minOffsetZ()));
+        removePastePreview(player.getUniqueId()); removeBrushPreview(player.getUniqueId());
+        player.sendMessage("§aClipboard đã lật theo trục " + (flipX ? "X" : "Z") + ". Dùng //paste để đặt.");
+    }
+
+    private Clipboard requireClipboard(Player player) {
+        Clipboard clipboard = clipboards.get(player.getUniqueId());
+        if (clipboard == null) throw new IllegalArgumentException("Clipboard trống; hãy chọn vùng và dùng //copy trước.");
+        return clipboard;
+    }
+
+    private int parseInt(String value) {
+        try { return Integer.parseInt(value); }
+        catch (NumberFormatException exception) { return -1; }
     }
 
     private BlockFace rotateHorizontalFace(BlockFace face, int turns) {
@@ -1893,6 +2489,24 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
 
     @EventHandler
     public void onNameInput(AsyncPlayerChatEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+        Clipboard pendingClipboard = pendingSchemaSaves.remove(playerId);
+        if (pendingClipboard != null) {
+            event.setCancelled(true);
+            String input = event.getMessage().trim();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player == null || !player.isOnline()) return;
+                if (!canManage(player)) { player.sendMessage("§cBạn không còn quyền WorldEdit."); return; }
+                if ("!cancel".equalsIgnoreCase(input)) { player.sendMessage("§eĐã hủy lưu schematic."); return; }
+                try { saveClipboardSchema(player, pendingClipboard, input); }
+                catch (IllegalArgumentException exception) {
+                    pendingSchemaSaves.put(playerId, pendingClipboard);
+                    player.sendMessage("§c" + exception.getMessage() + " Nhập lại đường dẫn hoặc !cancel.");
+                }
+            });
+            return;
+        }
         String mode = pendingNames.remove(event.getPlayer().getUniqueId());
         if (mode == null) return;
         event.setCancelled(true);
@@ -2044,6 +2658,7 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
 
     private static final class Selection {
         private Location first, second;
+        private RegionShape shape = RegionShape.CUBOID;
         private void setFirst(Location value) { first = value.clone(); }
         private void setSecond(Location value) { second = value.clone(); }
         private boolean complete() { return first != null && second != null && first.getWorld().equals(second.getWorld()); }
@@ -2053,6 +2668,22 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         private int maxX() { return Math.max(first.getBlockX(), second.getBlockX()); }
         private int maxY() { return Math.max(first.getBlockY(), second.getBlockY()); }
         private int maxZ() { return Math.max(first.getBlockZ(), second.getBlockZ()); }
+        private boolean contains(int x, int y, int z) {
+            if (x < minX() || x > maxX() || y < minY() || y > maxY() || z < minZ() || z > maxZ()) return false;
+            if (shape == RegionShape.CUBOID) return true;
+            double rx = (maxX() - minX() + 1) / 2.0;
+            double ry = (maxY() - minY() + 1) / 2.0;
+            double rz = (maxZ() - minZ() + 1) / 2.0;
+            double radius = shape == RegionShape.SPHERE ? Math.min(rx, Math.min(ry, rz)) : 0.0;
+            if (shape == RegionShape.SPHERE) rx = ry = rz = radius;
+            double cx = (minX() + maxX() + 1) / 2.0;
+            double cy = (minY() + maxY() + 1) / 2.0;
+            double cz = (minZ() + maxZ() + 1) / 2.0;
+            double dx = (x + 0.5 - cx) / rx;
+            double dy = (y + 0.5 - cy) / ry;
+            double dz = (z + 0.5 - cz) / rz;
+            return dx * dx + dy * dy + dz * dz <= 1.0;
+        }
         private long volume() { return ((long) maxX() - minX() + 1) * ((long) maxY() - minY() + 1) * ((long) maxZ() - minZ() + 1); }
         private boolean allChunksLoaded() {
             World world = first.getWorld();
@@ -2062,6 +2693,8 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
         }
     }
 
+    private enum RegionShape { CUBOID, SPHERE, ELLIPSOID }
+
     private enum Shape {
         WALLS("walls"), FACES("faces");
         private final String command;
@@ -2069,10 +2702,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
     }
 
     private record WeightedBlock(String blockData, double weight) { }
+    private record BrushConfig(String kind, int radius, String blockData) { }
+    private record BeforeTreeBlock(String data, BlockState state) { }
     private record BlockPosition(int x, int y, int z) {
         private BlockPosition offset(int dx, int dy, int dz) { return new BlockPosition(x + dx, y + dy, z + dz); }
     }
-    private record BlockChange(Location location, String before, String after, BlockState beforeState) { }
+    private record BlockChange(Location location, String before, String after, BlockState beforeState,
+                               BlockState afterState, Map<String, Object> afterNbt) { }
     private record ChunkTicket(World world, int x, int z) { }
     private static final class EditOperation {
         private final String label;
@@ -2084,9 +2720,13 @@ public final class RegionProtectionManager implements Listener, CommandExecutor,
             this.refreshConnections = refreshConnections;
         }
     }
-    private record ClipboardBlock(int x, int y, int z, String blockData) { }
-    private record Clipboard(List<ClipboardBlock> blocks, int sizeX, int sizeY, int sizeZ, Location origin) {
-        private Clipboard(List<ClipboardBlock> blocks, int sizeX, int sizeY, int sizeZ) { this(blocks, sizeX, sizeY, sizeZ, null); }
+    private record ClipboardBlock(int x, int y, int z, String blockData, BlockState blockState,
+                                  Map<String, Object> blockEntityData) { }
+    private record Clipboard(List<ClipboardBlock> blocks, int sizeX, int sizeY, int sizeZ, Location origin,
+                             int minOffsetX, int minOffsetY, int minOffsetZ) {
+        private Clipboard(List<ClipboardBlock> blocks, int sizeX, int sizeY, int sizeZ) {
+            this(blocks, sizeX, sizeY, sizeZ, null, 0, 0, 0);
+        }
     }
     private static final class BrushPreview {
         private final Clipboard clipboard;

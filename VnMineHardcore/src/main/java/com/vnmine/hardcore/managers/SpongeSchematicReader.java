@@ -18,17 +18,7 @@ final class SpongeSchematicReader {
     private SpongeSchematicReader() { }
 
     static Schematic read(Path path, int maxBlocks) throws IOException {
-        long size = Files.size(path);
-        if (size <= 0 || size > MAX_FILE_BYTES) throw new IOException("schem file size must be 1..64 MiB");
-        Map<String, Object> root;
-        try (DataInputStream input = new DataInputStream(new GZIPInputStream(Files.newInputStream(path)))) {
-            int rootType = input.readUnsignedByte();
-            if (rootType != 10) throw new IOException("root NBT tag must be a compound");
-            input.readUTF();
-            root = compound(input, 0);
-        } catch (RuntimeException exception) {
-            throw new IOException("invalid Sponge schematic NBT", exception);
-        }
+        Map<String, Object> root = readRoot(path);
         Object schematicValue = root.getOrDefault("Schematic", root);
         if (!(schematicValue instanceof Map<?, ?> schematic)) throw new IOException("missing Schematic compound");
         int version = number(schematic.get("Version"), "Version");
@@ -83,7 +73,47 @@ final class SpongeSchematicReader {
         Object metadataValue = schematic.get("Metadata");
         if (metadataValue instanceof Map<?, ?> metadata && metadata.get("Name") instanceof String metadataName
                 && !metadataName.isBlank()) name = metadataName;
-        return new Schematic(name, width, height, length, List.copyOf(states));
+        List<BlockEntity> blockEntities = readBlockEntities(schematic, blocks);
+        return new Schematic(name, width, height, length, List.copyOf(states), blockEntities);
+    }
+
+    private static List<BlockEntity> readBlockEntities(Map<?, ?> schematic, Map<?, ?> blocks) throws IOException {
+        Object entitiesValue = blocks.get("BlockEntities");
+        if (!(entitiesValue instanceof List<?>)) entitiesValue = schematic.get("TileEntities");
+        if (!(entitiesValue instanceof List<?> entities)) return List.of();
+        List<BlockEntity> result = new ArrayList<>(entities.size());
+        for (Object value : entities) {
+            if (!(value instanceof Map<?, ?> entity)) throw new IOException("block entity must be a compound");
+            int[] position;
+            Object posValue = entity.get("Pos");
+            if (posValue instanceof int[] coords && coords.length == 3) position = coords;
+            else position = new int[]{number(entity.get("x"), "block entity x"), number(entity.get("y"), "block entity y"),
+                number(entity.get("z"), "block entity z")};
+            Map<String, Object> data = new LinkedHashMap<>();
+            Object dataValue = entity.get("Data");
+            Map<?, ?> payload = dataValue instanceof Map<?, ?> map ? map : entity;
+            for (Map.Entry<?, ?> entry : payload.entrySet()) {
+                if (entry.getKey() instanceof String key && !"Pos".equals(key) && !"Data".equals(key))
+                    data.put(key, entry.getValue());
+            }
+            if (entity.get("Id") instanceof String id) data.put("id", id);
+            if (data.isEmpty()) throw new IOException("block entity has no data");
+            result.add(new BlockEntity(position[0], position[1], position[2], Map.copyOf(data)));
+        }
+        return List.copyOf(result);
+    }
+
+    static Map<String, Object> readRoot(Path path) throws IOException {
+        long size = Files.size(path);
+        if (size <= 0 || size > MAX_FILE_BYTES) throw new IOException("schematic file size must be 1..64 MiB");
+        try (DataInputStream input = new DataInputStream(new GZIPInputStream(Files.newInputStream(path)))) {
+            int rootType = input.readUnsignedByte();
+            if (rootType != 10) throw new IOException("root NBT tag must be a compound");
+            input.readUTF();
+            return compound(input, 0);
+        } catch (RuntimeException exception) {
+            throw new IOException("invalid schematic NBT", exception);
+        }
     }
 
     private static int readVarInt(byte[] bytes, int[] cursor) throws IOException {
@@ -172,5 +202,7 @@ final class SpongeSchematicReader {
         return length;
     }
 
-    record Schematic(String name, int width, int height, int length, List<String> blockStates) { }
+    record Schematic(String name, int width, int height, int length, List<String> blockStates,
+                     List<BlockEntity> blockEntities) { }
+    record BlockEntity(int x, int y, int z, Map<String, Object> data) { }
 }
